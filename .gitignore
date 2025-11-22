@@ -1,3 +1,2 @@
-# Large media files (exclude large WAV files only)
-assets/*.wav
+# Large media files
 .DS_Store
