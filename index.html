@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lo-Fi Detective | ローファイ探偵</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@300;400;600&family=Zen+Kaku+Gothic+New:wght@300;400;500&family=Cinzel:wght@400;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="cursor-dot"></div>
+    <div class="cursor-outline"></div>
+
+    <div class="noise-overlay"></div>
+    <div class="scanline"></div>
+
+    <div class="bg-orbs">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+    </div>
+
+    <div class="bg-image-overlay"></div>
+
+    <header>
+        <nav>
+            <div class="logo">LO-FI DETECTIVE</div>
+            <ul class="nav-links">
+                <li><a href="#story" data-text="Story">Story</a></li>
+                <li><a href="#music" data-text="Music">Music</a></li>
+                <li><a href="#awards" data-text="Awards">Awards</a></li>
+                <li><a href="#social" data-text="Social">Social</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <section id="hero">
+            <div class="hero-content">
+                <div class="hero-text-container">
+                    <h1 class="title glitch" data-text="ローファイ探偵">ローファイ探偵</h1>
+                    <p class="subtitle">Melody is the Key to the Truth.</p>
+                </div>
+                <div class="hero-image-container parallax-target">
+                    <img src="assets/detective_banner.png" alt="Lo-Fi Detective Karasui" class="hero-image">
+                    <div class="glitch-overlay"></div>
+                </div>
+            </div>
+            <div class="scroll-indicator">
+                <span>SCROLL</span>
+                <div class="line"></div>
+            </div>
+        </section>
+
+        <section id="story" class="content-section">
+            <div class="section-header">
+                <span class="section-number">01</span>
+                <h2>CASE FILE</h2>
+            </div>
+            <div class="story-container">
+                <div class="story-text glass-panel">
+                    <p>
+                        <span class="highlight">街のノイズが、</span>メロディに変わる瞬間がある。<br>
+                        ローファイ探偵。それが私のコードネーム。<br>
+                        事件の真相は、いつも音の中に隠されている。<br>
+                        <br>
+                        歌声が<span class="highlight">真実の輪郭</span>をなぞり、<br>
+                        ビートが心の奥底に響くとき、謎は解ける。
+                    </p>
+                </div>
+                <div class="story-image parallax" data-speed="0.05">
+                    <img src="assets/case_file_image.jpg" alt="Lo-Fi Detective Case File">
+                </div>
+            </div>
+        </section>
+
+        <section id="music" class="content-section">
+            <div class="section-header">
+                <span class="section-number">02</span>
+                <h2>EVIDENCE</h2>
+            </div>
+            <div class="music-grid">
+                <!-- Left Column: Spotify -->
+                <div class="music-column">
+                    <div class="music-item spotify glass-panel">
+                        <div class="card-content">
+                            <h3>Spotify</h3>
+                            <iframe style="border-radius:12px"
+                                src="https://open.spotify.com/embed/album/3UI9IR83nWvSlWEKy9u9j5?utm_source=generator"
+                                width="100%" height="230" frameBorder="0" allowfullscreen=""
+                                allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                                loading="lazy"></iframe>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Center Column: MV & Suno Profile -->
+                <div class="music-column">
+                    <div class="music-item youtube glass-panel">
+                        <div class="card-content">
+                            <h3>YouTube MV</h3>
+                            <p>事件の記録（MV）</p>
+                            <div class="mv-image-container"
+                                style="border-radius: 8px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1);">
+                                <a href="https://www.youtube.com/@Lo-fiDetective/videos" target="_blank"
+                                    style="display: block;">
+                                    <img src="assets/mv_thumbnail.jpg" alt="Raindrops of Deception"
+                                        style="width: 100%; height: auto; display: block; transition: transform 0.3s;">
+                                </a>
+                            </div>
+                            <div class="channel-link-container">
+                                <a href="https://www.youtube.com/@Lo-fiDetective/videos" target="_blank"
+                                    class="text-link">View Channel &rarr;</a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="music-item suno-profile glass-panel" style="margin-top: 2rem;">
+                        <div class="card-content">
+                            <h3>Suno Profile</h3>
+                            <div style="
+                              width:100%;
+                              padding:20px;
+                              background:#181818;
+                              border-radius:12px;
+                              box-shadow:0 4px 12px rgba(0,0,0,0.4);
+                              font-family:sans-serif;
+                            ">
+                                <a href="https://suno.com/@karasuiai" target="_blank"
+                                    style="text-decoration:none; color:#fff; display: block;">
+                                    <div style="display:flex; align-items:center;">
+                                        <div style="
+                                    width:50px;
+                                    height:50px;
+                                    border-radius:8px;
+                                    overflow:hidden;
+                                    display:flex;
+                                    justify-content:center;
+                                    align-items:center;
+                                    flex-shrink: 0;
+                                  ">
+                                            <img src="assets/suno_profile_icon.png" alt="Suno Profile"
+                                                style="width:100%; height:100%; object-fit:cover;">
+                                        </div>
+                                        <div style="margin-left:15px;">
+                                            <div style="font-size:20px; font-weight:bold;">karasuiai</div>
+                                            <div style="opacity:0.7; font-size:14px;">Sunoで楽曲を聴く</div>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Column: AI Music Dept -->
+                <div class="music-column">
+                    <div class="music-item suno glass-panel">
+                        <div class="card-content">
+                            <h3>AI Music Dept.</h3>
+                            <p>Ai音楽とMV制作</p>
+                            <div class="mv-image-container"
+                                style="border-radius: 8px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1);">
+                                <a href="https://www.youtube.com/@AI音楽部-AImusic/videos" target="_blank"
+                                    style="display: block;">
+                                    <img src="assets/ai_music_thumbnail.jpg" alt="AI Music Dept"
+                                        style="width: 100%; height: auto; display: block; transition: transform 0.3s;">
+                                </a>
+                            </div>
+                            <div class="channel-link-container">
+                                <a href="https://www.youtube.com/@AI音楽部-AImusic/videos" target="_blank"
+                                    class="text-link">View Channel &rarr;</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="awards" class="content-section">
+            <div class="section-header">
+                <span class="section-number">03</span>
+                <h2>AWARDS</h2>
+            </div>
+            <div class="awards-container glass-panel" style="padding: 3rem; text-align: center;">
+                <h3
+                    style="font-family: var(--font-display); color: var(--secondary-accent); margin-bottom: 1rem; font-size: 1.5rem;">
+                    AnimonAi Halloween Contest</h3>
+                <p style="margin-bottom: 2rem; font-size: 1.1rem;">Excellent Award Winner / 優秀賞受賞作品</p>
+
+                <div class="award-video-wrapper" style="max-width: 800px; margin: 0 auto; width: 100%;">
+                    <video controls
+                        style="width: 100%; height: auto; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); display: block;">
+                        <source src="assets/award_video.mp4" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                </div>
+            </div>
+        </section>
+
+        <section id="social" class="content-section">
+            <div class="section-header">
+                <span class="section-number">04</span>
+                <h2>CONTACT</h2>
+            </div>
+            <div class="social-links">
+                <a href="https://x.com/karasuiAi" target="_blank" class="social-card glass-panel"
+                    style="padding: 0; overflow: hidden; height: auto; position: relative;">
+                    <img src="assets/x_profile_image.jpg" alt="X (Twitter)"
+                        style="width: 100%; height: auto; display: block; transition: transform 0.3s;">
+                    <div class="social-label">X</div>
+                </a>
+                <a href="https://www.tiktok.com/@karasui.music?_r=1&_t=ZS-91b7S8z9fYj" target="_blank"
+                    class="social-card glass-panel"
+                    style="padding: 0; overflow: hidden; height: auto; position: relative;">
+                    <img src="assets/tiktok_profile_image.jpg" alt="TikTok"
+                        style="width: 100%; height: auto; display: block; transition: transform 0.3s;">
+                    <div class="social-label">TikTok</div>
+                </a>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="footer-content">
+            <p>&copy; 2025 Lo-Fi Detective Project.</p>
+            <p class="footer-tagline">Truth in the Noise.</p>
+        </div>
+    </footer>
+
+    <!-- BGM Audio -->
+    <!-- BGM Audio -->
+    <audio id="bgm" loop preload="auto">
+        <source src="assets/sakurairo_mystery_remaster.wav" type="audio/wav">
+    </audio>
+
+    <!-- Playlist Controls -->
+    <div id="playlist-controls" class="glass-panel">
+        <button id="sound-toggle" aria-label="Toggle Sound">
+            <span class="icon">🔇</span>
+        </button>
+        <div class="track-info">
+            <span id="track-name">桜色のミステリー (Remaster)</span>
+            <button id="next-track">⏭</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>

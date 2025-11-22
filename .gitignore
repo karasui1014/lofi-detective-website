@@ -1,0 +1,6 @@
+# Large media files
+assets/award_video.mp4
+assets/*.mp4
+assets/*.wav
+assets/*.mp3
+.DS_Store
