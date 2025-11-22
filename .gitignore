@@ -1,6 +1,4 @@
-# Large media files
-assets/award_video.mp4
+# Large media files (exclude WAV and MP4, but allow MP3)
 assets/*.mp4
 assets/*.wav
-assets/*.mp3
 .DS_Store

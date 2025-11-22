@@ -65,9 +65,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Playlist
     const playlist = [
-        { name: '桜色のミステリー (Remaster)', src: 'assets/sakurairo_mystery_remaster.wav' },
-        { name: '廃墟ホテルの最後の客', src: 'assets/ruined_hotel_guest.wav' },
-        { name: '星のフィルム', src: 'assets/hoshi_no_film.wav' }
+        { name: '桜色のミステリー', src: 'assets/sakurairo_mystery.mp3' },
+        { name: '午前3時の証拠', src: 'assets/3am_evidence.mp3' }
     ];
     let currentTrackIndex = 0;
 

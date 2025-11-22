@@ -194,12 +194,14 @@
                     AnimonAi Halloween Contest</h3>
                 <p style="margin-bottom: 2rem; font-size: 1.1rem;">Excellent Award Winner / 優秀賞受賞作品</p>
 
-                <div class="award-video-wrapper" style="max-width: 800px; margin: 0 auto; width: 100%;">
-                    <video controls
-                        style="width: 100%; height: auto; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); display: block;">
-                        <source src="assets/award_video.mp4" type="video/mp4">
-                        Your browser does not support the video tag.
-                    </video>
+                <div class="award-video-wrapper"
+                    style="max-width: 800px; margin: 0 auto; width: 100%; position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden;">
+                    <iframe
+                        style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);"
+                        src="https://www.youtube.com/embed/YOUR_VIDEO_ID_HERE" frameborder="0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowfullscreen>
+                    </iframe>
                 </div>
             </div>
         </section>
@@ -235,9 +237,8 @@
     </footer>
 
     <!-- BGM Audio -->
-    <!-- BGM Audio -->
     <audio id="bgm" loop preload="auto">
-        <source src="assets/sakurairo_mystery_remaster.wav" type="audio/wav">
+        <source src="assets/sakurairo_mystery.mp3" type="audio/mpeg">
     </audio>
 
     <!-- Playlist Controls -->
@@ -246,7 +247,7 @@
             <span class="icon">🔇</span>
         </button>
         <div class="track-info">
-            <span id="track-name">桜色のミステリー (Remaster)</span>
+            <span id="track-name">桜色のミステリー</span>
             <button id="next-track">⏭</button>
         </div>
     </div>
