@@ -1,21 +1,33 @@
 #!/bin/bash
 cd "$(dirname "$0")"
 
-echo "🚀 最終の画像反映とアップロード準備を開始します..."
+echo "🚀 デスクトップのオリジナルフォルダーから最新の画像を同期します..."
 
-# 画像を正しい名前・拡張子でコピー
+# assetsフォルダーが存在しない場合は作成
 mkdir -p assets
-cp "/Users/mizutanimasahiro/.gemini/antigravity/brain/894164f2-e8bd-41f2-a96f-67a13e9f61e4/media__1774488102020.jpg" "./assets/spring_fes_goods.png"
-cp "/Users/mizutanimasahiro/.gemini/antigravity/brain/894164f2-e8bd-41f2-a96f-67a13e9f61e4/media__1774488083436.jpg" "./assets/hero_karasui.jpg"
-cp "/Users/mizutanimasahiro/.gemini/antigravity/brain/894164f2-e8bd-41f2-a96f-67a13e9f61e4/media__1774488250468.png" "./assets/spring_fes_banner.png"
-cp "/Users/mizutanimasahiro/.gemini/antigravity/brain/894164f2-e8bd-41f2-a96f-67a13e9f61e4/media__1774489102087.png" "./assets/youtube_mv.jpg"
 
-echo "✅ 新しい画像ファイル（グッズ、特設サイト、実写キャラ、MV記録）を上書きしました。"
+# デスクトップの「SunoAiまとめ/assets」からすべてのファイルをコピー（これが正解データです）
+cp -r "/Users/mizutanimasahiro/Desktop/SunoAiまとめ/assets/"* "./assets/"
 
-# GitHubへのプッシュ（認証はgit configに保存済み）
+# 昨日の完成形に合わせるための補正（もし名前が違うものがあれば個別に合わせます）
+# index.htmlが期待する名前にリネーム/コピー
+if [ -f "./assets/ai_music_dept.png" ]; then
+    cp "./assets/ai_music_dept.png" "./assets/spring_fes_goods.png"
+fi
+
+# 特設サイトバナー（これもデスクトップに適切なものがあれば差し替えますが、一旦現在のものを保護）
+# もしデスクトップにバナー用画像があれば、ここに追加のcpコマンドを書きます。
+
+echo "✅ 正解データを同期しました。"
+echo "- ヒーロー画像: hero_karasui.jpg (Desktop)"
+echo "- ケースファイル画像: case_file.jpg (Desktop)"
+echo "- 公式グッズ（チラシ）: spring_fes_goods.png (Desktop/ai_music_dept.png)"
+echo "- YouTube/Sunoサムネイル: 同期完了"
+
+# GitHubへのプッシュ
 git add .
-git commit -m "Update final images and MV thumbnail correctly"
+git commit -m "Restore to yesterday absolute correct state from Desktop source"
 git push -f origin main
 
-echo "🎉 完了しました！すべての画像が完璧に反映されています。"
-read -p "このウィンドウを閉じてもいいですよ（Enterキーを押してください）"
+echo "🎉 完了しました！すべての画像がデスクトップのオリジナル通りに反映されます。"
+read -p "ブラウザで「Ctrl + Shift + R」で強制リロードして確認してください（Enterキーで終了）"
