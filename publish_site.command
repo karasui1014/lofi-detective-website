@@ -11,8 +11,7 @@ mkdir -p assets
 cp -r "/Users/mizutanimasahiro/Desktop/SunoAiまとめ/assets/"* "./assets/" 2>/dev/null
 
 # 2. 【正しいファイル名】でご提示の3枚の正解画像を上書き
-# 実写女性（ベージュ背景） → Hero & Case File
-cp "/Users/mizutanimasahiro/.gemini/antigravity/brain/894164f2-e8bd-41f2-a96f-67a13e9f61e4/media__1774707489422.jpg" "./assets/hero_karasui.jpg"
+# 実写女性（ベージュ背景） → Case Fileのみ（Heroはデスクトップのオリジナルを維持）
 cp "/Users/mizutanimasahiro/.gemini/antigravity/brain/894164f2-e8bd-41f2-a96f-67a13e9f61e4/media__1774707489422.jpg" "./assets/case_file.jpg"
 
 # 縦長グッズチラシ → Goods
