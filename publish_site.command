@@ -11,7 +11,7 @@ mkdir -p assets
 cp -r "/Users/mizutanimasahiro/Desktop/SunoAiまとめ/assets/"* "./assets/" 2>/dev/null
 
 # 2. 正解画像を上書き（正しいファイル名で）
-# Case Fileのみ実写（Heroはデスクトップのオリジナル維持）
+# Case File
 cp "/Users/mizutanimasahiro/.gemini/antigravity/brain/894164f2-e8bd-41f2-a96f-67a13e9f61e4/media__1774707489422.jpg" "./assets/case_file.jpg"
 
 # 縦長グッズチラシ
@@ -23,9 +23,15 @@ cp "/Users/mizutanimasahiro/.gemini/antigravity/brain/894164f2-e8bd-41f2-a96f-67
 # ドラムセット画像（特設サイトバナー）
 cp "/Users/mizutanimasahiro/.gemini/antigravity/brain/894164f2-e8bd-41f2-a96f-67a13e9f61e4/media__1774837621557.png" "./assets/spring_fes_banner.png"
 
-echo "✅ 全画像の配置完了。確認..."
-ls -la ./assets/case_file.jpg ./assets/spring_fes_goods.png ./assets/youtube_mv.jpg ./assets/spring_fes_banner.png
+# ゲーム用サムネイル
+cp "/Users/mizutanimasahiro/Desktop/SunoAiまとめ/assets/mystery_sakura.jpg" "./assets/mystery_sakura.jpg"
+cp "/Users/mizutanimasahiro/Desktop/SunoAiまとめ/assets/mystery_hoshi.jpg" "./assets/mystery_hoshi.jpg"
+cp "/Users/mizutanimasahiro/Desktop/SunoAiまとめ/assets/mystery_3am.jpg" "./assets/mystery_3am.jpg"
 
+echo "✅ 全画像の配置完了（ゲームサムネ含む）。確認..."
+ls -la ./assets/case_file.jpg ./assets/spring_fes_goods.png ./assets/youtube_mv.jpg ./assets/spring_fes_banner.png ./assets/mystery_sakura.jpg ./assets/mystery_hoshi.jpg ./assets/mystery_3am.jpg
+
+echo "✅ 前回の失敗がないか確認中..."
 # GitHubへ強制反映
 git add .
 git commit -m "Fix: Add missing drum banner, all assets confirmed"

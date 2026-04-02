@@ -448,7 +448,7 @@ class MidnightCafeMystery {
             const btn = document.createElement('div');
             btn.className = 'case-card';
             btn.innerHTML = `
-                <div class="case-thumb" style="background-image: url('${c.image}'); background-size: contain; background-repeat: no-repeat; background-position: center; background-color: #000;"></div>
+                <div class="case-thumb" style="background-image: url('${c.image}?v=2'); background-size: cover; background-repeat: no-repeat; background-position: center; background-color: #000;"></div>
                 <div class="case-info">
                     <h3>${c.title}</h3>
                     <p>${c.description}</p>
