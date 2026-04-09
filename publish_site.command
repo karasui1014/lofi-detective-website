@@ -28,8 +28,11 @@ cp "/Users/mizutanimasahiro/Desktop/SunoAiまとめ/assets/mystery_sakura.jpg" "
 cp "/Users/mizutanimasahiro/Desktop/SunoAiまとめ/assets/mystery_hoshi.jpg" "./assets/mystery_hoshi.jpg"
 cp "/Users/mizutanimasahiro/Desktop/SunoAiまとめ/assets/mystery_3am.jpg" "./assets/mystery_3am.jpg"
 
-echo "✅ 全画像の配置完了（ゲームサムネ含む）。確認..."
-ls -la ./assets/case_file.jpg ./assets/spring_fes_goods.png ./assets/youtube_mv.jpg ./assets/spring_fes_banner.png ./assets/mystery_sakura.jpg ./assets/mystery_hoshi.jpg ./assets/mystery_3am.jpg
+# Sunoパ！ラジオサムネイル
+cp "/Users/mizutanimasahiro/ローファイ探偵HP/assets/sunopa_thumbnail.png" "./assets/sunopa_thumbnail.png"
+
+echo "✅ 全画像の配置完了（ゲームサムネ・Sunoパ含む）。確認..."
+ls -la ./assets/case_file.jpg ./assets/spring_fes_goods.png ./assets/youtube_mv.jpg ./assets/spring_fes_banner.png ./assets/mystery_sakura.jpg ./assets/mystery_hoshi.jpg ./assets/mystery_3am.jpg ./assets/sunopa_thumbnail.png
 
 echo "✅ 前回の失敗がないか確認中..."
 # GitHubへ強制反映
