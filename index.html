@@ -142,27 +142,28 @@
             left: -50%;
             width: 200%;
             height: 200%;
-            background: url('data:image/svg+xml;utf8,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22n%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.85%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23n)%22 opacity=%220.06%22/%3E%3C/svg%3E');
+            background: url('data:image/svg+xml;utf8,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22n%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%221.2%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23n)%22 opacity=%220.015%22/%3E%3C/svg%3E');
             pointer-events: none;
             z-index: 998;
-            animation: noise-shift 0.3s steps(4) infinite;
+            mix-blend-mode: overlay;
+            animation: noise-shift 0.8s steps(4) infinite;
         }
 
         @keyframes noise-shift {
             0% { transform: translate(0, 0); }
-            25% { transform: translate(-5px, -5px); }
-            50% { transform: translate(5px, 5px); }
-            75% { transform: translate(-3px, 3px); }
+            25% { transform: translate(-2px, -2px); }
+            50% { transform: translate(2px, 2px); }
+            75% { transform: translate(-1px, 1px); }
         }
 
         .scanline {
             width: 100%;
-            height: 2px;
+            height: 8px;
             z-index: 998;
-            background: rgba(255, 255, 255, 0.06);
+            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(138,43,226,0.05), rgba(0,212,255,0.03), rgba(255,255,255,0));
             position: fixed;
             bottom: 100%;
-            animation: scanline 10s linear infinite;
+            animation: scanline 16s linear infinite;
             pointer-events: none;
         }
 
