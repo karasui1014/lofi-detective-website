@@ -87,7 +87,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const apiBase = `https://api.counterapi.dev/v1/${namespace}/${counterKey}`;
         
         // 2. 閲覧数を更新 または 取得する
-        if (!sessionStorage.getItem('viewCounted')) {
+        // 管理者として記録されている場合はカウントアップを永久にスキップ
+        const isAdmin = localStorage.getItem('isAdminLOFI') === 'true';
+
+        if (!isAdmin && !sessionStorage.getItem('viewCounted')) {
+            // 一般ユーザーの初回訪問時のみカウントアップ
             fetch(`${apiBase}/up`)
                 .then(res => res.json())
                 .then(data => {
@@ -95,6 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     sessionStorage.setItem('viewCounted', 'true');
                 }).catch(e => console.log('Counter is sleeping.'));
         } else {
+            // 管理者の場合、または同一セッション2回目以降は現在の数字を取得するのみ
             fetch(apiBase)
                 .then(res => res.json())
                 .then(data => {
@@ -106,7 +111,6 @@ document.addEventListener('DOMContentLoaded', () => {
         let clickCount = 0;
         let lastClickTime = 0;
         
-        // ページ内のすべてのロゴ要素を対象にする
         const logos = document.querySelectorAll('.logo, .intro-logo');
         
         logos.forEach(logo => {
@@ -114,7 +118,6 @@ document.addEventListener('DOMContentLoaded', () => {
             
             logo.addEventListener('click', () => {
                 const now = Date.now();
-                // 1秒以内の連続クリックをカウント
                 if (now - lastClickTime < 1000) {
                     clickCount++;
                 } else {
@@ -123,6 +126,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 lastClickTime = now;
                 
                 if (clickCount >= 5) {
+                    // 管理者であることをブラウザに記録する
+                    localStorage.setItem('isAdminLOFI', 'true');
                     showAdminDashboard(yearMonth, currentViews);
                     clickCount = 0;
                 }
