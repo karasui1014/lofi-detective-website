@@ -1,0 +1,1354 @@
+// ─────────────────────────────────────────
+// MV Style definitions
+// ─────────────────────────────────────────
+const MV_STYLES = {
+  rock: {
+    label: 'ロック系MV', emoji: '🎸',
+    desc: 'ライブ感・バンド演奏・激しいカット',
+    shots: ['ECU','CU','WS','MS','ECU','CU'],
+    poses: ['action','running','dancing','action','crowd','action'],
+    bgs: ['city','spotlight','city','spotlight'],
+    pace: 0.8,
+    introDesc: ['バンドがステージに登場', '照明が一斉に点灯', 'ギターを手にした主人公', 'ドラムのカウントイン'],
+    hint: 'ロックバンドMV。ライブ演奏、バンドメンバーのパフォーマンス、激しいカット割り。強いコントラスト、ハードな照明'
+  },
+  ballad: {
+    label: 'バラード系', emoji: '🎹',
+    desc: 'ゆったり・感情的・美しい風景',
+    shots: ['WS','MS','CU','WS','CU','MS'],
+    poses: ['sitting','standing','crying','lookingup','reaching','sitting'],
+    bgs: ['rain','stars','nature','stars'],
+    pace: 1.6,
+    introDesc: ['夕暮れの街並みのロングショット', '窓の外を見つめる後ろ姿', '降り始めた雨', '揺れるカーテンと光'],
+    hint: 'バラードMV。ゆっくりとしたカメラワーク、感情的な表情のクローズアップ。柔らかい自然光、淡い色調'
+  },
+  emotional: {
+    label: '感動系', emoji: '😢',
+    desc: '物語性・感情の起伏・クライマックス',
+    shots: ['WS','MS','CU','ECU','CU','WS'],
+    poses: ['standing','walking','crying','reaching','love','lookingup'],
+    bgs: ['nature','rain','stars','nature'],
+    pace: 1.4,
+    introDesc: ['朝焼けの空の全景', '主人公が一人で歩く路地', '思い出の場所へ向かう足元', '風で揺れる木の葉'],
+    hint: '感動系MV。人物の感情変化を丁寧に追う。涙・希望・再生のテーマ。温かみのある光、セピアと鮮やかさの対比'
+  },
+  mysterious: {
+    label: '不思議系', emoji: '🌙',
+    desc: '幻想的・非現実・独特の世界観',
+    shots: ['EWS','WS','ECU','WS','CU','EWS'],
+    poses: ['lookingup','reaching','standing','sitting','reaching','lookingup'],
+    bgs: ['stars','default','stars','rain'],
+    pace: 1.5,
+    introDesc: ['霧に包まれた幻想的な空間', '鏡の中から現れる光', '時間が止まったような街', '空中に浮かぶ光の粒子'],
+    hint: '幻想的・不思議系MV。シュールな映像表現、非現実的な空間構成。夢と現実の境界、ファンタジー的な色使い'
+  },
+  performance: {
+    label: 'パフォーマンス中心', emoji: '💃',
+    desc: 'ダンス・歌唱・振り付け・ステージ',
+    shots: ['WS','MS','CU','WS','MS','ECU'],
+    poses: ['dancing','action','dancing','crowd','dancing','action'],
+    bgs: ['spotlight','city','spotlight','spotlight'],
+    pace: 0.9,
+    introDesc: ['ステージ全景の壮大なロングショット', 'スポットライトが灯る瞬間', 'ダンサーたちが定位置につく', 'イントロのビートに合わせた静のポーズ'],
+    hint: 'パフォーマンスMV。ダンス・歌唱シーンを中心に構成。振り付けの見せ場、アーティストの表情・ボディランゲージを重視'
+  },
+  story: {
+    label: 'ストーリー仕立て', emoji: '🎬',
+    desc: '短編映画風・キャラクター・物語展開',
+    shots: ['EWS','WS','MS','2S','CU','WS'],
+    poses: ['standing','running','love','crying','reaching','standing'],
+    bgs: ['city','nature','rain','city'],
+    pace: 1.3,
+    introDesc: ['街の夜景の俯瞰ショット', '主人公が歩く路地裏', '鍵となるアイテムのクローズアップ', '出会いの予感を感じさせる交差点'],
+    hint: '短編映画風MV。明確なキャラクターと物語構造、起承転結を意識した演出。シネマティックな映像美、映画的な色彩設計'
+  },
+  concept: {
+    label: 'コンセプト・世界観重視', emoji: '🎨',
+    desc: '独自美学・視覚的統一感・芸術性',
+    shots: ['EWS','ECU','WS','EWS','CU','ECU'],
+    poses: ['lookingup','reaching','standing','crowd','lookingup','sitting'],
+    bgs: ['stars','spotlight','default','stars'],
+    pace: 1.2,
+    introDesc: ['コンセプトカラーに染まる抽象空間', 'アーティストのシルエット', '象徴的なモチーフのクローズアップ', '繰り返すビジュアルパターン'],
+    hint: 'コンセプチュアルMV。強烈なビジュアルコンセプト、色彩・構図の統一感。アート性の高い映像表現、視覚的な一貫性'
+  },
+  liveshow: {
+    label: 'ライブMV', emoji: '🎤',
+    desc: 'コンサート映像・観客・ステージダイナミクス',
+    shots: ['EWS','WS','MS','CU','WS','ECU'],
+    poses: ['action','dancing','standing','action','crowd','standing'],
+    bgs: ['spotlight','city','spotlight','spotlight'],
+    pace: 0.85,
+    introDesc: ['アリーナ全景の壮大なロングショット', '観客が埋め尽くしたスタジアム', 'ステージ袖で待機するアーティスト', '本番直前の静寂と高鳴り'],
+    hint: 'ライブコンサートMV。実際のステージ照明、観客の熱狂、ライブならではの躍動感。汗・熱気・一体感の表現'
+  }
+};
+
+let selectedStyle = 'story';
+
+// ─────────────────────────────────────────
+// Visual-type sequences per style
+// Defines the MIX of character vs abstract vs environment etc.
+// Pro MVs: ~50% character, ~25% abstract/environment, ~25% macro/object/silhouette
+// ─────────────────────────────────────────
+const STYLE_SEQUENCES = {
+  rock:        ['character','character','object','character','silhouette','abstract','character','character','macro','character','environment','character'],
+  ballad:      ['environment','character','character','bokeh','character','macro','character','object','character','character','environment','character'],
+  emotional:   ['environment','character','character','macro','character','silhouette','character','object','bokeh','character','character','environment'],
+  mysterious:  ['abstract','character','silhouette','abstract','environment','character','abstract','bokeh','character','abstract','character','silhouette'],
+  performance: ['character','character','crowd','character','character','object','character','silhouette','character','character','environment','character'],
+  story:       ['environment','character','character','object','character','character','silhouette','character','macro','character','environment','character'],
+  concept:     ['abstract','character','abstract','silhouette','abstract','character','bokeh','abstract','character','abstract','environment','abstract'],
+  liveshow:    ['crowd','character','character','environment','character','object','character','crowd','silhouette','character','character','crowd'],
+};
+
+function getVisualType(idx, styleKey, hasLyricsOverride, isIntro, isOutro) {
+  if (isIntro || isOutro) return 'environment';
+  if (hasLyricsOverride) return 'character';
+  const seq = STYLE_SEQUENCES[styleKey] || STYLE_SEQUENCES.story;
+  return seq[idx % seq.length];
+}
+
+// Non-character SVG generators
+function silhouetteDefs(uid, color) {
+  return `<radialGradient id="rim${uid}" cx="50%" cy="50%" r="50%">
+    <stop offset="0%" stop-color="${color}" stop-opacity=".2"/>
+    <stop offset="100%" stop-color="${color}" stop-opacity="0"/>
+  </radialGradient>`;
+}
+function silhouetteSVG(cx, cy, s, uid, color) {
+  return `
+    <ellipse cx="${cx}" cy="${cy-s}" rx="${s*4}" ry="${s*5}" fill="url(#rim${uid})"/>
+    <circle cx="${cx}" cy="${cy-s*2.8}" r="${s*.88}" fill="rgba(4,4,14,.97)" stroke="${color}" stroke-width="${s*.07}" opacity=".92"/>
+    <circle cx="${cx-s*.25}" cy="${cy-s*3.0}" r="${s*.1}" fill="${color}" opacity=".5"/>
+    <circle cx="${cx+s*.25}" cy="${cy-s*3.0}" r="${s*.1}" fill="${color}" opacity=".5"/>
+    <path d="M${cx-s*.52} ${cy-s*1.84} L${cx-s*.42} ${cy+.06} L${cx+s*.42} ${cy+.06} L${cx+s*.52} ${cy-s*1.84}Z" fill="rgba(4,4,14,.97)" stroke="${color}" stroke-width="${s*.06}" stroke-linejoin="round" opacity=".9"/>
+    <line x1="${cx-s*.52}" y1="${cy-s*1.52}" x2="${cx-s*1.28}" y2="${cy-s*.88}" stroke="rgba(4,4,14,.97)" stroke-width="${s*.18}" stroke-linecap="round"/>
+    <line x1="${cx+s*.52}" y1="${cy-s*1.52}" x2="${cx+s*1.28}" y2="${cy-s*.88}" stroke="rgba(4,4,14,.97)" stroke-width="${s*.18}" stroke-linecap="round"/>
+    <line x1="${cx-s*.32}" y1="${cy+.06}" x2="${cx-s*.78}" y2="${cy+s*1.52}" stroke="rgba(4,4,14,.97)" stroke-width="${s*.18}" stroke-linecap="round"/>
+    <line x1="${cx+s*.32}" y1="${cy+.06}" x2="${cx+s*.78}" y2="${cy+s*1.52}" stroke="rgba(4,4,14,.97)" stroke-width="${s*.18}" stroke-linecap="round"/>`;
+}
+
+function abstractSVG(W, H, color, idx) {
+  const type = idx % 7;
+  if (type === 0) { // Concentric rings
+    return Array.from({length:7},(_,i)=>`<circle cx="${W/2}" cy="${H/2}" r="${(i+1)*H*.09}" fill="none" stroke="${color}" stroke-width="${.7+i*.1}" opacity="${.18-.02*i}"/>`).join('');
+  } else if (type === 1) { // Particle field
+    return Array.from({length:28},(_,i)=>{
+      const x=W*(Math.sin(i*2.39+1)*.47+.5), y=H*(Math.cos(i*1.61+.8)*.42+.42);
+      return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${.6+Math.abs(Math.sin(i))*2.2}" fill="${color}" opacity="${.08+Math.abs(Math.sin(i*.7))*.22}"/>`;
+    }).join('');
+  } else if (type === 2) { // Diagonal scan lines
+    return Array.from({length:12},(_,i)=>`<line x1="${W*i*.09}" y1="0" x2="${W*i*.09+W*.3}" y2="${H}" stroke="${color}" stroke-width=".6" opacity="${.06+i*.008}"/>`).join('');
+  } else if (type === 3) { // Wave pattern
+    const pts = Array.from({length:20},(_,i)=>`${(i/19*W).toFixed(1)},${(H*.5+Math.sin(i*.8)*H*.18).toFixed(1)}`).join(' ');
+    const pts2 = Array.from({length:20},(_,i)=>`${(i/19*W).toFixed(1)},${(H*.5+Math.sin(i*.8+1)*H*.1).toFixed(1)}`).join(' ');
+    return `<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.2" opacity=".2"/>
+      <polyline points="${pts2}" fill="none" stroke="${color}" stroke-width=".8" opacity=".12"/>`;
+  } else if (type === 4) { // Grid matrix
+    return Array.from({length:6},(_,r)=>Array.from({length:10},(_,c)=>`<rect x="${(c/10*W+1).toFixed(0)}" y="${(r/6*H+1).toFixed(0)}" width="${(W/10-2).toFixed(0)}" height="${(H/6-2).toFixed(0)}" fill="none" stroke="${color}" stroke-width=".4" opacity="${.04+(r+c)*.008}"/>`).join('')).join('');
+  } else if (type === 5) { // Radiating lines from center
+    return Array.from({length:18},(_,i)=>{
+      const a=i/18*Math.PI*2, r1=H*.05, r2=H*.55;
+      return `<line x1="${(W/2+Math.cos(a)*r1).toFixed(1)}" y1="${(H/2+Math.sin(a)*r1).toFixed(1)}" x2="${(W/2+Math.cos(a)*r2).toFixed(1)}" y2="${(H/2+Math.sin(a)*r2).toFixed(1)}" stroke="${color}" stroke-width=".7" opacity="${.06+Math.abs(Math.cos(a))*.1}"/>`;
+    }).join('');
+  } else { // Double exposure overlay
+    return `<ellipse cx="${W*.35}" cy="${H*.45}" rx="${W*.28}" ry="${H*.35}" fill="none" stroke="${color}" stroke-width="1" opacity=".12"/>
+      <ellipse cx="${W*.65}" cy="${H*.55}" rx="${W*.22}" ry="${H*.28}" fill="none" stroke="${color}" stroke-width="1" opacity=".1"/>
+      ${Array.from({length:8},(_,i)=>`<circle cx="${W*(i/8)}" cy="${H*.5+Math.sin(i)*H*.15}" r="${3+i}" fill="${color}" opacity="${.04+i*.008}"/>`).join('')}`;
+  }
+}
+
+function macroSVG(W, H, color, idx) {
+  const type = idx % 5;
+  if (type === 0) { // Fabric weave
+    return Array.from({length:10},(_,i)=>`<line x1="0" y1="${H*i*.11}" x2="${W}" y2="${H*i*.11+H*.04}" stroke="${color}" stroke-width="1.5" opacity="${.08+i*.012}"/>
+      <line x1="${W*i*.11}" y1="0" x2="${W*i*.11+W*.04}" y2="${H}" stroke="${color}" stroke-width=".8" opacity="${.05+i*.008}"/>`).join('');
+  } else if (type === 1) { // Water ripple
+    return Array.from({length:8},(_,i)=>`<ellipse cx="${W*.5}" cy="${H*.6}" rx="${(i+1)*W*.08}" ry="${(i+1)*H*.05}" fill="none" stroke="${color}" stroke-width=".9" opacity="${.15-.015*i}"/>`).join('');
+  } else if (type === 2) { // Bokeh macro
+    return Array.from({length:15},(_,i)=>{
+      const x=W*(Math.sin(i*1.9+.3)*.45+.5), y=H*(Math.cos(i*1.3+.7)*.4+.45);
+      const r=4+Math.abs(Math.sin(i))*14;
+      return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r.toFixed(1)}" fill="none" stroke="${color}" stroke-width="${(.5+Math.sin(i)*.3).toFixed(2)}" opacity="${(.04+Math.abs(Math.cos(i))*.12).toFixed(3)}"/>`;
+    }).join('');
+  } else if (type === 3) { // Film grain texture
+    return Array.from({length:40},(_,i)=>{
+      const x=W*(Math.sin(i*3.7)*.5+.5), y=H*(Math.cos(i*2.3)*.5+.5);
+      return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${.4+Math.abs(Math.sin(i))*.9}" fill="${color}" opacity="${.05+Math.abs(Math.sin(i*.9))*.1}"/>`;
+    }).join('');
+  } else { // Lens flare streaks
+    return `<ellipse cx="${W*.3}" cy="${H*.25}" rx="${W*.06}" ry="${H*.04}" fill="${color}" opacity=".18"/>
+      ${Array.from({length:5},(_,i)=>`<line x1="${W*.3}" y1="${H*.25}" x2="${W*(.3+(i+1)*.12)}" y2="${H*(.25+(i+1)*.08)}" stroke="${color}" stroke-width="${2-i*.3}" opacity="${.12-i*.02}"/>`).join('')}
+      <ellipse cx="${W*.7}" cy="${H*.7}" rx="${W*.03}" ry="${H*.02}" fill="${color}" opacity=".08"/>`;
+  }
+}
+
+function objectSVG(W, H, color, styleKey, idx) {
+  const cx=W/2, cy=H*.55, s=H*.18;
+  const objects = {
+    rock: [
+      // Guitar silhouette
+      `<ellipse cx="${cx}" cy="${cy+s*.3}" rx="${s*.55}" ry="${s*.7}" fill="none" stroke="${color}" stroke-width="1.2" opacity=".5"/>
+       <rect x="${cx-s*.06}" y="${cy-s*1.8}" width="${s*.12}" height="${s*1.5}" fill="none" stroke="${color}" stroke-width="1.2" opacity=".5"/>
+       <line x1="${cx-s*.3}" y1="${cy-s*.8}" x2="${cx+s*.3}" y2="${cy-s*.8}" stroke="${color}" stroke-width=".7" opacity=".35"/>`,
+      // Microphone
+      `<ellipse cx="${cx}" cy="${cy-s*.5}" rx="${s*.22}" ry="${s*.35}" fill="none" stroke="${color}" stroke-width="1.2" opacity=".5"/>
+       <line x1="${cx}" y1="${cy-s*.15}" x2="${cx}" y2="${cy+s*.8}" stroke="${color}" stroke-width="1.4" opacity=".45"/>
+       <line x1="${cx-s*.3}" y1="${cy+s*.8}" x2="${cx+s*.3}" y2="${cy+s*.8}" stroke="${color}" stroke-width="1.2" opacity=".4"/>`,
+    ],
+    ballad: [
+      // Piano keys
+      `${Array.from({length:7},(_,i)=>`<rect x="${(cx-s*.9+i*s*.27).toFixed(1)}" y="${(cy-s*.5).toFixed(1)}" width="${(s*.24).toFixed(1)}" height="${(s*.9).toFixed(1)}" fill="none" stroke="${color}" stroke-width="1" opacity=".4"/>`).join('')}
+       ${Array.from({length:5},(_,i)=>`<rect x="${(cx-s*.76+i*s*.27+(i>1?s*.27:0)).toFixed(1)}" y="${(cy-s*.5).toFixed(1)}" width="${(s*.15).toFixed(1)}" height="${(s*.55).toFixed(1)}" fill="${color}" opacity=".25"/>`).join('')}`,
+      // Candle / flame
+      `<rect x="${cx-s*.1}" y="${cy-s*.2}" width="${s*.2}" height="${s*.6}" fill="${color}" opacity=".2" rx="2"/>
+       <path d="M${cx} ${cy-s*.2} Q${cx+s*.2} ${cy-s*.7} ${cx} ${cy-s*1.1} Q${cx-s*.2} ${cy-s*.7} ${cx} ${cy-s*.2}" fill="${color}" opacity=".4"/>`,
+    ],
+    emotional: [
+      // Heart
+      `<path d="M${cx} ${cy+s*.5} Q${cx-s*.9} ${cy-s*.3} ${cx-s*.45} ${cy-s*.8} Q${cx} ${cy-s*1.2} ${cx} ${cy-s*.4} Q${cx} ${cy-s*1.2} ${cx+s*.45} ${cy-s*.8} Q${cx+s*.9} ${cy-s*.3} ${cx} ${cy+s*.5}Z" fill="none" stroke="${color}" stroke-width="1.3" opacity=".45"/>`,
+      // Clock / time
+      `<circle cx="${cx}" cy="${cy}" r="${s*.65}" fill="none" stroke="${color}" stroke-width="1.2" opacity=".4"/>
+       <line x1="${cx}" y1="${cy}" x2="${cx+s*.3}" y2="${cy-s*.45}" stroke="${color}" stroke-width="1.4" opacity=".5"/>
+       <line x1="${cx}" y1="${cy}" x2="${cx-s*.1}" y2="${cy+s*.5}" stroke="${color}" stroke-width="1.2" opacity=".4"/>`,
+    ],
+    mysterious: [
+      // Moon crescent
+      `<circle cx="${cx}" cy="${cy}" r="${s*.6}" fill="none" stroke="${color}" stroke-width="1.2" opacity=".45"/>
+       <circle cx="${cx+s*.25}" cy="${cy}" r="${s*.48}" fill="#08081a" opacity=".95"/>`,
+      // Eye
+      `<path d="M${cx-s*.8} ${cy} Q${cx} ${cy-s*.5} ${cx+s*.8} ${cy} Q${cx} ${cy+s*.5} ${cx-s*.8} ${cy}Z" fill="none" stroke="${color}" stroke-width="1.1" opacity=".45"/>
+       <circle cx="${cx}" cy="${cy}" r="${s*.2}" fill="none" stroke="${color}" stroke-width="1" opacity=".4"/>
+       <circle cx="${cx}" cy="${cy}" r="${s*.08}" fill="${color}" opacity=".35"/>`,
+    ],
+    performance: [
+      // Spotlight beam from above
+      `<path d="M${cx-s*.1} 0 L${cx-s*.7} ${H} L${cx+s*.7} ${H} L${cx+s*.1} 0Z" fill="${color}" opacity=".06"/>
+       <ellipse cx="${cx}" cy="${H*.88}" rx="${s*.7}" ry="${s*.18}" fill="${color}" opacity=".12"/>`,
+      // Dance shoes
+      `<path d="M${cx-s*.5} ${cy+s*.3} Q${cx-s*.3} ${cy-s*.2} ${cx} ${cy} Q${cx+s*.3} ${cy+s*.1} ${cx+s*.6} ${cy+s*.3}" fill="none" stroke="${color}" stroke-width="1.3" opacity=".45"/>`,
+    ],
+    story: [
+      // Key
+      `<circle cx="${cx-s*.3}" cy="${cy-s*.2}" r="${s*.3}" fill="none" stroke="${color}" stroke-width="1.2" opacity=".45"/>
+       <line x1="${cx}" y1="${cy-s*.2}" x2="${cx+s*.7}" y2="${cy-s*.2}" stroke="${color}" stroke-width="1.3" opacity=".45"/>
+       <line x1="${cx+s*.4}" y1="${cy-s*.2}" x2="${cx+s*.4}" y2="${cy+s*.1}" stroke="${color}" stroke-width="1" opacity=".4"/>
+       <line x1="${cx+s*.55}" y1="${cy-s*.2}" x2="${cx+s*.55}" y2="${cy+s*.15}" stroke="${color}" stroke-width="1" opacity=".4"/>`,
+      // Road / path
+      `<path d="M${cx-s*.15} ${H} L${cx-s*.05} ${H*.3} L${cx+s*.05} ${H*.3} L${cx+s*.15} ${H}Z" fill="none" stroke="${color}" stroke-width=".8" opacity=".3"/>
+       ${Array.from({length:4},(_,i)=>`<line x1="${cx}" y1="${H*(.35+i*.16)}" x2="${cx}" y2="${H*(.4+i*.16)}" stroke="${color}" stroke-width="1.2" opacity=".3" stroke-dasharray="4,4"/>`).join('')}`,
+    ],
+    concept: [
+      // Diamond / prism
+      `<path d="M${cx} ${cy-s*.8} L${cx+s*.6} ${cy} L${cx} ${cy+s*.7} L${cx-s*.6} ${cy}Z" fill="none" stroke="${color}" stroke-width="1.2" opacity=".45"/>
+       <line x1="${cx-s*.6}" y1="${cy}" x2="${cx+s*.6}" y2="${cy}" stroke="${color}" stroke-width=".6" opacity=".2"/>
+       <line x1="${cx}" y1="${cy-s*.8}" x2="${cx}" y2="${cy+s*.7}" stroke="${color}" stroke-width=".6" opacity=".2"/>`,
+      // Mirror / reflection line
+      `<line x1="0" y1="${cy}" x2="${W}" y2="${cy}" stroke="${color}" stroke-width=".8" opacity=".2"/>
+       <line x1="${cx}" y1="0" x2="${cx}" y2="${H}" stroke="${color}" stroke-width=".5" opacity=".15"/>`,
+    ],
+    liveshow: [
+      // Microphone stand
+      `<line x1="${cx}" y1="${cy+s*.7}" x2="${cx}" y2="${cy-s*.5}" stroke="${color}" stroke-width="1.4" opacity=".5"/>
+       <path d="M${cx-s*.4} ${cy+s*.7} L${cx} ${cy+s*.4} L${cx+s*.4} ${cy+s*.7}" fill="none" stroke="${color}" stroke-width="1.2" opacity=".45"/>
+       <ellipse cx="${cx}" cy="${cy-s*.7}" rx="${s*.18}" ry="${s*.28}" fill="none" stroke="${color}" stroke-width="1.2" opacity=".5"/>`,
+      // Raised hands (crowd)
+      `${Array.from({length:7},(_,i)=>{
+        const hx=cx-s*1.2+i*s*.4, base=cy+s*.5;
+        return `<line x1="${hx}" y1="${base}" x2="${hx+s*.05}" y2="${base-s*(0.7+Math.abs(Math.sin(i)))}" stroke="${color}" stroke-width="1.1" opacity=".4"/>
+          <circle cx="${hx+s*.05}" cy="${base-s*(0.75+Math.abs(Math.sin(i)))}" r="${s*.07}" fill="${color}" opacity=".35"/>`;}).join('')}`,
+    ],
+  };
+  const styleObjs = objects[styleKey] || objects.story;
+  return styleObjs[idx % styleObjs.length];
+}
+
+function bokehSVG(W, H, color, idx) {
+  return Array.from({length:20},(_,i)=>{
+    const x=W*(Math.sin(i*2.3+idx*.7)*.47+.5), y=H*(Math.cos(i*1.9+idx*.5)*.42+.45);
+    const r=3+Math.abs(Math.sin(i*1.1+idx))*22;
+    const op=(0.03+Math.abs(Math.cos(i*.8))*.09).toFixed(3);
+    return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r.toFixed(1)}" fill="${color}" opacity="${op}"/>
+      <circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${(r*.8).toFixed(1)}" fill="none" stroke="${color}" stroke-width=".5" opacity="${(parseFloat(op)*.7).toFixed(3)}"/>`;
+  }).join('');
+}
+
+function environmentOnlySVG(bg, W, H, color) {
+  // Larger, more detailed background with no character
+  const base = bgSketch(bg, W, H);
+  // Add foreground ground elements
+  const fg = `<line x1="0" y1="${H*.88}" x2="${W}" y2="${H*.88}" stroke="${color}" stroke-width=".6" opacity=".15"/>`;
+  return base + fg;
+}
+
+function crowdOnlySVG(W, H, color) {
+  const rows = 3, perRow = 12;
+  return Array.from({length:rows},(_,r)=>
+    Array.from({length:perRow},(_,c)=>{
+      const x=W*(c+.5)/perRow, y=H*(.6+r*.12), s=H*.04+r*H*.005;
+      return `<circle cx="${x.toFixed(1)}" cy="${(y-s*2.2).toFixed(1)}" r="${(s*.7).toFixed(1)}" fill="${color}" opacity="${(.08+r*.04).toFixed(2)}"/>
+        <line x1="${x.toFixed(1)}" y1="${(y-s*1.5).toFixed(1)}" x2="${x.toFixed(1)}" y2="${(y+s*.5).toFixed(1)}" stroke="${color}" stroke-width="${(s*.4).toFixed(1)}" opacity="${(.07+r*.04).toFixed(2)}" stroke-linecap="round"/>`;
+    }).join('')
+  ).join('');
+}
+
+function initStyleSelector() {
+  const grid = document.getElementById('style-grid');
+  Object.entries(MV_STYLES).forEach(([key, s]) => {
+    const chip = document.createElement('div');
+    chip.className = 'style-chip' + (key === selectedStyle ? ' selected' : '');
+    chip.dataset.key = key;
+    chip.innerHTML = `<div class="style-chip-emoji">${s.emoji}</div>
+      <div class="style-chip-label">${s.label}</div>
+      <div class="style-chip-desc">${s.desc}</div>`;
+    chip.addEventListener('click', () => {
+      document.querySelectorAll('.style-chip').forEach(c => c.classList.remove('selected'));
+      chip.classList.add('selected');
+      selectedStyle = key;
+    });
+    grid.appendChild(chip);
+  });
+}
+
+// ─────────────────────────────────────────
+// AudioAnalyzer
+// ─────────────────────────────────────────
+class AudioAnalyzer {
+  async analyze(file, onProgress) {
+    onProgress && onProgress(5, 'オーディオをデコード中...');
+    const arrayBuf = await file.arrayBuffer();
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const audioBuffer = await ctx.decodeAudioData(arrayBuf);
+    await ctx.close();
+    onProgress && onProgress(35, '周波数帯域を分析中...');
+    const bands = this.analyzeFrequencyBands(audioBuffer);
+    onProgress && onProgress(65, 'BPMを検出中...');
+    const bpm = this.detectBPM(audioBuffer);
+    onProgress && onProgress(85, 'エネルギープロファイルを算出中...');
+    const energy = this.analyzeEnergy(audioBuffer);
+    onProgress && onProgress(100, '分析完了');
+    return { bpm, bpmCategory: this.categorizeBPM(bpm), ...bands, ...energy };
+  }
+  getMono(buf) {
+    const ch0 = buf.getChannelData(0);
+    if (buf.numberOfChannels === 1) return Float32Array.from(ch0);
+    const ch1 = buf.getChannelData(1);
+    const mono = new Float32Array(ch0.length);
+    for (let i = 0; i < ch0.length; i++) mono[i] = (ch0[i]+ch1[i])*0.5;
+    return mono;
+  }
+  lowPass(data, cutoff, sr) {
+    const rc = 1/(2*Math.PI*cutoff), dt = 1/sr, a = dt/(rc+dt);
+    const out = new Float32Array(data.length); out[0] = data[0];
+    for (let i = 1; i < data.length; i++) out[i] = out[i-1]+a*(data[i]-out[i-1]);
+    return out;
+  }
+  highPass(data, cutoff, sr) {
+    const rc = 1/(2*Math.PI*cutoff), dt = 1/sr, a = rc/(rc+dt);
+    const out = new Float32Array(data.length); out[0] = data[0];
+    for (let i = 1; i < data.length; i++) out[i] = a*(out[i-1]+data[i]-data[i-1]);
+    return out;
+  }
+  rms(data) {
+    let s = 0; for (let i = 0; i < data.length; i++) s += data[i]*data[i];
+    return Math.sqrt(s/data.length);
+  }
+  analyzeFrequencyBands(audioBuffer) {
+    const sr = audioBuffer.sampleRate, mono = this.getMono(audioBuffer);
+    const bass = this.lowPass(mono,200,sr), lowMid = this.lowPass(mono,4000,sr), high = this.highPass(mono,4000,sr);
+    const mid = new Float32Array(mono.length);
+    for (let i = 0; i < mono.length; i++) mid[i] = lowMid[i]-bass[i];
+    const bR=this.rms(bass), mR=this.rms(mid), hR=this.rms(high), total=bR+mR+hR||1;
+    return { bassRatio:bR/total, midRatio:mR/total, highRatio:hR/total };
+  }
+  detectBPM(audioBuffer) {
+    const sr = audioBuffer.sampleRate, mono = this.getMono(audioBuffer);
+    const maxSamples = Math.min(mono.length, sr*90);
+    const filtered = this.lowPass(mono.subarray(0,maxSamples),150,sr);
+    const frameSize = Math.round(sr*0.023), hop = Math.round(frameSize*0.5);
+    const frameCount = Math.floor((filtered.length-frameSize)/hop);
+    const energies = new Float32Array(frameCount);
+    for (let f = 0; f < frameCount; f++) energies[f] = this.rms(filtered.subarray(f*hop,f*hop+frameSize));
+    const onset = new Float32Array(frameCount);
+    for (let i = 1; i < frameCount; i++) { const d=energies[i]-energies[i-1]; onset[i]=d>0?d:0; }
+    const targetRate=86, origRate=sr/hop, dsRatio=Math.max(1,Math.round(origRate/targetRate));
+    const dsLen = Math.floor(onset.length/dsRatio);
+    const ds = new Float32Array(dsLen);
+    for (let i = 0; i < dsLen; i++) { let s=0; for (let j=0;j<dsRatio;j++) s+=onset[i*dsRatio+j]||0; ds[i]=s/dsRatio; }
+    const minLag=Math.round(60/180*targetRate), maxLag=Math.round(60/60*targetRate);
+    let bestLag=minLag, bestCorr=-Infinity;
+    for (let lag=minLag; lag<=maxLag; lag++) {
+      let corr=0; for (let i=0;i<dsLen-lag;i++) corr+=ds[i]*ds[i+lag];
+      if (corr>bestCorr) { bestCorr=corr; bestLag=lag; }
+    }
+    return Math.max(60,Math.min(200,Math.round(60*targetRate/bestLag)));
+  }
+  analyzeEnergy(audioBuffer) {
+    const sr=audioBuffer.sampleRate, mono=this.getMono(audioBuffer);
+    const windowSize=sr, windowCount=Math.floor(mono.length/windowSize);
+    const profile=[]; let peak=0, peakIdx=0;
+    for (let i=0;i<windowCount;i++) {
+      const e=this.rms(mono.subarray(i*windowSize,(i+1)*windowSize));
+      profile.push(e); if (e>peak){peak=e;peakIdx=i;}
+    }
+    const min=Math.min(...profile), dynamicsRatio=peak/(min+1e-6);
+    return { energyProfile:profile, peakPosition:windowCount>0?peakIdx/windowCount:0.5, dynamicsRatio,
+      energyCategory: dynamicsRatio>6?'dynamic':dynamicsRatio>3?'moderate':'flat' };
+  }
+  categorizeBPM(bpm) {
+    if (bpm<70) return 'very-slow'; if (bpm<90) return 'slow';
+    if (bpm<110) return 'moderate'; if (bpm<130) return 'upbeat';
+    if (bpm<160) return 'fast'; return 'very-fast';
+  }
+  featuresDescription(f) {
+    const bL={'very-slow':'ゆったり','slow':'スロー','moderate':'ミドルテンポ','upbeat':'アップビート','fast':'アップテンポ','very-fast':'超高速'}[f.bpmCategory]||'';
+    const bsL=f.bassRatio>0.5?'重厚な低音':f.bassRatio>0.32?'適度な低音':'軽めの低音';
+    const hL=f.highRatio>0.22?'煌びやかな高音':f.highRatio>0.10?'適度な高音':'落ち着いた音色';
+    const dL={dynamic:'起伏のある激しい展開',moderate:'適度な抑揚',flat:'均一なエネルギー'}[f.energyCategory]||'';
+    const pL=f.peakPosition<0.35?'序盤にクライマックス':f.peakPosition<0.65?'中盤にクライマックス':'終盤に向けて盛り上がる';
+    return `BPM ${Math.round(f.bpm)}（${bL}）、${bsL}・${hL}。${dL}で${pL}。`;
+  }
+}
+const audioAnalyzer = new AudioAnalyzer();
+
+// ─────────────────────────────────────────
+// Audio handling
+// ─────────────────────────────────────────
+let audioDuration = 0;
+let audioFileName = '';
+let audioFeatures = null;
+let allPanels = [];
+let savedState = null; // { lyrics, genre, artist, duration, styleKey, scenes }
+
+const audioInput = document.getElementById('audio-input');
+const dropZone   = document.getElementById('drop-zone');
+
+audioInput.addEventListener('change', e => loadAudio(e.target.files[0]));
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('audio/')) loadAudio(file);
+});
+
+function loadAudio(file) {
+  if (!file) return;
+  audioFileName = file.name;
+  audioFeatures = null;
+  document.getElementById('filename').textContent = file.name;
+  const url = URL.createObjectURL(file);
+  const audio = new Audio();
+  audio.src = url;
+  audio.addEventListener('loadedmetadata', () => {
+    audioDuration = audio.duration;
+    document.getElementById('audio-info').classList.add('visible');
+    document.getElementById('duration-badge').textContent = formatTime(audioDuration);
+    document.getElementById('audio-name').textContent = file.name;
+    URL.revokeObjectURL(url);
+    // Auto-calculate panel count: 1.5 seconds per cut
+    const autoPanels = Math.max(8, Math.min(400, Math.round(audioDuration / 1.5)));
+    document.getElementById('panel-count').value = autoPanels;
+    startAudioAnalysis(file);
+  });
+}
+
+async function startAudioAnalysis(file) {
+  const card = document.getElementById('audio-analysis-card');
+  const status = document.getElementById('analysis-status');
+  const results = document.getElementById('analysis-results');
+  card.classList.add('visible');
+  results.style.display = 'none';
+  status.style.display = 'block';
+  status.textContent = '分析中...';
+  try {
+    audioFeatures = await audioAnalyzer.analyze(file, (_p, msg) => { status.textContent = msg; });
+    renderAnalysisResults(audioFeatures);
+  } catch(e) {
+    console.warn('Audio analysis failed:', e);
+    status.textContent = '音声分析をスキップしました';
+  }
+}
+
+function renderAnalysisResults(f) {
+  document.getElementById('analysis-status').style.display = 'none';
+  document.getElementById('analysis-results').style.display = 'block';
+  document.getElementById('bpm-num').textContent = Math.round(f.bpm);
+  const catLabels = {'very-slow':'Very Slow','slow':'Slow','moderate':'Moderate','upbeat':'Upbeat','fast':'Fast','very-fast':'Very Fast'};
+  document.getElementById('bpm-cat').textContent = catLabels[f.bpmCategory]||'';
+  const bP=Math.round(f.bassRatio*100), mP=Math.round(f.midRatio*100), hP=Math.round(f.highRatio*100);
+  requestAnimationFrame(() => {
+    document.getElementById('bass-bar').style.width = bP+'%';
+    document.getElementById('mid-bar').style.width  = mP+'%';
+    document.getElementById('high-bar').style.width = hP+'%';
+  });
+  document.getElementById('bass-pct').textContent = bP+'%';
+  document.getElementById('mid-pct').textContent  = mP+'%';
+  document.getElementById('high-pct').textContent = hP+'%';
+  renderSparkline(f.energyProfile);
+  document.getElementById('analysis-desc').textContent = audioAnalyzer.featuresDescription(f);
+}
+
+function renderSparkline(profile) {
+  const svg = document.getElementById('sparkline-svg');
+  if (!profile || profile.length < 2) return;
+  const W=78, H=38, pad=3, max=Math.max(...profile)||1;
+  const pts = profile.map((v,i) => {
+    const x = pad+(i/(profile.length-1))*(W-pad*2);
+    const y = (H-pad)-(v/max)*(H-pad*2);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+  svg.innerHTML = `<defs><linearGradient id="spG" x1="0%" y1="0%" x2="100%" y2="0%">
+    <stop offset="0%" stop-color="#8a2be2"/><stop offset="100%" stop-color="#00d4ff"/>
+  </linearGradient></defs>
+  <polyline points="${pts}" fill="none" stroke="url(#spG)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/>`;
+}
+
+function formatTime(s) {
+  const m=Math.floor(s/60), sec=Math.floor(s%60);
+  return `${m}:${sec.toString().padStart(2,'0')}`;
+}
+
+// ─────────────────────────────────────────
+// Improved character figures
+// ─────────────────────────────────────────
+function figBase(cx, cy, s) {
+  return `
+    <circle cx="${cx}" cy="${cy-s*2.8}" r="${s*.88}" fill="currentColor" fill-opacity=".2" stroke="currentColor" stroke-width="${s*.1}"/>
+    <circle cx="${cx-s*.3}" cy="${cy-s*3.01}" r="${s*.11}" fill="currentColor" opacity=".68"/>
+    <circle cx="${cx+s*.3}" cy="${cy-s*3.01}" r="${s*.11}" fill="currentColor" opacity=".68"/>
+    <line x1="${cx}" y1="${cy-s*1.92}" x2="${cx}" y2="${cy-s*1.84}" stroke="currentColor" stroke-width="${s*.26}" stroke-linecap="round"/>
+    <path d="M${cx-s*.5} ${cy-s*1.84} L${cx-s*.41} ${cy+.06} L${cx+s*.41} ${cy+.06} L${cx+s*.5} ${cy-s*1.84}Z" fill="currentColor" fill-opacity=".17" stroke="currentColor" stroke-width="${s*.08}" stroke-linejoin="round"/>`;
+}
+
+const POSES = {
+  standing: (cx,cy,s) => figBase(cx,cy,s) + `
+    <line x1="${cx-s*.5}" y1="${cy-s*1.52}" x2="${cx-s*1.28}" y2="${cy-s*.88}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
+    <line x1="${cx+s*.5}" y1="${cy-s*1.52}" x2="${cx+s*1.28}" y2="${cy-s*.88}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
+    <line x1="${cx-s*.32}" y1="${cy+.06}" x2="${cx-s*.78}" y2="${cy+s*1.52}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
+    <line x1="${cx+s*.32}" y1="${cy+.06}" x2="${cx+s*.78}" y2="${cy+s*1.52}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>`,
+
+  running: (cx,cy,s) => figBase(cx,cy,s) + `
+    <line x1="${cx-s*1.4}" y1="${cy-s*1.7}" x2="${cx+s*.2}" y2="${cy-s*1.05}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
+    <line x1="${cx+s*.2}" y1="${cy-s*1.05}" x2="${cx+s*1.5}" y2="${cy-s*1.55}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
+    <line x1="${cx-s*.3}" y1="${cy+.06}" x2="${cx-s*.9}" y2="${cy+s*1.2}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
+    <line x1="${cx+s*.3}" y1="${cy+.06}" x2="${cx+s*1.1}" y2="${cy+s*.7}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>`,
+
+  dancing: (cx,cy,s) => figBase(cx,cy,s) + `
+    <line x1="${cx-s*.5}" y1="${cy-s*1.52}" x2="${cx-s*1.45}" y2="${cy-s*2.35}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
+    <line x1="${cx+s*.5}" y1="${cy-s*1.52}" x2="${cx+s*1.45}" y2="${cy-s*2.35}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
+    <line x1="${cx-s*.32}" y1="${cy+.06}" x2="${cx-s*1.1}" y2="${cy+s*1.15}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
+    <line x1="${cx+s*.32}" y1="${cy+.06}" x2="${cx+s*.6}" y2="${cy+s*1.55}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>`,
+
+  crying: (cx,cy,s) => figBase(cx,cy,s) + `
+    <line x1="${cx-s*.5}" y1="${cy-s*1.52}" x2="${cx-s*.75}" y2="${cy-s*1.2}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
+    <line x1="${cx+s*.5}" y1="${cy-s*1.52}" x2="${cx+s*.75}" y2="${cy-s*1.2}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
+    <line x1="${cx-s*.32}" y1="${cy+.06}" x2="${cx-s*.95}" y2="${cy+s*1.5}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
+    <line x1="${cx+s*.32}" y1="${cy+.06}" x2="${cx+s*.85}" y2="${cy+s*1.45}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
+    <line x1="${cx-s*.32}" y1="${cy-s*2.45}" x2="${cx-s*.38}" y2="${cy-s*1.8}" stroke="currentColor" stroke-width="${s*.07}" stroke-dasharray="2.5,2" opacity=".65"/>
+    <line x1="${cx+s*.32}" y1="${cy-s*2.45}" x2="${cx+s*.38}" y2="${cy-s*1.8}" stroke="currentColor" stroke-width="${s*.07}" stroke-dasharray="2.5,2" opacity=".65"/>`,
+
+  love: (cx,cy,s) => `
+    <circle cx="${cx-s}" cy="${cy-s*2.8}" r="${s*.82}" fill="currentColor" fill-opacity=".18" stroke="currentColor" stroke-width="${s*.1}"/>
+    <circle cx="${cx+s}" cy="${cy-s*2.8}" r="${s*.82}" fill="currentColor" fill-opacity=".18" stroke="currentColor" stroke-width="${s*.1}"/>
+    <line x1="${cx-s}" y1="${cy-s*1.97}" x2="${cx-s*.2}" y2="${cy+.05}" stroke="currentColor" stroke-width="${s*.14}" stroke-linecap="round"/>
+    <line x1="${cx+s}" y1="${cy-s*1.97}" x2="${cx+s*.2}" y2="${cy+.05}" stroke="currentColor" stroke-width="${s*.14}" stroke-linecap="round"/>
+    <line x1="${cx-s*.2}" y1="${cy-s*1.42}" x2="${cx+s*.2}" y2="${cy-s*1.42}" stroke="currentColor" stroke-width="${s*.14}" stroke-linecap="round"/>
+    <line x1="${cx-s*.2}" y1="${cy+.05}" x2="${cx-s*1.05}" y2="${cy+s*1.35}" stroke="currentColor" stroke-width="${s*.14}" stroke-linecap="round"/>
+    <line x1="${cx-s*.2}" y1="${cy+.05}" x2="${cx+s*.25}" y2="${cy+s*1.35}" stroke="currentColor" stroke-width="${s*.14}" stroke-linecap="round"/>
+    <line x1="${cx+s*.2}" y1="${cy+.05}" x2="${cx+s*1.05}" y2="${cy+s*1.35}" stroke="currentColor" stroke-width="${s*.14}" stroke-linecap="round"/>
+    <line x1="${cx+s*.2}" y1="${cy+.05}" x2="${cx-s*.25}" y2="${cy+s*1.35}" stroke="currentColor" stroke-width="${s*.14}" stroke-linecap="round"/>
+    <text x="${cx}" y="${cy-s*3.55}" text-anchor="middle" font-size="${s*.95}" fill="#ff6b9d" opacity=".85">♥</text>`,
+
+  action: (cx,cy,s) => figBase(cx,cy,s) + `
+    <line x1="${cx-s*1.5}" y1="${cy-s*.85}" x2="${cx+s*.35}" y2="${cy-s*1.72}" stroke="currentColor" stroke-width="${s*.17}" stroke-linecap="round"/>
+    <line x1="${cx+s*.35}" y1="${cy-s*1.72}" x2="${cx+s*1.6}" y2="${cy-s*2.25}" stroke="currentColor" stroke-width="${s*.17}" stroke-linecap="round"/>
+    <line x1="${cx-s*.32}" y1="${cy+.06}" x2="${cx-s*1.0}" y2="${cy+s*1.05}" stroke="currentColor" stroke-width="${s*.17}" stroke-linecap="round"/>
+    <line x1="${cx+s*.32}" y1="${cy+.06}" x2="${cx+s*1.25}" y2="${cy+s*1.3}" stroke="currentColor" stroke-width="${s*.17}" stroke-linecap="round"/>`,
+
+  crowd: (cx,cy,s) => {
+    const offsets=[-s*2.6,-s*1.0,s*.4,s*1.9,s*3.3];
+    return offsets.map((ox,i)=>{
+      const sy=i%2===0?s:s*.85;
+      return `
+        <circle cx="${cx+ox}" cy="${cy-sy*2.8}" r="${sy*.78}" fill="currentColor" fill-opacity="${.12+i*.02}" stroke="currentColor" stroke-width="${sy*.1}"/>
+        <path d="M${cx+ox-sy*.48} ${cy-sy*1.84} L${cx+ox-sy*.38} ${cy+.06} L${cx+ox+sy*.38} ${cy+.06} L${cx+ox+sy*.48} ${cy-sy*1.84}Z" fill="currentColor" fill-opacity=".12" stroke="currentColor" stroke-width="${sy*.08}" stroke-linejoin="round"/>
+        <line x1="${cx+ox-sy*.48}" y1="${cy-sy*1.52}" x2="${cx+ox-sy*1.2}" y2="${cy-sy*.9}" stroke="currentColor" stroke-width="${sy*.13}" stroke-linecap="round"/>
+        <line x1="${cx+ox+sy*.48}" y1="${cy-sy*1.52}" x2="${cx+ox+sy*1.2}" y2="${cy-sy*.9}" stroke="currentColor" stroke-width="${sy*.13}" stroke-linecap="round"/>
+        <line x1="${cx+ox-sy*.3}" y1="${cy+.06}" x2="${cx+ox-sy*.72}" y2="${cy+sy*1.1}" stroke="currentColor" stroke-width="${sy*.13}" stroke-linecap="round"/>
+        <line x1="${cx+ox+sy*.3}" y1="${cy+.06}" x2="${cx+ox+sy*.72}" y2="${cy+sy*1.1}" stroke="currentColor" stroke-width="${sy*.13}" stroke-linecap="round"/>`;
+    }).join('');
+  },
+
+  reaching: (cx,cy,s) => figBase(cx,cy,s) + `
+    <line x1="${cx+s*.5}" y1="${cy-s*1.52}" x2="${cx+s*1.95}" y2="${cy-s*2.6}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
+    <line x1="${cx-s*.5}" y1="${cy-s*1.52}" x2="${cx-s*.82}" y2="${cy-s*.98}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
+    <line x1="${cx-s*.32}" y1="${cy+.06}" x2="${cx-s*.78}" y2="${cy+s*1.52}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
+    <line x1="${cx+s*.32}" y1="${cy+.06}" x2="${cx+s*.78}" y2="${cy+s*1.52}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
+    <circle cx="${cx+s*2.15}" cy="${cy-s*2.8}" r="${s*.32}" fill="none" stroke="currentColor" stroke-width="${s*.1}" opacity=".5"/>`,
+
+  sitting: (cx,cy,s) => figBase(cx,cy,s) + `
+    <line x1="${cx-s*.5}" y1="${cy-s*1.52}" x2="${cx-s*1.1}" y2="${cy-s*1.1}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
+    <line x1="${cx+s*.5}" y1="${cy-s*1.52}" x2="${cx+s*1.1}" y2="${cy-s*1.1}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
+    <line x1="${cx-s*.32}" y1="${cy+.06}" x2="${cx+s*1.1}" y2="${cy+.06}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
+    <line x1="${cx+s*1.1}" y1="${cy+.06}" x2="${cx+s*1.1}" y2="${cy+s*1.35}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
+    <line x1="${cx+s*.32}" y1="${cy+.06}" x2="${cx+s*.32}" y2="${cy+s*1.35}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>`,
+
+  lookingup: (cx,cy,s) => `
+    <circle cx="${cx}" cy="${cy-s*2.35}" r="${s*.88}" fill="currentColor" fill-opacity=".2" stroke="currentColor" stroke-width="${s*.1}"/>
+    <circle cx="${cx-s*.3}" cy="${cy-s*2.55}" r="${s*.11}" fill="currentColor" opacity=".68"/>
+    <circle cx="${cx+s*.3}" cy="${cy-s*2.55}" r="${s*.11}" fill="currentColor" opacity=".68"/>
+    <line x1="${cx}" y1="${cy-s*1.46}" x2="${cx}" y2="${cy-s*1.38}" stroke="currentColor" stroke-width="${s*.26}" stroke-linecap="round"/>
+    <path d="M${cx-s*.5} ${cy-s*1.38} L${cx-s*.41} ${cy+.06} L${cx+s*.41} ${cy+.06} L${cx+s*.5} ${cy-s*1.38}Z" fill="currentColor" fill-opacity=".17" stroke="currentColor" stroke-width="${s*.08}" stroke-linejoin="round"/>
+    <line x1="${cx-s*.5}" y1="${cy-s*1.1}" x2="${cx+s*1.22}" y2="${cy-s*1.28}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
+    <line x1="${cx-s*.32}" y1="${cy+.06}" x2="${cx-s*.78}" y2="${cy+s*1.52}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
+    <line x1="${cx+s*.32}" y1="${cy+.06}" x2="${cx+s*.78}" y2="${cy+s*1.52}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
+    <line x1="${cx}" y1="${cy-s*3.18}" x2="${cx}" y2="${cy-s*4.05}" stroke="currentColor" stroke-width="${s*.08}" stroke-dasharray="3,3" opacity=".4"/>`,
+
+  walking: (cx,cy,s) => figBase(cx,cy,s) + `
+    <line x1="${cx-s*1.0}" y1="${cy-s*1.48}" x2="${cx+s*.8}" y2="${cy-s*1.28}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
+    <line x1="${cx-s*.32}" y1="${cy+.06}" x2="${cx-s*.68}" y2="${cy+s*1.48}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
+    <line x1="${cx+s*.32}" y1="${cy+.06}" x2="${cx+s*.88}" y2="${cy+s*1.22}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>`,
+};
+
+// ─────────────────────────────────────────
+// Background scene sketches — improved
+// ─────────────────────────────────────────
+function bgSketch(type, w, h) {
+  switch(type) {
+    case 'city': return `
+      <rect x="0" y="0" width="${w}" height="${h*.7}" fill="rgba(10,12,30,.55)"/>
+      <rect x="0" y="${h*.7}" width="${w}" height="${h*.3}" fill="rgba(5,5,20,.7)"/>
+      <rect x="${w*.04}" y="${h*.28}" width="${w*.07}" height="${h*.72}" fill="rgba(200,210,255,.05)"/>
+      <rect x="${w*.13}" y="${h*.15}" width="${w*.1}" height="${h*.85}" fill="rgba(200,210,255,.06)"/>
+      <rect x="${w*.25}" y="${h*.22}" width="${w*.07}" height="${h*.78}" fill="rgba(200,210,255,.04)"/>
+      <rect x="${w*.55}" y="${h*.12}" width="${w*.12}" height="${h*.88}" fill="rgba(200,210,255,.06)"/>
+      <rect x="${w*.7}" y="${h*.26}" width="${w*.09}" height="${h*.74}" fill="rgba(200,210,255,.05)"/>
+      <rect x="${w*.83}" y="${h*.19}" width="${w*.08}" height="${h*.81}" fill="rgba(200,210,255,.04)"/>
+      ${Array.from({length:10},(_,i)=>{const bx=w*(.14+Math.sin(i*1.7)*.06+Math.floor(i/3)*.18),by=h*(.18+i*.06);return `<rect x="${bx.toFixed(0)}" y="${by.toFixed(0)}" width="4" height="3" fill="rgba(255,230,120,.2)"/>`}).join('')}
+      <line x1="0" y1="${h*.72}" x2="${w}" y2="${h*.72}" stroke="rgba(138,43,226,.18)" stroke-width=".8"/>
+      <line x1="${w*.12}" y1="${h*.75}" x2="${w*.42}" y2="${h*.75}" stroke="rgba(0,212,255,.12)" stroke-width="1.5"/>
+      <line x1="${w*.62}" y1="${h*.76}" x2="${w*.88}" y2="${h*.76}" stroke="rgba(255,100,150,.1)" stroke-width="1.2"/>
+      <ellipse cx="${w*.3}" cy="${h*.88}" rx="${w*.1}" ry="${h*.025}" fill="rgba(0,212,255,.05)"/>`;
+
+    case 'nature': return `
+      <rect x="0" y="0" width="${w}" height="${h*.68}" fill="rgba(10,18,35,.5)"/>
+      <path d="M0 ${h*.72} Q${w*.18} ${h*.45} ${w*.35} ${h*.65} Q${w*.52} ${h*.38} ${w*.68} ${h*.62} Q${w*.82} ${h*.42} ${w} ${h*.6} L${w} ${h} L0 ${h}Z" fill="rgba(255,255,255,.05)"/>
+      <rect x="0" y="${h*.78}" width="${w}" height="${h*.22}" fill="rgba(255,255,255,.025)"/>
+      <line x1="${w*.11}" y1="${h*.76}" x2="${w*.11}" y2="${h*.42}" stroke="rgba(255,255,255,.08)" stroke-width="1.5"/>
+      <ellipse cx="${w*.11}" cy="${h*.39}" rx="${w*.055}" ry="${h*.09}" fill="rgba(255,255,255,.05)"/>
+      <line x1="${w*.11-w*.03}" y1="${h*.55}" x2="${w*.11-w*.07}" y2="${h*.47}" stroke="rgba(255,255,255,.04)" stroke-width="1"/>
+      <line x1="${w*.21}" y1="${h*.76}" x2="${w*.21}" y2="${h*.33}" stroke="rgba(255,255,255,.07)" stroke-width="1.2"/>
+      <ellipse cx="${w*.21}" cy="${h*.3}" rx="${w*.047}" ry="${h*.08}" fill="rgba(255,255,255,.045)"/>
+      <line x1="${w*.78}" y1="${h*.76}" x2="${w*.78}" y2="${h*.38}" stroke="rgba(255,255,255,.08)" stroke-width="1.5"/>
+      <ellipse cx="${w*.78}" cy="${h*.35}" rx="${w*.055}" ry="${h*.09}" fill="rgba(255,255,255,.05)"/>
+      <ellipse cx="${w*.5}" cy="${h*.2}" rx="${w*.22}" ry="${h*.1}" fill="rgba(255,220,150,.04)"/>
+      <line x1="0" y1="${h*.78}" x2="${w}" y2="${h*.78}" stroke="rgba(255,255,255,.06)" stroke-width=".8"/>`;
+
+    case 'spotlight': return `
+      <rect x="0" y="0" width="${w}" height="${h}" fill="rgba(0,0,0,.35)"/>
+      <path d="M${w*.5} 0 L${w*.16} ${h} L${w*.84} ${h}Z" fill="rgba(255,250,220,.04)"/>
+      <path d="M${w*.5} 0 L${w*.32} ${h} L${w*.68} ${h}Z" fill="rgba(255,250,220,.04)"/>
+      <path d="M${w*.5} 0 L${w*.41} ${h} L${w*.59} ${h}Z" fill="rgba(255,250,220,.03)"/>
+      <ellipse cx="${w*.5}" cy="${h*.94}" rx="${w*.32}" ry="${h*.07}" fill="rgba(255,250,200,.1)"/>
+      <ellipse cx="${w*.5}" cy="${h*.94}" rx="${w*.16}" ry="${h*.04}" fill="rgba(255,250,200,.12)"/>
+      <line x1="0" y1="${h*.87}" x2="${w}" y2="${h*.87}" stroke="rgba(255,255,255,.07)" stroke-width="1"/>
+      ${Array.from({length:5},(_,i)=>`<ellipse cx="${(w*(.3+i*.1)).toFixed(0)}" cy="${(h*(.28+Math.sin(i)*.18)).toFixed(0)}" rx="${(6+i*2).toFixed(0)}" ry="${(3+i).toFixed(0)}" fill="rgba(255,255,255,.018)"/>`).join('')}
+      <rect x="0" y="0" width="${w*.1}" height="${h}" fill="rgba(0,0,0,.4)"/>
+      <rect x="${w*.9}" y="0" width="${w*.1}" height="${h}" fill="rgba(0,0,0,.4)"/>`;
+
+    case 'rain': return `
+      <rect x="0" y="0" width="${w}" height="${h}" fill="rgba(0,20,45,.3)"/>
+      ${Array.from({length:22},(_,i)=>{
+        const x=w*(i/22+Math.sin(i*.6)*.03);
+        const y=h*(Math.cos(i*.55)*.3+.12);
+        return `<line x1="${x.toFixed(0)}" y1="${y.toFixed(0)}" x2="${(x-3.5).toFixed(0)}" y2="${(y+h*.38).toFixed(0)}" stroke="rgba(140,200,255,.12)" stroke-width="${(.5+Math.sin(i)*.25).toFixed(2)}"/>`;
+      }).join('')}
+      <rect x="0" y="${h*.83}" width="${w}" height="${h*.17}" fill="rgba(0,40,80,.18)"/>
+      <ellipse cx="${w*.42}" cy="${h*.87}" rx="${w*.18}" ry="${h*.03}" fill="rgba(0,180,255,.06)" stroke="rgba(0,180,255,.09)" stroke-width=".8"/>
+      <ellipse cx="${w*.72}" cy="${h*.89}" rx="${w*.1}" ry="${h*.02}" fill="rgba(0,180,255,.05)"/>
+      <line x1="0" y1="${h*.84}" x2="${w}" y2="${h*.84}" stroke="rgba(100,160,220,.07)" stroke-width=".8"/>`;
+
+    case 'stars': return `
+      <rect x="0" y="0" width="${w}" height="${h*.74}" fill="rgba(4,4,22,.55)"/>
+      <ellipse cx="${w*.62}" cy="${h*.32}" rx="${w*.58}" ry="${h*.14}" fill="rgba(120,120,255,.02)" transform="rotate(-22 ${(w*.62).toFixed(0)} ${(h*.32).toFixed(0)})"/>
+      ${Array.from({length:32},(_,i)=>{
+        const x=w*(Math.sin(i*2.1+.7)*.48+.5), y=h*(Math.cos(i*1.7+.5)*.34+.27);
+        const r=.5+Math.abs(Math.sin(i*.9))*.85;
+        const op=.07+Math.abs(Math.sin(i*.7))*.28;
+        return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r.toFixed(1)}" fill="rgba(255,255,255,${op.toFixed(2)})"/>`;
+      }).join('')}
+      ${Array.from({length:4},(_,i)=>{const x=w*(i*.22+.1),y=h*(Math.sin(i*1.2)*.14+.18);return `<circle cx="${x.toFixed(0)}" cy="${y.toFixed(0)}" r="1.8" fill="rgba(255,255,255,.45)"/><circle cx="${x.toFixed(0)}" cy="${y.toFixed(0)}" r="5" fill="rgba(255,255,255,.05)"/>`;}).join('')}
+      <line x1="0" y1="${h*.74}" x2="${w}" y2="${h*.74}" stroke="rgba(255,255,255,.05)" stroke-width=".8"/>
+      <rect x="0" y="${h*.74}" width="${w}" height="${h*.26}" fill="rgba(0,0,0,.25)"/>`;
+
+    case 'abstract': return `
+      <ellipse cx="${w*.3}" cy="${h*.42}" rx="${w*.26}" ry="${h*.22}" fill="rgba(138,43,226,.07)" stroke="rgba(138,43,226,.14)" stroke-width="1"/>
+      <ellipse cx="${w*.72}" cy="${h*.58}" rx="${w*.21}" ry="${h*.18}" fill="rgba(0,212,255,.05)" stroke="rgba(0,212,255,.12)" stroke-width="1"/>
+      <ellipse cx="${w*.55}" cy="${h*.24}" rx="${w*.16}" ry="${h*.12}" fill="rgba(255,107,157,.04)" stroke="rgba(255,107,157,.1)" stroke-width=".8"/>
+      <line x1="${w*.05}" y1="${h*.9}" x2="${w*.95}" y2="${h*.1}" stroke="rgba(255,255,255,.05)" stroke-width=".8"/>
+      <line x1="${w*.05}" y1="${h*.1}" x2="${w*.95}" y2="${h*.9}" stroke="rgba(255,255,255,.04)" stroke-width=".6"/>
+      ${Array.from({length:5},(_,i)=>`<circle cx="${(w*(.18+i*.17)).toFixed(0)}" cy="${(h*(.5+Math.sin(i)*.2)).toFixed(0)}" r="${(3+i*1.5).toFixed(0)}" fill="rgba(255,255,255,.025)"/>`).join('')}`;
+
+    default: return `
+      <rect x="0" y="${h*.68}" width="${w}" height="${h*.32}" fill="rgba(255,255,255,.018)"/>
+      <line x1="0" y1="${h*.68}" x2="${w}" y2="${h*.68}" stroke="rgba(255,255,255,.07)" stroke-width=".8"/>
+      <line x1="${w*.2}" y1="${h*.68}" x2="${w*.2}" y2="${h}" stroke="rgba(255,255,255,.03)" stroke-width=".8"/>
+      <line x1="${w*.7}" y1="${h*.68}" x2="${w*.7}" y2="${h}" stroke="rgba(255,255,255,.025)" stroke-width=".6"/>`;
+  }
+}
+
+// ─────────────────────────────────────────
+// Cinematic arc — shot/pose per position
+// ─────────────────────────────────────────
+function cinematicArc(idx, total, styleKey) {
+  const p = idx / Math.max(total-1, 1); // 0–1 progress
+  const style = MV_STYLES[styleKey] || MV_STYLES.story;
+  const shots = style.shots;
+  const poses = style.poses;
+  const bgs   = style.bgs;
+
+  // Shot follows arc: open → build → peak → resolve → close
+  let shotIdx;
+  if      (p < 0.05)  shotIdx = 0; // EWS establishing
+  else if (p < 0.20)  shotIdx = 1;
+  else if (p < 0.40)  shotIdx = 2;
+  else if (p < 0.55)  shotIdx = 3;
+  else if (p < 0.70)  shotIdx = 2;
+  else if (p < 0.85)  shotIdx = 1;
+  else                shotIdx = 0;
+
+  const shot = shots[Math.min(shotIdx, shots.length-1)];
+  const pose = poses[idx % poses.length];
+  const bg   = bgs[idx % bgs.length];
+
+  return { shot, pose, bg };
+}
+
+// ─────────────────────────────────────────
+// Background detail prompt
+// ─────────────────────────────────────────
+const BG_DETAILS = {
+  city:      'urban nightscape with rain-slicked streets, neon reflections in puddles, towering skyscrapers with lit windows, atmospheric fog',
+  nature:    'lush natural landscape with soft golden-hour light filtering through trees, gentle breeze moving foliage, rolling hills in background',
+  spotlight: 'dramatic concert stage with single overhead spotlight, visible light beam through smoke, darkness surrounding performer, haze machine effect',
+  rain:      'heavy rainfall, wet dark environment, water droplets blurring the lens, reflective ground surface, moody blue-grey atmosphere',
+  stars:     'vast starry night sky, milky way arching overhead, dark open field or rooftop location, deep navy-to-black gradient atmosphere',
+  abstract:  'surreal abstract space with floating geometric forms, dreamlike color gradients, non-euclidean architecture, painterly light effects',
+  default:   'clean cinematic environment, shallow depth of field, soft bokeh background, professional studio or location lighting'
+};
+const CAMERA_MOVES = ['static shot','slow push-in','gentle pull-back','subtle pan','handheld float','crane descent','rack focus'];
+
+function buildBgPrompt(bg, shot, pose, idx, styleKey, visualType) {
+  const style = MV_STYLES[styleKey] || MV_STYLES.story;
+  const bgDesc = BG_DETAILS[bg] || BG_DETAILS.default;
+  const cam = CAMERA_MOVES[idx % CAMERA_MOVES.length];
+  const shotFull = {'EWS':'extreme wide shot','WS':'wide shot','MS':'medium shot','2S':'two-shot','CU':'close-up','ECU':'extreme close-up'}[shot]||shot;
+  const vtNote = {
+    abstract: 'no people, pure visual abstraction, generative art style,',
+    macro: 'macro lens, f/2.8 shallow DOF, textural foreground detail, no people,',
+    silhouette: 'strong backlight, subject silhouetted, rim light only, dramatic contrast,',
+    environment: 'empty scene, no people, environmental storytelling,',
+    object: 'product/prop photography style, symbolic object in frame, no people,',
+    bokeh: 'out-of-focus background, creamy bokeh, point light sources,',
+  }[visualType] || '';
+  return `${shotFull}, ${vtNote}${bgDesc}, ${cam}, cinematic color grade, ${style.hint.split('。')[0]}, 4K anamorphic, film grain, professional MV lighting`;
+}
+
+// ─────────────────────────────────────────
+// Keyword → pose map (lyrics override)
+// ─────────────────────────────────────────
+const KEYWORD_MAP = [
+  { keys:['走','逃','急','run','dash','追','flee'],        pose:'running',   shot:'WS',  bg:'city',      color:'#7ad8ff' },
+  { keys:['踊','ダンス','dance','リズム','beat','振'],      pose:'dancing',   shot:'MS',  bg:'spotlight', color:'#ff9fff' },
+  { keys:['泣','涙','cry','悲','sad','tear','痛','别'],    pose:'crying',    shot:'CU',  bg:'rain',      color:'#7aa8ff' },
+  { keys:['愛','恋','love','一緒','kiss','抱','heart','♥'],pose:'love',      shot:'2S',  bg:'stars',     color:'#ffaacc' },
+  { keys:['叫','怒','fight','戦','力','強','burst','激'],  pose:'action',    shot:'ECU', bg:'city',      color:'#ffb87a' },
+  { keys:['群衆','みんな','crowd','everyone','集','仲間'], pose:'crowd',     shot:'EWS', bg:'city',      color:'#aaffdd' },
+  { keys:['手','届','reach','求','hope','夢','星','願'],   pose:'reaching',  shot:'MS',  bg:'stars',     color:'#c0aaff' },
+  { keys:['座','休','calm','静','夜','moon','月','孤独'],  pose:'sitting',   shot:'MS',  bg:'stars',     color:'#88aaff' },
+  { keys:['空','見上','heaven','fly','上','高','翼'],      pose:'lookingup', shot:'WS',  bg:'stars',     color:'#aaddff' },
+  { keys:['歩','進','旅','journey','walk','道','続'],      pose:'walking',   shot:'WS',  bg:'nature',    color:'#aaff99' },
+];
+
+function detectLyricsOverride(text) {
+  for (const rule of KEYWORD_MAP) {
+    if (rule.keys.some(k => text.includes(k))) return rule;
+  }
+  return null;
+}
+
+// Style-based color palettes
+const STYLE_COLORS = {
+  rock:        ['#ff4444','#ff8800','#ffcc00','#ff4444','#ffffff','#ff6600'],
+  ballad:      ['#aac8ff','#ffccee','#ccaaff','#88ccff','#ffddb0','#bbddff'],
+  emotional:   ['#ffaa77','#ff8888','#ffccaa','#aaddff','#ffbbbb','#ffeedd'],
+  mysterious:  ['#aa77ff','#7799ff','#55ddff','#cc88ff','#8866dd','#aaccff'],
+  performance: ['#ff66cc','#ff9900','#00ffcc','#ff6600','#ffff00','#ff44aa'],
+  story:       ['#c0c0e0','#aabbcc','#bbccdd','#99aabb','#ccddee','#b0b8d0'],
+  concept:     ['#ff6b9d','#8a2be2','#00d4ff','#ffb347','#7fff00','#ff69b4'],
+};
+
+function styleColor(styleKey, idx) {
+  const palette = STYLE_COLORS[styleKey] || STYLE_COLORS.story;
+  return palette[idx % palette.length];
+}
+
+// ─────────────────────────────────────────
+// Lyrics → scenes (with intro/outro)
+// ─────────────────────────────────────────
+function parseLyrics(raw, panelCount, duration, styleKey) {
+  const style = MV_STYLES[styleKey] || MV_STYLES.story;
+  const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+
+  const isHeader = l => /^\[.+\]$/.test(l) || /^(verse|chorus|bridge|outro|intro|refrain|hook|pre-chorus|interlude|instrumental)/i.test(l);
+
+  // Parse lyric scenes
+  const lyricScenes = [];
+  let buffer = [], sectionName = '';
+  const linesPerPanel = Math.max(2, Math.ceil(lines.length / Math.max(1, panelCount * 0.75)));
+
+  for (const line of lines) {
+    if (isHeader(line)) {
+      if (buffer.length) { lyricScenes.push({ section: sectionName, lines: [...buffer] }); buffer = []; }
+      sectionName = line.replace(/[\[\]]/g,'').trim();
+    } else {
+      buffer.push(line);
+      if (buffer.length >= linesPerPanel) {
+        lyricScenes.push({ section: sectionName, lines: [...buffer] });
+        buffer = [];
+      }
+    }
+  }
+  if (buffer.length) lyricScenes.push({ section: sectionName, lines: buffer });
+
+  // Calculate intro/outro panel counts
+  const introPanelCount = Math.max(2, Math.round(panelCount * 0.08));
+  const outroPanelCount = Math.max(1, Math.round(panelCount * 0.04));
+  const lyricPanelCount = panelCount - introPanelCount - outroPanelCount;
+
+  // Build intro panels
+  const introDescs = style.introDesc;
+  const introScenes = Array.from({ length: introPanelCount }, (_, i) => ({
+    section: 'INTRO',
+    lines: [introDescs[i % introDescs.length]],
+    isIntro: true
+  }));
+
+  // Trim lyric scenes to fit
+  const trimmedLyric = lyricScenes.slice(0, lyricPanelCount);
+  // If fewer lyric scenes than needed, pad with style-based atmospherics
+  while (trimmedLyric.length < lyricPanelCount && lyricScenes.length > 0) {
+    const src = lyricScenes[trimmedLyric.length % lyricScenes.length];
+    trimmedLyric.push({ ...src, section: src.section + ' (reprise)' });
+  }
+
+  // Build outro panels
+  const outroScenes = Array.from({ length: outroPanelCount }, () => ({
+    section: 'OUTRO',
+    lines: ['フェードアウト、余韻を残すエンディングショット'],
+    isOutro: true
+  }));
+
+  return [...introScenes, ...trimmedLyric, ...outroScenes].slice(0, panelCount);
+}
+
+// ─────────────────────────────────────────
+// Build individual panel
+// ─────────────────────────────────────────
+function buildPanel(scene, idx, total, duration, styleKey) {
+  const text = scene.lines.join(' ');
+  const t = (duration / total) * idx;
+
+  let shot, pose, bg, color;
+
+  if (scene.isIntro || scene.isOutro) {
+    // Intro/outro: use cinematic arc defaults
+    const arc = cinematicArc(idx, total, styleKey);
+    shot = scene.isIntro ? (idx < 2 ? 'EWS' : 'WS') : 'EWS';
+    pose = arc.pose;
+    bg   = arc.bg;
+    color = styleColor(styleKey, idx);
+  } else {
+    // Try keyword override first
+    const kwOverride = detectLyricsOverride(text);
+    if (kwOverride) {
+      shot  = kwOverride.shot;
+      pose  = kwOverride.pose;
+      bg    = kwOverride.bg;
+      color = kwOverride.color;
+    } else {
+      // Use cinematic arc
+      const arc = cinematicArc(idx, total, styleKey);
+      shot  = arc.shot;
+      pose  = arc.pose;
+      bg    = arc.bg;
+      color = styleColor(styleKey, idx);
+    }
+
+    // Audio feature override for non-keyword scenes
+    if (!kwOverride && audioFeatures) {
+      const f = audioFeatures;
+      const progress = idx / Math.max(total-1, 1);
+      const nearPeak = Math.abs(progress - f.peakPosition) < 0.12;
+      if (nearPeak && (f.bpmCategory === 'fast' || f.bpmCategory === 'very-fast')) {
+        pose = 'action'; shot = 'ECU'; bg = 'spotlight';
+      } else if (nearPeak && f.bpmCategory === 'upbeat') {
+        pose = 'dancing'; shot = 'MS'; bg = 'spotlight';
+      }
+    }
+  }
+
+  // Determine visual type
+  const hasKw = !!detectLyricsOverride(scene.lines.join(' '));
+  const visualType = getVisualType(idx, styleKey, hasKw, !!scene.isIntro, !!scene.isOutro);
+
+  const jaDesc = scene.isIntro || scene.isOutro
+    ? scene.lines[0]
+    : scene.lines.join('\n');
+
+  const prompt   = buildImagePrompt(shot, pose, bg, styleKey, visualType);
+  const bgPrompt = buildBgPrompt(bg, shot, pose, idx, styleKey, visualType);
+
+  return { shot, pose, bg, color, idx, time: t, lines: scene.lines, section: scene.section,
+           jaDesc, prompt, bgPrompt, visualType, styleKey,
+           isIntro: !!scene.isIntro, isOutro: !!scene.isOutro };
+}
+
+function buildImagePrompt(shot, pose, bg, styleKey, visualType) {
+  const shotMap = {'EWS':'extreme wide shot,','WS':'wide shot,','MS':'medium shot,','2S':'two-shot,','CU':'close-up,','ECU':'extreme close-up,'};
+  const poseMap = {
+    standing:'figure standing still,',running:'figure running,',dancing:'figure dancing joyfully,',
+    crying:'figure crying,',love:'two figures embracing,',action:'dramatic action pose,',
+    crowd:'crowd of people,',reaching:'figure reaching upward,',sitting:'figure sitting quietly,',
+    lookingup:'figure looking up at sky,',walking:'figure walking forward,'
+  };
+  const bgMap = {
+    city:'urban cityscape neon lights,',nature:'lush nature landscape,',spotlight:'dramatic stage spotlight,',
+    rain:'rainy night atmosphere,',stars:'starry night sky,',abstract:'surreal abstract space,',default:'cinematic background,'
+  };
+  const vtPrompt = {
+    character: '',
+    silhouette: 'dramatic backlit silhouette, rim lighting only, figure outline against bright background,',
+    abstract: 'abstract visual art, no people, geometric shapes and light patterns,',
+    macro: 'extreme macro close-up shot, textural detail, shallow depth of field, no people,',
+    environment: 'establishing shot, no people, atmospheric environment,',
+    object: 'symbolic object close-up, cinematic product shot, meaningful prop,',
+    bokeh: 'defocused bokeh background, soft light circles, atmospheric depth, no people,',
+    'crowd-wide': 'wide crowd shot, concert audience, energy and movement,',
+  };
+  const style = MV_STYLES[styleKey] || MV_STYLES.story;
+  const vtPart = vtPrompt[visualType] || '';
+  const posePart = (visualType === 'character') ? (poseMap[pose]||'') : '';
+  return `${shotMap[shot]||''} ${vtPart}${posePart} ${bgMap[bg]||''} ${style.hint.split('。')[0]}, cinematic lighting, film grain, 4K`.replace(/\s+/g,' ').trim();
+}
+
+// Visual type labels for display
+const VT_LABELS = {
+  character:'FIGURE', silhouette:'SILHOUETTE', abstract:'ABSTRACT',
+  macro:'MACRO', environment:'ENVIRON', object:'OBJECT',
+  bokeh:'BOKEH', 'crowd-wide':'CROWD', crowd:'CROWD'
+};
+
+const SHOT_LABELS = {'EWS':'EXTREME WIDE','WS':'WIDE SHOT','MS':'MED SHOT','2S':'TWO SHOT','CU':'CLOSE UP','ECU':'EXTREME CU'};
+
+// ─────────────────────────────────────────
+// SVG panel render — dispatches by visualType
+// ─────────────────────────────────────────
+function renderPanelSVG(panel) {
+  const W=320, H=180, cx=W/2, cy=H*0.58, scale=8;
+  const col = panel.color || '#c0c0e0';
+  const bg  = bgSketch(panel.bg, W, H);
+  const guideLine = `
+    <line x1="${W*.33}" y1="0" x2="${W*.33}" y2="${H}" stroke="rgba(255,255,255,.015)" stroke-width="1"/>
+    <line x1="${W*.67}" y1="0" x2="${W*.67}" y2="${H}" stroke="rgba(255,255,255,.015)" stroke-width="1"/>
+    <line x1="0" y1="${H*.5}" x2="${W}" y2="${H*.5}" stroke="rgba(255,255,255,.015)" stroke-width="1"/>`;
+  const overlay = panel.isIntro ? `<rect width="${W}" height="${H}" fill="rgba(0,212,255,.04)"/>` :
+                  panel.isOutro ? `<rect width="${W}" height="${H}" fill="rgba(255,107,157,.04)"/>` : '';
+
+  let defs = '';
+  let innerSVG = '';
+  const vt = panel.visualType || 'character';
+
+  if (vt === 'character' || vt === 'crowd') {
+    const poseKey = (vt === 'crowd' || panel.pose === 'crowd') ? 'crowd'
+                  : (panel.pose in POSES ? panel.pose : 'standing');
+    const figSVG = POSES[poseKey](cx, cy, scale);
+    const ground = `<line x1="${cx-55}" y1="${cy+scale*1.55}" x2="${cx+60}" y2="${cy+scale*1.55}" stroke="${col}" stroke-width="1" opacity=".25"/>`;
+    innerSVG = `${bg}<g color="${col}" opacity=".9">${figSVG}</g>${ground}`;
+
+  } else if (vt === 'silhouette') {
+    const uid = panel.idx || 0;
+    defs = silhouetteDefs(uid, col);
+    const sil = silhouetteSVG(cx, cy, scale, uid, col);
+    const ground = `<line x1="${cx-60}" y1="${cy+scale*1.55}" x2="${cx+60}" y2="${cy+scale*1.55}" stroke="${col}" stroke-width=".8" opacity=".18"/>`;
+    innerSVG = `${bg}${sil}${ground}`;
+
+  } else if (vt === 'abstract') {
+    innerSVG = abstractSVG(W, H, col, panel.idx);
+
+  } else if (vt === 'macro') {
+    innerSVG = `<rect width="${W}" height="${H}" fill="rgba(8,8,26,.65)"/>${macroSVG(W, H, col, panel.idx)}`;
+
+  } else if (vt === 'object') {
+    innerSVG = `${bgSketch(panel.bg, W, H)}<rect width="${W}" height="${H}" fill="rgba(8,8,26,.52)"/>${objectSVG(W, H, col, panel.styleKey || selectedStyle, panel.idx)}`;
+
+  } else if (vt === 'bokeh') {
+    innerSVG = `<rect width="${W}" height="${H}" fill="rgba(4,4,16,.9)"/>${bokehSVG(W, H, col, panel.idx)}`;
+
+  } else if (vt === 'environment') {
+    innerSVG = environmentOnlySVG(panel.bg, W, H, col);
+
+  } else if (vt === 'crowd-wide') {
+    innerSVG = `${bg}${crowdOnlySVG(W, H, col)}`;
+
+  } else {
+    const figSVG = POSES['standing'](cx, cy, scale);
+    innerSVG = `${bg}<g color="${col}" opacity=".9">${figSVG}</g>`;
+  }
+
+  return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
+    ${defs ? `<defs>${defs}</defs>` : ''}
+    <rect width="${W}" height="${H}" fill="#08081a"/>
+    ${overlay}${guideLine}${innerSVG}
+  </svg>`;
+}
+
+// ─────────────────────────────────────────
+// Progress helpers
+// ─────────────────────────────────────────
+function setProgress(pct, msg) {
+  document.getElementById('progress-fill').style.width = pct+'%';
+  document.getElementById('progress-sub').textContent = msg;
+}
+
+// ─────────────────────────────────────────
+// Claude API analysis
+// ─────────────────────────────────────────
+async function analyzeWithClaude(apiKey, lyrics, genre, artist, panelCount, duration, styleKey) {
+  const style = MV_STYLES[styleKey] || MV_STYLES.story;
+  const audioInfo = audioFeatures
+    ? `- 音楽分析: ${audioAnalyzer.featuresDescription(audioFeatures)}`
+    : '';
+
+  const prompt = `あなたはキャリア20年のプロのMV監督です。以下の楽曲を分析し、${panelCount}カット分の絵コンテを作成してください。
+
+【楽曲情報】
+- アーティスト: ${artist||'不明'}
+- ジャンル/世界観補足: ${genre||'不明'}
+- MVスタイル: ${style.label}（${style.hint}）
+- 曲の長さ: ${formatTime(duration)}（目安: 1カット約${(duration/panelCount).toFixed(1)}秒）
+${audioInfo}
+
+【重要な制作方針】
+1. 前奏（INTRO）を必ず冒頭${Math.round(panelCount*0.08)}カット含めること
+2. アウトロ（OUTRO）を最後${Math.round(panelCount*0.04)}カット含めること
+3. カメラワークは全カット異なる演出を意識すること
+4. 感情の流れ（起承転結）を意識したプロの絵コンテにすること
+5. bgPromptには背景の詳細な撮影・合成プロンプトを英語で書くこと
+
+【歌詞】
+${lyrics}
+
+以下のJSON形式のみで返してください（説明文不要）:
+{
+  "scenes": [
+    {
+      "lines": ["歌詞行1","歌詞行2"],
+      "section": "INTRO / Verse 1 / Chorus など",
+      "pose": "standing|running|dancing|crying|love|action|crowd|reaching|sitting|lookingup|walking のいずれか",
+      "shot": "EWS|WS|MS|2S|CU|ECU のいずれか",
+      "bg": "city|nature|spotlight|rain|stars|abstract|default のいずれか",
+      "color": "#rrggbb",
+      "jaDesc": "このカットの映像描写（日本語2〜3文、カメラワーク含む）",
+      "prompt": "AI画像生成用英語プロンプト（ポーズ・ショット・スタイル）",
+      "bgPrompt": "背景専用の詳細英語プロンプト（ロケーション・照明・雰囲気）"
+    }
+  ]
+}`;
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({
+      model: 'claude-opus-4-7',
+      max_tokens: 8192,
+      messages: [{ role: 'user', content: prompt }]
+    })
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(()=>({}));
+    throw new Error(err.error?.message || `API error: ${res.status}`);
+  }
+
+  const data = await res.json();
+  const text = data.content[0].text;
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error('AIレスポンスのJSON解析に失敗しました');
+  const parsed = JSON.parse(jsonMatch[0]);
+
+  return parsed.scenes.map((s, i) => {
+    const vt = getVisualType(i, styleKey, false, s.section?.includes('INTRO'), s.section?.includes('OUTRO'));
+    return {
+      ...s,
+      idx: i,
+      time: (duration / parsed.scenes.length) * i,
+      color: s.color || styleColor(styleKey, i),
+      visualType: s.visualType || vt,
+      styleKey,
+      bgPrompt: s.bgPrompt || buildBgPrompt(s.bg||'default', s.shot||'MS', s.pose||'standing', i, styleKey, vt)
+    };
+  });
+}
+
+// ─────────────────────────────────────────
+// Build panel DOM element
+// ─────────────────────────────────────────
+function buildPanelEl(p, displayNum) {
+  const el = document.createElement('div');
+  el.className = 'sb-panel' + (p.isIntro ? ' intro-panel' : p.isOutro ? ' outro-panel' : '');
+  const shotLabel = SHOT_LABELS[p.shot] || p.shot;
+  const artSVG = renderPanelSVG(p);
+  const vtLabel = VT_LABELS[p.visualType] || '';
+  el.innerHTML = `
+    <div class="panel-top">
+      <span class="panel-num">${String(displayNum).padStart(3,'0')}</span>
+      <span class="panel-shot">${vtLabel ? vtLabel : shotLabel}</span>
+      <span class="panel-time">${formatTime(p.time)}</span>
+    </div>
+    <div class="panel-art">${artSVG}<button class="panel-dl-btn" title="PNGをダウンロード" onclick="downloadPanelPNG(this)">⬇</button></div>
+    <div class="panel-body">
+      ${p.section ? `<div class="panel-section">${p.section.toUpperCase()}</div>` : ''}
+      <div class="panel-scene">${(p.jaDesc||p.lines?.join('<br>')||'').replace(/\n/g,'<br>')}</div>
+      <div class="panel-prompt-label">IMAGE PROMPT</div>
+      <div class="panel-prompt">${p.prompt}</div>
+      <div class="panel-bg-label">BG DETAIL</div>
+      <div class="panel-bg-prompt">${p.bgPrompt}</div>
+    </div>`;
+  return el;
+}
+
+function appendPanels(panels, startOffset) {
+  const grid = document.getElementById('sb-grid');
+  panels.forEach((p, i) => {
+    const el = buildPanelEl(p, startOffset + i + 1);
+    el.style.animationDelay = (i * 0.04) + 's';
+    grid.appendChild(el);
+  });
+}
+
+// ─────────────────────────────────────────
+// Render storyboard to DOM
+// ─────────────────────────────────────────
+function renderStoryboard(panels, duration) {
+  const grid = document.getElementById('sb-grid');
+  grid.innerHTML = '';
+
+  const style = MV_STYLES[selectedStyle] || MV_STYLES.story;
+  const cutSec = (duration / panels.length).toFixed(1);
+
+  document.getElementById('sb-style-badge').textContent  = style.emoji + ' ' + style.label;
+  document.getElementById('sb-panels-badge').textContent = panels.length + ' cuts';
+  document.getElementById('sb-dur-badge').textContent    = formatTime(duration);
+  document.getElementById('sb-cut-badge').textContent    = cutSec + 's/cut';
+
+  appendPanels(panels, 0);
+
+  document.getElementById('storyboard-area').classList.add('visible');
+  document.getElementById('download-bar').classList.add('visible');
+  document.getElementById('storyboard-area').scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+// ─────────────────────────────────────────
+// Main generate
+// ─────────────────────────────────────────
+async function generate() {
+  hideError();
+  const lyrics     = document.getElementById('lyrics-input').value.trim();
+  const apiKey     = document.getElementById('api-key').value.trim();
+  const genre      = document.getElementById('genre-input').value.trim();
+  const artist     = document.getElementById('artist-input').value.trim();
+  const panelCount = Math.min(400, Math.max(8, parseInt(document.getElementById('panel-count').value)||12));
+
+  if (!lyrics) { showError('歌詞を入力してください。'); return; }
+
+  const duration = audioDuration || 300;
+
+  document.getElementById('gen-btn').disabled = true;
+  document.getElementById('progress-area').classList.add('visible');
+  document.getElementById('storyboard-area').classList.remove('visible');
+  document.getElementById('download-bar').classList.remove('visible');
+
+  try {
+    let panels;
+    if (apiKey) {
+      setProgress(10, 'Claude AI に接続中...');
+      await delay(200);
+      setProgress(25, `${MV_STYLES[selectedStyle]?.label||''}スタイルで歌詞を分析中...`);
+      panels = await analyzeWithClaude(apiKey, lyrics, genre, artist, panelCount, duration, selectedStyle);
+      setProgress(80, '絵コンテを構築中...');
+      savedState = { lyrics, genre, artist, duration, styleKey: selectedStyle, scenes: null };
+    } else {
+      setProgress(15, '歌詞を解析中...');
+      await delay(300);
+      const scenes = parseLyrics(lyrics, panelCount, duration, selectedStyle);
+      setProgress(55, `${MV_STYLES[selectedStyle]?.label||''}スタイルでシーンを構築中...`);
+      await delay(200);
+      panels = scenes.map((s, i) => buildPanel(s, i, scenes.length, duration, selectedStyle));
+      savedState = { lyrics, genre, artist, duration, styleKey: selectedStyle, scenes };
+    }
+    allPanels = panels;
+    setProgress(92, 'レンダリング中...');
+    await delay(150);
+    renderStoryboard(panels, duration);
+    setProgress(100, '完了！');
+    await delay(250);
+  } catch(err) {
+    showError('エラー: ' + err.message);
+    console.error(err);
+  } finally {
+    document.getElementById('gen-btn').disabled = false;
+    document.getElementById('progress-area').classList.remove('visible');
+  }
+}
+
+// ─────────────────────────────────────────
+// Continue generation — append 6 more cuts
+// ─────────────────────────────────────────
+async function continueGenerate() {
+  if (!savedState || !allPanels.length) return;
+  const btn = document.getElementById('continue-btn');
+  const prog = document.getElementById('continue-progress');
+  btn.disabled = true;
+  prog.classList.add('visible');
+
+  try {
+    const offset = allPanels.length;
+    const { lyrics, genre, artist, duration, styleKey } = savedState;
+    const BATCH = 6;
+    let newPanels;
+
+    if (savedState.scenes) {
+      // No-API mode: extend from saved scenes, cycling as needed
+      const extCount = offset + BATCH;
+      const extScenes = parseLyrics(lyrics, extCount, duration, styleKey);
+      const batch = extScenes.slice(offset, extCount);
+      newPanels = batch.map((s, i) => buildPanel(s, offset + i, extCount, duration, styleKey));
+    } else {
+      // API mode: generate 6 standalone atmospheric panels continuing the mood
+      const apiKey = document.getElementById('api-key').value.trim();
+      if (apiKey) {
+        const extra = await analyzeWithClaude(apiKey, lyrics, genre, artist, BATCH, duration, styleKey);
+        newPanels = extra.map((p, i) => ({
+          ...p, idx: offset + i, time: duration / (offset + BATCH) * (offset + i)
+        }));
+      } else {
+        // Fallback: build extra panels from lyrics offset
+        const extScenes = parseLyrics(lyrics, offset + BATCH, duration, styleKey);
+        const batch = extScenes.slice(offset, offset + BATCH);
+        newPanels = batch.map((s, i) => buildPanel(s, offset + i, offset + BATCH, duration, styleKey));
+      }
+    }
+
+    allPanels = allPanels.concat(newPanels);
+    appendPanels(newPanels, offset);
+    document.getElementById('sb-panels-badge').textContent = allPanels.length + ' cuts';
+    // Scroll to newly added panels
+    const grid = document.getElementById('sb-grid');
+    const last = grid.lastElementChild;
+    if (last) last.scrollIntoView({ behavior:'smooth', block:'nearest' });
+  } catch(e) {
+    showError('続き生成エラー: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    prog.classList.remove('visible');
+  }
+}
+
+// ─────────────────────────────────────────
+// Per-panel PNG download
+// ─────────────────────────────────────────
+function downloadPanelPNG(btn) {
+  const panelEl = btn.closest('.sb-panel');
+  const svgEl   = panelEl.querySelector('.panel-art svg');
+  const numEl   = panelEl.querySelector('.panel-num');
+  if (!svgEl) return;
+
+  const svgData = new XMLSerializer().serializeToString(svgEl);
+  const encoded = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+  const img = new Image();
+  img.onload = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 640; canvas.height = 360;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#08081a';
+    ctx.fillRect(0, 0, 640, 360);
+    ctx.drawImage(img, 0, 0, 640, 360);
+    const a = document.createElement('a');
+    a.download = `panel-${(numEl?.textContent||'000').trim()}.png`;
+    a.href = canvas.toDataURL('image/png');
+    a.click();
+  };
+  img.src = encoded;
+}
+
+// ─────────────────────────────────────────
+// Utilities
+// ─────────────────────────────────────────
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function showError(msg) {
+  const el = document.getElementById('error-msg');
+  el.textContent = msg; el.classList.add('visible');
+}
+function hideError() { document.getElementById('error-msg').classList.remove('visible'); }
+
+function printStoryboard() { window.print(); }
+
+function copyPrompts() {
+  const panels = document.querySelectorAll('.panel-prompt');
+  const text = Array.from(panels).map((p,i) => `[Scene ${i+1}]\n${p.textContent}`).join('\n\n');
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = event.currentTarget;
+    const orig = btn.textContent;
+    btn.textContent = '✓ コピーしました';
+    setTimeout(() => btn.textContent = orig, 2000);
+  });
+}
+
+function copyBgPrompts() {
+  const panels = document.querySelectorAll('.panel-bg-prompt');
+  const text = Array.from(panels).map((p,i) => `[BG Scene ${i+1}]\n${p.textContent}`).join('\n\n');
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = event.currentTarget;
+    const orig = btn.textContent;
+    btn.textContent = '✓ コピーしました';
+    setTimeout(() => btn.textContent = orig, 2000);
+  });
+}
+
+// Print styles
+const printStyle = document.createElement('style');
+printStyle.textContent = `
+@media print {
+  body { background:#fff!important;color:#000!important; }
+  body::before,body::after{display:none}
+  .step-card,header,.gen-btn,#progress-area,.download-bar{display:none!important}
+  .sb-grid{grid-template-columns:repeat(6,1fr)!important;gap:.3rem!important}
+  .sb-panel{break-inside:avoid;border:1px solid #ccc!important;background:#f9f9f9!important}
+  .panel-art{background:#fff!important}
+  .panel-art svg rect{fill:#fff!important}
+  .panel-prompt,.panel-bg-prompt{background:#eee!important;color:#333!important}
+  .panel-section{color:#666!important}
+}`;
+document.head.appendChild(printStyle);
+
+// Init
+initStyleSelector();
