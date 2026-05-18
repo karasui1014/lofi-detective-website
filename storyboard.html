@@ -205,6 +205,65 @@ label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;
 .sb-meta{display:flex;gap:.4rem;flex-wrap:wrap;align-items:center;}
 .meta-badge{font-size:.62rem;padding:.2rem .6rem;border-radius:20px;border:1px solid var(--border);color:var(--text-muted);background:var(--surface2);}
 .sb-style-badge{font-size:.62rem;padding:.2rem .7rem;border-radius:20px;background:rgba(6,182,212,.1);border:1px solid rgba(6,182,212,.25);color:var(--accent2);}
+.lang-toggle-btn{
+  font-size:.62rem;padding:.25rem .75rem;border-radius:20px;background:var(--surface2);
+  border:1px solid var(--border-hi);color:var(--text-sec);cursor:pointer;
+  transition:all .15s ease;font-family:inherit;font-weight:600;
+}
+.lang-toggle-btn:hover{border-color:var(--accent2);color:var(--accent2);}
+
+/* ── Reference video card ── */
+.ref-card{margin-top:1rem;}
+.ref-row{display:grid;grid-template-columns:1fr 1fr;gap:.8rem;margin-bottom:.7rem;}
+@media(max-width:700px){.ref-row{grid-template-columns:1fr;}}
+.ref-input-group label{display:block;font-size:.65rem;color:var(--text-muted);margin-bottom:.3rem;text-transform:uppercase;letter-spacing:.06em;}
+.ref-input-group input[type="text"], .ref-input-group input[type="file"]{
+  width:100%;padding:.5rem .65rem;border-radius:8px;border:1px solid var(--border-hi);
+  background:var(--surface2);color:var(--text);font-size:.75rem;font-family:inherit;
+}
+.ref-btn{
+  padding:.5rem .9rem;border-radius:8px;border:1px solid var(--accent);
+  background:rgba(124,58,237,.15);color:var(--text);cursor:pointer;font-size:.7rem;
+  font-family:inherit;font-weight:600;white-space:nowrap;
+}
+.ref-btn:hover{background:rgba(124,58,237,.3);}
+.ref-status-row{display:flex;justify-content:space-between;align-items:center;margin-top:.5rem;}
+.ref-clear-btn{
+  font-size:.62rem;padding:.2rem .6rem;border-radius:14px;background:transparent;
+  border:1px solid var(--border);color:var(--text-muted);cursor:pointer;font-family:inherit;
+}
+.ref-clear-btn:hover{border-color:var(--accent3);color:var(--accent3);}
+.ref-preview{margin-top:.5rem;}
+.ref-preview:empty{display:none;}
+.ref-label{font-size:.65rem;color:var(--text-sec);margin-bottom:.3rem;}
+.ref-swatches{display:flex;gap:.3rem;margin-bottom:.3rem;}
+.ref-swatch{width:32px;height:32px;border-radius:6px;border:1px solid var(--border-hi);}
+.ref-mood{font-size:.62rem;color:var(--text-muted);}
+
+/* ── Scenario script ── */
+.scenario-section{
+  background:linear-gradient(135deg, rgba(124,58,237,.06), rgba(6,182,212,.04));
+  border:1px solid var(--border-hi);
+  border-radius:var(--radius);
+  padding:1.2rem 1.4rem;
+  margin-bottom:1.5rem;
+}
+.scenario-header{
+  display:flex;justify-content:space-between;align-items:center;
+  margin-bottom:.9rem;padding-bottom:.7rem;border-bottom:1px solid var(--border);
+}
+.scenario-title{font-size:.82rem;font-weight:700;letter-spacing:.05em;color:var(--text);}
+.scenario-regen-btn{
+  padding:.4rem .85rem;border-radius:18px;background:var(--surface2);
+  border:1px solid var(--border-hi);color:var(--text-sec);cursor:pointer;font-size:.68rem;
+  font-family:inherit;font-weight:600;transition:all .15s ease;
+}
+.scenario-regen-btn:hover{background:rgba(124,58,237,.15);border-color:var(--accent);color:var(--text);}
+.scenario-text{
+  font-size:.78rem;line-height:1.85;color:var(--text-sec);
+  font-family:'Inter','Segoe UI',system-ui,-apple-system,sans-serif;
+  white-space:pre-wrap;
+}
 
 /* ── Storyboard grid ── */
 .sb-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.8rem;}
@@ -232,7 +291,7 @@ label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;
 .panel-time{font-size:.6rem;color:var(--text-muted);font-variant-numeric:tabular-nums;}
 .panel-shot{font-size:.58rem;color:var(--accent3);letter-spacing:.05em;text-transform:uppercase;}
 
-.panel-art{position:relative;background:#06060f;aspect-ratio:16/9;overflow:hidden;}
+.panel-art{position:relative;background:#12122a;aspect-ratio:16/9;overflow:hidden;}
 .panel-art svg{width:100%;height:100%;}
 
 .panel-dl-btn{
@@ -419,8 +478,8 @@ label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;
           <input type="text" id="genre-input" placeholder="逆光多め、モノクロ、水中シーンを入れてほしい など">
         </div>
         <div>
-          <label>アーティスト名</label>
-          <input type="text" id="artist-input" placeholder="Lo-Fi Detective">
+          <label>楽曲名</label>
+          <input type="text" id="artist-input" placeholder="曲のタイトルを入力">
         </div>
       </div>
       <div style="margin-bottom:.75rem;">
@@ -439,6 +498,34 @@ label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;
     </div>
 
   </div><!-- /input-grid -->
+
+  <!-- Step 5: Reference video (optional) -->
+  <div class="card ref-card">
+    <div class="card-header">
+      <div class="step-badge">5</div>
+      <span class="card-title">参考動画（任意）</span>
+      <span class="opt-badge">OPTIONAL</span>
+    </div>
+    <p class="hint-text" style="margin-bottom:.65rem;">過去のMVなど参考動画を入れると色調・トーンを絵コンテに反映します。</p>
+    <div class="ref-row">
+      <div class="ref-input-group">
+        <label>動画ファイル</label>
+        <input type="file" id="ref-video-file" accept="video/*" onchange="loadReferenceVideo(this.files[0])">
+      </div>
+      <div class="ref-input-group">
+        <label>YouTube URL</label>
+        <div style="display:flex;gap:.4rem;">
+          <input type="text" id="ref-youtube-url" placeholder="https://youtube.com/watch?v=...">
+          <button class="ref-btn" onclick="loadReferenceYouTube(document.getElementById('ref-youtube-url').value)">解析</button>
+        </div>
+      </div>
+    </div>
+    <div class="ref-status-row">
+      <span id="ref-status" style="color:var(--text-muted);font-size:.7rem;">未設定</span>
+      <button class="ref-clear-btn" onclick="clearReference()">クリア</button>
+    </div>
+    <div id="ref-preview" class="ref-preview"></div>
+  </div>
 
   <!-- Generate button -->
   <button class="gen-btn" id="gen-btn" onclick="generate()">✦ 絵コンテを生成する</button>
@@ -459,8 +546,19 @@ label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;
         <span class="meta-badge" id="sb-panels-badge">-- cuts</span>
         <span class="meta-badge" id="sb-dur-badge">--:--</span>
         <span class="meta-badge" id="sb-cut-badge">--s/cut</span>
+        <button class="lang-toggle-btn" id="lang-toggle-btn" onclick="togglePromptLang()">🌐 English</button>
       </div>
     </div>
+
+    <!-- Scenario script -->
+    <div id="scenario-section" class="scenario-section">
+      <div class="scenario-header">
+        <span class="scenario-title">📜 シナリオ台本</span>
+        <button class="scenario-regen-btn" onclick="regenerateScenario()">🔄 違うシナリオにする</button>
+      </div>
+      <div id="scenario-text" class="scenario-text"></div>
+    </div>
+
     <div class="sb-grid" id="sb-grid"></div>
     <div id="continue-progress">⏳ 追加カットを生成中...</div>
     <div class="download-bar" id="download-bar">
@@ -906,6 +1004,9 @@ let allPanels = [];
 let savedState = null; // { lyrics, genre, artist, duration, styleKey, scenes }
 let genSeed = 0; // varies on each generate() click to produce different prompts
 let userRequest = ''; // ユーザーのプロンプト要望（旧：世界観）
+let promptLang = 'ja'; // 'ja' or 'en' — current display language for prompts
+let referenceProfile = null; // { colors:[hex,...], brightness:0-1, source:'video|youtube|none' }
+let scenarioSeed = 0; // separate seed for scenario regeneration
 
 // Seeded pseudo-random (mulberry32)
 function seededRand(seed) {
@@ -1319,6 +1420,16 @@ function buildBgPrompt(bg, shot, pose, idx, styleKey, visualType) {
   }
   const camData = CAMERA_MOVES_DATA[camIdx];
   const shotFull = {'EWS':'超広角ショット','WS':'ワイドショット','MS':'ミディアムショット','2S':'ツーショット','CU':'クローズアップ','ECU':'超クローズアップ'}[shot]||shot;
+  const shotFullEn = {'EWS':'extreme wide shot','WS':'wide shot','MS':'medium shot','2S':'two shot','CU':'close-up','ECU':'extreme close-up'}[shot]||shot;
+  const bgDescEn = {
+    city:      'urban night cityscape, rain-slicked streets reflecting neon, lit windows of skyscrapers, foggy fantastical atmosphere',
+    nature:    'lush natural landscape, golden sunlight filtering through leaves, wind-stirred plants, gentle rolling hills in the distance',
+    spotlight: 'theatrical concert stage, single overhead spotlight, beams of light cutting through smoke, contrast against surrounding darkness',
+    rain:      'heavy rain, dark wet environment, droplets blurring the lens, reflective ground, melancholic blue-gray air',
+    stars:     'vast starry night sky, milky way overhead, dark field or rooftop location, deep navy to black gradient',
+    abstract:  'surreal abstract space, floating geometric forms, dreamlike color gradients, non-Euclidean architecture, painterly light staging',
+    default:   'refined cinematic environment, shallow depth of field, soft bokeh background, professional studio or location lighting'
+  }[bg] || 'cinematic environment';
   const vtNote = {
     abstract: '人物なし、純粋な視覚的抽象表現、ジェネラティブアートスタイル、',
     macro: 'マクロレンズ、F2.8の浅い被写界深度、テクスチャー重視のフォアグラウンド、人物なし、',
@@ -1327,8 +1438,29 @@ function buildBgPrompt(bg, shot, pose, idx, styleKey, visualType) {
     object: 'シンボリックな小物・プロップのクローズアップ、映画的な物撮りスタイル、人物なし、',
     bokeh: 'ピントの外れたボケ背景、柔らかい光の円、大気感のある奥行き、人物なし、',
   }[visualType] || '';
+  const vtNoteEn = {
+    abstract: 'no characters, pure visual abstraction, generative art style, ',
+    macro: 'macro lens, F2.8 shallow depth of field, texture-driven foreground, no characters, ',
+    silhouette: 'strong backlight, silhouetted subject, rim light only, dramatic contrast, ',
+    environment: 'no characters, empty landscape, scene narrated by environment, ',
+    object: 'symbolic prop close-up, cinematic still-life style, no characters, ',
+    bokeh: 'out-of-focus bokeh background, soft circles of light, atmospheric depth, no characters, ',
+  }[visualType] || '';
   const styleHint = style.hint.split('。')[0];
-  return `【ショット】${shotFull}　【背景】${bgDesc}　【カメラワーク】${camData.label}（${camData.prompt}）　【ビジュアル指示】${vtNote}シネマティックなカラーグレード、フィルムグレイン、プロ仕様のMV照明、${styleHint}`;
+  const styleHintEn = {
+    rock:'rock band MV with hard cuts',
+    ballad:'ballad MV with slow camera and soft natural light',
+    emotional:'emotional MV with warm light',
+    mysterious:'fantastical surreal MV',
+    performance:'performance MV centered on dance and singing',
+    story:'short-film style MV',
+    concept:'conceptual MV with unified visual aesthetic',
+    liveshow:'live concert MV with real stage lighting and crowd energy',
+    bizarre:'bizarre surreal art MV with Dali/Magritte feel'
+  }[styleKey] || 'cinematic MV';
+  const ja = `【ショット】${shotFull}　【背景】${bgDesc}　【カメラワーク】${camData.label}（${camData.prompt}）　【ビジュアル指示】${vtNote}シネマティックなカラーグレード、フィルムグレイン、プロ仕様のMV照明、${styleHint}`;
+  const en = `[shot] ${shotFullEn}　[background] ${bgDescEn}　[camera] ${camData.prompt}　[visual] ${vtNoteEn}cinematic color grade, film grain, pro MV lighting, ${styleHintEn}`;
+  return { ja, en };
 }
 
 // ─────────────────────────────────────────
@@ -1497,26 +1629,45 @@ function buildPanel(scene, idx, total, duration, styleKey, lyricsContext) {
     ? scene.lines[0]
     : scene.lines.join('\n');
 
-  const prompt   = buildImagePrompt(shot, pose, bg, styleKey, visualType);
-  const bgPrompt = buildBgPrompt(bg, shot, pose, idx, styleKey, visualType);
+  // Reference video color bias — replace ~40% of colors with reference palette
+  if (referenceProfile && referenceProfile.colors && referenceProfile.colors.length && rand() < 0.4) {
+    color = referenceProfile.colors[Math.floor(rand() * referenceProfile.colors.length)];
+  }
+
+  const promptObj   = buildImagePrompt(shot, pose, bg, styleKey, visualType);
+  const bgPromptObj = buildBgPrompt(bg, shot, pose, idx, styleKey, visualType);
 
   return { shot, pose, bg, color, idx, time: t, lines: scene.lines, section: scene.section,
-           jaDesc, prompt, bgPrompt, visualType, styleKey,
+           jaDesc,
+           prompt: promptObj.ja, promptEn: promptObj.en,
+           bgPrompt: bgPromptObj.ja, bgPromptEn: bgPromptObj.en,
+           visualType, styleKey,
            isIntro: !!scene.isIntro, isOutro: !!scene.isOutro,
            _scene: scene, _svgVariant: svgVariant, _regenCount: 0 };
 }
 
 function buildImagePrompt(shot, pose, bg, styleKey, visualType) {
   const shotMap = {'EWS':'超広角ショット','WS':'ワイドショット','MS':'ミディアムショット','2S':'ツーショット','CU':'クローズアップ','ECU':'超クローズアップ'};
+  const shotMapEn = {'EWS':'extreme wide shot','WS':'wide shot','MS':'medium shot','2S':'two shot','CU':'close-up','ECU':'extreme close-up'};
   const poseMap = {
     standing:'人物が静止して立つ',running:'人物が走る',dancing:'人物が踊る',
     crying:'人物が泣いている',love:'二人が寄り添い抱き合う',action:'ダイナミックなアクションポーズ',
     crowd:'群衆・多くの人',reaching:'人物が手を伸ばす',sitting:'人物が静かに座る',
     lookingup:'人物が空を見上げる',walking:'人物が前に歩く'
   };
+  const poseMapEn = {
+    standing:'character standing still',running:'character running',dancing:'character dancing',
+    crying:'character crying',love:'two people embracing closely',action:'dynamic action pose',
+    crowd:'crowd of many people',reaching:'character reaching out',sitting:'character sitting quietly',
+    lookingup:'character looking up at the sky',walking:'character walking forward'
+  };
   const bgMap = {
     city:'都市の夜景・ネオンライト',nature:'豊かな自然の風景',spotlight:'劇的なステージスポットライト',
     rain:'雨の夜・しっとりした空気',stars:'星空の夜',abstract:'シュールな抽象空間',default:'シネマティックな背景'
+  };
+  const bgMapEn = {
+    city:'urban night cityscape with neon lights',nature:'lush natural landscape',spotlight:'dramatic stage spotlight',
+    rain:'rainy night, moist atmosphere',stars:'starry night sky',abstract:'surreal abstract space',default:'cinematic background'
   };
   const vtPrompt = {
     character: '',
@@ -1528,19 +1679,50 @@ function buildImagePrompt(shot, pose, bg, styleKey, visualType) {
     bokeh: 'ボケを活かした背景、柔らかな光の粒、大気感のある奥行き表現、人物なし、',
     'crowd-wide': '広角の群衆ショット、コンサートの観客、エネルギーとうねり、',
   };
+  const vtPromptEn = {
+    character: '',
+    silhouette: 'strong backlit silhouette, rim light only, figure outlined against background, ',
+    abstract: 'abstract visual art, no characters, geometric forms and light patterns, ',
+    macro: 'extreme macro photography, fine textures, shallow depth of field, no characters, ',
+    environment: 'ambient shot, no characters, environment tells the story, ',
+    object: 'symbolic prop close-up, cinematic still life style, no characters, ',
+    bokeh: 'bokeh-rich background, soft circles of light, atmospheric depth, no characters, ',
+    'crowd-wide': 'wide-angle crowd shot, concert audience, energy and surge, ',
+  };
   const style = MV_STYLES[styleKey] || MV_STYLES.story;
+  const styleHintEn = {
+    rock:'rock band MV, hard contrast, harsh lighting',
+    ballad:'ballad MV, slow camera, soft natural light, muted palette',
+    emotional:'emotional MV, warm light, sepia vs vivid contrast',
+    mysterious:'fantastical surreal MV, dreamlike spatial composition',
+    performance:'performance MV centered on dance and singing',
+    story:'short-film style MV with clear narrative arc',
+    concept:'conceptual MV, unified visual aesthetic, art-driven',
+    liveshow:'live concert MV, real stage lighting, crowd energy',
+    bizarre:'bizarre surreal art MV, Dali/Magritte feel, design-driven visuals'
+  }[styleKey] || 'cinematic MV';
   const vtPart = vtPrompt[visualType] || '';
+  const vtPartEn = vtPromptEn[visualType] || '';
   const posePart = (visualType === 'character') ? (poseMap[pose] ? `【人物】${poseMap[pose]}　` : '') : '';
+  const posePartEn = (visualType === 'character') ? (poseMapEn[pose] ? `[subject] ${poseMapEn[pose]}, ` : '') : '';
   const shotPart = shotMap[shot] ? `【構図】${shotMap[shot]}　` : '';
+  const shotPartEn = shotMapEn[shot] ? `[shot] ${shotMapEn[shot]}, ` : '';
   const bgPart = bgMap[bg] ? `【背景】${bgMap[bg]}　` : '';
+  const bgPartEn = bgMapEn[bg] ? `[background] ${bgMapEn[bg]}, ` : '';
   const styleHint = style.hint.split('。')[0];
   const extraStyle = styleKey === 'bizarre'
     ? '、ダリ・マグリット風のシュールリアリズム、強烈な色彩対比、デザイン主導のビジュアル体験、芸術家の脳内世界'
     : styleKey === 'liveshow'
     ? '、臨場感あふれる会場照明、手持ちカメラの臨場感、ライブの熱量'
     : '';
-  const reqPart = userRequest ? `【要望】${userRequest}　` : '';
-  return `${shotPart}${posePart}${bgPart}${vtPart}${reqPart}シネマティックな照明・フィルムグレイン、${styleHint}${extraStyle}`.replace(/\s+/g,' ').trim();
+  const extraStyleEn = styleKey === 'bizarre'
+    ? ', Dali-Magritte surrealism, intense color contrast, design-led visual experience, artist mindscape'
+    : styleKey === 'liveshow'
+    ? ', immersive venue lighting, handheld camera feel, live energy'
+    : '';
+  const ja = `${shotPart}${posePart}${bgPart}${vtPart}シネマティックな照明・フィルムグレイン、${styleHint}${extraStyle}`.replace(/\s+/g,' ').trim();
+  const en = `${shotPartEn}${posePartEn}${bgPartEn}${vtPartEn}cinematic lighting, film grain, ${styleHintEn}${extraStyleEn}`.replace(/\s+/g,' ').trim();
+  return { ja, en };
 }
 
 // Visual type labels for display
@@ -1557,15 +1739,15 @@ const SHOT_LABELS = {'EWS':'EXTREME WIDE','WS':'WIDE SHOT','MS':'MED SHOT','2S':
 // ─────────────────────────────────────────
 function renderPanelSVG(panel) {
   const W=320, H=180, cx=W/2, cy=H*0.58, scale=8;
-  const col = panel.color || '#c0c0e0';
+  const col = brightenColor(panel.color || '#c0c0e0');
   const bg  = bgSketch(panel.bg, W, H);
   const svgVar = panel._svgVariant ?? panel.idx ?? 0;
   const guideLine = `
-    <line x1="${W*.33}" y1="0" x2="${W*.33}" y2="${H}" stroke="rgba(255,255,255,.015)" stroke-width="1"/>
-    <line x1="${W*.67}" y1="0" x2="${W*.67}" y2="${H}" stroke="rgba(255,255,255,.015)" stroke-width="1"/>
-    <line x1="0" y1="${H*.5}" x2="${W}" y2="${H*.5}" stroke="rgba(255,255,255,.015)" stroke-width="1"/>`;
-  const overlay = panel.isIntro ? `<rect width="${W}" height="${H}" fill="rgba(0,212,255,.04)"/>` :
-                  panel.isOutro ? `<rect width="${W}" height="${H}" fill="rgba(255,107,157,.04)"/>` : '';
+    <line x1="${W*.33}" y1="0" x2="${W*.33}" y2="${H}" stroke="rgba(255,255,255,.04)" stroke-width="1"/>
+    <line x1="${W*.67}" y1="0" x2="${W*.67}" y2="${H}" stroke="rgba(255,255,255,.04)" stroke-width="1"/>
+    <line x1="0" y1="${H*.5}" x2="${W}" y2="${H*.5}" stroke="rgba(255,255,255,.04)" stroke-width="1"/>`;
+  const overlay = panel.isIntro ? `<rect width="${W}" height="${H}" fill="rgba(0,212,255,.05)"/>` :
+                  panel.isOutro ? `<rect width="${W}" height="${H}" fill="rgba(255,107,157,.05)"/>` : '';
 
   let defs = '';
   let innerSVG = '';
@@ -1575,27 +1757,27 @@ function renderPanelSVG(panel) {
     const poseKey = (vt === 'crowd' || panel.pose === 'crowd') ? 'crowd'
                   : (panel.pose in POSES ? panel.pose : 'standing');
     const figSVG = POSES[poseKey](cx, cy, scale);
-    const ground = `<line x1="${cx-55}" y1="${cy+scale*1.55}" x2="${cx+60}" y2="${cy+scale*1.55}" stroke="${col}" stroke-width="1" opacity=".25"/>`;
-    innerSVG = `${bg}<g color="${col}" opacity=".9">${figSVG}</g>${ground}`;
+    const ground = `<line x1="${cx-55}" y1="${cy+scale*1.55}" x2="${cx+60}" y2="${cy+scale*1.55}" stroke="${col}" stroke-width="1.2" opacity=".45"/>`;
+    innerSVG = `${bg}<g color="${col}" opacity="1" stroke-width="1.4">${figSVG}</g>${ground}`;
 
   } else if (vt === 'silhouette') {
     const uid = panel.idx || 0;
     defs = silhouetteDefs(uid, col);
     const sil = silhouetteSVG(cx, cy, scale, uid, col);
-    const ground = `<line x1="${cx-60}" y1="${cy+scale*1.55}" x2="${cx+60}" y2="${cy+scale*1.55}" stroke="${col}" stroke-width=".8" opacity=".18"/>`;
+    const ground = `<line x1="${cx-60}" y1="${cy+scale*1.55}" x2="${cx+60}" y2="${cy+scale*1.55}" stroke="${col}" stroke-width="1" opacity=".3"/>`;
     innerSVG = `${bg}${sil}${ground}`;
 
   } else if (vt === 'abstract') {
     innerSVG = abstractSVG(W, H, col, svgVar);
 
   } else if (vt === 'macro') {
-    innerSVG = `<rect width="${W}" height="${H}" fill="rgba(8,8,26,.65)"/>${macroSVG(W, H, col, svgVar)}`;
+    innerSVG = `<rect width="${W}" height="${H}" fill="rgba(12,12,30,.55)"/>${macroSVG(W, H, col, svgVar)}`;
 
   } else if (vt === 'object') {
-    innerSVG = `${bgSketch(panel.bg, W, H)}<rect width="${W}" height="${H}" fill="rgba(8,8,26,.52)"/>${objectSVG(W, H, col, panel.styleKey || selectedStyle, svgVar)}`;
+    innerSVG = `${bgSketch(panel.bg, W, H)}<rect width="${W}" height="${H}" fill="rgba(12,12,30,.42)"/>${objectSVG(W, H, col, panel.styleKey || selectedStyle, svgVar)}`;
 
   } else if (vt === 'bokeh') {
-    innerSVG = `<rect width="${W}" height="${H}" fill="rgba(4,4,16,.9)"/>${bokehSVG(W, H, col, svgVar)}`;
+    innerSVG = `<rect width="${W}" height="${H}" fill="rgba(8,8,22,.8)"/>${bokehSVG(W, H, col, svgVar)}`;
 
   } else if (vt === 'environment') {
     innerSVG = environmentOnlySVG(panel.bg, W, H, col);
@@ -1605,14 +1787,28 @@ function renderPanelSVG(panel) {
 
   } else {
     const figSVG = POSES['standing'](cx, cy, scale);
-    innerSVG = `${bg}<g color="${col}" opacity=".9">${figSVG}</g>`;
+    innerSVG = `${bg}<g color="${col}" opacity="1">${figSVG}</g>`;
   }
 
   return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
     ${defs ? `<defs>${defs}</defs>` : ''}
-    <rect width="${W}" height="${H}" fill="#08081a"/>
+    <rect width="${W}" height="${H}" fill="#12122a"/>
     ${overlay}${guideLine}${innerSVG}
   </svg>`;
+}
+
+// Brighten panel color so figures stand out against dark background
+function brightenColor(hex) {
+  if (!hex || hex[0] !== '#' || hex.length < 7) return hex;
+  let r = parseInt(hex.slice(1,3),16);
+  let g = parseInt(hex.slice(3,5),16);
+  let b = parseInt(hex.slice(5,7),16);
+  // Bring toward 200-240 brightness range for better visibility
+  const target = 210;
+  r = Math.round(r + (target - r) * 0.45);
+  g = Math.round(g + (target - g) * 0.45);
+  b = Math.round(b + (target - b) * 0.45);
+  return rgbToHex(r, g, b);
 }
 
 // ─────────────────────────────────────────
@@ -1712,14 +1908,25 @@ ${lyrics}
 
   return parsed.scenes.map((s, i) => {
     const vt = getVisualType(i, styleKey, false, s.section?.includes('INTRO'), s.section?.includes('OUTRO'));
+    const shot = s.shot || 'MS';
+    const pose = s.pose || 'standing';
+    const bg = s.bg || 'default';
+    const visualType = s.visualType || vt;
+    const enPrompts = buildImagePrompt(shot, pose, bg, styleKey, visualType);
+    const enBgPrompts = buildBgPrompt(bg, shot, pose, i, styleKey, visualType);
+    const bgPromptVal = s.bgPrompt || enBgPrompts.ja;
     return {
       ...s,
       idx: i,
       time: (duration / parsed.scenes.length) * i,
       color: s.color || styleColor(styleKey, i),
-      visualType: s.visualType || vt,
+      visualType,
       styleKey,
-      bgPrompt: s.bgPrompt || buildBgPrompt(s.bg||'default', s.shot||'MS', s.pose||'standing', i, styleKey, vt)
+      bgPrompt: bgPromptVal,
+      promptEn: enPrompts.en,
+      bgPromptEn: enBgPrompts.en,
+      _svgVariant: i * 7 + 3,
+      _regenCount: 0
     };
   });
 }
@@ -1734,6 +1941,11 @@ function buildPanelEl(p, displayNum) {
   const shotLabel = SHOT_LABELS[p.shot] || p.shot;
   const artSVG = renderPanelSVG(p);
   const vtLabel = VT_LABELS[p.visualType] || '';
+  const promptJa = p.prompt || '';
+  const promptEn = p.promptEn || p.prompt || '';
+  const bgJa = p.bgPrompt || '';
+  const bgEn = p.bgPromptEn || p.bgPrompt || '';
+  const isEn = promptLang === 'en';
   el.innerHTML = `
     <div class="panel-top">
       <span class="panel-num">${String(displayNum).padStart(3,'0')}</span>
@@ -1745,12 +1957,16 @@ function buildPanelEl(p, displayNum) {
       ${p.section ? `<div class="panel-section">${p.section.toUpperCase()}</div>` : ''}
       <div class="panel-scene">${(p.jaDesc||p.lines?.join('<br>')||'').replace(/\n/g,'<br>')}</div>
       <div class="panel-prompt-label">絵コンテプロンプト</div>
-      <div class="panel-prompt">${p.prompt}</div>
+      <div class="panel-prompt" data-ja="${escapeAttr(promptJa)}" data-en="${escapeAttr(promptEn)}">${isEn ? promptEn : promptJa}</div>
       <div class="panel-bg-label">背景プロンプト</div>
-      <div class="panel-bg-prompt">${p.bgPrompt}</div>
+      <div class="panel-bg-prompt" data-ja="${escapeAttr(bgJa)}" data-en="${escapeAttr(bgEn)}">${isEn ? bgEn : bgJa}</div>
       <button class="regen-btn" onclick="regeneratePanel(this)">🔄 別パターンを生成</button>
     </div>`;
   return el;
+}
+
+function escapeAttr(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
 function appendPanels(panels, startOffset) {
@@ -1778,6 +1994,12 @@ function renderStoryboard(panels, duration) {
   document.getElementById('sb-cut-badge').textContent    = cutSec + 's/cut';
 
   appendPanels(panels, 0);
+
+  // Generate and render scenario
+  scenarioSeed = 0;
+  const analysis = savedState?.lyricsAnalysis || analyzeFullLyrics(savedState?.lyrics || '');
+  const script = generateScenario(panels, savedState?.lyrics || '', analysis, savedState?.seed || 0);
+  renderScenario(script);
 
   document.getElementById('storyboard-area').classList.add('visible');
   document.getElementById('download-bar').classList.add('visible');
@@ -1914,6 +2136,542 @@ async function continueGenerate() {
 }
 
 // ─────────────────────────────────────────
+// Prompt language toggle (JA <-> EN)
+// ─────────────────────────────────────────
+function togglePromptLang() {
+  promptLang = promptLang === 'ja' ? 'en' : 'ja';
+  const btn = document.getElementById('lang-toggle-btn');
+  if (btn) btn.textContent = promptLang === 'ja' ? '🌐 English' : '🌐 日本語';
+  document.querySelectorAll('.panel-prompt, .panel-bg-prompt').forEach(el => {
+    const val = el.getAttribute(promptLang === 'ja' ? 'data-ja' : 'data-en');
+    if (val != null) el.textContent = val;
+  });
+}
+
+// ─────────────────────────────────────────
+// Scenario script generation
+// ─────────────────────────────────────────
+function generateScenario(panels, lyrics, lyricsAnalysis, seed) {
+  const rand = seededRand((seed || 0) * 7919 + 12345);
+  const styleKey = panels[0]?.styleKey || 'story';
+  const tone = lyricsAnalysis?.tone || 'neutral';
+  const energy = lyricsAnalysis?.energy || 'mid';
+
+  // Group panels into sections
+  const sections = [];
+  let cur = null;
+  panels.forEach(p => {
+    const sec = p.section || (p.isIntro ? 'INTRO' : p.isOutro ? 'OUTRO' : 'SCENE');
+    if (!cur || cur.section !== sec) {
+      cur = { section: sec, panels: [], startTime: p.time };
+      sections.push(cur);
+    }
+    cur.panels.push(p);
+    cur.endTime = p.time;
+  });
+
+  // Variant framing based on seed (for 違うシナリオにする)
+  const variant = Math.floor(rand() * 5); // 0-4: different narrative POV/approach
+
+  // ── LIVESHOW ─────────────────────────────────────────────────────────────
+  if (styleKey === 'liveshow') {
+    const seNames = ['MC','アーティスト','ステージ'];
+    const crowdCalls = [
+      ['「みんな、声出せるか！？」', '（SE: 割れんばかりの歓声）', '「今夜、俺たちと一緒に最高の夜にしようぜ！」'],
+      ['「この曲、全員で歌ってくれ！」', '（SE: 観客の合唱が始まる）', '「最高だ、ありがとう！」'],
+      ['「声が聞こえないぞ！もっとだ！」', '（SE: 歓声・拍手が爆発）', '「これが俺たちのライブだ！」'],
+    ][variant % 3];
+    const openings = [
+      'ステージが暗転。静寂が会場を支配する中、一条のスポットライトが床を照らす。',
+      'アリーナ中に緊張が走る。数万の視線がステージへ注がれ、カウントダウンが始まる。',
+      '暗闇の中でイントロのビートが鳴り響く。観客が一斉に息を呑む、その瞬間。',
+    ][variant % 3];
+
+    let script = `【オープニング】\n${openings}\n（SE: 観客の期待の声が高まる）\n\n`;
+
+    sections.forEach((sec, i) => {
+      const ts = `${formatTime(sec.startTime)}〜${formatTime(sec.endTime)}`;
+      script += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+      script += `【${sec.section}】  ${ts}\n`;
+      script += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+
+      sec.panels.forEach((p, pi) => {
+        const isCrowd = p.visualType === 'crowd-wide';
+        const isAction = p.pose === 'action' || p.pose === 'dancing';
+        const lines = (p.lines || []).filter(l => l && l.trim());
+        const lineText = lines[0] ? `「${lines[0].replace(/[。、]$/, '')}」` : '';
+
+        if (isCrowd) {
+          const crowdNotes = [
+            `（カメラ：クレーンがアリーナを俯瞰。${(p.lines||[]).slice(0,2).filter(Boolean).join('　')}）`,
+            `（SE: 歓声・手拍子が会場を包む）\nMC：${crowdCalls[0]}`,
+            `（照明：全色レーザーが客席まで走る。一体感が最高潮に。）`,
+          ][pi % 3];
+          script += `\n${crowdNotes}\n`;
+        } else if (isAction) {
+          script += `\n（カメラ：${p.shot || 'WS'} ／ ${p.jaDesc || 'パフォーマンス'}）\n`;
+          if (lineText) script += `MC：${lineText}\n`;
+          if (pi === Math.floor(sec.panels.length / 2)) {
+            script += `MC：${crowdCalls[1]}\n（SE: 歓声爆発）\n`;
+          }
+        } else {
+          script += `\n（カメラ：${p.shot || 'MS'} ／ ${p.jaDesc || 'ステージ'}）\n`;
+          if (lineText) script += `歌詞：${lineText}\n`;
+        }
+      });
+
+      // Section climax note
+      const hasClimax = sec.section?.includes('CHORUS') || sec.section?.includes('サビ') || sec.section?.includes('Bridge');
+      if (hasClimax) {
+        script += `\n（照明：フルカラーストロボ、全ステージが光に染まる）\n`;
+        script += `MC：${crowdCalls[2]}\n`;
+        script += `（SE: 最大歓声 ── 会場全体が震える）\n`;
+      }
+      script += '\n';
+    });
+
+    const endings = [
+      'アンコールの拍手が鳴り止まない。暗転したステージに、余韻だけが漂う。',
+      '最後の音が消えても、観客の熱量はそのまま会場に留まり続ける。',
+      'メンバーがステージを去る。歓声と涙が交差する、最高の夜のエンディング。',
+    ][variant % 3];
+    script += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n【エンディング】\n${endings}\n（SE: 拍手・歓声が続く）\n`;
+    return script;
+  }
+
+  // ── ROCK ─────────────────────────────────────────────────────────────────
+  if (styleKey === 'rock') {
+    const rockOpens = [
+      'ゼロからカウントする、ドラムのキック。暗闇に一閃、ギターのリフが会場を切り裂く。',
+      'スモークの向こうからバンドのシルエットが現れる。最初の一音が落ちた瞬間、すべてが始まった。',
+      '轟音のイントロ。ステージに仁王立ちするボーカル、眼光が客席を射抜く。',
+    ][variant % 3];
+
+    let script = `【OPEN】\n${rockOpens}\n\n`;
+
+    sections.forEach(sec => {
+      const ts = `${formatTime(sec.startTime)}〜${formatTime(sec.endTime)}`;
+      script += `【${sec.section}】（${ts}）\n`;
+
+      const keyPanel = sec.panels[Math.floor(rand() * sec.panels.length)];
+      const allLines = sec.panels.flatMap(p => p.lines || []).filter(l => l?.trim());
+      const seen = new Set();
+      const uniqLines = allLines.filter(l => !seen.has(l) && seen.add(l));
+
+      if (uniqLines.length) {
+        script += `  ♩ ${uniqLines.slice(0,2).map(l => l.replace(/[。、]$/, '')).join(' ／ ')}\n`;
+      }
+      script += `  ${keyPanel?.jaDesc || 'バンド演奏シーン'}\n`;
+
+      const hasBreak = sec.section?.includes('Bridge') || sec.section?.includes('ソロ');
+      if (hasBreak) {
+        script += `  ▷ ギター/ドラムブレイク ─ カメラがECUで弦を捉える\n`;
+      }
+      const energyLine = energy === 'high'
+        ? '  （カット割りを速める。激しさが頂点に達する。）'
+        : '  （テンション維持しながら次へ。）';
+      script += `${energyLine}\n\n`;
+    });
+
+    const rockClose = [
+      '最後のコードが空気を震わせ、長い余韻とともに暗転する。',
+      'ギターを高々と掲げ、フィードバックノイズが会場に響き渡る。バンドの全力が、ここに刻まれた。',
+      'ボーカルが叫び、最後の一音を投げつける。沈黙の後に来る、爆発的な拍手。',
+    ][variant % 3];
+    script += `【ENDING】\n${rockClose}\n`;
+    return script;
+  }
+
+  // ── PERFORMANCE ──────────────────────────────────────────────────────────
+  if (styleKey === 'performance') {
+    const perfOpens = [
+      'ステージ中央にスポットライトが一点。ダンサーたちが静止のポーズで待機する。',
+      '隊形：全員がセンターに集結した状態からオープニングポーズへ。照明が落ちる直前の緊張感。',
+      'イントロのビートとともに、パフォーマーたちが定位置へ滑り込む。',
+    ][variant % 3];
+
+    let script = `【FORMATION-0 / OPENING POSE】\n${perfOpens}\n\n`;
+
+    sections.forEach((sec, i) => {
+      const ts = `${formatTime(sec.startTime)}〜${formatTime(sec.endTime)}`;
+      script += `【${sec.section}】（${ts}）\n`;
+
+      sec.panels.forEach((p, pi) => {
+        const choreoNotes = {
+          dancing: `振り付け：${p.jaDesc || 'ダンスシーン'}。フォーメーション変更。`,
+          action:  `アクション：${p.jaDesc || '力強い動き'}。カメラがWS→CUへズームイン。`,
+          crowd:   `隊形：フォーメーションが広がり、ステージ全体を使ったダイナミックな構成。`,
+          standing:`センターポジション。歌唱フォーカス。カメラがフロントからMS。`,
+        }[p.pose] || `${p.jaDesc || 'パフォーマンス'}。`;
+        script += `  Cut ${p.idx + 1}：${choreoNotes}\n`;
+        const lines = (p.lines || []).filter(l => l?.trim());
+        if (lines[0]) script += `  　└歌詞：「${lines[0].replace(/[。、]$/, '')}」\n`;
+      });
+      script += '\n';
+    });
+
+    const perfClose = [
+      'ラストのポーズで全員が静止。フリーズフレームのように画面が固まり、ゆっくりとフェードアウト。',
+      '最後のフォーメーションへ。スポットライトが一人を照らし、画面が暗転する。',
+      'エンディングポーズ。カメラがEWSで全体を収め、壮大なフィナーレ。',
+    ][variant % 3];
+    script += `【ENDING POSE】\n${perfClose}\n`;
+    return script;
+  }
+
+  // ── MYSTERIOUS / CONCEPT / BIZARRE ───────────────────────────────────────
+  if (styleKey === 'mysterious' || styleKey === 'concept' || styleKey === 'bizarre') {
+    const mystOpens = {
+      mysterious: [
+        '時間の外側に存在するような空間。霧と光が交差し、現実と夢の境界が溶けていく。',
+        '鏡の向こうに広がる世界。そこでは、あらゆる物理法則が静かに無視されている。',
+        '言葉にならない感覚が、映像となって現れ始める。',
+      ][variant % 3],
+      concept: [
+        '一つのビジュアルコンセプトが、色・形・光として画面を支配し始める。',
+        '統一された世界観の中で、アーティストの美学が結晶化する瞬間。',
+        '抽象と具象が融け合う空間。意味は観る者の内側にある。',
+      ][variant % 3],
+      bizarre: [
+        '論理を拒絶した空間が展開する。脳内の回路が焼き切れそうな映像美の連続。',
+        '夢と現実と妄想が等価に並ぶ。芸術家の意識の流れ、そのままに。',
+        '既存のルールが存在しない世界。美しさの定義が、ここで書き換えられる。',
+      ][variant % 3],
+    }[styleKey];
+
+    let script = `【オープニング イメージ】\n${mystOpens}\n\n`;
+
+    sections.forEach(sec => {
+      const ts = `${formatTime(sec.startTime)}〜${formatTime(sec.endTime)}`;
+      script += `【${sec.section}】（${ts}）\n`;
+
+      sec.panels.forEach(p => {
+        const vtDesc = {
+          abstract:    `抽象映像：${p.jaDesc || ''}。形が崩れ、色が流れる。`,
+          environment: `環境描写：${p.jaDesc || ''}。空間そのものが感情を持つ。`,
+          object:      `象徴物：${p.jaDesc || ''}。意味は複数あり、どれも正解だ。`,
+          silhouette:  `シルエット：${p.jaDesc || ''}。輪郭だけが残り、内側は想像に委ねられる。`,
+          bokeh:       `幻想映像：${p.jaDesc || ''}。焦点が外れることで、真実が滲み出る。`,
+          character:   `人物：${p.jaDesc || ''}。この世界では、人もまたモチーフのひとつ。`,
+          macro:       `マクロ：${p.jaDesc || ''}。ミクロの世界が宇宙に等しい広がりを持つ。`,
+        }[p.visualType] || `${p.jaDesc || 'ビジュアルシーン'}。`;
+        script += `  ${vtDesc}\n`;
+        const lines = (p.lines || []).filter(l => l?.trim());
+        if (lines[0]) script += `  　↳「${lines[0].replace(/[。、]$/, '')}」\n`;
+      });
+      script += '\n';
+    });
+
+    const mystClose = {
+      mysterious: ['問いかけだけが残り、答えのないまま画面が閉じる。', '夢から覚めるような、しかし覚めない終わり。'],
+      concept:    ['コンセプトが完結し、最後の一フレームが刻み込まれる。', 'ビジュアルは終わっても、その世界観は観る者の中に生き続ける。'],
+      bizarre:    ['崩壊と再生が同時に起こり、最後の映像が意識を塗り替える。', '何も解決していないが、それでいい。これはそういう作品だ。'],
+    }[styleKey];
+    const closeIdx = Math.floor(rand() * mystClose.length);
+    script += `【クロージング イメージ】\n${mystClose[closeIdx]}\n`;
+    return script;
+  }
+
+  // ── STORY / EMOTIONAL / BALLAD (default: narrative screenplay) ───────────
+  const narrativeOpens = {
+    story: [
+      ['街の片隅、誰も気づかない場所で物語は静かに動き出す。主人公の足音が石畳に響く。', '交差点で擦れ違う二つの人生。そのほんの一瞬が、この物語の始まりだった。', '夜の街灯の下、一枚の手紙を握りしめる手。時間が、ゆっくりと動き始める。'],
+      ['雑踏の中でも、彼女（彼）だけが静止しているように見えた。世界の喧騒が、遠い音になる。', '記憶の中の景色と、今目の前にある景色が重なる。何かが、ここから始まろうとしている。'],
+    ],
+    emotional: [
+      ['心の奥底で眠っていた感情が、ひとつの旋律とともに目を覚ます。', '涙の理由を誰かに話したことはない。でも今夜、その全部を歌にしようと思った。', '失ったもの、忘れられないもの。それでも朝は来るということを、この物語は証明しようとしている。'],
+      ['誰かの言葉が、ずっと胸に刺さったままだった。それを抜く日が、今日なのかもしれない。', '感情に名前をつけるとしたら、それはまだ存在しない言葉だ。'],
+    ],
+    ballad: [
+      ['夕暮れの光が窓から差し込む。長い一日の終わりに、彼女（彼）はただそこに座っていた。', '雨の音と、遠くから聞こえるピアノの音。この静かな夜の物語が始まる。', '言葉より先に、感情が溢れてくる瞬間がある。この歌は、そういう瞬間のために作られた。'],
+      ['カーテンが揺れる。風が運んできたのは、懐かしい誰かの気配だった。', '別れはいつも、気づいた時には終わっている。それでも残るものがある。'],
+    ],
+  };
+  const openPool = narrativeOpens[styleKey] || narrativeOpens.story;
+  const openSet  = openPool[variant % openPool.length];
+  const openText = openSet[Math.floor(rand() * openSet.length)];
+
+  // POV descriptions per variant
+  const povLabel = ['三人称視点', '一人称視点', '俯瞰した語り手視点', '断片的な回想視点', '詩的独白視点'][variant];
+
+  let script = `【オープニング】（${povLabel}）\n${openText}\n\n`;
+
+  sections.forEach((sec, secIdx) => {
+    const ts = `${formatTime(sec.startTime)}〜${formatTime(sec.endTime)}`;
+    script += `════════════════════════════════\n`;
+    script += `【${sec.section}】  ${ts}\n`;
+    script += `════════════════════════════════\n`;
+
+    sec.panels.forEach((p, pi) => {
+      const lines = (p.lines || []).filter(l => l?.trim());
+      const jaDesc = p.jaDesc || '';
+      const shot = p.shot || '';
+
+      // Scene heading
+      script += `\n◆ CUT ${p.idx + 1}  [${shot}]\n`;
+
+      // Action/description line
+      const actionDesc = buildNarrativeAction(p, rand, variant, styleKey, tone);
+      script += `${actionDesc}\n`;
+
+      // Lyric lines as inner monologue / dialogue / narration
+      if (lines.length > 0) {
+        const lyricStyle = styleKey === 'ballad' ? 'ナレーション' : styleKey === 'emotional' ? '内心' : 'ナレーション';
+        script += `（${lyricStyle}）「${lines.slice(0, 2).map(l => l.replace(/[。、]$/, '')).join('　')}」\n`;
+      }
+    });
+
+    script += '\n';
+  });
+
+  const narrativeClose = {
+    story: [
+      '物語は終わらない。それは新しい始まりの、ほんの序章だったのかもしれない。画面がゆっくりと暗転する。',
+      '最後の一コマに、すべての感情が収まっている。この物語の続きは、観る者の想像の中に委ねられた。',
+      '二人の背中が遠ざかる。それでも歩き続ける理由が、この曲の中に詰まっていた。',
+    ],
+    emotional: [
+      '涙が答えではなく、新しい問いの始まりだったと気づく。画面は静かに、しかし確かに、光へと向かう。',
+      'すべてを吐き出した後に残るのは、不思議な静けさだった。終わりが、どこかで始まりと繋がっている。',
+      '傷は癒えなくていい。ただ、前へ進む力だけがあればいい。その想いが、最後のフレームに宿る。',
+    ],
+    ballad: [
+      '夜が明け始める。どんな言葉も届かなかった夜を越えて、ただ、そこにいる。それだけで良かった。',
+      '雨が上がる。濡れた石畳に街灯が反射する、その光の中に、小さな希望が浮かぶ。',
+      '最後の音符が消えても、その余韻は長く、深く、胸の中に響き続ける。',
+    ],
+  };
+  const closePool = narrativeClose[styleKey] || narrativeClose.story;
+  const closeIdx = Math.floor(rand() * closePool.length);
+  script += `════════════════════════════════\n【エンディング】\n${closePool[closeIdx]}\n`;
+  return script;
+}
+
+// Build a narrative action description for a panel (story/emotional/ballad)
+function buildNarrativeAction(p, rand, variant, styleKey, tone) {
+  const jaDesc = p.jaDesc || '';
+  const pose = p.pose || '';
+  const vt = p.visualType || 'character';
+
+  const poseNarrative = {
+    standing:  ['静かに立ち尽くす', '微動だにせず、前を見据える', 'ただそこに存在している'],
+    walking:   ['ゆっくりと歩き出す', '足を踏み出す、それだけのことが今は精一杯だった', '足音を確かめながら進む'],
+    running:   ['走り出す、どこへでもいい、ただ走る', '必死に走る。追いかけるのか、逃げるのか、もうわからない', '風を切る。速度が、感情の代わりになる'],
+    sitting:   ['椅子に座り、遠くを見つめる', 'うつむいて、何かを手の中に握りしめている', '膝を抱えて、ひとりきりでいる'],
+    crying:    ['涙が一粒、頬を伝う', '声を殺して、泣いている', '泣いているのか笑っているのか、もうわからない表情で'],
+    reaching:  ['手を伸ばす。届くかどうかわからないまま', '指先が、何かを掴もうとしている', '手のひらを開いて、空を見上げる'],
+    lookingup: ['空を見上げる。答えは上にはないが、それでも見上げてしまう', '顔を上げる、その瞬間だけ、世界が広くなった', '見上げた先に、何があるのかはわからない'],
+    love:      ['誰かのことを、ただ想っている', 'その人の顔が、今も目に浮かぶ', '愛するということが、こんなにも重いとは思わなかった'],
+    action:    ['体が動く、言葉より先に', '動かずにはいられない、その衝動のまま'],
+    dancing:   ['体が音楽に溶けていく', '踊ることだけが、今の自分を表せる言語だった'],
+  }[pose] || ['シーンが展開する'];
+  const poseText = poseNarrative[Math.floor(rand() * poseNarrative.length)];
+
+  const vtSuffix = {
+    environment: `背景には${jaDesc || '広大な風景'}が広がり、人物の感情を映し出すかのように揺れている。`,
+    abstract:    `映像が抽象化され、感情が色と形として流れ出す。${jaDesc}`,
+    silhouette:  `シルエットとして捉えられた姿が、逆光の中に浮かぶ。表情は見えない。それがかえって、すべてを語る。`,
+    macro:       `${jaDesc}のマクロショット。細部の中に、物語が宿っている。`,
+    object:      `${jaDesc}が画面に現れる。それは小道具ではなく、感情の象徴だ。`,
+    bokeh:       `ピントが外れる。それは意図的な演出か、それとも感情が世界を霞ませているのか。`,
+    character:   jaDesc ? `${jaDesc}。` : '',
+    'crowd-wide':'遠景から捉えた人々の群れ。その中に、主人公の孤独が浮かび上がる。',
+  }[vt] || (jaDesc ? `${jaDesc}。` : '');
+
+  return `${poseText}。${vtSuffix}`.replace(/。。/g, '。').trim();
+}
+
+function renderScenario(script) {
+  const el = document.getElementById('scenario-text');
+  if (!el) return;
+  el.innerHTML = script.replace(/\n/g, '<br>');
+}
+
+function regenerateScenario() {
+  if (!savedState) return;
+  scenarioSeed = (scenarioSeed + 1) >>> 0;
+  const seed = (savedState.seed || 0) + scenarioSeed * 1013;
+  const analysis = savedState.lyricsAnalysis || analyzeFullLyrics(savedState.lyrics);
+  const script = generateScenario(allPanels, savedState.lyrics, analysis, seed);
+  renderScenario(script);
+}
+
+// ─────────────────────────────────────────
+// Reference video — color/brightness extraction (free, no API)
+// ─────────────────────────────────────────
+async function loadReferenceVideo(file) {
+  const status = document.getElementById('ref-status');
+  if (status) status.textContent = '動画を解析中...';
+  try {
+    const url = URL.createObjectURL(file);
+    const video = document.createElement('video');
+    video.src = url;
+    video.muted = true;
+    video.playsInline = true;
+    video.preload = 'auto';
+    await new Promise((res, rej) => {
+      video.addEventListener('loadedmetadata', res, { once: true });
+      video.addEventListener('error', rej, { once: true });
+    });
+    const dur = video.duration;
+    const samples = 8;
+    const colors = [];
+    let totalBrightness = 0;
+    const canvas = document.createElement('canvas');
+    canvas.width = 160; canvas.height = 90;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    for (let i = 0; i < samples; i++) {
+      const t = dur * (i + 0.5) / samples;
+      video.currentTime = t;
+      await new Promise(res => video.addEventListener('seeked', res, { once: true }));
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+      const { dominant, brightness } = analyzeImageData(data);
+      colors.push(...dominant);
+      totalBrightness += brightness;
+    }
+    URL.revokeObjectURL(url);
+    const finalColors = clusterColors(colors, 5);
+    referenceProfile = {
+      colors: finalColors,
+      brightness: totalBrightness / samples,
+      source: 'video'
+    };
+    renderRefPreview(referenceProfile, file.name);
+    if (status) status.textContent = `✓ ${file.name} を解析（${samples}フレーム）`;
+  } catch (e) {
+    if (status) status.textContent = `エラー: ${e.message}`;
+  }
+}
+
+async function loadReferenceYouTube(url) {
+  const status = document.getElementById('ref-status');
+  if (status) status.textContent = 'YouTubeサムネを解析中...';
+  try {
+    const m = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/))([\w-]{11})/);
+    if (!m) throw new Error('URLが無効です');
+    const id = m[1];
+    const thumbs = [
+      `https://img.youtube.com/vi/${id}/maxresdefault.jpg`,
+      `https://img.youtube.com/vi/${id}/hqdefault.jpg`,
+      `https://img.youtube.com/vi/${id}/mqdefault.jpg`,
+      `https://img.youtube.com/vi/${id}/0.jpg`,
+      `https://img.youtube.com/vi/${id}/1.jpg`,
+      `https://img.youtube.com/vi/${id}/2.jpg`,
+      `https://img.youtube.com/vi/${id}/3.jpg`,
+    ];
+    const colors = [];
+    let totalBrightness = 0;
+    let loadedCount = 0;
+    const canvas = document.createElement('canvas');
+    canvas.width = 320; canvas.height = 180;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    for (const tUrl of thumbs) {
+      try {
+        const img = await new Promise((res, rej) => {
+          const im = new Image();
+          im.crossOrigin = 'anonymous';
+          im.onload = () => res(im);
+          im.onerror = () => rej(new Error('load fail'));
+          im.src = tUrl;
+        });
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+        const { dominant, brightness } = analyzeImageData(data);
+        colors.push(...dominant);
+        totalBrightness += brightness;
+        loadedCount++;
+      } catch (_) { /* skip */ }
+    }
+    if (loadedCount === 0) throw new Error('サムネ取得失敗（CORSの可能性）');
+    const finalColors = clusterColors(colors, 5);
+    referenceProfile = {
+      colors: finalColors,
+      brightness: totalBrightness / loadedCount,
+      source: 'youtube'
+    };
+    renderRefPreview(referenceProfile, `YouTube (${id})`);
+    if (status) status.textContent = `✓ サムネ ${loadedCount}枚を解析`;
+  } catch (e) {
+    if (status) status.textContent = `エラー: ${e.message}`;
+  }
+}
+
+function clearReference() {
+  referenceProfile = null;
+  const status = document.getElementById('ref-status');
+  if (status) status.textContent = '未設定';
+  const preview = document.getElementById('ref-preview');
+  if (preview) preview.innerHTML = '';
+  const fileEl = document.getElementById('ref-video-file');
+  const urlEl = document.getElementById('ref-youtube-url');
+  if (fileEl) fileEl.value = '';
+  if (urlEl) urlEl.value = '';
+}
+
+function renderRefPreview(profile, label) {
+  const el = document.getElementById('ref-preview');
+  if (!el) return;
+  const swatches = profile.colors.map(c =>
+    `<div class="ref-swatch" style="background:${c}" title="${c}"></div>`
+  ).join('');
+  const moodLabel = profile.brightness > 0.55 ? '明るい' : profile.brightness < 0.32 ? '暗い' : '中間';
+  el.innerHTML = `
+    <div class="ref-label">${label}</div>
+    <div class="ref-swatches">${swatches}</div>
+    <div class="ref-mood">トーン: ${moodLabel} (${Math.round(profile.brightness*100)}%)</div>`;
+}
+
+function analyzeImageData(data) {
+  let r=0, g=0, b=0, n=0;
+  const buckets = {};
+  for (let i=0; i < data.length; i+=16) {  // sample every 4th pixel (4 channels x 4 step)
+    const R = data[i], G = data[i+1], B = data[i+2];
+    r += R; g += G; b += B; n++;
+    // Quantize to 32 levels per channel for bucketing
+    const key = `${R>>5},${G>>5},${B>>5}`;
+    buckets[key] = (buckets[key]||0) + 1;
+  }
+  const brightness = (r/n + g/n + b/n) / 3 / 255;
+  // Top 8 buckets → hex colors
+  const top = Object.entries(buckets).sort((a,b)=>b[1]-a[1]).slice(0, 8);
+  const dominant = top.map(([key]) => {
+    const [R,G,B] = key.split(',').map(Number);
+    return rgbToHex(R*8+16, G*8+16, B*8+16);
+  });
+  return { dominant, brightness };
+}
+
+function clusterColors(colors, k) {
+  // Simple frequency-based clustering: keep distinct colors by perceptual distance
+  const out = [];
+  for (const c of colors) {
+    if (out.every(o => colorDist(o, c) > 60)) {
+      out.push(c);
+      if (out.length >= k) break;
+    }
+  }
+  // Fallback to first k if not enough distinct
+  while (out.length < k && out.length < colors.length) {
+    const next = colors[out.length];
+    if (!out.includes(next)) out.push(next);
+    else break;
+  }
+  return out;
+}
+
+function colorDist(a, b) {
+  const ar = parseInt(a.slice(1,3),16), ag = parseInt(a.slice(3,5),16), ab = parseInt(a.slice(5,7),16);
+  const br = parseInt(b.slice(1,3),16), bg = parseInt(b.slice(3,5),16), bb = parseInt(b.slice(5,7),16);
+  return Math.sqrt((ar-br)**2 + (ag-bg)**2 + (ab-bb)**2);
+}
+
+function rgbToHex(r, g, b) {
+  const h = n => Math.max(0, Math.min(255, n|0)).toString(16).padStart(2,'0');
+  return '#' + h(r) + h(g) + h(b);
+}
+
+// ─────────────────────────────────────────
 // Per-panel PNG download
 // ─────────────────────────────────────────
 // ─────────────────────────────────────────
@@ -1960,7 +2718,11 @@ async function regeneratePanel(btn) {
         const s = JSON.parse(match[0]);
         // Cycle svgVariant through 50 distinct values across regen presses
         const newSvgVariant = (regenCount * 13) % 50;
-        newPanel = { ...panel, ...s, idx, _scene: panel._scene, _svgVariant: newSvgVariant, _regenCount: regenCount };
+        // Generate English versions from structural fields
+        const enPrompts = buildImagePrompt(s.shot, s.pose, s.bg, styleKey, s.visualType);
+        const enBgPrompts = buildBgPrompt(s.bg, s.shot, s.pose, idx, styleKey, s.visualType);
+        newPanel = { ...panel, ...s, idx, _scene: panel._scene, _svgVariant: newSvgVariant, _regenCount: regenCount,
+                     promptEn: enPrompts.en, bgPromptEn: enBgPrompts.en };
       } else { throw new Error('JSON parse failed'); }
     } else {
       // No-API mode: rebuild with deterministic new seed — different SVG each press
@@ -1994,7 +2756,7 @@ function downloadPanelPNG(btn) {
     const canvas = document.createElement('canvas');
     canvas.width = 640; canvas.height = 360;
     const ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#08081a';
+    ctx.fillStyle = '#12122a';
     ctx.fillRect(0, 0, 640, 360);
     ctx.drawImage(img, 0, 0, 640, 360);
     const a = document.createElement('a');
