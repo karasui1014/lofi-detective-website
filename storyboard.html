@@ -2152,333 +2152,224 @@ function togglePromptLang() {
 // Scenario script generation
 // ─────────────────────────────────────────
 function generateScenario(panels, lyrics, lyricsAnalysis, seed) {
-  const rand = seededRand((seed || 0) * 7919 + 12345);
+  const rand     = seededRand((seed || 0) * 7919 + 12345);
+  const pick     = arr => arr[Math.floor(rand() * arr.length)];
   const styleKey = panels[0]?.styleKey || 'story';
-  const tone = lyricsAnalysis?.tone || 'neutral';
-  const energy = lyricsAnalysis?.energy || 'mid';
+  const tone     = lyricsAnalysis?.tone || 'neutral';
+  const energy   = lyricsAnalysis?.energy || 'mid';
+  const variant  = Math.floor(rand() * 5); // drives different narrative angle each time
 
-  // Group panels into sections
-  const sections = [];
+  // ── Group panels into macro-sections ────────────────────────────────────
+  const secGroups = [];
   let cur = null;
   panels.forEach(p => {
-    const sec = p.section || (p.isIntro ? 'INTRO' : p.isOutro ? 'OUTRO' : 'SCENE');
-    if (!cur || cur.section !== sec) {
-      cur = { section: sec, panels: [], startTime: p.time };
-      sections.push(cur);
-    }
-    cur.panels.push(p);
-    cur.endTime = p.time;
+    const name = p.section || (p.isIntro ? 'INTRO' : p.isOutro ? 'OUTRO' : 'SCENE');
+    if (!cur || cur.name !== name) { cur = { name, panels: [], t0: p.time }; secGroups.push(cur); }
+    cur.panels.push(p); cur.t1 = p.time;
   });
 
-  // Variant framing based on seed (for 違うシナリオにする)
-  const variant = Math.floor(rand() * 5); // 0-4: different narrative POV/approach
+  // Classify section by role
+  const roleOf = name => {
+    const n = (name||'').toLowerCase();
+    if (/intro|前奏|イントロ/.test(n))       return 'intro';
+    if (/outro|アウトロ|後奏/.test(n))        return 'outro';
+    if (/chorus|サビ|ref/.test(n))            return 'chorus';
+    if (/bridge|ブリッジ|cメロ|c-melo/.test(n)) return 'bridge';
+    return 'verse';
+  };
 
-  // ── LIVESHOW ─────────────────────────────────────────────────────────────
+  // Pull representative content from a section
+  const digest = sec => {
+    const vtC = {}, posC = {};
+    sec.panels.forEach(p => {
+      vtC[p.visualType]  = (vtC[p.visualType]  || 0) + 1;
+      posC[p.pose]       = (posC[p.pose]        || 0) + 1;
+    });
+    const topVt   = Object.entries(vtC).sort((a,b)=>b[1]-a[1])[0]?.[0] || 'character';
+    const topPose = Object.entries(posC).sort((a,b)=>b[1]-a[1])[0]?.[0] || 'standing';
+    const descs   = sec.panels.map(p=>p.jaDesc).filter(Boolean);
+    const lines   = [...new Set(sec.panels.flatMap(p=>p.lines||[]).filter(l=>l?.trim()))];
+    return { topVt, topPose, desc: descs.length ? pick(descs) : '', line: lines.length ? pick(lines.slice(0, 4)) : '', lines };
+  };
+
+  // ── Visual/pose → prose phrases ─────────────────────────────────────────
+  const VT = {
+    character:   ['人物を中心に据えた映像','アーティストの表情を正面から捉えた映像'],
+    silhouette:  ['逆光のシルエット映像','輪郭だけが浮かび上がるシルエットショット'],
+    abstract:    ['色と形が溶け合う抽象映像','感情を色彩で表現した抽象的なカット'],
+    environment: ['広大な景観のロングショット','空間そのものが感情を宿す環境映像'],
+    macro:       ['細部を拡大したマクロショット','テクスチャと余韻を引き出すクローズアップ'],
+    object:      ['象徴的な小道具のショット','感情の代替として機能するオブジェクト映像'],
+    bokeh:       ['幻想的なボケを活かした映像','ピントを意図的に外した夢幻的なカット'],
+    'crowd-wide':['観客の海を俯瞰した群衆ショット','会場全体を収めた圧倒的なワイドショット'],
+  };
+  const POSE = {
+    standing:  '静かに佇む',  walking:  'ゆっくりと歩を進める',
+    running:   '走り出す',    sitting:  '腰を下ろし遠くを見つめる',
+    crying:    '涙をこらえる', reaching: '手を伸ばす',
+    lookingup: '空を見上げる', love:     '誰かを深く想う',
+    action:    '力強く体を動かす', dancing: '音楽に体を委ねる', crowd: '群衆が一体となる',
+  };
+  const vt   = sec => pick(VT[digest(sec).topVt]   || ['映像が展開する']);
+  const pose = sec => POSE[digest(sec).topPose]     || '動く';
+
+  // ── Build script by style ────────────────────────────────────────────────
+
+  // LIVESHOW
   if (styleKey === 'liveshow') {
-    const seNames = ['MC','アーティスト','ステージ'];
-    const crowdCalls = [
-      ['「みんな、声出せるか！？」', '（SE: 割れんばかりの歓声）', '「今夜、俺たちと一緒に最高の夜にしようぜ！」'],
-      ['「この曲、全員で歌ってくれ！」', '（SE: 観客の合唱が始まる）', '「最高だ、ありがとう！」'],
-      ['「声が聞こえないぞ！もっとだ！」', '（SE: 歓声・拍手が爆発）', '「これが俺たちのライブだ！」'],
-    ][variant % 3];
-    const openings = [
-      'ステージが暗転。静寂が会場を支配する中、一条のスポットライトが床を照らす。',
-      'アリーナ中に緊張が走る。数万の視線がステージへ注がれ、カウントダウンが始まる。',
-      '暗闇の中でイントロのビートが鳴り響く。観客が一斉に息を呑む、その瞬間。',
+    const mcLines = [
+      ['みんな、声出せるか！？','最高の夜にしようぜ！','全員で歌ってくれ！'],
+      ['声が聞こえないぞ！もっとだ！','これが俺たちのライブだ！','ありがとう、愛してるぞ！'],
+      ['今夜だけは、全部忘れてくれ！','お前たちがいるから俺たちは歌える！','最後まで一緒に行くぞ！'],
     ][variant % 3];
 
-    let script = `【オープニング】\n${openings}\n（SE: 観客の期待の声が高まる）\n\n`;
+    const parts = [];
 
-    sections.forEach((sec, i) => {
-      const ts = `${formatTime(sec.startTime)}〜${formatTime(sec.endTime)}`;
-      script += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
-      script += `【${sec.section}】  ${ts}\n`;
-      script += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+    // Opening paragraph
+    parts.push(pick([
+      `会場が暗転し、静寂がアリーナを支配する。スモークが炊かれ、イントロのビートが一音目を落とした瞬間──スポットライトがステージを切り裂き、割れんばかりの歓声が爆発する。「${mcLines[0]}」アーティストの第一声が、数万の心臓を同時に揺らした。`,
+      `暗闇の中でカウントダウンが始まる。客席のスマートフォンライトが星のように揺れ、その熱量がステージへと押し寄せる。イントロが鳴り響いた瞬間、「${mcLines[0]}」──その言葉だけで会場全体が一つの生き物になった。`,
+      `本番直前の静寂。ステージ袖に立つアーティストの表情が、カメラが捉える最初の一フレームだ。そしてイントロとともにステージへ──「${mcLines[0]}」歓声が天井まで届く、最高の幕開け。`,
+    ]));
 
-      sec.panels.forEach((p, pi) => {
-        const isCrowd = p.visualType === 'crowd-wide';
-        const isAction = p.pose === 'action' || p.pose === 'dancing';
-        const lines = (p.lines || []).filter(l => l && l.trim());
-        const lineText = lines[0] ? `「${lines[0].replace(/[。、]$/, '')}」` : '';
+    // Middle sections (verse/chorus)
+    const midSecs = secGroups.filter(s => { const r = roleOf(s.name); return r !== 'intro' && r !== 'outro'; });
+    if (midSecs.length) {
+      const verses  = midSecs.filter(s => roleOf(s.name) === 'verse');
+      const choruses= midSecs.filter(s => roleOf(s.name) === 'chorus');
+      const bridges = midSecs.filter(s => roleOf(s.name) === 'bridge');
 
-        if (isCrowd) {
-          const crowdNotes = [
-            `（カメラ：クレーンがアリーナを俯瞰。${(p.lines||[]).slice(0,2).filter(Boolean).join('　')}）`,
-            `（SE: 歓声・手拍子が会場を包む）\nMC：${crowdCalls[0]}`,
-            `（照明：全色レーザーが客席まで走る。一体感が最高潮に。）`,
-          ][pi % 3];
-          script += `\n${crowdNotes}\n`;
-        } else if (isAction) {
-          script += `\n（カメラ：${p.shot || 'WS'} ／ ${p.jaDesc || 'パフォーマンス'}）\n`;
-          if (lineText) script += `MC：${lineText}\n`;
-          if (pi === Math.floor(sec.panels.length / 2)) {
-            script += `MC：${crowdCalls[1]}\n（SE: 歓声爆発）\n`;
-          }
-        } else {
-          script += `\n（カメラ：${p.shot || 'MS'} ／ ${p.jaDesc || 'ステージ'}）\n`;
-          if (lineText) script += `歌詞：${lineText}\n`;
-        }
-      });
-
-      // Section climax note
-      const hasClimax = sec.section?.includes('CHORUS') || sec.section?.includes('サビ') || sec.section?.includes('Bridge');
-      if (hasClimax) {
-        script += `\n（照明：フルカラーストロボ、全ステージが光に染まる）\n`;
-        script += `MC：${crowdCalls[2]}\n`;
-        script += `（SE: 最大歓声 ── 会場全体が震える）\n`;
+      if (verses.length) {
+        const d = digest(verses[0]);
+        parts.push(pick([
+          `${vt(verses[0])}が続く。ハンドヘルドカメラが縦横無尽に動き回り、${pose(verses[0])}アーティストとともにステージの熱量をそのまま映像に焼き付ける。${d.line ? `「${d.line.replace(/[。、]$/,'')}」という歌詞が会場を包んだとき、` : ''}客席との一体感がじわじわと高まっていく。`,
+          `${pose(verses[0])}姿が${vt(verses[0])}で切り取られる。クレーンとウィップパンを組み合わせ、ステージのあらゆる角度からパフォーマンスを追う。${d.desc ? d.desc + 'の映像が、' : ''}このライブの高揚感を余すことなく伝える。`,
+        ]));
       }
-      script += '\n';
-    });
 
-    const endings = [
-      'アンコールの拍手が鳴り止まない。暗転したステージに、余韻だけが漂う。',
-      '最後の音が消えても、観客の熱量はそのまま会場に留まり続ける。',
-      'メンバーがステージを去る。歓声と涙が交差する、最高の夜のエンディング。',
-    ][variant % 3];
-    script += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n【エンディング】\n${endings}\n（SE: 拍手・歓声が続く）\n`;
-    return script;
+      if (choruses.length) {
+        parts.push(pick([
+          `サビで全照明が一斉に点灯、フルカラーのレーザーが会場を埋め尽くす。「${mcLines[1]}」──その言葉に呼応するように観客の合唱が始まり、カメラはEWSで客席の海を大きく捉える。このMV最大の見せ場、アーティストと観客が完全に溶け合う瞬間。`,
+          `サビの爆発と同時にステージが光に染まる。カット割りが一気に細かくなり、アーティストの表情と観客の表情が交互に繋がれる。「${mcLines[2]}」会場全体が震えるような熱量の中、このライブが最高潮に達する。`,
+        ]));
+      }
+
+      if (bridges.length) {
+        parts.push(pick([
+          `ブリッジで照明が絞られ、スポットライト一本だけが舞台を照らす。周囲の音が消えたような静けさの中、アーティストの声だけが会場に響く。この静の瞬間が、ラストサビへの巨大な助走となる。`,
+        ]));
+      }
+    }
+
+    // Outro paragraph
+    parts.push(pick([
+      `最後の音が消えても、観客の拍手と歓声は鳴り止まない。暗転したステージに余韻だけが漂い、カメラはゆっくりと客席の感動した表情を収めながらフェードアウト。この夜の記憶は、ここにいた全員の胸に永遠に刻まれる。`,
+      `メンバーが一列に並び、逆光の中でお辞儀をする。沸き立つ観客席とのコントラストが、このライブMVの最後の一フレームだ。言葉よりも雄弁なその絵で、幕が静かに下りる。`,
+    ]));
+
+    return parts.join('\n\n');
   }
 
-  // ── ROCK ─────────────────────────────────────────────────────────────────
+  // ROCK
   if (styleKey === 'rock') {
-    const rockOpens = [
-      'ゼロからカウントする、ドラムのキック。暗闇に一閃、ギターのリフが会場を切り裂く。',
-      'スモークの向こうからバンドのシルエットが現れる。最初の一音が落ちた瞬間、すべてが始まった。',
-      '轟音のイントロ。ステージに仁王立ちするボーカル、眼光が客席を射抜く。',
-    ][variant % 3];
+    const d0 = secGroups.length ? digest(secGroups[0]) : {};
+    const dMid = secGroups.length > 1 ? digest(secGroups[Math.floor(secGroups.length/2)]) : d0;
+    const dEnd = secGroups.length > 1 ? digest(secGroups[secGroups.length-1]) : d0;
+    const hasBridge = secGroups.some(s => roleOf(s.name) === 'bridge');
 
-    let script = `【OPEN】\n${rockOpens}\n\n`;
+    return pick([
+      `${pick(['ドラムのカウントインとともに照明が爆発的に点灯する。','ギターのリフが暗闇を一閃する。スモークの向こうからバンドのシルエットが浮かび上がり、最初の一音が会場を震わせる。'])}${d0.desc ? d0.desc + 'を捉えた映像から始まり、' : ''}ハンドヘルドカメラが荒々しく揺れながらメンバー全員を追う。細かいカット割りとECUの連続で、楽器と表情のディテールを容赦なく切り取っていく。\n\nサビで映像が一気に爆発する。${dMid.desc || 'バンド全員のシルエット'}をWSで収め、そこからECUへの急激なズームイン。${hasBridge ? 'ブリッジではスローモーションを挿入し、ギターソロの指運びと表情の両面を際立たせる。' : ''}エネルギーが頂点に達したところで、最後のコードが長く伸び、フィードバックノイズとともにゆっくりと暗転する。`,
 
-    sections.forEach(sec => {
-      const ts = `${formatTime(sec.startTime)}〜${formatTime(sec.endTime)}`;
-      script += `【${sec.section}】（${ts}）\n`;
-
-      const keyPanel = sec.panels[Math.floor(rand() * sec.panels.length)];
-      const allLines = sec.panels.flatMap(p => p.lines || []).filter(l => l?.trim());
-      const seen = new Set();
-      const uniqLines = allLines.filter(l => !seen.has(l) && seen.add(l));
-
-      if (uniqLines.length) {
-        script += `  ♩ ${uniqLines.slice(0,2).map(l => l.replace(/[。、]$/, '')).join(' ／ ')}\n`;
-      }
-      script += `  ${keyPanel?.jaDesc || 'バンド演奏シーン'}\n`;
-
-      const hasBreak = sec.section?.includes('Bridge') || sec.section?.includes('ソロ');
-      if (hasBreak) {
-        script += `  ▷ ギター/ドラムブレイク ─ カメラがECUで弦を捉える\n`;
-      }
-      const energyLine = energy === 'high'
-        ? '  （カット割りを速める。激しさが頂点に達する。）'
-        : '  （テンション維持しながら次へ。）';
-      script += `${energyLine}\n\n`;
-    });
-
-    const rockClose = [
-      '最後のコードが空気を震わせ、長い余韻とともに暗転する。',
-      'ギターを高々と掲げ、フィードバックノイズが会場に響き渡る。バンドの全力が、ここに刻まれた。',
-      'ボーカルが叫び、最後の一音を投げつける。沈黙の後に来る、爆発的な拍手。',
-    ][variant % 3];
-    script += `【ENDING】\n${rockClose}\n`;
-    return script;
+      `${pick(['轟音のイントロ。ステージに仁王立ちするボーカル、その眼光が客席を射抜く。','スモークの中からバンドが現れる瞬間、時間が止まったように見えた。'])}${d0.desc ? d0.desc + 'の映像が最初のフレームを飾り、' : ''}そこからノンストップの映像が続く。ドラム・ギター・ベースの演奏を極めて近い距離で切り取り、楽器そのものが主役になる場面を多用する。\n\nサビでは広角レンズが全員を収め、それぞれのパートが絡み合う瞬間を逃さず捉える。${hasBridge ? 'ブリッジの静寂が、ラストサビの爆発力を何倍にも引き上げる設計。' : ''}最後の一音が空気を震わせた後、長い余韻とともに暗転。バンドの全力が、このMVに刻み込まれた。`,
+    ]);
   }
 
-  // ── PERFORMANCE ──────────────────────────────────────────────────────────
+  // PERFORMANCE
   if (styleKey === 'performance') {
-    const perfOpens = [
-      'ステージ中央にスポットライトが一点。ダンサーたちが静止のポーズで待機する。',
-      '隊形：全員がセンターに集結した状態からオープニングポーズへ。照明が落ちる直前の緊張感。',
-      'イントロのビートとともに、パフォーマーたちが定位置へ滑り込む。',
-    ][variant % 3];
+    const dv = secGroups.filter(s=>roleOf(s.name)==='verse')[0];
+    const dc = secGroups.filter(s=>roleOf(s.name)==='chorus')[0];
 
-    let script = `【FORMATION-0 / OPENING POSE】\n${perfOpens}\n\n`;
+    return pick([
+      `ステージが暗転し、スポットライトが一点を照らす。全員がオープニングポーズで静止した状態からビートが落ち、完璧に揃った動きでパフォーマンスが幕を開ける。${dv ? vt(dv) + 'でフォーメーションの変化を丁寧に追い、' : ''}WSとCUを緩急をつけて切り替えながらパフォーマーの技術と表現力を引き出す。\n\n${dc ? `サビでは全員が揃ったフォーメーションへ。ステージを広く使った隊形移動と、センターへの集中照明が重なる──このMV最大の見せ場。` : 'クライマックスへ向けてフォーメーションが激しく変化し、ステージ全体がダイナミックに動く。'}ラストはEWSでステージ全体を収め、照明がゆっくりとフェードアウトしていく。フリーズした最後のポーズが画面に長く刻まれ、静かに暗転する。`,
 
-    sections.forEach((sec, i) => {
-      const ts = `${formatTime(sec.startTime)}〜${formatTime(sec.endTime)}`;
-      script += `【${sec.section}】（${ts}）\n`;
-
-      sec.panels.forEach((p, pi) => {
-        const choreoNotes = {
-          dancing: `振り付け：${p.jaDesc || 'ダンスシーン'}。フォーメーション変更。`,
-          action:  `アクション：${p.jaDesc || '力強い動き'}。カメラがWS→CUへズームイン。`,
-          crowd:   `隊形：フォーメーションが広がり、ステージ全体を使ったダイナミックな構成。`,
-          standing:`センターポジション。歌唱フォーカス。カメラがフロントからMS。`,
-        }[p.pose] || `${p.jaDesc || 'パフォーマンス'}。`;
-        script += `  Cut ${p.idx + 1}：${choreoNotes}\n`;
-        const lines = (p.lines || []).filter(l => l?.trim());
-        if (lines[0]) script += `  　└歌詞：「${lines[0].replace(/[。、]$/, '')}」\n`;
-      });
-      script += '\n';
-    });
-
-    const perfClose = [
-      'ラストのポーズで全員が静止。フリーズフレームのように画面が固まり、ゆっくりとフェードアウト。',
-      '最後のフォーメーションへ。スポットライトが一人を照らし、画面が暗転する。',
-      'エンディングポーズ。カメラがEWSで全体を収め、壮大なフィナーレ。',
-    ][variant % 3];
-    script += `【ENDING POSE】\n${perfClose}\n`;
-    return script;
+      `イントロのビートとともにパフォーマーたちが定位置へ滑り込む。最初の一拍でポーズが揃い、その完璧な同期が最初の見せ場となる。${dv ? vt(dv) + 'を中心に、' : ''}複数のカメラアングルから振り付けの細部を余すことなく捉えていく。ソロパートでは他の全員が静止し、スポットライト一本の中で個の表現が際立つ。\n\n${dc ? 'サビのフォーメーション変化が最大のクライマックス。' : 'クライマックスは全員が揃った力強いパフォーマンス。'}ステージ全体が光に包まれる中、カメラはEWSで引き、次いでECUで表情を捉える。ラストポーズでフリーズ、フェードアウト。`,
+    ]);
   }
 
-  // ── MYSTERIOUS / CONCEPT / BIZARRE ───────────────────────────────────────
+  // MYSTERIOUS / CONCEPT / BIZARRE
   if (styleKey === 'mysterious' || styleKey === 'concept' || styleKey === 'bizarre') {
-    const mystOpens = {
-      mysterious: [
-        '時間の外側に存在するような空間。霧と光が交差し、現実と夢の境界が溶けていく。',
-        '鏡の向こうに広がる世界。そこでは、あらゆる物理法則が静かに無視されている。',
-        '言葉にならない感覚が、映像となって現れ始める。',
-      ][variant % 3],
-      concept: [
-        '一つのビジュアルコンセプトが、色・形・光として画面を支配し始める。',
-        '統一された世界観の中で、アーティストの美学が結晶化する瞬間。',
-        '抽象と具象が融け合う空間。意味は観る者の内側にある。',
-      ][variant % 3],
-      bizarre: [
-        '論理を拒絶した空間が展開する。脳内の回路が焼き切れそうな映像美の連続。',
-        '夢と現実と妄想が等価に並ぶ。芸術家の意識の流れ、そのままに。',
-        '既存のルールが存在しない世界。美しさの定義が、ここで書き換えられる。',
-      ][variant % 3],
+    const allDescs = panels.map(p=>p.jaDesc).filter(Boolean);
+    const d0 = allDescs[0] || '';
+    const dMid = allDescs[Math.floor(allDescs.length/2)] || '';
+    const dEnd = allDescs[allDescs.length-1] || '';
+
+    const openers = {
+      mysterious: ['時間の概念が溶けたような空間から幕を開ける。霧と光が交差し、現実と夢の境界が意図的に曖昧にされる。','鏡の向こう側に広がる世界。物理法則が静かに無視されたその空間で、映像が静かに立ち上がる。'],
+      concept:    ['強烈なビジュアルコンセプトが最初の一フレームから確立される。色・形・光がこの作品の文法として機能し、観る者をその世界観に引き込む。','一つの美学が、すべての映像を貫く。統一されたトーンの中で、アーティストの表現が結晶化していく。'],
+      bizarre:    ['論理を拒絶した映像が展開する。既成概念を解体するところからこのMVは始まる。','夢と現実と妄想が等価に並ぶ。芸術家の意識の流れをそのまま映像化したような、ルールなき世界が広がる。'],
     }[styleKey];
 
-    let script = `【オープニング イメージ】\n${mystOpens}\n\n`;
-
-    sections.forEach(sec => {
-      const ts = `${formatTime(sec.startTime)}〜${formatTime(sec.endTime)}`;
-      script += `【${sec.section}】（${ts}）\n`;
-
-      sec.panels.forEach(p => {
-        const vtDesc = {
-          abstract:    `抽象映像：${p.jaDesc || ''}。形が崩れ、色が流れる。`,
-          environment: `環境描写：${p.jaDesc || ''}。空間そのものが感情を持つ。`,
-          object:      `象徴物：${p.jaDesc || ''}。意味は複数あり、どれも正解だ。`,
-          silhouette:  `シルエット：${p.jaDesc || ''}。輪郭だけが残り、内側は想像に委ねられる。`,
-          bokeh:       `幻想映像：${p.jaDesc || ''}。焦点が外れることで、真実が滲み出る。`,
-          character:   `人物：${p.jaDesc || ''}。この世界では、人もまたモチーフのひとつ。`,
-          macro:       `マクロ：${p.jaDesc || ''}。ミクロの世界が宇宙に等しい広がりを持つ。`,
-        }[p.visualType] || `${p.jaDesc || 'ビジュアルシーン'}。`;
-        script += `  ${vtDesc}\n`;
-        const lines = (p.lines || []).filter(l => l?.trim());
-        if (lines[0]) script += `  　↳「${lines[0].replace(/[。、]$/, '')}」\n`;
-      });
-      script += '\n';
-    });
-
-    const mystClose = {
-      mysterious: ['問いかけだけが残り、答えのないまま画面が閉じる。', '夢から覚めるような、しかし覚めない終わり。'],
-      concept:    ['コンセプトが完結し、最後の一フレームが刻み込まれる。', 'ビジュアルは終わっても、その世界観は観る者の中に生き続ける。'],
-      bizarre:    ['崩壊と再生が同時に起こり、最後の映像が意識を塗り替える。', '何も解決していないが、それでいい。これはそういう作品だ。'],
+    const closers = {
+      mysterious: ['問いかけだけが残り、答えのないまま画面が閉じる。その余白こそが、この作品の最後のメッセージだ。','夢から覚めるような、しかし覚めない終わり。観た後も像が頭に焼き付く設計。'],
+      concept:    ['コンセプトが完結し、最後の一フレームが観る者の記憶に刻み込まれる。','ビジュアルは終わっても、その世界観は観る者の中に生き続ける。これは消費されない映像だ。'],
+      bizarre:    ['崩壊と再生が同時に起こり、最後の映像が意識を塗り替える。','何も解決していない。それでいい。これはそういう作品だ。'],
     }[styleKey];
-    const closeIdx = Math.floor(rand() * mystClose.length);
-    script += `【クロージング イメージ】\n${mystClose[closeIdx]}\n`;
-    return script;
+
+    return `${pick(openers)}${d0 ? '　' + d0 + 'を皮切りに、' : ''}映像の密度と抽象度が少しずつ高まっていく。\n\n${dMid ? dMid + 'が展開し、' : ''}意味を一義的に決定させない演出で、観る者それぞれの解釈に委ねる構成。${['abstract','bokeh','silhouette'].includes(secGroups[Math.floor(secGroups.length/2)]?.panels[0]?.visualType) ? '色と形が衝突し、感情が抽象として溢れ出す。' : 'アーティストの存在そのものがビジュアルモチーフとして機能する。'}クライマックスでは映像の密度が一気に高まり、抽象と具象が衝突する最大の見せ場へ。\n\n${dEnd ? dEnd + 'で幕を閉じる。' : ''}${pick(closers)}`;
   }
 
-  // ── STORY / EMOTIONAL / BALLAD (default: narrative screenplay) ───────────
-  const narrativeOpens = {
-    story: [
-      ['街の片隅、誰も気づかない場所で物語は静かに動き出す。主人公の足音が石畳に響く。', '交差点で擦れ違う二つの人生。そのほんの一瞬が、この物語の始まりだった。', '夜の街灯の下、一枚の手紙を握りしめる手。時間が、ゆっくりと動き始める。'],
-      ['雑踏の中でも、彼女（彼）だけが静止しているように見えた。世界の喧騒が、遠い音になる。', '記憶の中の景色と、今目の前にある景色が重なる。何かが、ここから始まろうとしている。'],
-    ],
-    emotional: [
-      ['心の奥底で眠っていた感情が、ひとつの旋律とともに目を覚ます。', '涙の理由を誰かに話したことはない。でも今夜、その全部を歌にしようと思った。', '失ったもの、忘れられないもの。それでも朝は来るということを、この物語は証明しようとしている。'],
-      ['誰かの言葉が、ずっと胸に刺さったままだった。それを抜く日が、今日なのかもしれない。', '感情に名前をつけるとしたら、それはまだ存在しない言葉だ。'],
-    ],
-    ballad: [
-      ['夕暮れの光が窓から差し込む。長い一日の終わりに、彼女（彼）はただそこに座っていた。', '雨の音と、遠くから聞こえるピアノの音。この静かな夜の物語が始まる。', '言葉より先に、感情が溢れてくる瞬間がある。この歌は、そういう瞬間のために作られた。'],
-      ['カーテンが揺れる。風が運んできたのは、懐かしい誰かの気配だった。', '別れはいつも、気づいた時には終わっている。それでも残るものがある。'],
-    ],
-  };
-  const openPool = narrativeOpens[styleKey] || narrativeOpens.story;
-  const openSet  = openPool[variant % openPool.length];
-  const openText = openSet[Math.floor(rand() * openSet.length)];
+  // ── STORY / EMOTIONAL / BALLAD ──────────────────────────────────────────
+  const introSec   = secGroups.find(s => roleOf(s.name) === 'intro');
+  const verseSecs  = secGroups.filter(s => roleOf(s.name) === 'verse');
+  const chorusSecs = secGroups.filter(s => roleOf(s.name) === 'chorus');
+  const bridgeSecs = secGroups.filter(s => roleOf(s.name) === 'bridge');
+  const outroSec   = secGroups.find(s => roleOf(s.name) === 'outro');
 
-  // POV descriptions per variant
-  const povLabel = ['三人称視点', '一人称視点', '俯瞰した語り手視点', '断片的な回想視点', '詩的独白視点'][variant];
+  const dIntro   = introSec   ? digest(introSec)      : null;
+  const dVerse   = verseSecs.length  ? digest(verseSecs[0])  : null;
+  const dChorus  = chorusSecs.length ? digest(chorusSecs[0]) : null;
+  const dBridge  = bridgeSecs.length ? digest(bridgeSecs[0]) : null;
+  const dOutro   = outroSec   ? digest(outroSec)      : null;
+  const dFallback= digest(secGroups[Math.floor(secGroups.length/2)] || secGroups[0]);
 
-  let script = `【オープニング】（${povLabel}）\n${openText}\n\n`;
+  // 5 distinct approaches based on variant
+  const approaches = [
+    // 0: 映像演出プラン — visual/cinematic focus
+    () => {
+      const toneOpen = { bright:'光に満ちた世界観を軸に据えたMVとして構成する。', melancholic:'静けさと余白の中に感情を宿らせる映像として設計する。', neutral:'日常と非日常が交差する映像世界を構築する。' }[tone];
+      const iv = dIntro || dVerse || dFallback;
+      const cv = dChorus || dFallback;
+      const ov = dOutro || dFallback;
+      return `${toneOpen}\n\n冒頭、${vt({panels:[{visualType:iv.topVt}]})}から幕を開ける。${iv.desc ? iv.desc + 'が静かに提示され、' : ''}カメラはゆっくりと被写体に近づきながらこの物語の世界観を確立する。${dVerse ? `Aメロでは${pose({panels:[{pose:dVerse.topPose}]})}人物を${vt({panels:[{visualType:dVerse.topVt}]})}で追い、` : ''}感情が少しずつ積み重なっていく。\n\n${dChorus ? `サビで映像が解放される。${cv.desc ? cv.desc + 'の中で' : ''}カット割りが加速し、このMVの核心となる映像美が全開になる。` : '展開が進むにつれ映像の密度が高まっていく。'}${dBridge ? `　ブリッジでは一転して静の演出となり、${dBridge.desc || '静かな映像'}がラストへの布石を打つ。` : ''}\n\n${ov.desc ? ov.desc + 'で幕を閉じる。' : 'エンディングへ。'}余韻を大切にした演出で、観た後も記憶に残る最後の一フレームを作る。`;
+    },
+    // 1: 脚本・演出メモ — director's notes
+    () => {
+      const iv = dIntro || dVerse || dFallback;
+      const cv = dChorus || dFallback;
+      return `オープニングは説明を排し、感覚で引き込むことを最優先とする。${iv.desc ? iv.desc + 'から始め、' : ''}音と映像の最初の一致点を徹底的に設計する。ここでいかに観客を引き込めるかが、このMVの勝負どころだ。\n\nAメロ〜Bメロは感情を抑制し、観客に想像の余地を残す演出で。${dVerse ? pose({panels:[{pose:dVerse.topPose}]}) + 'する人物を、' + vt({panels:[{visualType:dVerse.topVt}]}) + 'でシネマティックに捉える。' : ''}饒舌にならないことが、この映像の強度を生む。\n\nサビにこそ全力を注ぐ。${cv.desc ? cv.desc + 'において' : 'このパートで、'}今まで積み上げてきた感情のすべてを解放する演出とする。${dBridge ? '　ブリッジで意図的に息を抜き、ラストサビの爆発力を最大化する設計。' : ''}終わり方は余白を恐れずに──最後の数秒、何も語らない映像が最も多くを語る。`;
+    },
+    // 2: 詩的・感情中心
+    () => {
+      const iv = dIntro || dVerse || dFallback;
+      const cv = dChorus || dFallback;
+      return `言葉が生まれるより先に、映像が感情に触れる。${iv.desc ? iv.desc + 'が、' : ''}観る者の内側にある何かを静かに揺さぶり始めるところからこのMVは始まる。\n\n感情は表に出さない。それがかえって、画面の外に溢れ出す。${dVerse ? pose({panels:[{pose:dVerse.topPose}]}) + 'する人物の姿が' + vt({panels:[{visualType:dVerse.topVt}]}) + 'で捉えられ、' : ''}言葉と映像の間にある「距離」が、詩になっていく。${dVerse?.line ? `「${dVerse.line.replace(/[。、]$/,'')}」──この歌詞が流れる瞬間、映像は最大の力を持つ。` : ''}\n\n${cv.desc ? cv.desc + 'で' : 'サビで'}初めて、すべての感情が名前を得る。それまで抑えていたものが一気に解き放たれ、画面が弾ける。${dBridge ? '　ブリッジの痛みと優しさが同居する静寂を経て、' : ''}エンディングは答えを出さない。何かが変わった──その感覚だけを、観た者の心に残して画面が閉じる。`;
+    },
+    // 3: 物語展開中心
+    () => {
+      const iv = dIntro || dVerse || dFallback;
+      const cv = dChorus || dFallback;
+      return `物語はここから動き出す。${iv.desc ? iv.desc + 'が最初のシーンとして提示され、' : ''}観る者は自然と物語の中へと引き込まれる。主人公（またはアーティスト）の置かれた状況が、説明なく映像だけで伝わる設計。\n\nAメロ〜Bメロで感情が少しずつ積み重なる。${dVerse ? pose({panels:[{pose:dVerse.topPose}]}) + 'する姿が' + vt({panels:[{visualType:dVerse.topVt}]}) + 'で描かれ、' : ''}物語の中間部として伏線を丁寧に置いていく。${dVerse?.line ? `「${dVerse.line.replace(/[。、]$/,'')}」が物語のキーワードとして機能する。` : ''}\n\nサビで物語が頂点に達する。${cv.desc ? cv.desc + 'において、' : ''}すべての伏線が一点に収束し、このMVが伝えたいことの核心が明かされる。${dBridge ? '　ブリッジで物語に不可逆な変化が訪れ、' : ''}エンディングは終わりではなく次の始まりへの扉として機能する余白を持たせる。`;
+    },
+    // 4: 映像コンセプト寄り
+    () => {
+      const iv = dIntro || dVerse || dFallback;
+      const cv = dChorus || dFallback;
+      const toneColor = { bright:'明るく飽和度の高いカラーグレーディング', melancholic:'青みがかった低彩度のトーン', neutral:'ナチュラルで落ち着いたカラーパレット' }[tone];
+      return `映像コンセプト：${toneColor}で統一する。${iv.desc ? iv.desc + 'をオープニングショットとして配置し、' : ''}全編を通じてカラーパレットの一貫性を維持することでMVとしての完成度を高める。\n\nAメロは${vt({panels:[{visualType:(dVerse||dFallback).topVt}]})}を主体に展開。カメラは寄りと引きを意識的に使い分け、${pose({panels:[{pose:(dVerse||dFallback).topPose}]})}人物の心情を映像の構図で語る。${dVerse?.line ? `「${dVerse.line.replace(/[。、]$/,'')}」のタイミングに合わせてカットを入れ、歌詞と映像を同期させる。` : ''}\n\nサビには最大限の予算と演出を集中投下する。${cv.desc ? cv.desc + 'で' : 'このパートで'}視聴者の記憶に残る絵を作ることを最優先とする。${dBridge ? 'ブリッジはトーンをコントロールし、次への布石とする。' : ''}ラストカットは長めに保ちフェードアウト、タイトルとともに余韻の中で閉じる。`;
+    },
+  ];
 
-  sections.forEach((sec, secIdx) => {
-    const ts = `${formatTime(sec.startTime)}〜${formatTime(sec.endTime)}`;
-    script += `════════════════════════════════\n`;
-    script += `【${sec.section}】  ${ts}\n`;
-    script += `════════════════════════════════\n`;
-
-    sec.panels.forEach((p, pi) => {
-      const lines = (p.lines || []).filter(l => l?.trim());
-      const jaDesc = p.jaDesc || '';
-      const shot = p.shot || '';
-
-      // Scene heading
-      script += `\n◆ CUT ${p.idx + 1}  [${shot}]\n`;
-
-      // Action/description line
-      const actionDesc = buildNarrativeAction(p, rand, variant, styleKey, tone);
-      script += `${actionDesc}\n`;
-
-      // Lyric lines as inner monologue / dialogue / narration
-      if (lines.length > 0) {
-        const lyricStyle = styleKey === 'ballad' ? 'ナレーション' : styleKey === 'emotional' ? '内心' : 'ナレーション';
-        script += `（${lyricStyle}）「${lines.slice(0, 2).map(l => l.replace(/[。、]$/, '')).join('　')}」\n`;
-      }
-    });
-
-    script += '\n';
-  });
-
-  const narrativeClose = {
-    story: [
-      '物語は終わらない。それは新しい始まりの、ほんの序章だったのかもしれない。画面がゆっくりと暗転する。',
-      '最後の一コマに、すべての感情が収まっている。この物語の続きは、観る者の想像の中に委ねられた。',
-      '二人の背中が遠ざかる。それでも歩き続ける理由が、この曲の中に詰まっていた。',
-    ],
-    emotional: [
-      '涙が答えではなく、新しい問いの始まりだったと気づく。画面は静かに、しかし確かに、光へと向かう。',
-      'すべてを吐き出した後に残るのは、不思議な静けさだった。終わりが、どこかで始まりと繋がっている。',
-      '傷は癒えなくていい。ただ、前へ進む力だけがあればいい。その想いが、最後のフレームに宿る。',
-    ],
-    ballad: [
-      '夜が明け始める。どんな言葉も届かなかった夜を越えて、ただ、そこにいる。それだけで良かった。',
-      '雨が上がる。濡れた石畳に街灯が反射する、その光の中に、小さな希望が浮かぶ。',
-      '最後の音符が消えても、その余韻は長く、深く、胸の中に響き続ける。',
-    ],
-  };
-  const closePool = narrativeClose[styleKey] || narrativeClose.story;
-  const closeIdx = Math.floor(rand() * closePool.length);
-  script += `════════════════════════════════\n【エンディング】\n${closePool[closeIdx]}\n`;
-  return script;
-}
-
-// Build a narrative action description for a panel (story/emotional/ballad)
-function buildNarrativeAction(p, rand, variant, styleKey, tone) {
-  const jaDesc = p.jaDesc || '';
-  const pose = p.pose || '';
-  const vt = p.visualType || 'character';
-
-  const poseNarrative = {
-    standing:  ['静かに立ち尽くす', '微動だにせず、前を見据える', 'ただそこに存在している'],
-    walking:   ['ゆっくりと歩き出す', '足を踏み出す、それだけのことが今は精一杯だった', '足音を確かめながら進む'],
-    running:   ['走り出す、どこへでもいい、ただ走る', '必死に走る。追いかけるのか、逃げるのか、もうわからない', '風を切る。速度が、感情の代わりになる'],
-    sitting:   ['椅子に座り、遠くを見つめる', 'うつむいて、何かを手の中に握りしめている', '膝を抱えて、ひとりきりでいる'],
-    crying:    ['涙が一粒、頬を伝う', '声を殺して、泣いている', '泣いているのか笑っているのか、もうわからない表情で'],
-    reaching:  ['手を伸ばす。届くかどうかわからないまま', '指先が、何かを掴もうとしている', '手のひらを開いて、空を見上げる'],
-    lookingup: ['空を見上げる。答えは上にはないが、それでも見上げてしまう', '顔を上げる、その瞬間だけ、世界が広くなった', '見上げた先に、何があるのかはわからない'],
-    love:      ['誰かのことを、ただ想っている', 'その人の顔が、今も目に浮かぶ', '愛するということが、こんなにも重いとは思わなかった'],
-    action:    ['体が動く、言葉より先に', '動かずにはいられない、その衝動のまま'],
-    dancing:   ['体が音楽に溶けていく', '踊ることだけが、今の自分を表せる言語だった'],
-  }[pose] || ['シーンが展開する'];
-  const poseText = poseNarrative[Math.floor(rand() * poseNarrative.length)];
-
-  const vtSuffix = {
-    environment: `背景には${jaDesc || '広大な風景'}が広がり、人物の感情を映し出すかのように揺れている。`,
-    abstract:    `映像が抽象化され、感情が色と形として流れ出す。${jaDesc}`,
-    silhouette:  `シルエットとして捉えられた姿が、逆光の中に浮かぶ。表情は見えない。それがかえって、すべてを語る。`,
-    macro:       `${jaDesc}のマクロショット。細部の中に、物語が宿っている。`,
-    object:      `${jaDesc}が画面に現れる。それは小道具ではなく、感情の象徴だ。`,
-    bokeh:       `ピントが外れる。それは意図的な演出か、それとも感情が世界を霞ませているのか。`,
-    character:   jaDesc ? `${jaDesc}。` : '',
-    'crowd-wide':'遠景から捉えた人々の群れ。その中に、主人公の孤独が浮かび上がる。',
-  }[vt] || (jaDesc ? `${jaDesc}。` : '');
-
-  return `${poseText}。${vtSuffix}`.replace(/。。/g, '。').trim();
+  return approaches[variant]();
 }
 
 function renderScenario(script) {
