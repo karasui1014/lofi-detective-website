@@ -1907,13 +1907,22 @@ function setProgress(pct, msg) {
 // JSON repair: fix common LLM output issues
 // ─────────────────────────────────────────
 function repairJSON(raw) {
-  // 1. Replace unescaped literal newlines inside JSON strings
-  let s = raw.replace(/"(?:[^"\\]|\\.)*"/g, m =>
+  // 1. Strip markdown code fences if present
+  let s = raw.replace(/^```(?:json)?\s*/m, '').replace(/\s*```\s*$/m, '').trim();
+
+  // 2. Replace unescaped control characters inside JSON strings
+  s = s.replace(/"(?:[^"\\]|\\.)*"/g, m =>
     m.replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t')
+     .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, '')
   );
-  // 2. Remove trailing commas before ] or }
+
+  // 3. Fix missing commas between adjacent objects/arrays: }{ or ]{ or }[
+  s = s.replace(/([}\]])\s*(\{|\[)/g, '$1,$2');
+
+  // 4. Remove trailing commas before ] or }
   s = s.replace(/,(\s*[}\]])/g, '$1');
-  // 3. If truncated mid-array/object, close open structures
+
+  // 5. Auto-close truncated JSON by tracking open brackets
   const opens = [];
   let inStr = false, esc = false;
   for (const c of s) {
@@ -1923,7 +1932,7 @@ function repairJSON(raw) {
     if (inStr) continue;
     if (c === '{') opens.push('}');
     else if (c === '[') opens.push(']');
-    else if (c === '}' || c === ']') opens.pop();
+    else if ((c === '}' || c === ']') && opens.length) opens.pop();
   }
   s += opens.reverse().join('');
   return s;
@@ -1966,7 +1975,8 @@ ${audioInfo}
 4. 登場人物が連続しすぎないよう、抽象カット・風景カット・小物カット・シルエットを意図的に挟む（人物カットは全体の50〜60%程度）
 5. カメラワーク・ショットサイズは全カット意識して変化させる（同じショットを3連続させない）
 6. visualType は character / silhouette / abstract / macro / environment / object / bokeh / crowd-wide から選ぶ
-7. bgPrompt には背景の詳細な撮影プロンプト（英語）を書く
+7. bgPrompt には背景の詳細な撮影プロンプトを書く
+8. 【重要】JSONの文字列値の中に改行文字・タブを絶対に入れないこと。jaDesc・prompt・bgPromptは1行で収めること
 ${variationHint}
 
 【歌詞】
@@ -1983,9 +1993,9 @@ ${lyrics}
       "bg": "city|nature|spotlight|rain|stars|abstract|default のいずれか",
       "color": "#rrggbb",
       "visualType": "character|silhouette|abstract|macro|environment|object|bokeh|crowd-wide のいずれか",
-      "jaDesc": "このカットの映像描写（日本語2〜3文、なぜこの歌詞でこの絵か根拠も簡潔に含む）",
-      "prompt": "AI画像生成用プロンプト（日本語で、構図・人物・背景・スタイルを記述）",
-      "bgPrompt": "背景専用の詳細プロンプト（日本語で、ロケーション・照明・雰囲気・カメラワークを記述）"
+      "jaDesc": "映像描写（日本語1〜2文・改行なし・80文字以内）",
+      "prompt": "画像生成プロンプト（日本語・改行なし・60文字以内）",
+      "bgPrompt": "背景プロンプト（日本語・改行なし・60文字以内）"
     }
   ]
 }`;
