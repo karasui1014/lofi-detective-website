@@ -258,7 +258,8 @@ label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;
   border:1px solid var(--border-hi);color:var(--text-sec);cursor:pointer;font-size:.68rem;
   font-family:inherit;font-weight:600;transition:all .15s ease;
 }
-.scenario-regen-btn:hover{background:rgba(124,58,237,.15);border-color:var(--accent);color:var(--text);}
+.scenario-regen-btn:hover:not(:disabled){background:rgba(124,58,237,.15);border-color:var(--accent);color:var(--text);}
+.scenario-regen-btn:disabled{opacity:.35;cursor:not-allowed;}
 .scenario-text{
   font-size:.78rem;line-height:1.85;color:var(--text-sec);
   font-family:'Inter','Segoe UI',system-ui,-apple-system,sans-serif;
@@ -554,7 +555,10 @@ label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;
     <div id="scenario-section" class="scenario-section">
       <div class="scenario-header">
         <span class="scenario-title">📜 シナリオ台本</span>
-        <button class="scenario-regen-btn" onclick="regenerateScenario()">🔄 違うシナリオにする</button>
+        <span style="display:flex;gap:.5rem;">
+          <button class="scenario-regen-btn" id="scenario-back-btn" onclick="previousScenario()" disabled>↩ 前のシナリオに戻す</button>
+          <button class="scenario-regen-btn" onclick="regenerateScenario()">🔄 違うシナリオにする</button>
+        </span>
       </div>
       <div id="scenario-text" class="scenario-text"></div>
     </div>
@@ -1007,6 +1011,8 @@ let userRequest = ''; // ユーザーのプロンプト要望（旧：世界観�
 let promptLang = 'ja'; // 'ja' or 'en' — current display language for prompts
 let referenceProfile = null; // { colors:[hex,...], brightness:0-1, source:'video|youtube|none' }
 let scenarioSeed = 0; // separate seed for scenario regeneration
+let scenarioHistory = []; // {script, variant} stack of generated scenarios
+let scenarioHistoryIdx = -1; // current position in history
 
 // Seeded pseudo-random (mulberry32)
 function seededRand(seed) {
@@ -1646,6 +1652,84 @@ function buildPanel(scene, idx, total, duration, styleKey, lyricsContext) {
            _scene: scene, _svgVariant: svgVariant, _regenCount: 0 };
 }
 
+// Avoid similar consecutive cuts (same visualType+pose) and vary the
+// "character" appearing across consecutive character cuts.
+function diversifyPanels(panels, styleKey) {
+  if (!panels || panels.length < 2) return panels;
+  const POSE_ALT = {
+    standing:  ['walking','lookingup','sitting','reaching'],
+    walking:   ['standing','running','reaching','lookingup'],
+    running:   ['walking','action','standing'],
+    sitting:   ['standing','lookingup','crying','reaching'],
+    crying:    ['sitting','lookingup','reaching','standing'],
+    reaching:  ['lookingup','walking','standing','sitting'],
+    lookingup: ['standing','reaching','sitting','walking'],
+    love:      ['standing','reaching','sitting','lookingup'],
+    action:    ['dancing','running','standing'],
+    dancing:   ['action','standing','running'],
+    crowd:     ['action','dancing','standing'],
+  };
+  const VT_ALT = {
+    character:    ['environment','object','silhouette','bokeh','macro'],
+    silhouette:   ['character','environment','abstract','bokeh'],
+    abstract:     ['bokeh','silhouette','environment','macro'],
+    environment:  ['character','object','macro','bokeh'],
+    macro:        ['object','environment','character','bokeh'],
+    object:       ['macro','character','environment','silhouette'],
+    bokeh:        ['abstract','environment','character','macro'],
+    'crowd-wide': ['environment','character','silhouette'],
+  };
+
+  let charSlot = 0;
+  let consecChar = 0;
+  for (let i = 0; i < panels.length; i++) {
+    const cur = panels[i];
+    const prev = i > 0 ? panels[i-1] : null;
+    const prev2 = i > 1 ? panels[i-2] : null;
+
+    // Skip intro/outro tweaks
+    if (cur.isIntro || cur.isOutro) {
+      consecChar = 0;
+      continue;
+    }
+
+    // Rule 1: same visualType+pose as previous → vary pose
+    if (prev && !prev.isIntro && !prev.isOutro &&
+        cur.visualType === prev.visualType && cur.pose === prev.pose) {
+      const alts = POSE_ALT[cur.pose] || [];
+      if (alts.length) cur.pose = alts[i % alts.length];
+    }
+
+    // Rule 2: same visualType for 3+ consecutive → bump visualType
+    if (prev && prev2 &&
+        cur.visualType === prev.visualType && prev.visualType === prev2.visualType) {
+      const alts = VT_ALT[cur.visualType] || [];
+      if (alts.length) cur.visualType = alts[i % alts.length];
+    }
+
+    // Rule 3: vary "character slot" so the same character doesn't run through 3+ cuts in a row
+    if (cur.visualType === 'character') {
+      consecChar++;
+      if (consecChar >= 3) {
+        charSlot = (charSlot + 1) % 4;
+        consecChar = 1;
+      }
+      cur._charVariant = charSlot;
+    } else {
+      consecChar = 0;
+    }
+
+    // Rebuild prompts if pose/visualType changed
+    const promptObj   = buildImagePrompt(cur.shot, cur.pose, cur.bg, cur.styleKey || styleKey, cur.visualType);
+    const bgPromptObj = buildBgPrompt(cur.bg, cur.shot, cur.pose, cur.idx, cur.styleKey || styleKey, cur.visualType);
+    cur.prompt   = promptObj.ja;
+    cur.promptEn = promptObj.en;
+    cur.bgPrompt = bgPromptObj.ja;
+    cur.bgPromptEn = bgPromptObj.en;
+  }
+  return panels;
+}
+
 function buildImagePrompt(shot, pose, bg, styleKey, visualType) {
   const shotMap = {'EWS':'超広角ショット','WS':'ワイドショット','MS':'ミディアムショット','2S':'ツーショット','CU':'クローズアップ','ECU':'超クローズアップ'};
   const shotMapEn = {'EWS':'extreme wide shot','WS':'wide shot','MS':'medium shot','2S':'two shot','CU':'close-up','ECU':'extreme close-up'};
@@ -1820,6 +1904,32 @@ function setProgress(pct, msg) {
 }
 
 // ─────────────────────────────────────────
+// JSON repair: fix common LLM output issues
+// ─────────────────────────────────────────
+function repairJSON(raw) {
+  // 1. Replace unescaped literal newlines inside JSON strings
+  let s = raw.replace(/"(?:[^"\\]|\\.)*"/g, m =>
+    m.replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t')
+  );
+  // 2. Remove trailing commas before ] or }
+  s = s.replace(/,(\s*[}\]])/g, '$1');
+  // 3. If truncated mid-array/object, close open structures
+  const opens = [];
+  let inStr = false, esc = false;
+  for (const c of s) {
+    if (esc) { esc = false; continue; }
+    if (c === '\\' && inStr) { esc = true; continue; }
+    if (c === '"') { inStr = !inStr; continue; }
+    if (inStr) continue;
+    if (c === '{') opens.push('}');
+    else if (c === '[') opens.push(']');
+    else if (c === '}' || c === ']') opens.pop();
+  }
+  s += opens.reverse().join('');
+  return s;
+}
+
+// ─────────────────────────────────────────
 // Claude API analysis
 // ─────────────────────────────────────────
 async function analyzeWithClaude(apiKey, lyrics, genre, artist, panelCount, duration, styleKey, seed) {
@@ -1890,7 +2000,7 @@ ${lyrics}
     },
     body: JSON.stringify({
       model: 'claude-opus-4-7',
-      max_tokens: 8192,
+      max_tokens: 16000,
       messages: [{ role: 'user', content: prompt }]
     })
   });
@@ -1904,7 +2014,7 @@ ${lyrics}
   const text = data.content[0].text;
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) throw new Error('AIレスポンスのJSON解析に失敗しました');
-  const parsed = JSON.parse(jsonMatch[0]);
+  const parsed = JSON.parse(repairJSON(jsonMatch[0]));
 
   return parsed.scenes.map((s, i) => {
     const vt = getVisualType(i, styleKey, false, s.section?.includes('INTRO'), s.section?.includes('OUTRO'));
@@ -1997,8 +2107,11 @@ function renderStoryboard(panels, duration) {
 
   // Generate and render scenario
   scenarioSeed = 0;
+  scenarioHistory = [];
+  scenarioHistoryIdx = -1;
   const analysis = savedState?.lyricsAnalysis || analyzeFullLyrics(savedState?.lyrics || '');
   const script = generateScenario(panels, savedState?.lyrics || '', analysis, savedState?.seed || 0);
+  pushScenarioHistory(script);
   renderScenario(script);
 
   document.getElementById('storyboard-area').classList.add('visible');
@@ -2062,6 +2175,7 @@ async function generate() {
       setProgress(55, `${MV_STYLES[selectedStyle]?.label||''}スタイルでシーンを構築中...`);
       await delay(200);
       panels = scenes.map((s, i) => buildPanel(s, i, scenes.length, duration, selectedStyle, lyricsContext));
+      diversifyPanels(panels, selectedStyle);
       savedState = { lyrics, genre, artist, duration, styleKey: selectedStyle, scenes, seed: genSeed, lyricsAnalysis, panelCount };
     }
     allPanels = panels;
@@ -2103,6 +2217,8 @@ async function continueGenerate() {
       const extScenes = parseLyrics(lyrics, extCount, duration, styleKey);
       const batch = extScenes.slice(offset, extCount);
       newPanels = batch.map((s, i) => buildPanel(s, offset + i, extCount, duration, styleKey, lyricsContext));
+      // Diversify across boundary with previous panels
+      diversifyPanels([...allPanels, ...newPanels], styleKey);
     } else {
       // API mode: generate 6 standalone atmospheric panels continuing the mood
       const apiKey = document.getElementById('api-key').value.trim();
@@ -2116,6 +2232,7 @@ async function continueGenerate() {
         const extScenes = parseLyrics(lyrics, offset + BATCH, duration, styleKey);
         const batch = extScenes.slice(offset, offset + BATCH);
         newPanels = batch.map((s, i) => buildPanel(s, offset + i, offset + BATCH, duration, styleKey, lyricsContext));
+        diversifyPanels([...allPanels, ...newPanels], styleKey);
       }
     }
 
@@ -2157,7 +2274,7 @@ function generateScenario(panels, lyrics, lyricsAnalysis, seed) {
   const styleKey = panels[0]?.styleKey || 'story';
   const tone     = lyricsAnalysis?.tone || 'neutral';
   const energy   = lyricsAnalysis?.energy || 'mid';
-  const variant  = Math.floor(rand() * 5); // drives different narrative angle each time
+  const variant  = ((seed || 0) >>> 0) % 10; // 0-9: 10 fully distinct narrative approaches
 
   // ── Group panels into macro-sections ────────────────────────────────────
   const secGroups = [];
@@ -2332,7 +2449,7 @@ function generateScenario(panels, lyrics, lyricsAnalysis, seed) {
   const dOutro   = outroSec   ? digest(outroSec)      : null;
   const dFallback= digest(secGroups[Math.floor(secGroups.length/2)] || secGroups[0]);
 
-  // 5 distinct approaches based on variant
+  // 10 fully distinct narrative approaches
   const approaches = [
     // 0: 映像演出プラン — visual/cinematic focus
     () => {
@@ -2367,6 +2484,37 @@ function generateScenario(panels, lyrics, lyricsAnalysis, seed) {
       const toneColor = { bright:'明るく飽和度の高いカラーグレーディング', melancholic:'青みがかった低彩度・低コントラストのトーン', neutral:'ナチュラルで落ち着いたカラーパレット' }[tone];
       return `映像コンセプト：全編を${toneColor}で統一する。色彩設計そのものがこのMVの「声」であり、楽曲の感情と色温度が常に連動するようカラーグレーディングを設計する。${iv.desc ? iv.desc + 'をオープニングショットとして配置し、' : ''}最初のフレームでこの世界の色とムードを宣言する。\n\nAメロは${vt({panels:[{visualType:(dVerse||dFallback).topVt}]})}を主体に展開。カメラは寄りと引きを意識的に使い分け、${pose({panels:[{pose:(dVerse||dFallback).topPose}]})}人物の内面を映像の構図そのもので語る。${dVerse?.line ? `「${dVerse.line.replace(/[。、]$/,'')}」という歌詞が流れるタイミングに、このMVで最も美しいフレームを配置する。` : '各カットのフレーミングと光の質が、歌詞の意味を補強するよう設計する。'}Bメロでは画角やレンズ特性を意図的に変え、視覚的な変化で物語の深化を表現する。\n\nサビには最大限の演出リソースを集中投下する。${cv.desc ? cv.desc + 'において' : 'このパートで'}視聴者の記憶に永く刻まれる一枚を作ることを最優先とする。照明・カメラワーク・編集リズムのすべてがここで最高値に達する設計だ。${dBridge ? '\n\nブリッジはカラートーンをさらに落とし、次のラストサビへの期待感を高める演出とする。コントラストの落差こそが、フィナーレの爆発力を何倍にも引き上げる。' : ''}\n\nラストカットは長めに保ち、フェードアウトで静かに終わる。曲が終わっても画面が暗くなるまでの数秒間、観客の感情が画面の中に残り続けるような設計で締めくくる。`;
     },
+    // 5: 時系列非線形（フラッシュバック型）
+    () => {
+      const iv = dIntro || dVerse || dFallback;
+      const cv = dChorus || dFallback;
+      const ov = dOutro || dFallback;
+      return `時間軸を意図的に崩した構成のMVとして組み立てる。冒頭は実は物語の終盤の映像から始まる。${ov.desc ? ov.desc + 'のような一見「結末」を思わせる映像が、' : '結末を予感させる象徴的な一枚が、'}観客の意識に種を蒔く。何が起きたのか分からないまま、観る者は引き込まれていく。\n\nAメロで時間が遡り、物語の本当の始まりが提示される。${iv.desc ? iv.desc + 'が回想として現れ、' : ''}${dVerse ? pose({panels:[{pose:dVerse.topPose}]}) + 'する人物の姿が' + vt({panels:[{visualType:dVerse.topVt}]}) + 'で描かれる。' : ''}Bメロでは、現在と過去のカットが交互に挿入され、観る者の頭の中で時間軸が混ざり合っていく。${dVerse?.line ? `「${dVerse.line.replace(/[。、]$/,'')}」という歌詞が、過去と現在を繋ぐ橋として機能する。` : ''}\n\nサビで全ての時間が一点に集約される。${cv.desc ? cv.desc + 'の中で、' : ''}冒頭で見せた映像の意味が、ようやく理解できる構造になっている。「ああ、あの映像はこういうことだったのか」と観客に気づかせる、その快感こそがこのMVの設計思想だ。${dBridge ? '\n\nブリッジで最も遠い過去——主人公の原点となる出来事——が短く挿入される。それが現在の感情の源泉だったことが明らかになる。' : ''}\n\nエンディングでは冒頭と同じ映像を再び見せる。しかし今度は、観客はその意味を完全に理解している。同じ映像が、文脈によって全く違う重さを持つ──時間構造そのものが感情を生む設計のMV。`;
+    },
+    // 6: 書簡体・日記風（誰かに宛てた語り）
+    () => {
+      const iv = dIntro || dVerse || dFallback;
+      const cv = dChorus || dFallback;
+      return `この映像全体が、ひとつの長い「手紙」または「日記」として機能する。映像のすべてが、画面の中の誰かが、画面の外の誰かに宛てて綴る言葉のように設計される。${iv.desc ? iv.desc + 'のショットが、便箋の最初の一行のように画面に置かれる。' : '冒頭のショットが、便箋の最初の一行のように画面に置かれる。'}\n\nAメロは、出だしの近況報告にあたる。${dVerse ? pose({panels:[{pose:dVerse.topPose}]}) + 'する自分の姿を、' + vt({panels:[{visualType:dVerse.topVt}]}) + 'として淡々と記録する。' : ''}飾らない、しかし丁寧な視線で日常を切り取っていく。Bメロで、書き手の本当の感情が顔を出し始める。${dVerse?.line ? `「${dVerse.line.replace(/[。、]$/,'')}」──これは便箋の中で、何度も書きかけては消した言葉のように映像化する。` : '一度書いて、消して、また書く。そんな葛藤を映像のリズムで表現する。'}\n\nサビは、ようやく書ききった本音の部分だ。${cv.desc ? cv.desc + 'の中で、' : ''}これまで言えなかったすべてが映像として一気に放出される。読み手にとって、宛先である自分にとって、それは初めて聞く告白だ。${dBridge ? '\n\nブリッジは、便箋を一度封筒に入れて、また取り出して書き加える──そんな逡巡の時間。書き手自身も、何を伝えたいのかまだ分かっていない。' : ''}\n\nエンディングは便箋を封筒に入れ、宛先を書く瞬間。届くかどうか分からない。でも、書かずにはいられなかった。その「届かないかもしれない手紙」の切実さで、映像が静かに閉じる。`;
+    },
+    // 7: マジックリアリズム（幻想と現実の融合）
+    () => {
+      const iv = dIntro || dVerse || dFallback;
+      const cv = dChorus || dFallback;
+      return `現実の中に、説明のつかない「何か」が静かに混じり込んでいる──そういう世界観のMVとして構築する。${iv.desc ? iv.desc + 'は一見、何の変哲もない日常のショット。' : '冒頭は、何の変哲もない日常のショットから始まる。'}しかしよく見ると、光の差し方が少しだけ奇妙だったり、人物の影が一瞬遅れて動いたり──そんな違和感が散りばめられている。観客はそれに気づくかもしれないし、気づかないかもしれない。それでいい。\n\nAメロでは現実の比重が大きい。${dVerse ? pose({panels:[{pose:dVerse.topPose}]}) + 'する人物の姿が' + vt({panels:[{visualType:dVerse.topVt}]}) + 'で捉えられる。' : ''}しかし時折、ガラスに映る景色が現実と違っていたり、空に浮かぶ雲が逆向きに流れていたり──物語が静かに歪み始める。${dVerse?.line ? `「${dVerse.line.replace(/[。、]$/,'')}」の歌詞と同時に、画面に映るものが少しだけ「あり得ない」状態になる。` : '歌詞の意味と映像の物理法則が、微妙にずれていく。'}\n\nサビでついに幻想と現実が完全に溶け合う。${cv.desc ? cv.desc + 'の中で、' : ''}重力が、時間が、空間が──すべてが感情に従って動き始める。それは夢ではない。主人公にとっては、これが本当の世界の見え方なのだ。${dBridge ? '\n\nブリッジで再び現実が戻ってくる。しかし観客の目には、もう「ただの現実」には見えない。一度幻想を見せられた目は、世界を違うふうに認識し始める。' : ''}\n\nエンディングは、最初のショットに戻る。同じ映像。しかし観客は知っている──この一見普通の景色の中に、本当はどれだけの奇跡が隠れているかを。それを伝えるための、このMVだった。`;
+    },
+    // 8: ドキュメンタリー風（観察者視点・自然主義）
+    () => {
+      const iv = dIntro || dVerse || dFallback;
+      const cv = dChorus || dFallback;
+      return `演出の気配を極限まで消し、ドキュメンタリーのような自然主義のMVとして撮る。カメラは演出家ではなく、観察者として存在する。${iv.desc ? iv.desc + 'のショットを、' : '冒頭のショットを、'}まるでそこに偶然居合わせた人の目線で捉える。ハンドヘルド、自然光、ノーメイクの被写体──作為を一切感じさせないリアルさが、最初の十秒で確立される。\n\nAメロは、被写体が「カメラを意識していない」状態を徹底的に作る。${dVerse ? pose({panels:[{pose:dVerse.topPose}]}) + 'する人物が' + vt({panels:[{visualType:dVerse.topVt}]}) + 'で記録される。' : ''}演技ではない。本当にその場で起きていることを、ただ撮っているだけ──そう見える瞬間を積み重ねる。${dVerse?.line ? `「${dVerse.line.replace(/[。、]$/,'')}」という歌詞は、まるで被写体本人が独り言のように呟いた言葉のように響く。` : '歌詞と映像の関係も、強引な同期ではなく、偶然の共鳴を狙う。'}\n\nサビでもこの自然主義は崩さない。${cv.desc ? cv.desc + 'においても、' : ''}盛り上げるための演出を一切加えず、ただ起きていることを記録し続ける。それでも、その素朴な映像が観客の心を打つ──それが本物の力だ。${dBridge ? '\n\nブリッジでカメラが少しだけ距離を取る。引いた目線で、これまで近くで見ていた人物の全体像を捉える。「ああ、こういう人だったのか」という発見の瞬間。' : ''}\n\nエンディングはフェードアウトすらしない。撮影が終わった、というだけの終わり方。しかしその素っ気なさこそが、この物語の真実味を最後まで保証する。ドキュメンタリーは、終わりを演出しない。`;
+    },
+    // 9: 楽曲そのものが主役（音楽と映像の対話）
+    () => {
+      const iv = dIntro || dVerse || dFallback;
+      const cv = dChorus || dFallback;
+      return `このMVの主役は、人物でも風景でもなく「楽曲そのもの」だ。映像は楽曲という生き物のために用意された、巨大な舞台装置として機能する。${iv.desc ? iv.desc + 'は楽曲のイントロが「立ち上がる」ための舞台。' : '冒頭は、楽曲のイントロが「立ち上がる」ための舞台として設計する。'}音の一粒一粒が、映像の中で物質化していくような感覚を狙う。\n\nAメロでは、メロディの輪郭が映像の構図そのものになる。${dVerse ? pose({panels:[{pose:dVerse.topPose}]}) + 'する人物すら、楽曲を運ぶ「器」として' + vt({panels:[{visualType:dVerse.topVt}]}) + 'で捉えられる。' : ''}ドラムが入る瞬間、ベースのフレーズが動く瞬間──そのすべてに映像がきちんと「返事」をする。${dVerse?.line ? `「${dVerse.line.replace(/[。、]$/,'')}」が流れる時、映像はその言葉を絵にするのではなく、その言葉を「歌っている人」の存在を浮かび上がらせる。` : '歌詞を画にするのではなく、歌詞を歌う行為そのものを画にする。'}\n\nサビで楽曲がついに姿を現す。${cv.desc ? cv.desc + 'の中で、' : ''}メロディ・ハーモニー・リズム──そのすべてが映像と完全に同期し、楽曲そのものが「観える」状態になる。これは楽曲という生命体への、最大の敬意だ。${dBridge ? '\n\nブリッジで楽曲が一瞬「呼吸」をする。映像もそれに合わせて呼吸する。楽曲と映像が、一つの生き物として機能する瞬間。' : ''}\n\nエンディング、最後の音が消える。映像も同時に消える。曲と映像が同じ命を持っていたことが、最後の一瞬で証明される。観客は、楽曲と映像のどちらを観ていたのか分からなくなる──それがこのMVの完成形だ。`;
+    },
   ];
 
   return approaches[variant]();
@@ -2378,13 +2526,42 @@ function renderScenario(script) {
   el.innerHTML = script.replace(/\n/g, '<br>');
 }
 
+function pushScenarioHistory(script) {
+  // Truncate any forward history if user regenerates after going back
+  scenarioHistory = scenarioHistory.slice(0, scenarioHistoryIdx + 1);
+  scenarioHistory.push(script);
+  scenarioHistoryIdx = scenarioHistory.length - 1;
+  updateScenarioBackBtn();
+}
+
+function updateScenarioBackBtn() {
+  const btn = document.getElementById('scenario-back-btn');
+  if (btn) btn.disabled = scenarioHistoryIdx <= 0;
+}
+
 function regenerateScenario() {
   if (!savedState) return;
+  // If currently viewing an older scenario, regenerate from the newest seed forward
+  if (scenarioHistoryIdx < scenarioHistory.length - 1) {
+    // Move forward in existing history first
+    scenarioHistoryIdx++;
+    renderScenario(scenarioHistory[scenarioHistoryIdx]);
+    updateScenarioBackBtn();
+    return;
+  }
   scenarioSeed = (scenarioSeed + 1) >>> 0;
   const seed = (savedState.seed || 0) + scenarioSeed * 1013;
   const analysis = savedState.lyricsAnalysis || analyzeFullLyrics(savedState.lyrics);
   const script = generateScenario(allPanels, savedState.lyrics, analysis, seed);
+  pushScenarioHistory(script);
   renderScenario(script);
+}
+
+function previousScenario() {
+  if (scenarioHistoryIdx <= 0) return;
+  scenarioHistoryIdx--;
+  renderScenario(scenarioHistory[scenarioHistoryIdx]);
+  updateScenarioBackBtn();
 }
 
 // ─────────────────────────────────────────
@@ -2606,7 +2783,7 @@ async function regeneratePanel(btn) {
       const data = await res.json();
       const match = data.content[0].text.match(/\{[\s\S]*\}/);
       if (match) {
-        const s = JSON.parse(match[0]);
+        const s = JSON.parse(repairJSON(match[0]));
         // Cycle svgVariant through 50 distinct values across regen presses
         const newSvgVariant = (regenCount * 13) % 50;
         // Generate English versions from structural fields
