@@ -1,0 +1,2716 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MV Storyboard Generator | プロ仕様絵コンテ生成ツール</title>
+<style>
+:root {
+  --bg: #08080e;
+  --surface: #0f0f18;
+  --surface2: #14141f;
+  --surface3: #1a1a28;
+  --border: rgba(255,255,255,0.07);
+  --border-hi: rgba(255,255,255,0.13);
+  --accent: #7c3aed;
+  --accent2: #06b6d4;
+  --accent3: #f43f5e;
+  --accent-glow: rgba(124,58,237,0.35);
+  --text: #f0f0f8;
+  --text-sec: rgba(255,255,255,0.55);
+  --text-muted: rgba(255,255,255,0.32);
+  --radius: 16px;
+  --radius-sm: 10px;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  background:var(--bg);color:var(--text);
+  font-family:'Inter','Segoe UI',system-ui,-apple-system,sans-serif;
+  min-height:100vh;overflow-x:hidden;
+  background-image:radial-gradient(ellipse 80% 40% at 20% 0%,rgba(124,58,237,0.06) 0%,transparent 60%),
+                   radial-gradient(ellipse 60% 40% at 80% 100%,rgba(6,182,212,0.04) 0%,transparent 60%);
+}
+.wrap{max-width:1440px;margin:0 auto;padding:0 1.5rem 5rem;}
+
+/* ── Header ── */
+header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:1.2rem 0 1.4rem;
+  border-bottom:1px solid var(--border);
+  margin-bottom:1.8rem;
+}
+.header-left{display:flex;align-items:center;gap:1rem;}
+.logo-mark{
+  width:36px;height:36px;border-radius:10px;flex-shrink:0;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  display:flex;align-items:center;justify-content:center;
+  font-size:1rem;box-shadow:0 0 20px var(--accent-glow);
+}
+header h1{font-size:1.15rem;font-weight:700;letter-spacing:.02em;}
+.header-tag{
+  font-size:.58rem;letter-spacing:.2em;color:var(--text-muted);
+  background:var(--surface2);border:1px solid var(--border);
+  border-radius:20px;padding:.2rem .7rem;text-transform:uppercase;
+}
+
+/* ── Input layout: 2-column grid ── */
+.input-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  grid-template-rows:auto auto;
+  gap:1rem;
+  margin-bottom:1rem;
+}
+@media(max-width:860px){.input-grid{grid-template-columns:1fr;}}
+
+/* ── Cards ── */
+.card{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:1.25rem 1.4rem;
+  transition:border-color .2s,box-shadow .2s;
+}
+.card:hover{border-color:var(--border-hi);}
+.card-span2{grid-column:1/-1;}
+
+.card-header{display:flex;align-items:center;gap:.65rem;margin-bottom:1rem;}
+.step-badge{
+  width:22px;height:22px;border-radius:7px;flex-shrink:0;
+  background:var(--surface3);border:1px solid var(--border-hi);
+  display:flex;align-items:center;justify-content:center;
+  font-size:.6rem;font-weight:800;color:var(--text-sec);letter-spacing:0;
+}
+.card-title{font-size:.85rem;font-weight:600;color:var(--text);}
+.opt-badge{
+  font-size:.55rem;color:var(--text-muted);
+  border:1px solid var(--border);border-radius:4px;padding:.1rem .4rem;
+  margin-left:.2rem;letter-spacing:.05em;
+}
+
+/* ── Drop zone ── */
+.drop-zone{
+  border:1.5px dashed rgba(124,58,237,.3);border-radius:var(--radius-sm);
+  padding:1.4rem 1rem;text-align:center;cursor:pointer;
+  transition:all .25s;position:relative;background:var(--surface2);
+}
+.drop-zone:hover,.drop-zone.drag-over{
+  border-color:var(--accent2);background:rgba(6,182,212,.04);
+}
+.drop-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+.drop-icon{font-size:1.7rem;margin-bottom:.4rem;opacity:.7;}
+.drop-zone p{color:var(--text-muted);font-size:.78rem;line-height:1.6;}
+.drop-zone small{font-size:.68rem;opacity:.7;}
+.drop-zone .filename{margin-top:.4rem;color:var(--accent2);font-size:.78rem;font-weight:600;}
+
+.audio-info{display:none;align-items:center;gap:.6rem;margin-top:.8rem;flex-wrap:wrap;}
+.audio-info.visible{display:flex;}
+.badge{padding:.18rem .55rem;border-radius:20px;font-size:.62rem;font-weight:700;}
+.badge-green{background:rgba(16,185,129,.15);color:#10b981;}
+.badge-dur{background:rgba(6,182,212,.12);color:var(--accent2);}
+
+/* ── Audio Analysis ── */
+.audio-analysis-card{display:none;margin-top:.8rem;padding:.85rem 1rem;background:var(--surface3);border:1px solid var(--border);border-radius:var(--radius-sm);}
+.audio-analysis-card.visible{display:block;}
+.analysis-title{font-size:.55rem;letter-spacing:.18em;color:var(--accent2);margin-bottom:.6rem;opacity:.6;text-transform:uppercase;}
+.analysis-grid{display:grid;grid-template-columns:60px 1fr 72px;gap:.8rem;align-items:center;}
+@media(max-width:500px){.analysis-grid{grid-template-columns:55px 1fr}.sparkline-box{display:none}}
+.bpm-box{text-align:center;}
+.bpm-num{font-size:1.7rem;font-weight:800;color:var(--accent);line-height:1;font-variant-numeric:tabular-nums;}
+.bpm-unit{font-size:.5rem;letter-spacing:.12em;color:var(--text-muted);display:block;margin-top:.1rem;}
+.bpm-cat{font-size:.54rem;color:var(--accent3);margin-top:.15rem;}
+.freq-row{display:flex;align-items:center;gap:.45rem;margin-bottom:.3rem;}
+.freq-name{font-size:.53rem;letter-spacing:.06em;color:var(--text-muted);width:24px;flex-shrink:0;}
+.freq-bar-track{flex:1;height:3px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden;}
+.freq-bar-fill{height:100%;border-radius:3px;width:0%;transition:width .7s cubic-bezier(.25,.8,.25,1);}
+.freq-pct{font-size:.54rem;color:var(--text-muted);width:26px;text-align:right;font-variant-numeric:tabular-nums;}
+.sparkline-box svg{display:block;}
+.analysis-desc{margin-top:.6rem;font-size:.67rem;color:var(--text-muted);line-height:1.6;border-top:1px solid var(--border);padding-top:.55rem;}
+.analysis-status{font-size:.7rem;color:var(--text-muted);text-align:center;padding:.2rem 0;}
+
+/* ── MV Style grid ── */
+.style-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:.5rem;}
+.style-chip{
+  padding:.7rem .5rem;border:1px solid var(--border);border-radius:var(--radius-sm);
+  cursor:pointer;text-align:center;transition:all .18s;
+  background:var(--surface2);user-select:none;
+}
+.style-chip:hover{border-color:var(--border-hi);background:var(--surface3);}
+.style-chip.selected{
+  border-color:var(--accent2);
+  background:rgba(6,182,212,.08);
+  box-shadow:0 0 0 1px var(--accent2),0 4px 20px rgba(6,182,212,.15);
+}
+.style-chip-emoji{font-size:1.25rem;margin-bottom:.2rem;line-height:1.2;}
+.style-chip-label{font-size:.68rem;font-weight:700;letter-spacing:.02em;margin-bottom:.1rem;}
+.style-chip-desc{font-size:.56rem;color:var(--text-muted);line-height:1.3;}
+
+/* ── Inputs ── */
+textarea{
+  width:100%;background:var(--surface2);border:1px solid var(--border);
+  border-radius:var(--radius-sm);color:var(--text);padding:.85rem 1rem;
+  font-family:inherit;font-size:.83rem;line-height:1.75;resize:vertical;min-height:170px;
+  transition:border-color .2s,box-shadow .2s;outline:none;
+}
+textarea:focus{border-color:rgba(124,58,237,.5);box-shadow:0 0 0 3px rgba(124,58,237,.1);}
+textarea::placeholder{color:var(--text-muted);}
+input[type=text],input[type=password],input[type=number]{
+  width:100%;background:var(--surface2);border:1px solid var(--border);
+  border-radius:var(--radius-sm);color:var(--text);padding:.6rem .9rem;
+  font-family:inherit;font-size:.83rem;outline:none;
+  transition:border-color .2s,box-shadow .2s;
+}
+input:focus{border-color:rgba(124,58,237,.5);box-shadow:0 0 0 3px rgba(124,58,237,.1);}
+input::placeholder{color:var(--text-muted);}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:.8rem;}
+.field-row.three{grid-template-columns:1fr 1fr 1fr;}
+@media(max-width:600px){.field-row,.field-row.three{grid-template-columns:1fr}}
+label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;margin-bottom:.3rem;font-weight:500;}
+.hint-text{margin-top:.4rem;font-size:.64rem;color:var(--text-muted);line-height:1.5;}
+.api-hint{margin-top:.45rem;font-size:.67rem;color:var(--text-muted);line-height:1.5;}
+.api-hint a{color:var(--accent2);text-decoration:none;}
+.api-hint a:hover{text-decoration:underline;}
+
+/* ── Generate button ── */
+.gen-btn{
+  display:block;width:100%;max-width:360px;margin:1.5rem auto 0;
+  padding:.9rem 2rem;
+  background:linear-gradient(135deg,var(--accent) 0%,var(--accent2) 100%);
+  border:none;border-radius:40px;color:#fff;
+  font-size:.95rem;font-weight:700;letter-spacing:.08em;
+  cursor:pointer;transition:all .25s;
+  box-shadow:0 4px 24px rgba(124,58,237,.45);
+}
+.gen-btn:hover{transform:translateY(-2px);box-shadow:0 8px 36px rgba(124,58,237,.6);}
+.gen-btn:active{transform:translateY(0);}
+.gen-btn:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:none;}
+
+/* ── Progress ── */
+#progress-area{display:none;text-align:center;padding:2rem 1rem;}
+#progress-area.visible{display:block;}
+.progress-bar{width:100%;max-width:380px;height:2px;background:rgba(255,255,255,.07);border-radius:2px;margin:.8rem auto;overflow:hidden;}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:2px;transition:width .4s ease;}
+.progress-text{font-size:.75rem;color:var(--text-muted);margin-top:.4rem;}
+
+/* ── Storyboard header ── */
+#storyboard-area{display:none;margin-top:2rem;}
+#storyboard-area.visible{display:block;}
+.sb-header{
+  display:flex;justify-content:space-between;align-items:center;
+  margin-bottom:1rem;padding-bottom:.9rem;border-bottom:1px solid var(--border);
+  flex-wrap:wrap;gap:.5rem;
+}
+.sb-title{font-size:.82rem;font-weight:700;letter-spacing:.12em;color:var(--text-sec);text-transform:uppercase;}
+.sb-meta{display:flex;gap:.4rem;flex-wrap:wrap;align-items:center;}
+.meta-badge{font-size:.62rem;padding:.2rem .6rem;border-radius:20px;border:1px solid var(--border);color:var(--text-muted);background:var(--surface2);}
+.sb-style-badge{font-size:.62rem;padding:.2rem .7rem;border-radius:20px;background:rgba(6,182,212,.1);border:1px solid rgba(6,182,212,.25);color:var(--accent2);}
+.lang-toggle-btn{
+  font-size:.62rem;padding:.25rem .75rem;border-radius:20px;background:var(--surface2);
+  border:1px solid var(--border-hi);color:var(--text-sec);cursor:pointer;
+  transition:all .15s ease;font-family:inherit;font-weight:600;
+}
+.lang-toggle-btn:hover{border-color:var(--accent2);color:var(--accent2);}
+
+/* ── Reference video card ── */
+.ref-card{margin-top:1rem;}
+.ref-row{display:grid;grid-template-columns:1fr 1fr;gap:.8rem;margin-bottom:.7rem;}
+@media(max-width:700px){.ref-row{grid-template-columns:1fr;}}
+.ref-input-group label{display:block;font-size:.65rem;color:var(--text-muted);margin-bottom:.3rem;text-transform:uppercase;letter-spacing:.06em;}
+.ref-input-group input[type="text"], .ref-input-group input[type="file"]{
+  width:100%;padding:.5rem .65rem;border-radius:8px;border:1px solid var(--border-hi);
+  background:var(--surface2);color:var(--text);font-size:.75rem;font-family:inherit;
+}
+.ref-btn{
+  padding:.5rem .9rem;border-radius:8px;border:1px solid var(--accent);
+  background:rgba(124,58,237,.15);color:var(--text);cursor:pointer;font-size:.7rem;
+  font-family:inherit;font-weight:600;white-space:nowrap;
+}
+.ref-btn:hover{background:rgba(124,58,237,.3);}
+.ref-status-row{display:flex;justify-content:space-between;align-items:center;margin-top:.5rem;}
+.ref-clear-btn{
+  font-size:.62rem;padding:.2rem .6rem;border-radius:14px;background:transparent;
+  border:1px solid var(--border);color:var(--text-muted);cursor:pointer;font-family:inherit;
+}
+.ref-clear-btn:hover{border-color:var(--accent3);color:var(--accent3);}
+.ref-preview{margin-top:.5rem;}
+.ref-preview:empty{display:none;}
+.ref-label{font-size:.65rem;color:var(--text-sec);margin-bottom:.3rem;}
+.ref-swatches{display:flex;gap:.3rem;margin-bottom:.3rem;}
+.ref-swatch{width:32px;height:32px;border-radius:6px;border:1px solid var(--border-hi);}
+.ref-mood{font-size:.62rem;color:var(--text-muted);}
+
+/* ── Scenario script ── */
+.scenario-section{
+  background:linear-gradient(135deg, rgba(124,58,237,.06), rgba(6,182,212,.04));
+  border:1px solid var(--border-hi);
+  border-radius:var(--radius);
+  padding:1.2rem 1.4rem;
+  margin-bottom:1.5rem;
+}
+.scenario-header{
+  display:flex;justify-content:space-between;align-items:center;
+  margin-bottom:.9rem;padding-bottom:.7rem;border-bottom:1px solid var(--border);
+}
+.scenario-title{font-size:.82rem;font-weight:700;letter-spacing:.05em;color:var(--text);}
+.scenario-regen-btn{
+  padding:.4rem .85rem;border-radius:18px;background:var(--surface2);
+  border:1px solid var(--border-hi);color:var(--text-sec);cursor:pointer;font-size:.68rem;
+  font-family:inherit;font-weight:600;transition:all .15s ease;
+}
+.scenario-regen-btn:hover{background:rgba(124,58,237,.15);border-color:var(--accent);color:var(--text);}
+.scenario-text{
+  font-size:.78rem;line-height:1.85;color:var(--text-sec);
+  font-family:'Inter','Segoe UI',system-ui,-apple-system,sans-serif;
+  white-space:pre-wrap;
+}
+
+/* ── Storyboard grid ── */
+.sb-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.8rem;}
+@media(max-width:1100px){.sb-grid{grid-template-columns:repeat(3,1fr);}}
+@media(max-width:820px){.sb-grid{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:500px){.sb-grid{grid-template-columns:1fr;}}
+
+/* ── Panel ── */
+.sb-panel{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:12px;overflow:hidden;
+  transition:border-color .2s,box-shadow .2s,transform .2s;
+  animation:fadeUp .28s ease both;
+}
+.sb-panel:hover{border-color:var(--border-hi);box-shadow:0 6px 24px rgba(0,0,0,.4);transform:translateY(-2px);}
+.sb-panel.intro-panel{border-color:rgba(6,182,212,.2);}
+.sb-panel.outro-panel{border-color:rgba(244,63,94,.2);}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+.panel-top{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:.3rem .6rem;background:var(--surface2);border-bottom:1px solid var(--border);gap:.3rem;
+}
+.panel-num{font-size:.65rem;font-weight:800;color:var(--accent2);letter-spacing:.06em;font-variant-numeric:tabular-nums;}
+.panel-time{font-size:.6rem;color:var(--text-muted);font-variant-numeric:tabular-nums;}
+.panel-shot{font-size:.58rem;color:var(--accent3);letter-spacing:.05em;text-transform:uppercase;}
+
+.panel-art{position:relative;background:#12122a;aspect-ratio:16/9;overflow:hidden;}
+.panel-art svg{width:100%;height:100%;}
+
+.panel-dl-btn{
+  position:absolute;bottom:.4rem;right:.4rem;
+  width:26px;height:26px;border-radius:50%;padding:0;
+  background:rgba(0,0,0,.7);border:1px solid rgba(255,255,255,.18);
+  color:rgba(255,255,255,.7);font-size:.58rem;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:all .18s;opacity:.5;
+}
+.sb-panel:hover .panel-dl-btn{opacity:1;}
+.panel-dl-btn:hover{background:rgba(6,182,212,.5);border-color:var(--accent2);color:#fff;transform:scale(1.1);}
+
+.panel-body{padding:.6rem .7rem .75rem;}
+.panel-section{
+  display:inline-block;font-size:.55rem;font-weight:700;letter-spacing:.1em;
+  color:var(--accent2);background:rgba(6,182,212,.1);border-radius:3px;
+  padding:.1rem .4rem;margin-bottom:.4rem;text-transform:uppercase;
+}
+.panel-scene{font-size:.82rem;line-height:1.6;margin-bottom:.5rem;color:rgba(255,255,255,.88);}
+.panel-prompt-label{
+  font-size:.56rem;font-weight:700;letter-spacing:.1em;color:rgba(124,58,237,.8);
+  margin-bottom:.2rem;text-transform:uppercase;
+}
+.panel-prompt{
+  font-size:.7rem;line-height:1.5;color:rgba(255,255,255,.6);
+  background:rgba(124,58,237,.06);border:1px solid rgba(124,58,237,.15);
+  border-radius:6px;padding:.4rem .5rem;font-family:'SF Mono','Fira Code','Courier New',monospace;
+  word-break:break-word;
+}
+.panel-bg-label{
+  font-size:.56rem;font-weight:700;letter-spacing:.1em;color:rgba(244,63,94,.7);
+  margin-bottom:.2rem;margin-top:.45rem;text-transform:uppercase;
+}
+.panel-bg-prompt{
+  font-size:.68rem;line-height:1.45;color:rgba(255,255,255,.42);
+  background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.05);
+  border-radius:6px;padding:.35rem .45rem;font-family:'SF Mono','Fira Code','Courier New',monospace;
+  word-break:break-word;
+}
+.regen-btn{
+  width:100%;margin-top:.5rem;padding:.35rem .5rem;
+  background:transparent;border:1px solid rgba(124,58,237,.25);
+  border-radius:6px;color:rgba(124,58,237,.75);font-size:.65rem;
+  font-weight:600;cursor:pointer;letter-spacing:.03em;
+  transition:all .2s;text-align:center;
+}
+.regen-btn:hover{background:rgba(124,58,237,.15);border-color:rgba(124,58,237,.6);color:#c4b5fd;}
+.regen-btn:disabled{opacity:.35;cursor:not-allowed;}
+
+/* ── Bottom bar ── */
+.download-bar{display:none;justify-content:center;gap:.6rem;margin-top:1.4rem;padding-top:1.1rem;border-top:1px solid var(--border);flex-wrap:wrap;}
+.download-bar.visible{display:flex;}
+.dl-btn{
+  padding:.5rem 1.1rem;border-radius:30px;font-size:.72rem;font-weight:600;
+  cursor:pointer;transition:all .2s;border:1px solid var(--border);
+  background:var(--surface2);color:var(--text-sec);letter-spacing:.03em;
+}
+.dl-btn:hover{border-color:var(--border-hi);color:var(--text);background:var(--surface3);}
+.dl-btn.primary{background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;color:#fff;box-shadow:0 2px 12px var(--accent-glow);}
+.dl-btn.primary:hover{opacity:.9;box-shadow:0 4px 20px var(--accent-glow);}
+.dl-btn.continue-btn{border-color:rgba(6,182,212,.3);color:var(--accent2);background:rgba(6,182,212,.07);}
+.dl-btn.continue-btn:hover{background:rgba(6,182,212,.15);border-color:var(--accent2);}
+
+/* ── Continue progress ── */
+#continue-progress{display:none;text-align:center;padding:.7rem;font-size:.75rem;color:var(--text-muted);}
+#continue-progress.visible{display:block;}
+
+/* ── Error ── */
+.error-msg{background:rgba(244,63,94,.08);border:1px solid rgba(244,63,94,.25);border-radius:var(--radius-sm);padding:.65rem .9rem;font-size:.78rem;color:#fb7185;margin-bottom:.9rem;display:none;}
+.error-msg.visible{display:block;}
+
+::-webkit-scrollbar{width:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:rgba(124,58,237,.35);border-radius:4px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="header-left">
+      <div class="logo-mark">🎬</div>
+      <h1>Storyboard Generator</h1>
+    </div>
+    <span class="header-tag">MV Director's Edition</span>
+  </header>
+
+  <div class="error-msg" id="error-msg"></div>
+
+  <div class="input-grid">
+
+    <!-- Step 1: Audio -->
+    <div class="card">
+      <div class="card-header">
+        <div class="step-badge">1</div>
+        <span class="card-title">楽曲ファイル</span>
+      </div>
+      <div class="drop-zone" id="drop-zone">
+        <input type="file" id="audio-input" accept="audio/*">
+        <div class="drop-icon">🎵</div>
+        <p>クリックまたはドラッグ＆ドロップ<br><small>MP3 / WAV / M4A / AAC</small></p>
+        <div class="filename" id="filename"></div>
+      </div>
+      <div class="audio-info" id="audio-info">
+        <span class="badge badge-green">✓ 読み込み完了</span>
+        <span class="badge badge-dur" id="duration-badge">--:--</span>
+        <span id="audio-name" style="font-size:.7rem;color:var(--text-muted);"></span>
+      </div>
+      <div class="audio-analysis-card" id="audio-analysis-card">
+        <div class="analysis-title">Audio Analysis</div>
+        <div class="analysis-status" id="analysis-status">分析中...</div>
+        <div id="analysis-results" style="display:none">
+          <div class="analysis-grid">
+            <div class="bpm-box">
+              <div class="bpm-num" id="bpm-num">--</div>
+              <span class="bpm-unit">BPM</span>
+              <div class="bpm-cat" id="bpm-cat"></div>
+            </div>
+            <div>
+              <div class="freq-row">
+                <span class="freq-name">BASS</span>
+                <div class="freq-bar-track"><div class="freq-bar-fill" id="bass-bar" style="background:linear-gradient(90deg,#7c3aed,#4c0db5)"></div></div>
+                <span class="freq-pct" id="bass-pct">0%</span>
+              </div>
+              <div class="freq-row">
+                <span class="freq-name">MID</span>
+                <div class="freq-bar-track"><div class="freq-bar-fill" id="mid-bar" style="background:linear-gradient(90deg,#06b6d4,#0284a8)"></div></div>
+                <span class="freq-pct" id="mid-pct">0%</span>
+              </div>
+              <div class="freq-row">
+                <span class="freq-name">HIGH</span>
+                <div class="freq-bar-track"><div class="freq-bar-fill" id="high-bar" style="background:linear-gradient(90deg,#f43f5e,#b91c3c)"></div></div>
+                <span class="freq-pct" id="high-pct">0%</span>
+              </div>
+            </div>
+            <div class="sparkline-box">
+              <svg id="sparkline-svg" width="72" height="36" viewBox="0 0 72 36"></svg>
+            </div>
+          </div>
+          <div class="analysis-desc" id="analysis-desc"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2: MV Style -->
+    <div class="card">
+      <div class="card-header">
+        <div class="step-badge">2</div>
+        <span class="card-title">MVスタイル</span>
+      </div>
+      <div class="style-grid" id="style-grid"></div>
+    </div>
+
+    <!-- Step 3: Lyrics -->
+    <div class="card">
+      <div class="card-header">
+        <div class="step-badge">3</div>
+        <span class="card-title">歌詞</span>
+      </div>
+      <textarea id="lyrics-input" placeholder="[Intro]
+（前奏部分）
+
+[Verse 1]
+歌詞をここに...
+
+[Chorus]
+歌詞をここに...
+
+セクション名を入れると精度が上がります。"></textarea>
+      <p class="hint-text">前奏・間奏・アウトロはセクション名のみ記入でOK</p>
+    </div>
+
+    <!-- Step 4: Settings -->
+    <div class="card">
+      <div class="card-header">
+        <div class="step-badge">4</div>
+        <span class="card-title">設定</span>
+        <span class="opt-badge">OPTIONAL</span>
+      </div>
+      <div class="field-row" style="margin-bottom:.75rem;">
+        <div>
+          <label>プロンプト要望記載欄</label>
+          <input type="text" id="genre-input" placeholder="逆光多め、モノクロ、水中シーンを入れてほしい など">
+        </div>
+        <div>
+          <label>楽曲名</label>
+          <input type="text" id="artist-input" placeholder="曲のタイトルを入力">
+        </div>
+      </div>
+      <div style="margin-bottom:.75rem;">
+        <label>カット数 <span style="color:var(--accent2);font-size:.58rem;">（楽曲から自動算出）</span></label>
+        <input type="number" id="panel-count" value="12" min="8" max="400">
+        <p class="hint-text">5分の曲 ≈ 150カット（約2秒/カット）</p>
+      </div>
+      <div>
+        <label>Claude API Key <span style="color:var(--accent3);font-size:.62rem;">（AI生成を使う場合）</span></label>
+        <input type="password" id="api-key" placeholder="sk-ant-api03-...">
+        <p class="api-hint">
+          APIキーを入力するとClaude AIが全歌詞を精読しプロ監督レベルで生成。未入力でもキーワード分析で動作します。キーはブラウザ外に送信されません。
+          <a href="https://console.anthropic.com/" target="_blank">→ APIキーを取得</a>
+        </p>
+      </div>
+    </div>
+
+  </div><!-- /input-grid -->
+
+  <!-- Step 5: Reference video (optional) -->
+  <div class="card ref-card">
+    <div class="card-header">
+      <div class="step-badge">5</div>
+      <span class="card-title">参考動画（任意）</span>
+      <span class="opt-badge">OPTIONAL</span>
+    </div>
+    <p class="hint-text" style="margin-bottom:.65rem;">過去のMVなど参考動画を入れると色調・トーンを絵コンテに反映します。</p>
+    <div class="ref-row">
+      <div class="ref-input-group">
+        <label>動画ファイル</label>
+        <input type="file" id="ref-video-file" accept="video/*" onchange="loadReferenceVideo(this.files[0])">
+      </div>
+      <div class="ref-input-group">
+        <label>YouTube URL</label>
+        <div style="display:flex;gap:.4rem;">
+          <input type="text" id="ref-youtube-url" placeholder="https://youtube.com/watch?v=...">
+          <button class="ref-btn" onclick="loadReferenceYouTube(document.getElementById('ref-youtube-url').value)">解析</button>
+        </div>
+      </div>
+    </div>
+    <div class="ref-status-row">
+      <span id="ref-status" style="color:var(--text-muted);font-size:.7rem;">未設定</span>
+      <button class="ref-clear-btn" onclick="clearReference()">クリア</button>
+    </div>
+    <div id="ref-preview" class="ref-preview"></div>
+  </div>
+
+  <!-- Generate button -->
+  <button class="gen-btn" id="gen-btn" onclick="generate()">✦ 絵コンテを生成する</button>
+
+  <!-- Progress -->
+  <div id="progress-area">
+    <div id="progress-text" style="font-size:.78rem;color:var(--text-muted);">分析中...</div>
+    <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+    <div class="progress-text" id="progress-sub">歌詞を解析しています</div>
+  </div>
+
+  <!-- Storyboard output -->
+  <div id="storyboard-area">
+    <div class="sb-header">
+      <span class="sb-title">Storyboard</span>
+      <div class="sb-meta">
+        <span class="sb-style-badge" id="sb-style-badge">--</span>
+        <span class="meta-badge" id="sb-panels-badge">-- cuts</span>
+        <span class="meta-badge" id="sb-dur-badge">--:--</span>
+        <span class="meta-badge" id="sb-cut-badge">--s/cut</span>
+        <button class="lang-toggle-btn" id="lang-toggle-btn" onclick="togglePromptLang()">🌐 English</button>
+      </div>
+    </div>
+
+    <!-- Scenario script -->
+    <div id="scenario-section" class="scenario-section">
+      <div class="scenario-header">
+        <span class="scenario-title">📜 シナリオ台本</span>
+        <button class="scenario-regen-btn" onclick="regenerateScenario()">🔄 違うシナリオにする</button>
+      </div>
+      <div id="scenario-text" class="scenario-text"></div>
+    </div>
+
+    <div class="sb-grid" id="sb-grid"></div>
+    <div id="continue-progress">⏳ 追加カットを生成中...</div>
+    <div class="download-bar" id="download-bar">
+      <button class="dl-btn continue-btn" id="continue-btn" onclick="continueGenerate()">＋ 続きを6カット生成</button>
+      <button class="dl-btn" onclick="printStoryboard()">🖨 印刷 / PDF保存</button>
+    </div>
+  </div>
+
+</div>
+<script>
+// ─────────────────────────────────────────
+// MV Style definitions
+// ─────────────────────────────────────────
+const MV_STYLES = {
+  rock: {
+    label: 'ロック系MV', emoji: '🎸',
+    desc: 'ライブ感・バンド演奏・激しいカット',
+    shots: ['ECU','CU','WS','MS','ECU','CU'],
+    poses: ['action','running','dancing','action','crowd','action'],
+    bgs: ['city','spotlight','city','spotlight'],
+    pace: 0.8,
+    introDesc: ['バンドがステージに登場', '照明が一斉に点灯', 'ギターを手にした主人公', 'ドラムのカウントイン'],
+    hint: 'ロックバンドMV。ライブ演奏、バンドメンバーのパフォーマンス、激しいカット割り。強いコントラスト、ハードな照明'
+  },
+  ballad: {
+    label: 'バラード系', emoji: '🎹',
+    desc: 'ゆったり・感情的・美しい風景',
+    shots: ['WS','MS','CU','WS','CU','MS'],
+    poses: ['sitting','standing','crying','lookingup','reaching','sitting'],
+    bgs: ['rain','stars','nature','stars'],
+    pace: 1.6,
+    introDesc: ['夕暮れの街並みのロングショット', '窓の外を見つめる後ろ姿', '降り始めた雨', '揺れるカーテンと光'],
+    hint: 'バラードMV。ゆっくりとしたカメラワーク、感情的な表情のクローズアップ。柔らかい自然光、淡い色調'
+  },
+  emotional: {
+    label: '感動系', emoji: '😢',
+    desc: '物語性・感情の起伏・クライマックス',
+    shots: ['WS','MS','CU','ECU','CU','WS'],
+    poses: ['standing','walking','crying','reaching','love','lookingup'],
+    bgs: ['nature','rain','stars','nature'],
+    pace: 1.4,
+    introDesc: ['朝焼けの空の全景', '主人公が一人で歩く路地', '思い出の場所へ向かう足元', '風で揺れる木の葉'],
+    hint: '感動系MV。人物の感情変化を丁寧に追う。涙・希望・再生のテーマ。温かみのある光、セピアと鮮やかさの対比'
+  },
+  mysterious: {
+    label: '不思議系', emoji: '🌙',
+    desc: '幻想的・非現実・独特の世界観',
+    shots: ['EWS','WS','ECU','WS','CU','EWS'],
+    poses: ['lookingup','reaching','standing','sitting','reaching','lookingup'],
+    bgs: ['stars','default','stars','rain'],
+    pace: 1.5,
+    introDesc: ['霧に包まれた幻想的な空間', '鏡の中から現れる光', '時間が止まったような街', '空中に浮かぶ光の粒子'],
+    hint: '幻想的・不思議系MV。シュールな映像表現、非現実的な空間構成。夢と現実の境界、ファンタジー的な色使い'
+  },
+  performance: {
+    label: 'パフォーマンス中心', emoji: '💃',
+    desc: 'ダンス・歌唱・振り付け・ステージ',
+    shots: ['WS','MS','CU','WS','MS','ECU'],
+    poses: ['dancing','action','dancing','crowd','dancing','action'],
+    bgs: ['spotlight','city','spotlight','spotlight'],
+    pace: 0.9,
+    introDesc: ['ステージ全景の壮大なロングショット', 'スポットライトが灯る瞬間', 'ダンサーたちが定位置につく', 'イントロのビートに合わせた静のポーズ'],
+    hint: 'パフォーマンスMV。ダンス・歌唱シーンを中心に構成。振り付けの見せ場、アーティストの表情・ボディランゲージを重視'
+  },
+  story: {
+    label: 'ストーリー仕立て', emoji: '🎬',
+    desc: '短編映画風・キャラクター・物語展開',
+    shots: ['EWS','WS','MS','2S','CU','WS'],
+    poses: ['standing','running','love','crying','reaching','standing'],
+    bgs: ['city','nature','rain','city'],
+    pace: 1.3,
+    introDesc: ['街の夜景の俯瞰ショット', '主人公が歩く路地裏', '鍵となるアイテムのクローズアップ', '出会いの予感を感じさせる交差点'],
+    hint: '短編映画風MV。明確なキャラクターと物語構造、起承転結を意識した演出。シネマティックな映像美、映画的な色彩設計'
+  },
+  concept: {
+    label: 'コンセプト・世界観重視', emoji: '🎨',
+    desc: '独自美学・視覚的統一感・芸術性',
+    shots: ['EWS','ECU','WS','EWS','CU','ECU'],
+    poses: ['lookingup','reaching','standing','crowd','lookingup','sitting'],
+    bgs: ['stars','spotlight','default','stars'],
+    pace: 1.2,
+    introDesc: ['コンセプトカラーに染まる抽象空間', 'アーティストのシルエット', '象徴的なモチーフのクローズアップ', '繰り返すビジュアルパターン'],
+    hint: 'コンセプチュアルMV。強烈なビジュアルコンセプト、色彩・構図の統一感。アート性の高い映像表現、視覚的な一貫性'
+  },
+  liveshow: {
+    label: 'ライブMV', emoji: '🎤',
+    desc: 'コンサート映像・観客・ステージダイナミクス',
+    shots: ['EWS','WS','MS','CU','WS','ECU'],
+    poses: ['action','dancing','standing','action','crowd','standing'],
+    bgs: ['spotlight','city','spotlight','spotlight'],
+    pace: 0.85,
+    introDesc: ['アリーナ全景の壮大なロングショット', '観客が埋め尽くしたスタジアム', 'ステージ袖で待機するアーティスト', '本番直前の静寂と高鳴り'],
+    hint: 'ライブコンサートMV。実際のステージ照明、観客の熱狂、ライブならではの躍動感。汗・熱気・一体感の表現。カメラワークは積極的に動かし、ハンドヘルド・クレーン・オービット・ウィップパンを多用してライブの臨場感を最大化'
+  },
+  bizarre: {
+    label: '奇想天外', emoji: '🌀',
+    desc: 'シュール・アート・芸術家の脳内世界',
+    shots: ['ECU','EWS','CU','WS','ECU','WS'],
+    poses: ['reaching','lookingup','sitting','standing','action','reaching'],
+    bgs: ['abstract','stars','default','abstract'],
+    pace: 1.1,
+    introDesc: ['抽象的な幾何学模様が広がる空間', '色彩が溢れ出す境界のない世界', '芸術家の脳内を覗いたような光景', '常識を超えた非線形な空間'],
+    hint: '奇想天外・シュールアートMV。ダリやマグリットを思わせる非現実的な映像。強烈な色彩対比、デザイン主導の演出、芸術的な視覚体験。人物よりもビジュアルそのものが主役'
+  }
+};
+
+let selectedStyle = 'story';
+
+// ─────────────────────────────────────────
+// Visual-type sequences per style
+// Defines the MIX of character vs abstract vs environment etc.
+// Pro MVs: ~50% character, ~25% abstract/environment, ~25% macro/object/silhouette
+// ─────────────────────────────────────────
+const STYLE_SEQUENCES = {
+  rock:        ['character','character','object','character','silhouette','abstract','character','character','macro','character','environment','character'],
+  ballad:      ['environment','character','character','bokeh','character','macro','character','object','character','character','environment','character'],
+  emotional:   ['environment','character','character','macro','character','silhouette','character','object','bokeh','character','character','environment'],
+  mysterious:  ['abstract','character','silhouette','abstract','environment','character','abstract','bokeh','character','abstract','character','silhouette'],
+  performance: ['character','character','crowd','character','character','object','character','silhouette','character','character','environment','character'],
+  story:       ['environment','character','character','object','character','character','silhouette','character','macro','character','environment','character'],
+  concept:     ['abstract','character','abstract','silhouette','abstract','character','bokeh','abstract','character','abstract','environment','abstract'],
+  liveshow:    ['crowd','character','character','environment','character','object','character','crowd','silhouette','character','character','crowd'],
+  bizarre:     ['abstract','silhouette','abstract','character','abstract','bokeh','abstract','macro','abstract','character','abstract','object'],
+};
+
+function getVisualType(idx, styleKey, hasLyricsOverride, isIntro, isOutro, seqOffset=0) {
+  if (isIntro || isOutro) return 'environment';
+  if (hasLyricsOverride) return 'character';
+  const seq = STYLE_SEQUENCES[styleKey] || STYLE_SEQUENCES.story;
+  return seq[(idx + seqOffset) % seq.length];
+}
+
+// Non-character SVG generators
+function silhouetteDefs(uid, color) {
+  return `<radialGradient id="rim${uid}" cx="50%" cy="50%" r="50%">
+    <stop offset="0%" stop-color="${color}" stop-opacity=".2"/>
+    <stop offset="100%" stop-color="${color}" stop-opacity="0"/>
+  </radialGradient>`;
+}
+function silhouetteSVG(cx, cy, s, uid, color) {
+  return `
+    <ellipse cx="${cx}" cy="${cy-s}" rx="${s*4}" ry="${s*5}" fill="url(#rim${uid})"/>
+    <circle cx="${cx}" cy="${cy-s*2.8}" r="${s*.88}" fill="rgba(4,4,14,.97)" stroke="${color}" stroke-width="${s*.07}" opacity=".92"/>
+    <circle cx="${cx-s*.25}" cy="${cy-s*3.0}" r="${s*.1}" fill="${color}" opacity=".5"/>
+    <circle cx="${cx+s*.25}" cy="${cy-s*3.0}" r="${s*.1}" fill="${color}" opacity=".5"/>
+    <path d="M${cx-s*.52} ${cy-s*1.84} L${cx-s*.42} ${cy+.06} L${cx+s*.42} ${cy+.06} L${cx+s*.52} ${cy-s*1.84}Z" fill="rgba(4,4,14,.97)" stroke="${color}" stroke-width="${s*.06}" stroke-linejoin="round" opacity=".9"/>
+    <line x1="${cx-s*.52}" y1="${cy-s*1.52}" x2="${cx-s*1.28}" y2="${cy-s*.88}" stroke="rgba(4,4,14,.97)" stroke-width="${s*.18}" stroke-linecap="round"/>
+    <line x1="${cx+s*.52}" y1="${cy-s*1.52}" x2="${cx+s*1.28}" y2="${cy-s*.88}" stroke="rgba(4,4,14,.97)" stroke-width="${s*.18}" stroke-linecap="round"/>
+    <line x1="${cx-s*.32}" y1="${cy+.06}" x2="${cx-s*.78}" y2="${cy+s*1.52}" stroke="rgba(4,4,14,.97)" stroke-width="${s*.18}" stroke-linecap="round"/>
+    <line x1="${cx+s*.32}" y1="${cy+.06}" x2="${cx+s*.78}" y2="${cy+s*1.52}" stroke="rgba(4,4,14,.97)" stroke-width="${s*.18}" stroke-linecap="round"/>`;
+}
+
+function abstractSVG(W, H, color, idx) {
+  const type = idx % 7;
+  if (type === 0) { // Concentric rings
+    return Array.from({length:7},(_,i)=>`<circle cx="${W/2}" cy="${H/2}" r="${(i+1)*H*.09}" fill="none" stroke="${color}" stroke-width="${.7+i*.1}" opacity="${.18-.02*i}"/>`).join('');
+  } else if (type === 1) { // Particle field
+    return Array.from({length:28},(_,i)=>{
+      const x=W*(Math.sin(i*2.39+1)*.47+.5), y=H*(Math.cos(i*1.61+.8)*.42+.42);
+      return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${.6+Math.abs(Math.sin(i))*2.2}" fill="${color}" opacity="${.08+Math.abs(Math.sin(i*.7))*.22}"/>`;
+    }).join('');
+  } else if (type === 2) { // Diagonal scan lines
+    return Array.from({length:12},(_,i)=>`<line x1="${W*i*.09}" y1="0" x2="${W*i*.09+W*.3}" y2="${H}" stroke="${color}" stroke-width=".6" opacity="${.06+i*.008}"/>`).join('');
+  } else if (type === 3) { // Wave pattern
+    const pts = Array.from({length:20},(_,i)=>`${(i/19*W).toFixed(1)},${(H*.5+Math.sin(i*.8)*H*.18).toFixed(1)}`).join(' ');
+    const pts2 = Array.from({length:20},(_,i)=>`${(i/19*W).toFixed(1)},${(H*.5+Math.sin(i*.8+1)*H*.1).toFixed(1)}`).join(' ');
+    return `<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.2" opacity=".2"/>
+      <polyline points="${pts2}" fill="none" stroke="${color}" stroke-width=".8" opacity=".12"/>`;
+  } else if (type === 4) { // Grid matrix
+    return Array.from({length:6},(_,r)=>Array.from({length:10},(_,c)=>`<rect x="${(c/10*W+1).toFixed(0)}" y="${(r/6*H+1).toFixed(0)}" width="${(W/10-2).toFixed(0)}" height="${(H/6-2).toFixed(0)}" fill="none" stroke="${color}" stroke-width=".4" opacity="${.04+(r+c)*.008}"/>`).join('')).join('');
+  } else if (type === 5) { // Radiating lines from center
+    return Array.from({length:18},(_,i)=>{
+      const a=i/18*Math.PI*2, r1=H*.05, r2=H*.55;
+      return `<line x1="${(W/2+Math.cos(a)*r1).toFixed(1)}" y1="${(H/2+Math.sin(a)*r1).toFixed(1)}" x2="${(W/2+Math.cos(a)*r2).toFixed(1)}" y2="${(H/2+Math.sin(a)*r2).toFixed(1)}" stroke="${color}" stroke-width=".7" opacity="${.06+Math.abs(Math.cos(a))*.1}"/>`;
+    }).join('');
+  } else { // Double exposure overlay
+    return `<ellipse cx="${W*.35}" cy="${H*.45}" rx="${W*.28}" ry="${H*.35}" fill="none" stroke="${color}" stroke-width="1" opacity=".12"/>
+      <ellipse cx="${W*.65}" cy="${H*.55}" rx="${W*.22}" ry="${H*.28}" fill="none" stroke="${color}" stroke-width="1" opacity=".1"/>
+      ${Array.from({length:8},(_,i)=>`<circle cx="${W*(i/8)}" cy="${H*.5+Math.sin(i)*H*.15}" r="${3+i}" fill="${color}" opacity="${.04+i*.008}"/>`).join('')}`;
+  }
+}
+
+function macroSVG(W, H, color, idx) {
+  const type = idx % 5;
+  if (type === 0) { // Fabric weave
+    return Array.from({length:10},(_,i)=>`<line x1="0" y1="${H*i*.11}" x2="${W}" y2="${H*i*.11+H*.04}" stroke="${color}" stroke-width="1.5" opacity="${.08+i*.012}"/>
+      <line x1="${W*i*.11}" y1="0" x2="${W*i*.11+W*.04}" y2="${H}" stroke="${color}" stroke-width=".8" opacity="${.05+i*.008}"/>`).join('');
+  } else if (type === 1) { // Water ripple
+    return Array.from({length:8},(_,i)=>`<ellipse cx="${W*.5}" cy="${H*.6}" rx="${(i+1)*W*.08}" ry="${(i+1)*H*.05}" fill="none" stroke="${color}" stroke-width=".9" opacity="${.15-.015*i}"/>`).join('');
+  } else if (type === 2) { // Bokeh macro
+    return Array.from({length:15},(_,i)=>{
+      const x=W*(Math.sin(i*1.9+.3)*.45+.5), y=H*(Math.cos(i*1.3+.7)*.4+.45);
+      const r=4+Math.abs(Math.sin(i))*14;
+      return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r.toFixed(1)}" fill="none" stroke="${color}" stroke-width="${(.5+Math.sin(i)*.3).toFixed(2)}" opacity="${(.04+Math.abs(Math.cos(i))*.12).toFixed(3)}"/>`;
+    }).join('');
+  } else if (type === 3) { // Film grain texture
+    return Array.from({length:40},(_,i)=>{
+      const x=W*(Math.sin(i*3.7)*.5+.5), y=H*(Math.cos(i*2.3)*.5+.5);
+      return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${.4+Math.abs(Math.sin(i))*.9}" fill="${color}" opacity="${.05+Math.abs(Math.sin(i*.9))*.1}"/>`;
+    }).join('');
+  } else { // Lens flare streaks
+    return `<ellipse cx="${W*.3}" cy="${H*.25}" rx="${W*.06}" ry="${H*.04}" fill="${color}" opacity=".18"/>
+      ${Array.from({length:5},(_,i)=>`<line x1="${W*.3}" y1="${H*.25}" x2="${W*(.3+(i+1)*.12)}" y2="${H*(.25+(i+1)*.08)}" stroke="${color}" stroke-width="${2-i*.3}" opacity="${.12-i*.02}"/>`).join('')}
+      <ellipse cx="${W*.7}" cy="${H*.7}" rx="${W*.03}" ry="${H*.02}" fill="${color}" opacity=".08"/>`;
+  }
+}
+
+function objectSVG(W, H, color, styleKey, idx) {
+  const cx=W/2, cy=H*.55, s=H*.18;
+  const objects = {
+    rock: [
+      // Guitar silhouette
+      `<ellipse cx="${cx}" cy="${cy+s*.3}" rx="${s*.55}" ry="${s*.7}" fill="none" stroke="${color}" stroke-width="1.2" opacity=".5"/>
+       <rect x="${cx-s*.06}" y="${cy-s*1.8}" width="${s*.12}" height="${s*1.5}" fill="none" stroke="${color}" stroke-width="1.2" opacity=".5"/>
+       <line x1="${cx-s*.3}" y1="${cy-s*.8}" x2="${cx+s*.3}" y2="${cy-s*.8}" stroke="${color}" stroke-width=".7" opacity=".35"/>`,
+      // Microphone
+      `<ellipse cx="${cx}" cy="${cy-s*.5}" rx="${s*.22}" ry="${s*.35}" fill="none" stroke="${color}" stroke-width="1.2" opacity=".5"/>
+       <line x1="${cx}" y1="${cy-s*.15}" x2="${cx}" y2="${cy+s*.8}" stroke="${color}" stroke-width="1.4" opacity=".45"/>
+       <line x1="${cx-s*.3}" y1="${cy+s*.8}" x2="${cx+s*.3}" y2="${cy+s*.8}" stroke="${color}" stroke-width="1.2" opacity=".4"/>`,
+    ],
+    ballad: [
+      // Piano keys
+      `${Array.from({length:7},(_,i)=>`<rect x="${(cx-s*.9+i*s*.27).toFixed(1)}" y="${(cy-s*.5).toFixed(1)}" width="${(s*.24).toFixed(1)}" height="${(s*.9).toFixed(1)}" fill="none" stroke="${color}" stroke-width="1" opacity=".4"/>`).join('')}
+       ${Array.from({length:5},(_,i)=>`<rect x="${(cx-s*.76+i*s*.27+(i>1?s*.27:0)).toFixed(1)}" y="${(cy-s*.5).toFixed(1)}" width="${(s*.15).toFixed(1)}" height="${(s*.55).toFixed(1)}" fill="${color}" opacity=".25"/>`).join('')}`,
+      // Candle / flame
+      `<rect x="${cx-s*.1}" y="${cy-s*.2}" width="${s*.2}" height="${s*.6}" fill="${color}" opacity=".2" rx="2"/>
+       <path d="M${cx} ${cy-s*.2} Q${cx+s*.2} ${cy-s*.7} ${cx} ${cy-s*1.1} Q${cx-s*.2} ${cy-s*.7} ${cx} ${cy-s*.2}" fill="${color}" opacity=".4"/>`,
+    ],
+    emotional: [
+      // Heart
+      `<path d="M${cx} ${cy+s*.5} Q${cx-s*.9} ${cy-s*.3} ${cx-s*.45} ${cy-s*.8} Q${cx} ${cy-s*1.2} ${cx} ${cy-s*.4} Q${cx} ${cy-s*1.2} ${cx+s*.45} ${cy-s*.8} Q${cx+s*.9} ${cy-s*.3} ${cx} ${cy+s*.5}Z" fill="none" stroke="${color}" stroke-width="1.3" opacity=".45"/>`,
+      // Clock / time
+      `<circle cx="${cx}" cy="${cy}" r="${s*.65}" fill="none" stroke="${color}" stroke-width="1.2" opacity=".4"/>
+       <line x1="${cx}" y1="${cy}" x2="${cx+s*.3}" y2="${cy-s*.45}" stroke="${color}" stroke-width="1.4" opacity=".5"/>
+       <line x1="${cx}" y1="${cy}" x2="${cx-s*.1}" y2="${cy+s*.5}" stroke="${color}" stroke-width="1.2" opacity=".4"/>`,
+    ],
+    mysterious: [
+      // Moon crescent
+      `<circle cx="${cx}" cy="${cy}" r="${s*.6}" fill="none" stroke="${color}" stroke-width="1.2" opacity=".45"/>
+       <circle cx="${cx+s*.25}" cy="${cy}" r="${s*.48}" fill="#08081a" opacity=".95"/>`,
+      // Eye
+      `<path d="M${cx-s*.8} ${cy} Q${cx} ${cy-s*.5} ${cx+s*.8} ${cy} Q${cx} ${cy+s*.5} ${cx-s*.8} ${cy}Z" fill="none" stroke="${color}" stroke-width="1.1" opacity=".45"/>
+       <circle cx="${cx}" cy="${cy}" r="${s*.2}" fill="none" stroke="${color}" stroke-width="1" opacity=".4"/>
+       <circle cx="${cx}" cy="${cy}" r="${s*.08}" fill="${color}" opacity=".35"/>`,
+    ],
+    performance: [
+      // Spotlight beam from above
+      `<path d="M${cx-s*.1} 0 L${cx-s*.7} ${H} L${cx+s*.7} ${H} L${cx+s*.1} 0Z" fill="${color}" opacity=".06"/>
+       <ellipse cx="${cx}" cy="${H*.88}" rx="${s*.7}" ry="${s*.18}" fill="${color}" opacity=".12"/>`,
+      // Dance shoes
+      `<path d="M${cx-s*.5} ${cy+s*.3} Q${cx-s*.3} ${cy-s*.2} ${cx} ${cy} Q${cx+s*.3} ${cy+s*.1} ${cx+s*.6} ${cy+s*.3}" fill="none" stroke="${color}" stroke-width="1.3" opacity=".45"/>`,
+    ],
+    story: [
+      // Key
+      `<circle cx="${cx-s*.3}" cy="${cy-s*.2}" r="${s*.3}" fill="none" stroke="${color}" stroke-width="1.2" opacity=".45"/>
+       <line x1="${cx}" y1="${cy-s*.2}" x2="${cx+s*.7}" y2="${cy-s*.2}" stroke="${color}" stroke-width="1.3" opacity=".45"/>
+       <line x1="${cx+s*.4}" y1="${cy-s*.2}" x2="${cx+s*.4}" y2="${cy+s*.1}" stroke="${color}" stroke-width="1" opacity=".4"/>
+       <line x1="${cx+s*.55}" y1="${cy-s*.2}" x2="${cx+s*.55}" y2="${cy+s*.15}" stroke="${color}" stroke-width="1" opacity=".4"/>`,
+      // Road / path
+      `<path d="M${cx-s*.15} ${H} L${cx-s*.05} ${H*.3} L${cx+s*.05} ${H*.3} L${cx+s*.15} ${H}Z" fill="none" stroke="${color}" stroke-width=".8" opacity=".3"/>
+       ${Array.from({length:4},(_,i)=>`<line x1="${cx}" y1="${H*(.35+i*.16)}" x2="${cx}" y2="${H*(.4+i*.16)}" stroke="${color}" stroke-width="1.2" opacity=".3" stroke-dasharray="4,4"/>`).join('')}`,
+    ],
+    concept: [
+      // Diamond / prism
+      `<path d="M${cx} ${cy-s*.8} L${cx+s*.6} ${cy} L${cx} ${cy+s*.7} L${cx-s*.6} ${cy}Z" fill="none" stroke="${color}" stroke-width="1.2" opacity=".45"/>
+       <line x1="${cx-s*.6}" y1="${cy}" x2="${cx+s*.6}" y2="${cy}" stroke="${color}" stroke-width=".6" opacity=".2"/>
+       <line x1="${cx}" y1="${cy-s*.8}" x2="${cx}" y2="${cy+s*.7}" stroke="${color}" stroke-width=".6" opacity=".2"/>`,
+      // Mirror / reflection line
+      `<line x1="0" y1="${cy}" x2="${W}" y2="${cy}" stroke="${color}" stroke-width=".8" opacity=".2"/>
+       <line x1="${cx}" y1="0" x2="${cx}" y2="${H}" stroke="${color}" stroke-width=".5" opacity=".15"/>`,
+    ],
+    liveshow: [
+      // Microphone stand
+      `<line x1="${cx}" y1="${cy+s*.7}" x2="${cx}" y2="${cy-s*.5}" stroke="${color}" stroke-width="1.4" opacity=".5"/>
+       <path d="M${cx-s*.4} ${cy+s*.7} L${cx} ${cy+s*.4} L${cx+s*.4} ${cy+s*.7}" fill="none" stroke="${color}" stroke-width="1.2" opacity=".45"/>
+       <ellipse cx="${cx}" cy="${cy-s*.7}" rx="${s*.18}" ry="${s*.28}" fill="none" stroke="${color}" stroke-width="1.2" opacity=".5"/>`,
+      // Raised hands (crowd)
+      `${Array.from({length:7},(_,i)=>{
+        const hx=cx-s*1.2+i*s*.4, base=cy+s*.5;
+        return `<line x1="${hx}" y1="${base}" x2="${hx+s*.05}" y2="${base-s*(0.7+Math.abs(Math.sin(i)))}" stroke="${color}" stroke-width="1.1" opacity=".4"/>
+          <circle cx="${hx+s*.05}" cy="${base-s*(0.75+Math.abs(Math.sin(i)))}" r="${s*.07}" fill="${color}" opacity=".35"/>`;}).join('')}`,
+    ],
+  };
+  const styleObjs = objects[styleKey] || objects.story;
+  return styleObjs[idx % styleObjs.length];
+}
+
+function bokehSVG(W, H, color, idx) {
+  return Array.from({length:20},(_,i)=>{
+    const x=W*(Math.sin(i*2.3+idx*.7)*.47+.5), y=H*(Math.cos(i*1.9+idx*.5)*.42+.45);
+    const r=3+Math.abs(Math.sin(i*1.1+idx))*22;
+    const op=(0.03+Math.abs(Math.cos(i*.8))*.09).toFixed(3);
+    return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r.toFixed(1)}" fill="${color}" opacity="${op}"/>
+      <circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${(r*.8).toFixed(1)}" fill="none" stroke="${color}" stroke-width=".5" opacity="${(parseFloat(op)*.7).toFixed(3)}"/>`;
+  }).join('');
+}
+
+function environmentOnlySVG(bg, W, H, color) {
+  // Larger, more detailed background with no character
+  const base = bgSketch(bg, W, H);
+  // Add foreground ground elements
+  const fg = `<line x1="0" y1="${H*.88}" x2="${W}" y2="${H*.88}" stroke="${color}" stroke-width=".6" opacity=".15"/>`;
+  return base + fg;
+}
+
+function crowdOnlySVG(W, H, color) {
+  const rows = 3, perRow = 12;
+  return Array.from({length:rows},(_,r)=>
+    Array.from({length:perRow},(_,c)=>{
+      const x=W*(c+.5)/perRow, y=H*(.6+r*.12), s=H*.04+r*H*.005;
+      return `<circle cx="${x.toFixed(1)}" cy="${(y-s*2.2).toFixed(1)}" r="${(s*.7).toFixed(1)}" fill="${color}" opacity="${(.08+r*.04).toFixed(2)}"/>
+        <line x1="${x.toFixed(1)}" y1="${(y-s*1.5).toFixed(1)}" x2="${x.toFixed(1)}" y2="${(y+s*.5).toFixed(1)}" stroke="${color}" stroke-width="${(s*.4).toFixed(1)}" opacity="${(.07+r*.04).toFixed(2)}" stroke-linecap="round"/>`;
+    }).join('')
+  ).join('');
+}
+
+function initStyleSelector() {
+  const grid = document.getElementById('style-grid');
+  Object.entries(MV_STYLES).forEach(([key, s]) => {
+    const chip = document.createElement('div');
+    chip.className = 'style-chip' + (key === selectedStyle ? ' selected' : '');
+    chip.dataset.key = key;
+    chip.innerHTML = `<div class="style-chip-emoji">${s.emoji}</div>
+      <div class="style-chip-label">${s.label}</div>
+      <div class="style-chip-desc">${s.desc}</div>`;
+    chip.addEventListener('click', () => {
+      document.querySelectorAll('.style-chip').forEach(c => c.classList.remove('selected'));
+      chip.classList.add('selected');
+      selectedStyle = key;
+    });
+    grid.appendChild(chip);
+  });
+}
+
+// ─────────────────────────────────────────
+// AudioAnalyzer
+// ─────────────────────────────────────────
+class AudioAnalyzer {
+  async analyze(file, onProgress) {
+    onProgress && onProgress(5, 'オーディオをデコード中...');
+    const arrayBuf = await file.arrayBuffer();
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const audioBuffer = await ctx.decodeAudioData(arrayBuf);
+    await ctx.close();
+    onProgress && onProgress(35, '周波数帯域を分析中...');
+    const bands = this.analyzeFrequencyBands(audioBuffer);
+    onProgress && onProgress(65, 'BPMを検出中...');
+    const bpm = this.detectBPM(audioBuffer);
+    onProgress && onProgress(85, 'エネルギープロファイルを算出中...');
+    const energy = this.analyzeEnergy(audioBuffer);
+    onProgress && onProgress(100, '分析完了');
+    return { bpm, bpmCategory: this.categorizeBPM(bpm), ...bands, ...energy };
+  }
+  getMono(buf) {
+    const ch0 = buf.getChannelData(0);
+    if (buf.numberOfChannels === 1) return Float32Array.from(ch0);
+    const ch1 = buf.getChannelData(1);
+    const mono = new Float32Array(ch0.length);
+    for (let i = 0; i < ch0.length; i++) mono[i] = (ch0[i]+ch1[i])*0.5;
+    return mono;
+  }
+  lowPass(data, cutoff, sr) {
+    const rc = 1/(2*Math.PI*cutoff), dt = 1/sr, a = dt/(rc+dt);
+    const out = new Float32Array(data.length); out[0] = data[0];
+    for (let i = 1; i < data.length; i++) out[i] = out[i-1]+a*(data[i]-out[i-1]);
+    return out;
+  }
+  highPass(data, cutoff, sr) {
+    const rc = 1/(2*Math.PI*cutoff), dt = 1/sr, a = rc/(rc+dt);
+    const out = new Float32Array(data.length); out[0] = data[0];
+    for (let i = 1; i < data.length; i++) out[i] = a*(out[i-1]+data[i]-data[i-1]);
+    return out;
+  }
+  rms(data) {
+    let s = 0; for (let i = 0; i < data.length; i++) s += data[i]*data[i];
+    return Math.sqrt(s/data.length);
+  }
+  analyzeFrequencyBands(audioBuffer) {
+    const sr = audioBuffer.sampleRate, mono = this.getMono(audioBuffer);
+    const bass = this.lowPass(mono,200,sr), lowMid = this.lowPass(mono,4000,sr), high = this.highPass(mono,4000,sr);
+    const mid = new Float32Array(mono.length);
+    for (let i = 0; i < mono.length; i++) mid[i] = lowMid[i]-bass[i];
+    const bR=this.rms(bass), mR=this.rms(mid), hR=this.rms(high), total=bR+mR+hR||1;
+    return { bassRatio:bR/total, midRatio:mR/total, highRatio:hR/total };
+  }
+  detectBPM(audioBuffer) {
+    const sr = audioBuffer.sampleRate, mono = this.getMono(audioBuffer);
+    const maxSamples = Math.min(mono.length, sr*90);
+    const filtered = this.lowPass(mono.subarray(0,maxSamples),150,sr);
+    const frameSize = Math.round(sr*0.023), hop = Math.round(frameSize*0.5);
+    const frameCount = Math.floor((filtered.length-frameSize)/hop);
+    const energies = new Float32Array(frameCount);
+    for (let f = 0; f < frameCount; f++) energies[f] = this.rms(filtered.subarray(f*hop,f*hop+frameSize));
+    const onset = new Float32Array(frameCount);
+    for (let i = 1; i < frameCount; i++) { const d=energies[i]-energies[i-1]; onset[i]=d>0?d:0; }
+    const targetRate=86, origRate=sr/hop, dsRatio=Math.max(1,Math.round(origRate/targetRate));
+    const dsLen = Math.floor(onset.length/dsRatio);
+    const ds = new Float32Array(dsLen);
+    for (let i = 0; i < dsLen; i++) { let s=0; for (let j=0;j<dsRatio;j++) s+=onset[i*dsRatio+j]||0; ds[i]=s/dsRatio; }
+    const minLag=Math.round(60/180*targetRate), maxLag=Math.round(60/60*targetRate);
+    let bestLag=minLag, bestCorr=-Infinity;
+    for (let lag=minLag; lag<=maxLag; lag++) {
+      let corr=0; for (let i=0;i<dsLen-lag;i++) corr+=ds[i]*ds[i+lag];
+      if (corr>bestCorr) { bestCorr=corr; bestLag=lag; }
+    }
+    return Math.max(60,Math.min(200,Math.round(60*targetRate/bestLag)));
+  }
+  analyzeEnergy(audioBuffer) {
+    const sr=audioBuffer.sampleRate, mono=this.getMono(audioBuffer);
+    const windowSize=sr, windowCount=Math.floor(mono.length/windowSize);
+    const profile=[]; let peak=0, peakIdx=0;
+    for (let i=0;i<windowCount;i++) {
+      const e=this.rms(mono.subarray(i*windowSize,(i+1)*windowSize));
+      profile.push(e); if (e>peak){peak=e;peakIdx=i;}
+    }
+    const min=Math.min(...profile), dynamicsRatio=peak/(min+1e-6);
+    return { energyProfile:profile, peakPosition:windowCount>0?peakIdx/windowCount:0.5, dynamicsRatio,
+      energyCategory: dynamicsRatio>6?'dynamic':dynamicsRatio>3?'moderate':'flat' };
+  }
+  categorizeBPM(bpm) {
+    if (bpm<70) return 'very-slow'; if (bpm<90) return 'slow';
+    if (bpm<110) return 'moderate'; if (bpm<130) return 'upbeat';
+    if (bpm<160) return 'fast'; return 'very-fast';
+  }
+  featuresDescription(f) {
+    const bL={'very-slow':'ゆったり','slow':'スロー','moderate':'ミドルテンポ','upbeat':'アップビート','fast':'アップテンポ','very-fast':'超高速'}[f.bpmCategory]||'';
+    const bsL=f.bassRatio>0.5?'重厚な低音':f.bassRatio>0.32?'適度な低音':'軽めの低音';
+    const hL=f.highRatio>0.22?'煌びやかな高音':f.highRatio>0.10?'適度な高音':'落ち着いた音色';
+    const dL={dynamic:'起伏のある激しい展開',moderate:'適度な抑揚',flat:'均一なエネルギー'}[f.energyCategory]||'';
+    const pL=f.peakPosition<0.35?'序盤にクライマックス':f.peakPosition<0.65?'中盤にクライマックス':'終盤に向けて盛り上がる';
+    return `BPM ${Math.round(f.bpm)}（${bL}）、${bsL}・${hL}。${dL}で${pL}。`;
+  }
+}
+const audioAnalyzer = new AudioAnalyzer();
+
+// ─────────────────────────────────────────
+// Audio handling
+// ─────────────────────────────────────────
+let audioDuration = 0;
+let audioFileName = '';
+let audioFeatures = null;
+let allPanels = [];
+let savedState = null; // { lyrics, genre, artist, duration, styleKey, scenes }
+let genSeed = 0; // varies on each generate() click to produce different prompts
+let userRequest = ''; // ユーザーのプロンプト要望（旧：世界観）
+let promptLang = 'ja'; // 'ja' or 'en' — current display language for prompts
+let referenceProfile = null; // { colors:[hex,...], brightness:0-1, source:'video|youtube|none' }
+let scenarioSeed = 0; // separate seed for scenario regeneration
+
+// Seeded pseudo-random (mulberry32)
+function seededRand(seed) {
+  let s = seed >>> 0;
+  return function() {
+    s = (s + 0x6D2B79F5) >>> 0;
+    let t = s;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// Analyze full lyrics for dominant emotional palette
+function analyzeFullLyrics(raw) {
+  const text = raw.toLowerCase();
+  const counts = {};
+  for (const rule of KEYWORD_MAP) {
+    counts[rule.pose] = 0;
+    for (const k of rule.keys) {
+      const matches = text.split(k.toLowerCase()).length - 1;
+      counts[rule.pose] += matches;
+    }
+  }
+  // Sort poses by frequency
+  const ranked = Object.entries(counts)
+    .filter(([_, c]) => c > 0)
+    .sort((a, b) => b[1] - a[1])
+    .map(([p]) => p);
+  // Tone categorization
+  const dark = (counts.crying || 0) + (counts.sitting || 0);
+  const bright = (counts.dancing || 0) + (counts.love || 0) + (counts.lookingup || 0);
+  const active = (counts.running || 0) + (counts.action || 0) + (counts.dancing || 0);
+  const tone = bright > dark ? 'bright' : dark > bright ? 'melancholic' : 'neutral';
+  const energy = active > 3 ? 'high' : active > 0 ? 'mid' : 'low';
+  return { ranked, tone, energy, counts };
+}
+
+const audioInput = document.getElementById('audio-input');
+const dropZone   = document.getElementById('drop-zone');
+
+audioInput.addEventListener('change', e => loadAudio(e.target.files[0]));
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('audio/')) loadAudio(file);
+});
+
+function loadAudio(file) {
+  if (!file) return;
+  audioFileName = file.name;
+  audioFeatures = null;
+  document.getElementById('filename').textContent = file.name;
+
+  // Auto-fill artist from filename "Artist - Title.mp3" / "Artist – Title.flac" etc.
+  const nameWithoutExt = file.name.replace(/\.[^.]+$/, '');
+  const artistMatch = nameWithoutExt.match(/^(.+?)\s*[-–—]\s*.+$/);
+  if (artistMatch) {
+    const artistEl = document.getElementById('artist-input');
+    if (!artistEl.value.trim()) artistEl.value = artistMatch[1].trim();
+  }
+
+  const url = URL.createObjectURL(file);
+  const audio = new Audio();
+  audio.src = url;
+  audio.addEventListener('loadedmetadata', () => {
+    audioDuration = audio.duration;
+    document.getElementById('audio-info').classList.add('visible');
+    document.getElementById('duration-badge').textContent = formatTime(audioDuration);
+    document.getElementById('audio-name').textContent = file.name;
+    URL.revokeObjectURL(url);
+    // Auto-calculate panel count: 2 seconds per cut
+    const autoPanels = Math.max(8, Math.min(400, Math.round(audioDuration / 2.0)));
+    document.getElementById('panel-count').value = autoPanels;
+    startAudioAnalysis(file);
+  });
+}
+
+async function startAudioAnalysis(file) {
+  const card = document.getElementById('audio-analysis-card');
+  const status = document.getElementById('analysis-status');
+  const results = document.getElementById('analysis-results');
+  card.classList.add('visible');
+  results.style.display = 'none';
+  status.style.display = 'block';
+  status.textContent = '分析中...';
+  try {
+    audioFeatures = await audioAnalyzer.analyze(file, (_p, msg) => { status.textContent = msg; });
+    renderAnalysisResults(audioFeatures);
+  } catch(e) {
+    console.warn('Audio analysis failed:', e);
+    status.textContent = '音声分析をスキップしました';
+  }
+}
+
+function renderAnalysisResults(f) {
+  document.getElementById('analysis-status').style.display = 'none';
+  document.getElementById('analysis-results').style.display = 'block';
+  document.getElementById('bpm-num').textContent = Math.round(f.bpm);
+  const catLabels = {'very-slow':'Very Slow','slow':'Slow','moderate':'Moderate','upbeat':'Upbeat','fast':'Fast','very-fast':'Very Fast'};
+  document.getElementById('bpm-cat').textContent = catLabels[f.bpmCategory]||'';
+  const bP=Math.round(f.bassRatio*100), mP=Math.round(f.midRatio*100), hP=Math.round(f.highRatio*100);
+  requestAnimationFrame(() => {
+    document.getElementById('bass-bar').style.width = bP+'%';
+    document.getElementById('mid-bar').style.width  = mP+'%';
+    document.getElementById('high-bar').style.width = hP+'%';
+  });
+  document.getElementById('bass-pct').textContent = bP+'%';
+  document.getElementById('mid-pct').textContent  = mP+'%';
+  document.getElementById('high-pct').textContent = hP+'%';
+  renderSparkline(f.energyProfile);
+  document.getElementById('analysis-desc').textContent = audioAnalyzer.featuresDescription(f);
+}
+
+function renderSparkline(profile) {
+  const svg = document.getElementById('sparkline-svg');
+  if (!profile || profile.length < 2) return;
+  const W=78, H=38, pad=3, max=Math.max(...profile)||1;
+  const pts = profile.map((v,i) => {
+    const x = pad+(i/(profile.length-1))*(W-pad*2);
+    const y = (H-pad)-(v/max)*(H-pad*2);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+  svg.innerHTML = `<defs><linearGradient id="spG" x1="0%" y1="0%" x2="100%" y2="0%">
+    <stop offset="0%" stop-color="#8a2be2"/><stop offset="100%" stop-color="#00d4ff"/>
+  </linearGradient></defs>
+  <polyline points="${pts}" fill="none" stroke="url(#spG)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/>`;
+}
+
+function formatTime(s) {
+  const m=Math.floor(s/60), sec=Math.floor(s%60);
+  return `${m}:${sec.toString().padStart(2,'0')}`;
+}
+
+// ─────────────────────────────────────────
+// Improved character figures
+// ─────────────────────────────────────────
+function figBase(cx, cy, s) {
+  return `
+    <circle cx="${cx}" cy="${cy-s*2.8}" r="${s*.88}" fill="currentColor" fill-opacity=".2" stroke="currentColor" stroke-width="${s*.1}"/>
+    <circle cx="${cx-s*.3}" cy="${cy-s*3.01}" r="${s*.11}" fill="currentColor" opacity=".68"/>
+    <circle cx="${cx+s*.3}" cy="${cy-s*3.01}" r="${s*.11}" fill="currentColor" opacity=".68"/>
+    <line x1="${cx}" y1="${cy-s*1.92}" x2="${cx}" y2="${cy-s*1.84}" stroke="currentColor" stroke-width="${s*.26}" stroke-linecap="round"/>
+    <path d="M${cx-s*.5} ${cy-s*1.84} L${cx-s*.41} ${cy+.06} L${cx+s*.41} ${cy+.06} L${cx+s*.5} ${cy-s*1.84}Z" fill="currentColor" fill-opacity=".17" stroke="currentColor" stroke-width="${s*.08}" stroke-linejoin="round"/>`;
+}
+
+const POSES = {
+  standing: (cx,cy,s) => figBase(cx,cy,s) + `
+    <line x1="${cx-s*.5}" y1="${cy-s*1.52}" x2="${cx-s*1.28}" y2="${cy-s*.88}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
+    <line x1="${cx+s*.5}" y1="${cy-s*1.52}" x2="${cx+s*1.28}" y2="${cy-s*.88}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
+    <line x1="${cx-s*.32}" y1="${cy+.06}" x2="${cx-s*.78}" y2="${cy+s*1.52}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
+    <line x1="${cx+s*.32}" y1="${cy+.06}" x2="${cx+s*.78}" y2="${cy+s*1.52}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>`,
+
+  running: (cx,cy,s) => figBase(cx,cy,s) + `
+    <line x1="${cx-s*1.4}" y1="${cy-s*1.7}" x2="${cx+s*.2}" y2="${cy-s*1.05}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
+    <line x1="${cx+s*.2}" y1="${cy-s*1.05}" x2="${cx+s*1.5}" y2="${cy-s*1.55}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
+    <line x1="${cx-s*.3}" y1="${cy+.06}" x2="${cx-s*.9}" y2="${cy+s*1.2}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
+    <line x1="${cx+s*.3}" y1="${cy+.06}" x2="${cx+s*1.1}" y2="${cy+s*.7}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>`,
+
+  dancing: (cx,cy,s) => figBase(cx,cy,s) + `
+    <line x1="${cx-s*.5}" y1="${cy-s*1.52}" x2="${cx-s*1.45}" y2="${cy-s*2.35}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
+    <line x1="${cx+s*.5}" y1="${cy-s*1.52}" x2="${cx+s*1.45}" y2="${cy-s*2.35}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
+    <line x1="${cx-s*.32}" y1="${cy+.06}" x2="${cx-s*1.1}" y2="${cy+s*1.15}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
+    <line x1="${cx+s*.32}" y1="${cy+.06}" x2="${cx+s*.6}" y2="${cy+s*1.55}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>`,
+
+  crying: (cx,cy,s) => figBase(cx,cy,s) + `
+    <line x1="${cx-s*.5}" y1="${cy-s*1.52}" x2="${cx-s*.75}" y2="${cy-s*1.2}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
+    <line x1="${cx+s*.5}" y1="${cy-s*1.52}" x2="${cx+s*.75}" y2="${cy-s*1.2}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
+    <line x1="${cx-s*.32}" y1="${cy+.06}" x2="${cx-s*.95}" y2="${cy+s*1.5}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
+    <line x1="${cx+s*.32}" y1="${cy+.06}" x2="${cx+s*.85}" y2="${cy+s*1.45}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
+    <line x1="${cx-s*.32}" y1="${cy-s*2.45}" x2="${cx-s*.38}" y2="${cy-s*1.8}" stroke="currentColor" stroke-width="${s*.07}" stroke-dasharray="2.5,2" opacity=".65"/>
+    <line x1="${cx+s*.32}" y1="${cy-s*2.45}" x2="${cx+s*.38}" y2="${cy-s*1.8}" stroke="currentColor" stroke-width="${s*.07}" stroke-dasharray="2.5,2" opacity=".65"/>`,
+
+  love: (cx,cy,s) => `
+    <circle cx="${cx-s}" cy="${cy-s*2.8}" r="${s*.82}" fill="currentColor" fill-opacity=".18" stroke="currentColor" stroke-width="${s*.1}"/>
+    <circle cx="${cx+s}" cy="${cy-s*2.8}" r="${s*.82}" fill="currentColor" fill-opacity=".18" stroke="currentColor" stroke-width="${s*.1}"/>
+    <line x1="${cx-s}" y1="${cy-s*1.97}" x2="${cx-s*.2}" y2="${cy+.05}" stroke="currentColor" stroke-width="${s*.14}" stroke-linecap="round"/>
+    <line x1="${cx+s}" y1="${cy-s*1.97}" x2="${cx+s*.2}" y2="${cy+.05}" stroke="currentColor" stroke-width="${s*.14}" stroke-linecap="round"/>
+    <line x1="${cx-s*.2}" y1="${cy-s*1.42}" x2="${cx+s*.2}" y2="${cy-s*1.42}" stroke="currentColor" stroke-width="${s*.14}" stroke-linecap="round"/>
+    <line x1="${cx-s*.2}" y1="${cy+.05}" x2="${cx-s*1.05}" y2="${cy+s*1.35}" stroke="currentColor" stroke-width="${s*.14}" stroke-linecap="round"/>
+    <line x1="${cx-s*.2}" y1="${cy+.05}" x2="${cx+s*.25}" y2="${cy+s*1.35}" stroke="currentColor" stroke-width="${s*.14}" stroke-linecap="round"/>
+    <line x1="${cx+s*.2}" y1="${cy+.05}" x2="${cx+s*1.05}" y2="${cy+s*1.35}" stroke="currentColor" stroke-width="${s*.14}" stroke-linecap="round"/>
+    <line x1="${cx+s*.2}" y1="${cy+.05}" x2="${cx-s*.25}" y2="${cy+s*1.35}" stroke="currentColor" stroke-width="${s*.14}" stroke-linecap="round"/>
+    <text x="${cx}" y="${cy-s*3.55}" text-anchor="middle" font-size="${s*.95}" fill="#ff6b9d" opacity=".85">♥</text>`,
+
+  action: (cx,cy,s) => figBase(cx,cy,s) + `
+    <line x1="${cx-s*1.5}" y1="${cy-s*.85}" x2="${cx+s*.35}" y2="${cy-s*1.72}" stroke="currentColor" stroke-width="${s*.17}" stroke-linecap="round"/>
+    <line x1="${cx+s*.35}" y1="${cy-s*1.72}" x2="${cx+s*1.6}" y2="${cy-s*2.25}" stroke="currentColor" stroke-width="${s*.17}" stroke-linecap="round"/>
+    <line x1="${cx-s*.32}" y1="${cy+.06}" x2="${cx-s*1.0}" y2="${cy+s*1.05}" stroke="currentColor" stroke-width="${s*.17}" stroke-linecap="round"/>
+    <line x1="${cx+s*.32}" y1="${cy+.06}" x2="${cx+s*1.25}" y2="${cy+s*1.3}" stroke="currentColor" stroke-width="${s*.17}" stroke-linecap="round"/>`,
+
+  crowd: (cx,cy,s) => {
+    const offsets=[-s*2.6,-s*1.0,s*.4,s*1.9,s*3.3];
+    return offsets.map((ox,i)=>{
+      const sy=i%2===0?s:s*.85;
+      return `
+        <circle cx="${cx+ox}" cy="${cy-sy*2.8}" r="${sy*.78}" fill="currentColor" fill-opacity="${.12+i*.02}" stroke="currentColor" stroke-width="${sy*.1}"/>
+        <path d="M${cx+ox-sy*.48} ${cy-sy*1.84} L${cx+ox-sy*.38} ${cy+.06} L${cx+ox+sy*.38} ${cy+.06} L${cx+ox+sy*.48} ${cy-sy*1.84}Z" fill="currentColor" fill-opacity=".12" stroke="currentColor" stroke-width="${sy*.08}" stroke-linejoin="round"/>
+        <line x1="${cx+ox-sy*.48}" y1="${cy-sy*1.52}" x2="${cx+ox-sy*1.2}" y2="${cy-sy*.9}" stroke="currentColor" stroke-width="${sy*.13}" stroke-linecap="round"/>
+        <line x1="${cx+ox+sy*.48}" y1="${cy-sy*1.52}" x2="${cx+ox+sy*1.2}" y2="${cy-sy*.9}" stroke="currentColor" stroke-width="${sy*.13}" stroke-linecap="round"/>
+        <line x1="${cx+ox-sy*.3}" y1="${cy+.06}" x2="${cx+ox-sy*.72}" y2="${cy+sy*1.1}" stroke="currentColor" stroke-width="${sy*.13}" stroke-linecap="round"/>
+        <line x1="${cx+ox+sy*.3}" y1="${cy+.06}" x2="${cx+ox+sy*.72}" y2="${cy+sy*1.1}" stroke="currentColor" stroke-width="${sy*.13}" stroke-linecap="round"/>`;
+    }).join('');
+  },
+
+  reaching: (cx,cy,s) => figBase(cx,cy,s) + `
+    <line x1="${cx+s*.5}" y1="${cy-s*1.52}" x2="${cx+s*1.95}" y2="${cy-s*2.6}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
+    <line x1="${cx-s*.5}" y1="${cy-s*1.52}" x2="${cx-s*.82}" y2="${cy-s*.98}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
+    <line x1="${cx-s*.32}" y1="${cy+.06}" x2="${cx-s*.78}" y2="${cy+s*1.52}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
+    <line x1="${cx+s*.32}" y1="${cy+.06}" x2="${cx+s*.78}" y2="${cy+s*1.52}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
+    <circle cx="${cx+s*2.15}" cy="${cy-s*2.8}" r="${s*.32}" fill="none" stroke="currentColor" stroke-width="${s*.1}" opacity=".5"/>`,
+
+  sitting: (cx,cy,s) => figBase(cx,cy,s) + `
+    <line x1="${cx-s*.5}" y1="${cy-s*1.52}" x2="${cx-s*1.1}" y2="${cy-s*1.1}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
+    <line x1="${cx+s*.5}" y1="${cy-s*1.52}" x2="${cx+s*1.1}" y2="${cy-s*1.1}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
+    <line x1="${cx-s*.32}" y1="${cy+.06}" x2="${cx+s*1.1}" y2="${cy+.06}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
+    <line x1="${cx+s*1.1}" y1="${cy+.06}" x2="${cx+s*1.1}" y2="${cy+s*1.35}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
+    <line x1="${cx+s*.32}" y1="${cy+.06}" x2="${cx+s*.32}" y2="${cy+s*1.35}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>`,
+
+  lookingup: (cx,cy,s) => `
+    <circle cx="${cx}" cy="${cy-s*2.35}" r="${s*.88}" fill="currentColor" fill-opacity=".2" stroke="currentColor" stroke-width="${s*.1}"/>
+    <circle cx="${cx-s*.3}" cy="${cy-s*2.55}" r="${s*.11}" fill="currentColor" opacity=".68"/>
+    <circle cx="${cx+s*.3}" cy="${cy-s*2.55}" r="${s*.11}" fill="currentColor" opacity=".68"/>
+    <line x1="${cx}" y1="${cy-s*1.46}" x2="${cx}" y2="${cy-s*1.38}" stroke="currentColor" stroke-width="${s*.26}" stroke-linecap="round"/>
+    <path d="M${cx-s*.5} ${cy-s*1.38} L${cx-s*.41} ${cy+.06} L${cx+s*.41} ${cy+.06} L${cx+s*.5} ${cy-s*1.38}Z" fill="currentColor" fill-opacity=".17" stroke="currentColor" stroke-width="${s*.08}" stroke-linejoin="round"/>
+    <line x1="${cx-s*.5}" y1="${cy-s*1.1}" x2="${cx+s*1.22}" y2="${cy-s*1.28}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
+    <line x1="${cx-s*.32}" y1="${cy+.06}" x2="${cx-s*.78}" y2="${cy+s*1.52}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
+    <line x1="${cx+s*.32}" y1="${cy+.06}" x2="${cx+s*.78}" y2="${cy+s*1.52}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
+    <line x1="${cx}" y1="${cy-s*3.18}" x2="${cx}" y2="${cy-s*4.05}" stroke="currentColor" stroke-width="${s*.08}" stroke-dasharray="3,3" opacity=".4"/>`,
+
+  walking: (cx,cy,s) => figBase(cx,cy,s) + `
+    <line x1="${cx-s*1.0}" y1="${cy-s*1.48}" x2="${cx+s*.8}" y2="${cy-s*1.28}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
+    <line x1="${cx-s*.32}" y1="${cy+.06}" x2="${cx-s*.68}" y2="${cy+s*1.48}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
+    <line x1="${cx+s*.32}" y1="${cy+.06}" x2="${cx+s*.88}" y2="${cy+s*1.22}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>`,
+};
+
+// ─────────────────────────────────────────
+// Background scene sketches — improved
+// ─────────────────────────────────────────
+function bgSketch(type, w, h) {
+  switch(type) {
+    case 'city': return `
+      <rect x="0" y="0" width="${w}" height="${h*.7}" fill="rgba(10,12,30,.55)"/>
+      <rect x="0" y="${h*.7}" width="${w}" height="${h*.3}" fill="rgba(5,5,20,.7)"/>
+      <rect x="${w*.04}" y="${h*.28}" width="${w*.07}" height="${h*.72}" fill="rgba(200,210,255,.05)"/>
+      <rect x="${w*.13}" y="${h*.15}" width="${w*.1}" height="${h*.85}" fill="rgba(200,210,255,.06)"/>
+      <rect x="${w*.25}" y="${h*.22}" width="${w*.07}" height="${h*.78}" fill="rgba(200,210,255,.04)"/>
+      <rect x="${w*.55}" y="${h*.12}" width="${w*.12}" height="${h*.88}" fill="rgba(200,210,255,.06)"/>
+      <rect x="${w*.7}" y="${h*.26}" width="${w*.09}" height="${h*.74}" fill="rgba(200,210,255,.05)"/>
+      <rect x="${w*.83}" y="${h*.19}" width="${w*.08}" height="${h*.81}" fill="rgba(200,210,255,.04)"/>
+      ${Array.from({length:10},(_,i)=>{const bx=w*(.14+Math.sin(i*1.7)*.06+Math.floor(i/3)*.18),by=h*(.18+i*.06);return `<rect x="${bx.toFixed(0)}" y="${by.toFixed(0)}" width="4" height="3" fill="rgba(255,230,120,.2)"/>`}).join('')}
+      <line x1="0" y1="${h*.72}" x2="${w}" y2="${h*.72}" stroke="rgba(138,43,226,.18)" stroke-width=".8"/>
+      <line x1="${w*.12}" y1="${h*.75}" x2="${w*.42}" y2="${h*.75}" stroke="rgba(0,212,255,.12)" stroke-width="1.5"/>
+      <line x1="${w*.62}" y1="${h*.76}" x2="${w*.88}" y2="${h*.76}" stroke="rgba(255,100,150,.1)" stroke-width="1.2"/>
+      <ellipse cx="${w*.3}" cy="${h*.88}" rx="${w*.1}" ry="${h*.025}" fill="rgba(0,212,255,.05)"/>`;
+
+    case 'nature': return `
+      <rect x="0" y="0" width="${w}" height="${h*.68}" fill="rgba(10,18,35,.5)"/>
+      <path d="M0 ${h*.72} Q${w*.18} ${h*.45} ${w*.35} ${h*.65} Q${w*.52} ${h*.38} ${w*.68} ${h*.62} Q${w*.82} ${h*.42} ${w} ${h*.6} L${w} ${h} L0 ${h}Z" fill="rgba(255,255,255,.05)"/>
+      <rect x="0" y="${h*.78}" width="${w}" height="${h*.22}" fill="rgba(255,255,255,.025)"/>
+      <line x1="${w*.11}" y1="${h*.76}" x2="${w*.11}" y2="${h*.42}" stroke="rgba(255,255,255,.08)" stroke-width="1.5"/>
+      <ellipse cx="${w*.11}" cy="${h*.39}" rx="${w*.055}" ry="${h*.09}" fill="rgba(255,255,255,.05)"/>
+      <line x1="${w*.11-w*.03}" y1="${h*.55}" x2="${w*.11-w*.07}" y2="${h*.47}" stroke="rgba(255,255,255,.04)" stroke-width="1"/>
+      <line x1="${w*.21}" y1="${h*.76}" x2="${w*.21}" y2="${h*.33}" stroke="rgba(255,255,255,.07)" stroke-width="1.2"/>
+      <ellipse cx="${w*.21}" cy="${h*.3}" rx="${w*.047}" ry="${h*.08}" fill="rgba(255,255,255,.045)"/>
+      <line x1="${w*.78}" y1="${h*.76}" x2="${w*.78}" y2="${h*.38}" stroke="rgba(255,255,255,.08)" stroke-width="1.5"/>
+      <ellipse cx="${w*.78}" cy="${h*.35}" rx="${w*.055}" ry="${h*.09}" fill="rgba(255,255,255,.05)"/>
+      <ellipse cx="${w*.5}" cy="${h*.2}" rx="${w*.22}" ry="${h*.1}" fill="rgba(255,220,150,.04)"/>
+      <line x1="0" y1="${h*.78}" x2="${w}" y2="${h*.78}" stroke="rgba(255,255,255,.06)" stroke-width=".8"/>`;
+
+    case 'spotlight': return `
+      <rect x="0" y="0" width="${w}" height="${h}" fill="rgba(0,0,0,.35)"/>
+      <path d="M${w*.5} 0 L${w*.16} ${h} L${w*.84} ${h}Z" fill="rgba(255,250,220,.04)"/>
+      <path d="M${w*.5} 0 L${w*.32} ${h} L${w*.68} ${h}Z" fill="rgba(255,250,220,.04)"/>
+      <path d="M${w*.5} 0 L${w*.41} ${h} L${w*.59} ${h}Z" fill="rgba(255,250,220,.03)"/>
+      <ellipse cx="${w*.5}" cy="${h*.94}" rx="${w*.32}" ry="${h*.07}" fill="rgba(255,250,200,.1)"/>
+      <ellipse cx="${w*.5}" cy="${h*.94}" rx="${w*.16}" ry="${h*.04}" fill="rgba(255,250,200,.12)"/>
+      <line x1="0" y1="${h*.87}" x2="${w}" y2="${h*.87}" stroke="rgba(255,255,255,.07)" stroke-width="1"/>
+      ${Array.from({length:5},(_,i)=>`<ellipse cx="${(w*(.3+i*.1)).toFixed(0)}" cy="${(h*(.28+Math.sin(i)*.18)).toFixed(0)}" rx="${(6+i*2).toFixed(0)}" ry="${(3+i).toFixed(0)}" fill="rgba(255,255,255,.018)"/>`).join('')}
+      <rect x="0" y="0" width="${w*.1}" height="${h}" fill="rgba(0,0,0,.4)"/>
+      <rect x="${w*.9}" y="0" width="${w*.1}" height="${h}" fill="rgba(0,0,0,.4)"/>`;
+
+    case 'rain': return `
+      <rect x="0" y="0" width="${w}" height="${h}" fill="rgba(0,20,45,.3)"/>
+      ${Array.from({length:22},(_,i)=>{
+        const x=w*(i/22+Math.sin(i*.6)*.03);
+        const y=h*(Math.cos(i*.55)*.3+.12);
+        return `<line x1="${x.toFixed(0)}" y1="${y.toFixed(0)}" x2="${(x-3.5).toFixed(0)}" y2="${(y+h*.38).toFixed(0)}" stroke="rgba(140,200,255,.12)" stroke-width="${(.5+Math.sin(i)*.25).toFixed(2)}"/>`;
+      }).join('')}
+      <rect x="0" y="${h*.83}" width="${w}" height="${h*.17}" fill="rgba(0,40,80,.18)"/>
+      <ellipse cx="${w*.42}" cy="${h*.87}" rx="${w*.18}" ry="${h*.03}" fill="rgba(0,180,255,.06)" stroke="rgba(0,180,255,.09)" stroke-width=".8"/>
+      <ellipse cx="${w*.72}" cy="${h*.89}" rx="${w*.1}" ry="${h*.02}" fill="rgba(0,180,255,.05)"/>
+      <line x1="0" y1="${h*.84}" x2="${w}" y2="${h*.84}" stroke="rgba(100,160,220,.07)" stroke-width=".8"/>`;
+
+    case 'stars': return `
+      <rect x="0" y="0" width="${w}" height="${h*.74}" fill="rgba(4,4,22,.55)"/>
+      <ellipse cx="${w*.62}" cy="${h*.32}" rx="${w*.58}" ry="${h*.14}" fill="rgba(120,120,255,.02)" transform="rotate(-22 ${(w*.62).toFixed(0)} ${(h*.32).toFixed(0)})"/>
+      ${Array.from({length:32},(_,i)=>{
+        const x=w*(Math.sin(i*2.1+.7)*.48+.5), y=h*(Math.cos(i*1.7+.5)*.34+.27);
+        const r=.5+Math.abs(Math.sin(i*.9))*.85;
+        const op=.07+Math.abs(Math.sin(i*.7))*.28;
+        return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r.toFixed(1)}" fill="rgba(255,255,255,${op.toFixed(2)})"/>`;
+      }).join('')}
+      ${Array.from({length:4},(_,i)=>{const x=w*(i*.22+.1),y=h*(Math.sin(i*1.2)*.14+.18);return `<circle cx="${x.toFixed(0)}" cy="${y.toFixed(0)}" r="1.8" fill="rgba(255,255,255,.45)"/><circle cx="${x.toFixed(0)}" cy="${y.toFixed(0)}" r="5" fill="rgba(255,255,255,.05)"/>`;}).join('')}
+      <line x1="0" y1="${h*.74}" x2="${w}" y2="${h*.74}" stroke="rgba(255,255,255,.05)" stroke-width=".8"/>
+      <rect x="0" y="${h*.74}" width="${w}" height="${h*.26}" fill="rgba(0,0,0,.25)"/>`;
+
+    case 'abstract': return `
+      <ellipse cx="${w*.3}" cy="${h*.42}" rx="${w*.26}" ry="${h*.22}" fill="rgba(138,43,226,.07)" stroke="rgba(138,43,226,.14)" stroke-width="1"/>
+      <ellipse cx="${w*.72}" cy="${h*.58}" rx="${w*.21}" ry="${h*.18}" fill="rgba(0,212,255,.05)" stroke="rgba(0,212,255,.12)" stroke-width="1"/>
+      <ellipse cx="${w*.55}" cy="${h*.24}" rx="${w*.16}" ry="${h*.12}" fill="rgba(255,107,157,.04)" stroke="rgba(255,107,157,.1)" stroke-width=".8"/>
+      <line x1="${w*.05}" y1="${h*.9}" x2="${w*.95}" y2="${h*.1}" stroke="rgba(255,255,255,.05)" stroke-width=".8"/>
+      <line x1="${w*.05}" y1="${h*.1}" x2="${w*.95}" y2="${h*.9}" stroke="rgba(255,255,255,.04)" stroke-width=".6"/>
+      ${Array.from({length:5},(_,i)=>`<circle cx="${(w*(.18+i*.17)).toFixed(0)}" cy="${(h*(.5+Math.sin(i)*.2)).toFixed(0)}" r="${(3+i*1.5).toFixed(0)}" fill="rgba(255,255,255,.025)"/>`).join('')}`;
+
+    default: return `
+      <rect x="0" y="${h*.68}" width="${w}" height="${h*.32}" fill="rgba(255,255,255,.018)"/>
+      <line x1="0" y1="${h*.68}" x2="${w}" y2="${h*.68}" stroke="rgba(255,255,255,.07)" stroke-width=".8"/>
+      <line x1="${w*.2}" y1="${h*.68}" x2="${w*.2}" y2="${h}" stroke="rgba(255,255,255,.03)" stroke-width=".8"/>
+      <line x1="${w*.7}" y1="${h*.68}" x2="${w*.7}" y2="${h}" stroke="rgba(255,255,255,.025)" stroke-width=".6"/>`;
+  }
+}
+
+// ─────────────────────────────────────────
+// Cinematic arc — shot/pose per position
+// ─────────────────────────────────────────
+function cinematicArc(idx, total, styleKey, seed) {
+  const p = idx / Math.max(total-1, 1); // 0–1 progress
+  const style = MV_STYLES[styleKey] || MV_STYLES.story;
+  const shots = style.shots;
+  const poses = style.poses;
+  const bgs   = style.bgs;
+  const rand  = seededRand((seed || 0) * 1009 + idx * 31);
+
+  // Shot follows arc: open → build → peak → resolve → close
+  let shotIdx;
+  if      (p < 0.05)  shotIdx = 0; // EWS establishing
+  else if (p < 0.20)  shotIdx = 1;
+  else if (p < 0.40)  shotIdx = 2;
+  else if (p < 0.55)  shotIdx = 3;
+  else if (p < 0.70)  shotIdx = 2;
+  else if (p < 0.85)  shotIdx = 1;
+  else                shotIdx = 0;
+
+  // Apply seed variation: occasionally bump shot index up/down for variety
+  if (rand() < 0.25) shotIdx = Math.max(0, Math.min(shots.length-1, shotIdx + (rand() < 0.5 ? -1 : 1)));
+
+  const shot  = shots[Math.min(shotIdx, shots.length-1)];
+  // Pose: rotate through poses with seed-based offset
+  const poseOffset = Math.floor(rand() * poses.length);
+  const pose  = poses[(idx + poseOffset) % poses.length];
+  // BG: occasionally switch to alternate
+  const bgOffset = Math.floor(rand() * bgs.length);
+  const bg    = bgs[(idx + bgOffset) % bgs.length];
+
+  return { shot, pose, bg };
+}
+
+// ─────────────────────────────────────────
+// Background detail prompt
+// ─────────────────────────────────────────
+const BG_DETAILS = {
+  city:      '都市の夜景。雨に濡れた路面にネオンが反射し、高層ビルの窓に灯りが点る。霧がかかった幻想的な雰囲気',
+  nature:    '豊かな自然の風景。木漏れ日が差し込む黄金色の光、風に揺れる草木、遠くに連なるなだらかな丘',
+  spotlight: '演劇的なコンサートステージ。上からの一本のスポットライト、煙の中に走る光の束、周囲の暗闇とのコントラスト',
+  rain:      '激しい雨。濡れた暗い環境、レンズに滲む水滴、反射する地面、憂鬱なブルーグレーの空気感',
+  stars:     '広大な星空の夜。頭上に広がる天の川、暗い野原や屋上ロケーション、深いネイビーから黒へのグラデーション',
+  abstract:  'シュールな抽象空間。浮遊する幾何学形態、夢幻的な色彩のグラデーション、非ユークリッドな建築、絵画的な光の演出',
+  default:   '洗練されたシネマティックな環境。浅い被写界深度、柔らかなボケ背景、プロ仕様のスタジオ・ロケーション照明'
+};
+// Camera move data — label + AI video generation prompt hint
+const CAMERA_MOVES_DATA = [
+  { label:'固定ショット（ロックオフ）',       prompt:'static locked-off shot, no camera movement, tripod stable' },
+  { label:'スロードリーイン',                 prompt:'slow dolly in, camera gently pushes forward toward subject, smooth motion' },
+  { label:'ドリーアウト（引き）',             prompt:'slow dolly out, camera pulls back away from subject, revealing surroundings' },
+  { label:'スローパン（左→右）',             prompt:'slow pan left to right, horizontal camera movement, smooth sweep across scene' },
+  { label:'スローパン（右→左）',             prompt:'slow pan right to left, horizontal sweep, contemplative mood' },
+  { label:'チルトアップ',                    prompt:'camera tilts up slowly, revealing sky or ceiling, sense of awe or freedom' },
+  { label:'チルトダウン',                    prompt:'camera tilts down, looking toward ground, introspective or somber' },
+  { label:'手持ちカメラ（浮遊感）',           prompt:'handheld camera, subtle float and drift, organic naturalistic movement' },
+  { label:'クレーンアップ（上昇）',           prompt:'crane shot rising upward, camera ascends revealing wide landscape below' },
+  { label:'クレーンダウン（降下）',           prompt:'crane shot descending, camera falls from aerial to eye level, dramatic reveal' },
+  { label:'オービット（被写体を周回）',        prompt:'orbit shot, camera arcs around subject in circular path, 180-degree rotation' },
+  { label:'トラッキングショット（並走）',      prompt:'tracking shot, camera follows alongside moving subject, parallel motion' },
+  { label:'ラックフォーカス',                prompt:'rack focus, focus pulls from foreground to background subject, depth shift' },
+  { label:'プッシュズーム（ヒッチコックズーム）', prompt:'dolly zoom, camera moves forward while zooming out simultaneously, vertiginous effect' },
+  { label:'バーズアイビュー（真俯瞰）',        prompt:'birds eye view, camera directly overhead looking straight down, top-down angle' },
+  { label:'ウィップパン',                    prompt:'whip pan, fast horizontal sweep creating motion blur transition' },
+  { label:'スローモーション＋固定',           prompt:'static shot with slow motion footage, 240fps feel, time dilation' },
+  { label:'フォローショット（後方追走）',      prompt:'follow shot from behind subject, camera tracks directly behind as subject moves forward' },
+];
+const CAMERA_MOVES = CAMERA_MOVES_DATA.map(c => c.label);
+
+// Live MV: dynamic handheld/crane/orbit/whip-pan moves (indices into CAMERA_MOVES_DATA)
+const LIVE_CAM_POOL    = [7,8,9,10,11,13,15,17,5,6];
+// Bizarre: vertiginous/surreal moves
+const BIZARRE_CAM_POOL = [13,10,14,15,12,8,1,2,5,7];
+
+function buildBgPrompt(bg, shot, pose, idx, styleKey, visualType) {
+  const style = MV_STYLES[styleKey] || MV_STYLES.story;
+  const bgDesc = BG_DETAILS[bg] || BG_DETAILS.default;
+  let camIdx;
+  if (styleKey === 'liveshow') {
+    camIdx = LIVE_CAM_POOL[idx % LIVE_CAM_POOL.length];
+  } else if (styleKey === 'bizarre') {
+    camIdx = BIZARRE_CAM_POOL[idx % BIZARRE_CAM_POOL.length];
+  } else {
+    camIdx = idx % CAMERA_MOVES_DATA.length;
+  }
+  const camData = CAMERA_MOVES_DATA[camIdx];
+  const shotFull = {'EWS':'超広角ショット','WS':'ワイドショット','MS':'ミディアムショット','2S':'ツーショット','CU':'クローズアップ','ECU':'超クローズアップ'}[shot]||shot;
+  const shotFullEn = {'EWS':'extreme wide shot','WS':'wide shot','MS':'medium shot','2S':'two shot','CU':'close-up','ECU':'extreme close-up'}[shot]||shot;
+  const bgDescEn = {
+    city:      'urban night cityscape, rain-slicked streets reflecting neon, lit windows of skyscrapers, foggy fantastical atmosphere',
+    nature:    'lush natural landscape, golden sunlight filtering through leaves, wind-stirred plants, gentle rolling hills in the distance',
+    spotlight: 'theatrical concert stage, single overhead spotlight, beams of light cutting through smoke, contrast against surrounding darkness',
+    rain:      'heavy rain, dark wet environment, droplets blurring the lens, reflective ground, melancholic blue-gray air',
+    stars:     'vast starry night sky, milky way overhead, dark field or rooftop location, deep navy to black gradient',
+    abstract:  'surreal abstract space, floating geometric forms, dreamlike color gradients, non-Euclidean architecture, painterly light staging',
+    default:   'refined cinematic environment, shallow depth of field, soft bokeh background, professional studio or location lighting'
+  }[bg] || 'cinematic environment';
+  const vtNote = {
+    abstract: '人物なし、純粋な視覚的抽象表現、ジェネラティブアートスタイル、',
+    macro: 'マクロレンズ、F2.8の浅い被写界深度、テクスチャー重視のフォアグラウンド、人物なし、',
+    silhouette: '強い逆光、被写体がシルエット化、リムライトのみ、ドラマティックなコントラスト、',
+    environment: '人物なし、空の風景、環境が物語るシーン、',
+    object: 'シンボリックな小物・プロップのクローズアップ、映画的な物撮りスタイル、人物なし、',
+    bokeh: 'ピントの外れたボケ背景、柔らかい光の円、大気感のある奥行き、人物なし、',
+  }[visualType] || '';
+  const vtNoteEn = {
+    abstract: 'no characters, pure visual abstraction, generative art style, ',
+    macro: 'macro lens, F2.8 shallow depth of field, texture-driven foreground, no characters, ',
+    silhouette: 'strong backlight, silhouetted subject, rim light only, dramatic contrast, ',
+    environment: 'no characters, empty landscape, scene narrated by environment, ',
+    object: 'symbolic prop close-up, cinematic still-life style, no characters, ',
+    bokeh: 'out-of-focus bokeh background, soft circles of light, atmospheric depth, no characters, ',
+  }[visualType] || '';
+  const styleHint = style.hint.split('。')[0];
+  const styleHintEn = {
+    rock:'rock band MV with hard cuts',
+    ballad:'ballad MV with slow camera and soft natural light',
+    emotional:'emotional MV with warm light',
+    mysterious:'fantastical surreal MV',
+    performance:'performance MV centered on dance and singing',
+    story:'short-film style MV',
+    concept:'conceptual MV with unified visual aesthetic',
+    liveshow:'live concert MV with real stage lighting and crowd energy',
+    bizarre:'bizarre surreal art MV with Dali/Magritte feel'
+  }[styleKey] || 'cinematic MV';
+  const ja = `【ショット】${shotFull}　【背景】${bgDesc}　【カメラワーク】${camData.label}（${camData.prompt}）　【ビジュアル指示】${vtNote}シネマティックなカラーグレード、フィルムグレイン、プロ仕様のMV照明、${styleHint}`;
+  const en = `[shot] ${shotFullEn}　[background] ${bgDescEn}　[camera] ${camData.prompt}　[visual] ${vtNoteEn}cinematic color grade, film grain, pro MV lighting, ${styleHintEn}`;
+  return { ja, en };
+}
+
+// ─────────────────────────────────────────
+// Keyword → pose map (lyrics override)
+// ─────────────────────────────────────────
+const KEYWORD_MAP = [
+  { keys:['走','逃','急','run','dash','追','flee'],        pose:'running',   shot:'WS',  bg:'city',      color:'#7ad8ff' },
+  { keys:['踊','ダンス','dance','リズム','beat','振'],      pose:'dancing',   shot:'MS',  bg:'spotlight', color:'#ff9fff' },
+  { keys:['泣','涙','cry','悲','sad','tear','痛','别'],    pose:'crying',    shot:'CU',  bg:'rain',      color:'#7aa8ff' },
+  { keys:['愛','恋','love','一緒','kiss','抱','heart','♥'],pose:'love',      shot:'2S',  bg:'stars',     color:'#ffaacc' },
+  { keys:['叫','怒','fight','戦','力','強','burst','激'],  pose:'action',    shot:'ECU', bg:'city',      color:'#ffb87a' },
+  { keys:['群衆','みんな','crowd','everyone','集','仲間'], pose:'crowd',     shot:'EWS', bg:'city',      color:'#aaffdd' },
+  { keys:['手','届','reach','求','hope','夢','星','願'],   pose:'reaching',  shot:'MS',  bg:'stars',     color:'#c0aaff' },
+  { keys:['座','休','calm','静','夜','moon','月','孤独'],  pose:'sitting',   shot:'MS',  bg:'stars',     color:'#88aaff' },
+  { keys:['空','見上','heaven','fly','上','高','翼'],      pose:'lookingup', shot:'WS',  bg:'stars',     color:'#aaddff' },
+  { keys:['歩','進','旅','journey','walk','道','続'],      pose:'walking',   shot:'WS',  bg:'nature',    color:'#aaff99' },
+];
+
+function detectLyricsOverride(text) {
+  for (const rule of KEYWORD_MAP) {
+    if (rule.keys.some(k => text.includes(k))) return rule;
+  }
+  return null;
+}
+
+// Style-based color palettes
+const STYLE_COLORS = {
+  rock:        ['#ff4444','#ff8800','#ffcc00','#ff4444','#ffffff','#ff6600'],
+  ballad:      ['#aac8ff','#ffccee','#ccaaff','#88ccff','#ffddb0','#bbddff'],
+  emotional:   ['#ffaa77','#ff8888','#ffccaa','#aaddff','#ffbbbb','#ffeedd'],
+  mysterious:  ['#aa77ff','#7799ff','#55ddff','#cc88ff','#8866dd','#aaccff'],
+  performance: ['#ff66cc','#ff9900','#00ffcc','#ff6600','#ffff00','#ff44aa'],
+  story:       ['#c0c0e0','#aabbcc','#bbccdd','#99aabb','#ccddee','#b0b8d0'],
+  concept:     ['#ff6b9d','#8a2be2','#00d4ff','#ffb347','#7fff00','#ff69b4'],
+};
+
+function styleColor(styleKey, idx) {
+  const palette = STYLE_COLORS[styleKey] || STYLE_COLORS.story;
+  return palette[idx % palette.length];
+}
+
+// ─────────────────────────────────────────
+// Lyrics → scenes (with intro/outro)
+// ─────────────────────────────────────────
+function parseLyrics(raw, panelCount, duration, styleKey) {
+  const style = MV_STYLES[styleKey] || MV_STYLES.story;
+  const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+
+  const isHeader = l => /^\[.+\]$/.test(l) || /^(verse|chorus|bridge|outro|intro|refrain|hook|pre-chorus|interlude|instrumental)/i.test(l);
+
+  // Parse lyric scenes
+  const lyricScenes = [];
+  let buffer = [], sectionName = '';
+  const linesPerPanel = Math.max(2, Math.ceil(lines.length / Math.max(1, panelCount * 0.75)));
+
+  for (const line of lines) {
+    if (isHeader(line)) {
+      if (buffer.length) { lyricScenes.push({ section: sectionName, lines: [...buffer] }); buffer = []; }
+      sectionName = line.replace(/[\[\]]/g,'').trim();
+    } else {
+      buffer.push(line);
+      if (buffer.length >= linesPerPanel) {
+        lyricScenes.push({ section: sectionName, lines: [...buffer] });
+        buffer = [];
+      }
+    }
+  }
+  if (buffer.length) lyricScenes.push({ section: sectionName, lines: buffer });
+
+  // Calculate intro/outro panel counts
+  const introPanelCount = Math.max(2, Math.round(panelCount * 0.08));
+  const outroPanelCount = Math.max(1, Math.round(panelCount * 0.04));
+  const lyricPanelCount = panelCount - introPanelCount - outroPanelCount;
+
+  // Build intro panels
+  const introDescs = style.introDesc;
+  const introScenes = Array.from({ length: introPanelCount }, (_, i) => ({
+    section: 'INTRO',
+    lines: [introDescs[i % introDescs.length]],
+    isIntro: true
+  }));
+
+  // Trim lyric scenes to fit
+  const trimmedLyric = lyricScenes.slice(0, lyricPanelCount);
+  // If fewer lyric scenes than needed, pad with style-based atmospherics
+  while (trimmedLyric.length < lyricPanelCount && lyricScenes.length > 0) {
+    const src = lyricScenes[trimmedLyric.length % lyricScenes.length];
+    trimmedLyric.push({ ...src, section: src.section + ' (reprise)' });
+  }
+
+  // Build outro panels
+  const outroScenes = Array.from({ length: outroPanelCount }, () => ({
+    section: 'OUTRO',
+    lines: ['フェードアウト、余韻を残すエンディングショット'],
+    isOutro: true
+  }));
+
+  return [...introScenes, ...trimmedLyric, ...outroScenes].slice(0, panelCount);
+}
+
+// ─────────────────────────────────────────
+// Build individual panel
+// ─────────────────────────────────────────
+function buildPanel(scene, idx, total, duration, styleKey, lyricsContext) {
+  const text = scene.lines.join(' ');
+  const t = (duration / total) * idx;
+  const seed = (lyricsContext && lyricsContext.seed) || 0;
+  const rand = seededRand(seed * 7919 + idx * 53);
+  const svgVariant = Math.floor(rand() * 50);  // drives SVG visual variety on regen
+  const seqOffset  = Math.floor(rand() * 20);  // rotates visual type sequence
+
+  let shot, pose, bg, color;
+
+  if (scene.isIntro || scene.isOutro) {
+    // Intro/outro: use cinematic arc defaults
+    const arc = cinematicArc(idx, total, styleKey, seed);
+    shot = scene.isIntro ? (idx < 2 ? 'EWS' : 'WS') : 'EWS';
+    pose = arc.pose;
+    bg   = arc.bg;
+    color = styleColor(styleKey, idx);
+  } else {
+    // Try keyword override first
+    const kwOverride = detectLyricsOverride(text);
+    if (kwOverride) {
+      shot  = kwOverride.shot;
+      pose  = kwOverride.pose;
+      bg    = kwOverride.bg;
+      color = kwOverride.color;
+    } else {
+      // Use cinematic arc
+      const arc = cinematicArc(idx, total, styleKey, seed);
+      shot  = arc.shot;
+      pose  = arc.pose;
+      bg    = arc.bg;
+      color = styleColor(styleKey, idx);
+    }
+
+    // Bias based on overall lyrics tone
+    if (lyricsContext && lyricsContext.lyricsAnalysis && !kwOverride) {
+      const { tone, ranked } = lyricsContext.lyricsAnalysis;
+      if (rand() < 0.35 && ranked.length > 0) {
+        pose = ranked[Math.floor(rand() * Math.min(3, ranked.length))];
+      }
+      if (tone === 'melancholic' && rand() < 0.3) bg = 'rain';
+      if (tone === 'bright' && rand() < 0.3) bg = 'stars';
+    }
+
+    // Audio feature override for non-keyword scenes
+    if (!kwOverride && audioFeatures) {
+      const f = audioFeatures;
+      const progress = idx / Math.max(total-1, 1);
+      const nearPeak = Math.abs(progress - f.peakPosition) < 0.12;
+      if (nearPeak && (f.bpmCategory === 'fast' || f.bpmCategory === 'very-fast')) {
+        pose = 'action'; shot = 'ECU'; bg = 'spotlight';
+      } else if (nearPeak && f.bpmCategory === 'upbeat') {
+        pose = 'dancing'; shot = 'MS'; bg = 'spotlight';
+      }
+    }
+  }
+
+  // Determine visual type
+  const hasKw = !!detectLyricsOverride(scene.lines.join(' '));
+  const visualType = getVisualType(idx, styleKey, hasKw, !!scene.isIntro, !!scene.isOutro, seqOffset);
+
+  const jaDesc = scene.isIntro || scene.isOutro
+    ? scene.lines[0]
+    : scene.lines.join('\n');
+
+  // Reference video color bias — replace ~40% of colors with reference palette
+  if (referenceProfile && referenceProfile.colors && referenceProfile.colors.length && rand() < 0.4) {
+    color = referenceProfile.colors[Math.floor(rand() * referenceProfile.colors.length)];
+  }
+
+  const promptObj   = buildImagePrompt(shot, pose, bg, styleKey, visualType);
+  const bgPromptObj = buildBgPrompt(bg, shot, pose, idx, styleKey, visualType);
+
+  return { shot, pose, bg, color, idx, time: t, lines: scene.lines, section: scene.section,
+           jaDesc,
+           prompt: promptObj.ja, promptEn: promptObj.en,
+           bgPrompt: bgPromptObj.ja, bgPromptEn: bgPromptObj.en,
+           visualType, styleKey,
+           isIntro: !!scene.isIntro, isOutro: !!scene.isOutro,
+           _scene: scene, _svgVariant: svgVariant, _regenCount: 0 };
+}
+
+function buildImagePrompt(shot, pose, bg, styleKey, visualType) {
+  const shotMap = {'EWS':'超広角ショット','WS':'ワイドショット','MS':'ミディアムショット','2S':'ツーショット','CU':'クローズアップ','ECU':'超クローズアップ'};
+  const shotMapEn = {'EWS':'extreme wide shot','WS':'wide shot','MS':'medium shot','2S':'two shot','CU':'close-up','ECU':'extreme close-up'};
+  const poseMap = {
+    standing:'人物が静止して立つ',running:'人物が走る',dancing:'人物が踊る',
+    crying:'人物が泣いている',love:'二人が寄り添い抱き合う',action:'ダイナミックなアクションポーズ',
+    crowd:'群衆・多くの人',reaching:'人物が手を伸ばす',sitting:'人物が静かに座る',
+    lookingup:'人物が空を見上げる',walking:'人物が前に歩く'
+  };
+  const poseMapEn = {
+    standing:'character standing still',running:'character running',dancing:'character dancing',
+    crying:'character crying',love:'two people embracing closely',action:'dynamic action pose',
+    crowd:'crowd of many people',reaching:'character reaching out',sitting:'character sitting quietly',
+    lookingup:'character looking up at the sky',walking:'character walking forward'
+  };
+  const bgMap = {
+    city:'都市の夜景・ネオンライト',nature:'豊かな自然の風景',spotlight:'劇的なステージスポットライト',
+    rain:'雨の夜・しっとりした空気',stars:'星空の夜',abstract:'シュールな抽象空間',default:'シネマティックな背景'
+  };
+  const bgMapEn = {
+    city:'urban night cityscape with neon lights',nature:'lush natural landscape',spotlight:'dramatic stage spotlight',
+    rain:'rainy night, moist atmosphere',stars:'starry night sky',abstract:'surreal abstract space',default:'cinematic background'
+  };
+  const vtPrompt = {
+    character: '',
+    silhouette: '逆光による強烈なシルエット表現、リムライトのみ、背景に浮かぶ人物の輪郭、',
+    abstract: '抽象的なビジュアルアート、人物なし、幾何学形態と光のパターン、',
+    macro: '超マクロ撮影、テクスチャーの細部、被写界深度が浅い、人物なし、',
+    environment: 'アンビエントショット、人物なし、環境が物語る演出、',
+    object: '象徴的な小物・プロップのクローズアップ、映画的な物撮り、人物なし、',
+    bokeh: 'ボケを活かした背景、柔らかな光の粒、大気感のある奥行き表現、人物なし、',
+    'crowd-wide': '広角の群衆ショット、コンサートの観客、エネルギーとうねり、',
+  };
+  const vtPromptEn = {
+    character: '',
+    silhouette: 'strong backlit silhouette, rim light only, figure outlined against background, ',
+    abstract: 'abstract visual art, no characters, geometric forms and light patterns, ',
+    macro: 'extreme macro photography, fine textures, shallow depth of field, no characters, ',
+    environment: 'ambient shot, no characters, environment tells the story, ',
+    object: 'symbolic prop close-up, cinematic still life style, no characters, ',
+    bokeh: 'bokeh-rich background, soft circles of light, atmospheric depth, no characters, ',
+    'crowd-wide': 'wide-angle crowd shot, concert audience, energy and surge, ',
+  };
+  const style = MV_STYLES[styleKey] || MV_STYLES.story;
+  const styleHintEn = {
+    rock:'rock band MV, hard contrast, harsh lighting',
+    ballad:'ballad MV, slow camera, soft natural light, muted palette',
+    emotional:'emotional MV, warm light, sepia vs vivid contrast',
+    mysterious:'fantastical surreal MV, dreamlike spatial composition',
+    performance:'performance MV centered on dance and singing',
+    story:'short-film style MV with clear narrative arc',
+    concept:'conceptual MV, unified visual aesthetic, art-driven',
+    liveshow:'live concert MV, real stage lighting, crowd energy',
+    bizarre:'bizarre surreal art MV, Dali/Magritte feel, design-driven visuals'
+  }[styleKey] || 'cinematic MV';
+  const vtPart = vtPrompt[visualType] || '';
+  const vtPartEn = vtPromptEn[visualType] || '';
+  const posePart = (visualType === 'character') ? (poseMap[pose] ? `【人物】${poseMap[pose]}　` : '') : '';
+  const posePartEn = (visualType === 'character') ? (poseMapEn[pose] ? `[subject] ${poseMapEn[pose]}, ` : '') : '';
+  const shotPart = shotMap[shot] ? `【構図】${shotMap[shot]}　` : '';
+  const shotPartEn = shotMapEn[shot] ? `[shot] ${shotMapEn[shot]}, ` : '';
+  const bgPart = bgMap[bg] ? `【背景】${bgMap[bg]}　` : '';
+  const bgPartEn = bgMapEn[bg] ? `[background] ${bgMapEn[bg]}, ` : '';
+  const styleHint = style.hint.split('。')[0];
+  const extraStyle = styleKey === 'bizarre'
+    ? '、ダリ・マグリット風のシュールリアリズム、強烈な色彩対比、デザイン主導のビジュアル体験、芸術家の脳内世界'
+    : styleKey === 'liveshow'
+    ? '、臨場感あふれる会場照明、手持ちカメラの臨場感、ライブの熱量'
+    : '';
+  const extraStyleEn = styleKey === 'bizarre'
+    ? ', Dali-Magritte surrealism, intense color contrast, design-led visual experience, artist mindscape'
+    : styleKey === 'liveshow'
+    ? ', immersive venue lighting, handheld camera feel, live energy'
+    : '';
+  const ja = `${shotPart}${posePart}${bgPart}${vtPart}シネマティックな照明・フィルムグレイン、${styleHint}${extraStyle}`.replace(/\s+/g,' ').trim();
+  const en = `${shotPartEn}${posePartEn}${bgPartEn}${vtPartEn}cinematic lighting, film grain, ${styleHintEn}${extraStyleEn}`.replace(/\s+/g,' ').trim();
+  return { ja, en };
+}
+
+// Visual type labels for display
+const VT_LABELS = {
+  character:'FIGURE', silhouette:'SILHOUETTE', abstract:'ABSTRACT',
+  macro:'MACRO', environment:'ENVIRON', object:'OBJECT',
+  bokeh:'BOKEH', 'crowd-wide':'CROWD', crowd:'CROWD'
+};
+
+const SHOT_LABELS = {'EWS':'EXTREME WIDE','WS':'WIDE SHOT','MS':'MED SHOT','2S':'TWO SHOT','CU':'CLOSE UP','ECU':'EXTREME CU'};
+
+// ─────────────────────────────────────────
+// SVG panel render — dispatches by visualType
+// ─────────────────────────────────────────
+function renderPanelSVG(panel) {
+  const W=320, H=180, cx=W/2, cy=H*0.58, scale=8;
+  const col = brightenColor(panel.color || '#c0c0e0');
+  const bg  = bgSketch(panel.bg, W, H);
+  const svgVar = panel._svgVariant ?? panel.idx ?? 0;
+  const guideLine = `
+    <line x1="${W*.33}" y1="0" x2="${W*.33}" y2="${H}" stroke="rgba(255,255,255,.04)" stroke-width="1"/>
+    <line x1="${W*.67}" y1="0" x2="${W*.67}" y2="${H}" stroke="rgba(255,255,255,.04)" stroke-width="1"/>
+    <line x1="0" y1="${H*.5}" x2="${W}" y2="${H*.5}" stroke="rgba(255,255,255,.04)" stroke-width="1"/>`;
+  const overlay = panel.isIntro ? `<rect width="${W}" height="${H}" fill="rgba(0,212,255,.05)"/>` :
+                  panel.isOutro ? `<rect width="${W}" height="${H}" fill="rgba(255,107,157,.05)"/>` : '';
+
+  let defs = '';
+  let innerSVG = '';
+  const vt = panel.visualType || 'character';
+
+  if (vt === 'character' || vt === 'crowd') {
+    const poseKey = (vt === 'crowd' || panel.pose === 'crowd') ? 'crowd'
+                  : (panel.pose in POSES ? panel.pose : 'standing');
+    const figSVG = POSES[poseKey](cx, cy, scale);
+    const ground = `<line x1="${cx-55}" y1="${cy+scale*1.55}" x2="${cx+60}" y2="${cy+scale*1.55}" stroke="${col}" stroke-width="1.2" opacity=".45"/>`;
+    innerSVG = `${bg}<g color="${col}" opacity="1" stroke-width="1.4">${figSVG}</g>${ground}`;
+
+  } else if (vt === 'silhouette') {
+    const uid = panel.idx || 0;
+    defs = silhouetteDefs(uid, col);
+    const sil = silhouetteSVG(cx, cy, scale, uid, col);
+    const ground = `<line x1="${cx-60}" y1="${cy+scale*1.55}" x2="${cx+60}" y2="${cy+scale*1.55}" stroke="${col}" stroke-width="1" opacity=".3"/>`;
+    innerSVG = `${bg}${sil}${ground}`;
+
+  } else if (vt === 'abstract') {
+    innerSVG = abstractSVG(W, H, col, svgVar);
+
+  } else if (vt === 'macro') {
+    innerSVG = `<rect width="${W}" height="${H}" fill="rgba(12,12,30,.55)"/>${macroSVG(W, H, col, svgVar)}`;
+
+  } else if (vt === 'object') {
+    innerSVG = `${bgSketch(panel.bg, W, H)}<rect width="${W}" height="${H}" fill="rgba(12,12,30,.42)"/>${objectSVG(W, H, col, panel.styleKey || selectedStyle, svgVar)}`;
+
+  } else if (vt === 'bokeh') {
+    innerSVG = `<rect width="${W}" height="${H}" fill="rgba(8,8,22,.8)"/>${bokehSVG(W, H, col, svgVar)}`;
+
+  } else if (vt === 'environment') {
+    innerSVG = environmentOnlySVG(panel.bg, W, H, col);
+
+  } else if (vt === 'crowd-wide') {
+    innerSVG = `${bg}${crowdOnlySVG(W, H, col)}`;
+
+  } else {
+    const figSVG = POSES['standing'](cx, cy, scale);
+    innerSVG = `${bg}<g color="${col}" opacity="1">${figSVG}</g>`;
+  }
+
+  return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
+    ${defs ? `<defs>${defs}</defs>` : ''}
+    <rect width="${W}" height="${H}" fill="#12122a"/>
+    ${overlay}${guideLine}${innerSVG}
+  </svg>`;
+}
+
+// Brighten panel color so figures stand out against dark background
+function brightenColor(hex) {
+  if (!hex || hex[0] !== '#' || hex.length < 7) return hex;
+  let r = parseInt(hex.slice(1,3),16);
+  let g = parseInt(hex.slice(3,5),16);
+  let b = parseInt(hex.slice(5,7),16);
+  // Bring toward 200-240 brightness range for better visibility
+  const target = 210;
+  r = Math.round(r + (target - r) * 0.45);
+  g = Math.round(g + (target - g) * 0.45);
+  b = Math.round(b + (target - b) * 0.45);
+  return rgbToHex(r, g, b);
+}
+
+// ─────────────────────────────────────────
+// Progress helpers
+// ─────────────────────────────────────────
+function setProgress(pct, msg) {
+  document.getElementById('progress-fill').style.width = pct+'%';
+  document.getElementById('progress-sub').textContent = msg;
+}
+
+// ─────────────────────────────────────────
+// Claude API analysis
+// ─────────────────────────────────────────
+async function analyzeWithClaude(apiKey, lyrics, genre, artist, panelCount, duration, styleKey, seed) {
+  const style = MV_STYLES[styleKey] || MV_STYLES.story;
+  const audioInfo = audioFeatures
+    ? `- 音楽分析: ${audioAnalyzer.featuresDescription(audioFeatures)}`
+    : '';
+  const lyricsAnalysis = analyzeFullLyrics(lyrics);
+  const toneJa = { bright:'明るく前向き', melancholic:'切なく内省的', neutral:'バランス型' }[lyricsAnalysis.tone];
+  const energyJa = { high:'高エネルギー', mid:'中程度のエネルギー', low:'静かなエネルギー' }[lyricsAnalysis.energy];
+  const dominantPoses = lyricsAnalysis.ranked.slice(0,3).join('・') || '（特になし）';
+  const variationHint = seed != null
+    ? `\n【バリエーション指示】今回の生成シード: ${seed}。過去の生成と異なる構図・カメラワーク・色彩を意識し、同じMVスタイル・同じ歌詞でも別バージョンに仕上げてください。`
+    : '';
+
+  const prompt = `あなたはキャリア20年のプロのMV監督です。歌詞全文を精読してから、${panelCount}カット分の絵コンテを作成してください。
+
+【楽曲情報】
+- アーティスト: ${artist||'不明'}
+- ユーザー特別要望: ${genre||'なし（自由に演出してください）'}
+- MVスタイル: ${style.label}（${style.hint}）
+- 曲の長さ: ${formatTime(duration)}（目安: 1カット約${(duration/panelCount).toFixed(1)}秒）
+${audioInfo}
+
+【歌詞全体の解析（参考）】
+- 全体のトーン: ${toneJa}
+- エネルギー感: ${energyJa}
+- 頻出感情/動作: ${dominantPoses}
+
+【重要な制作方針】
+1. 必ず歌詞全文を先に読み、楽曲の物語構造・主人公の感情変化・キーモチーフを把握すること
+2. 各カットの jaDesc には「なぜこの歌詞のこの部分でこの絵を選んだのか」を反映させること
+3. 前奏（INTRO）を冒頭${Math.round(panelCount*0.08)}カット、アウトロ（OUTRO）を最後${Math.round(panelCount*0.04)}カットに必ず含める
+4. 登場人物が連続しすぎないよう、抽象カット・風景カット・小物カット・シルエットを意図的に挟む（人物カットは全体の50〜60%程度）
+5. カメラワーク・ショットサイズは全カット意識して変化させる（同じショットを3連続させない）
+6. visualType は character / silhouette / abstract / macro / environment / object / bokeh / crowd-wide から選ぶ
+7. bgPrompt には背景の詳細な撮影プロンプト（英語）を書く
+${variationHint}
+
+【歌詞】
+${lyrics}
+
+以下のJSON形式のみで返してください（説明文不要）:
+{
+  "scenes": [
+    {
+      "lines": ["歌詞行1","歌詞行2"],
+      "section": "INTRO / Verse 1 / Chorus など",
+      "pose": "standing|running|dancing|crying|love|action|crowd|reaching|sitting|lookingup|walking のいずれか",
+      "shot": "EWS|WS|MS|2S|CU|ECU のいずれか",
+      "bg": "city|nature|spotlight|rain|stars|abstract|default のいずれか",
+      "color": "#rrggbb",
+      "visualType": "character|silhouette|abstract|macro|environment|object|bokeh|crowd-wide のいずれか",
+      "jaDesc": "このカットの映像描写（日本語2〜3文、なぜこの歌詞でこの絵か根拠も簡潔に含む）",
+      "prompt": "AI画像生成用プロンプト（日本語で、構図・人物・背景・スタイルを記述）",
+      "bgPrompt": "背景専用の詳細プロンプト（日本語で、ロケーション・照明・雰囲気・カメラワークを記述）"
+    }
+  ]
+}`;
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({
+      model: 'claude-opus-4-7',
+      max_tokens: 8192,
+      messages: [{ role: 'user', content: prompt }]
+    })
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(()=>({}));
+    throw new Error(err.error?.message || `API error: ${res.status}`);
+  }
+
+  const data = await res.json();
+  const text = data.content[0].text;
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error('AIレスポンスのJSON解析に失敗しました');
+  const parsed = JSON.parse(jsonMatch[0]);
+
+  return parsed.scenes.map((s, i) => {
+    const vt = getVisualType(i, styleKey, false, s.section?.includes('INTRO'), s.section?.includes('OUTRO'));
+    const shot = s.shot || 'MS';
+    const pose = s.pose || 'standing';
+    const bg = s.bg || 'default';
+    const visualType = s.visualType || vt;
+    const enPrompts = buildImagePrompt(shot, pose, bg, styleKey, visualType);
+    const enBgPrompts = buildBgPrompt(bg, shot, pose, i, styleKey, visualType);
+    const bgPromptVal = s.bgPrompt || enBgPrompts.ja;
+    return {
+      ...s,
+      idx: i,
+      time: (duration / parsed.scenes.length) * i,
+      color: s.color || styleColor(styleKey, i),
+      visualType,
+      styleKey,
+      bgPrompt: bgPromptVal,
+      promptEn: enPrompts.en,
+      bgPromptEn: enBgPrompts.en,
+      _svgVariant: i * 7 + 3,
+      _regenCount: 0
+    };
+  });
+}
+
+// ─────────────────────────────────────────
+// Build panel DOM element
+// ─────────────────────────────────────────
+function buildPanelEl(p, displayNum) {
+  const el = document.createElement('div');
+  el.className = 'sb-panel' + (p.isIntro ? ' intro-panel' : p.isOutro ? ' outro-panel' : '');
+  el.dataset.panelIdx = p.idx ?? (displayNum - 1);
+  const shotLabel = SHOT_LABELS[p.shot] || p.shot;
+  const artSVG = renderPanelSVG(p);
+  const vtLabel = VT_LABELS[p.visualType] || '';
+  const promptJa = p.prompt || '';
+  const promptEn = p.promptEn || p.prompt || '';
+  const bgJa = p.bgPrompt || '';
+  const bgEn = p.bgPromptEn || p.bgPrompt || '';
+  const isEn = promptLang === 'en';
+  el.innerHTML = `
+    <div class="panel-top">
+      <span class="panel-num">${String(displayNum).padStart(3,'0')}</span>
+      <span class="panel-shot">${vtLabel ? vtLabel : shotLabel}</span>
+      <span class="panel-time">${formatTime(p.time)}</span>
+    </div>
+    <div class="panel-art">${artSVG}<button class="panel-dl-btn" title="PNGをダウンロード" onclick="downloadPanelPNG(this)">⬇</button></div>
+    <div class="panel-body">
+      ${p.section ? `<div class="panel-section">${p.section.toUpperCase()}</div>` : ''}
+      <div class="panel-scene">${(p.jaDesc||p.lines?.join('<br>')||'').replace(/\n/g,'<br>')}</div>
+      <div class="panel-prompt-label">絵コンテプロンプト</div>
+      <div class="panel-prompt" data-ja="${escapeAttr(promptJa)}" data-en="${escapeAttr(promptEn)}">${isEn ? promptEn : promptJa}</div>
+      <div class="panel-bg-label">背景プロンプト</div>
+      <div class="panel-bg-prompt" data-ja="${escapeAttr(bgJa)}" data-en="${escapeAttr(bgEn)}">${isEn ? bgEn : bgJa}</div>
+      <button class="regen-btn" onclick="regeneratePanel(this)">🔄 別パターンを生成</button>
+    </div>`;
+  return el;
+}
+
+function escapeAttr(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function appendPanels(panels, startOffset) {
+  const grid = document.getElementById('sb-grid');
+  panels.forEach((p, i) => {
+    const el = buildPanelEl(p, startOffset + i + 1);
+    el.style.animationDelay = (i * 0.04) + 's';
+    grid.appendChild(el);
+  });
+}
+
+// ─────────────────────────────────────────
+// Render storyboard to DOM
+// ─────────────────────────────────────────
+function renderStoryboard(panels, duration) {
+  const grid = document.getElementById('sb-grid');
+  grid.innerHTML = '';
+
+  const style = MV_STYLES[selectedStyle] || MV_STYLES.story;
+  const cutSec = (duration / panels.length).toFixed(1);
+
+  document.getElementById('sb-style-badge').textContent  = style.emoji + ' ' + style.label;
+  document.getElementById('sb-panels-badge').textContent = panels.length + ' cuts';
+  document.getElementById('sb-dur-badge').textContent    = formatTime(duration);
+  document.getElementById('sb-cut-badge').textContent    = cutSec + 's/cut';
+
+  appendPanels(panels, 0);
+
+  // Generate and render scenario
+  scenarioSeed = 0;
+  const analysis = savedState?.lyricsAnalysis || analyzeFullLyrics(savedState?.lyrics || '');
+  const script = generateScenario(panels, savedState?.lyrics || '', analysis, savedState?.seed || 0);
+  renderScenario(script);
+
+  document.getElementById('storyboard-area').classList.add('visible');
+  document.getElementById('download-bar').classList.add('visible');
+  document.getElementById('storyboard-area').scrollIntoView({ behavior:'smooth', block:'start' });
+
+  // Show continue button only when generated count < requested count
+  updateContinueBtn();
+}
+
+function updateContinueBtn() {
+  const btn = document.getElementById('continue-btn');
+  if (!savedState) { btn.style.display = 'none'; return; }
+  const requested = savedState.panelCount || 0;
+  if (requested > 0 && allPanels.length >= requested) {
+    btn.style.display = 'none';
+  } else {
+    btn.style.display = '';
+  }
+}
+
+// ─────────────────────────────────────────
+// Main generate
+// ─────────────────────────────────────────
+async function generate() {
+  hideError();
+  const lyrics     = document.getElementById('lyrics-input').value.trim();
+  const apiKey     = document.getElementById('api-key').value.trim();
+  const genre      = document.getElementById('genre-input').value.trim();
+  const artist     = document.getElementById('artist-input').value.trim();
+  const panelCount = Math.min(400, Math.max(8, parseInt(document.getElementById('panel-count').value)||12));
+
+  if (!lyrics) { showError('歌詞を入力してください。'); return; }
+
+  userRequest = genre; // プロンプト要望をグローバルに保存
+  const duration = audioDuration || 300;
+
+  document.getElementById('gen-btn').disabled = true;
+  document.getElementById('progress-area').classList.add('visible');
+  document.getElementById('storyboard-area').classList.remove('visible');
+  document.getElementById('download-bar').classList.remove('visible');
+
+  // Bump seed each click — produces different prompts for the same input
+  genSeed = (genSeed + 1 + Math.floor(Math.random() * 9999)) >>> 0;
+
+  try {
+    let panels;
+    if (apiKey) {
+      setProgress(10, 'Claude AI に接続中...');
+      await delay(200);
+      setProgress(25, `${MV_STYLES[selectedStyle]?.label||''}スタイルで歌詞を分析中...`);
+      panels = await analyzeWithClaude(apiKey, lyrics, genre, artist, panelCount, duration, selectedStyle, genSeed);
+      setProgress(80, '絵コンテを構築中...');
+      savedState = { lyrics, genre, artist, duration, styleKey: selectedStyle, scenes: null, seed: genSeed, panelCount };
+    } else {
+      setProgress(15, '歌詞全体を解析中...');
+      await delay(300);
+      const lyricsAnalysis = analyzeFullLyrics(lyrics);
+      const lyricsContext = { seed: genSeed, lyricsAnalysis };
+      const scenes = parseLyrics(lyrics, panelCount, duration, selectedStyle);
+      setProgress(55, `${MV_STYLES[selectedStyle]?.label||''}スタイルでシーンを構築中...`);
+      await delay(200);
+      panels = scenes.map((s, i) => buildPanel(s, i, scenes.length, duration, selectedStyle, lyricsContext));
+      savedState = { lyrics, genre, artist, duration, styleKey: selectedStyle, scenes, seed: genSeed, lyricsAnalysis, panelCount };
+    }
+    allPanels = panels;
+    setProgress(92, 'レンダリング中...');
+    await delay(150);
+    renderStoryboard(panels, duration);
+    setProgress(100, '完了！');
+    await delay(250);
+  } catch(err) {
+    showError('エラー: ' + err.message);
+    console.error(err);
+  } finally {
+    document.getElementById('gen-btn').disabled = false;
+    document.getElementById('progress-area').classList.remove('visible');
+  }
+}
+
+// ─────────────────────────────────────────
+// Continue generation — append 6 more cuts
+// ─────────────────────────────────────────
+async function continueGenerate() {
+  if (!savedState || !allPanels.length) return;
+  const btn = document.getElementById('continue-btn');
+  const prog = document.getElementById('continue-progress');
+  btn.disabled = true;
+  prog.classList.add('visible');
+
+  try {
+    const offset = allPanels.length;
+    const { lyrics, genre, artist, duration, styleKey } = savedState;
+    const BATCH = 6;
+    let newPanels;
+
+    const lyricsContext = { seed: (savedState.seed||0) + offset, lyricsAnalysis: savedState.lyricsAnalysis || analyzeFullLyrics(lyrics) };
+
+    if (savedState.scenes) {
+      // No-API mode: extend from saved scenes, cycling as needed
+      const extCount = offset + BATCH;
+      const extScenes = parseLyrics(lyrics, extCount, duration, styleKey);
+      const batch = extScenes.slice(offset, extCount);
+      newPanels = batch.map((s, i) => buildPanel(s, offset + i, extCount, duration, styleKey, lyricsContext));
+    } else {
+      // API mode: generate 6 standalone atmospheric panels continuing the mood
+      const apiKey = document.getElementById('api-key').value.trim();
+      if (apiKey) {
+        const extra = await analyzeWithClaude(apiKey, lyrics, genre, artist, BATCH, duration, styleKey, lyricsContext.seed);
+        newPanels = extra.map((p, i) => ({
+          ...p, idx: offset + i, time: duration / (offset + BATCH) * (offset + i)
+        }));
+      } else {
+        // Fallback: build extra panels from lyrics offset
+        const extScenes = parseLyrics(lyrics, offset + BATCH, duration, styleKey);
+        const batch = extScenes.slice(offset, offset + BATCH);
+        newPanels = batch.map((s, i) => buildPanel(s, offset + i, offset + BATCH, duration, styleKey, lyricsContext));
+      }
+    }
+
+    allPanels = allPanels.concat(newPanels);
+    appendPanels(newPanels, offset);
+    document.getElementById('sb-panels-badge').textContent = allPanels.length + ' cuts';
+    updateContinueBtn();
+    // Scroll to newly added panels
+    const grid = document.getElementById('sb-grid');
+    const last = grid.lastElementChild;
+    if (last) last.scrollIntoView({ behavior:'smooth', block:'nearest' });
+  } catch(e) {
+    showError('続き生成エラー: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    prog.classList.remove('visible');
+  }
+}
+
+// ─────────────────────────────────────────
+// Prompt language toggle (JA <-> EN)
+// ─────────────────────────────────────────
+function togglePromptLang() {
+  promptLang = promptLang === 'ja' ? 'en' : 'ja';
+  const btn = document.getElementById('lang-toggle-btn');
+  if (btn) btn.textContent = promptLang === 'ja' ? '🌐 English' : '🌐 日本語';
+  document.querySelectorAll('.panel-prompt, .panel-bg-prompt').forEach(el => {
+    const val = el.getAttribute(promptLang === 'ja' ? 'data-ja' : 'data-en');
+    if (val != null) el.textContent = val;
+  });
+}
+
+// ─────────────────────────────────────────
+// Scenario script generation
+// ─────────────────────────────────────────
+function generateScenario(panels, lyrics, lyricsAnalysis, seed) {
+  const rand     = seededRand((seed || 0) * 7919 + 12345);
+  const pick     = arr => arr[Math.floor(rand() * arr.length)];
+  const styleKey = panels[0]?.styleKey || 'story';
+  const tone     = lyricsAnalysis?.tone || 'neutral';
+  const energy   = lyricsAnalysis?.energy || 'mid';
+  const variant  = Math.floor(rand() * 5); // drives different narrative angle each time
+
+  // ── Group panels into macro-sections ────────────────────────────────────
+  const secGroups = [];
+  let cur = null;
+  panels.forEach(p => {
+    const name = p.section || (p.isIntro ? 'INTRO' : p.isOutro ? 'OUTRO' : 'SCENE');
+    if (!cur || cur.name !== name) { cur = { name, panels: [], t0: p.time }; secGroups.push(cur); }
+    cur.panels.push(p); cur.t1 = p.time;
+  });
+
+  // Classify section by role
+  const roleOf = name => {
+    const n = (name||'').toLowerCase();
+    if (/intro|前奏|イントロ/.test(n))       return 'intro';
+    if (/outro|アウトロ|後奏/.test(n))        return 'outro';
+    if (/chorus|サビ|ref/.test(n))            return 'chorus';
+    if (/bridge|ブリッジ|cメロ|c-melo/.test(n)) return 'bridge';
+    return 'verse';
+  };
+
+  // Pull representative content from a section
+  const digest = sec => {
+    const vtC = {}, posC = {};
+    sec.panels.forEach(p => {
+      vtC[p.visualType]  = (vtC[p.visualType]  || 0) + 1;
+      posC[p.pose]       = (posC[p.pose]        || 0) + 1;
+    });
+    const topVt   = Object.entries(vtC).sort((a,b)=>b[1]-a[1])[0]?.[0] || 'character';
+    const topPose = Object.entries(posC).sort((a,b)=>b[1]-a[1])[0]?.[0] || 'standing';
+    const descs   = sec.panels.map(p=>p.jaDesc).filter(Boolean);
+    const lines   = [...new Set(sec.panels.flatMap(p=>p.lines||[]).filter(l=>l?.trim()))];
+    return { topVt, topPose, desc: descs.length ? pick(descs) : '', line: lines.length ? pick(lines.slice(0, 4)) : '', lines };
+  };
+
+  // ── Visual/pose → prose phrases ─────────────────────────────────────────
+  const VT = {
+    character:   ['人物を中心に据えた映像','アーティストの表情を正面から捉えた映像'],
+    silhouette:  ['逆光のシルエット映像','輪郭だけが浮かび上がるシルエットショット'],
+    abstract:    ['色と形が溶け合う抽象映像','感情を色彩で表現した抽象的なカット'],
+    environment: ['広大な景観のロングショット','空間そのものが感情を宿す環境映像'],
+    macro:       ['細部を拡大したマクロショット','テクスチャと余韻を引き出すクローズアップ'],
+    object:      ['象徴的な小道具のショット','感情の代替として機能するオブジェクト映像'],
+    bokeh:       ['幻想的なボケを活かした映像','ピントを意図的に外した夢幻的なカット'],
+    'crowd-wide':['観客の海を俯瞰した群衆ショット','会場全体を収めた圧倒的なワイドショット'],
+  };
+  const POSE = {
+    standing:  '静かに佇む',  walking:  'ゆっくりと歩を進める',
+    running:   '走り出す',    sitting:  '腰を下ろし遠くを見つめる',
+    crying:    '涙をこらえる', reaching: '手を伸ばす',
+    lookingup: '空を見上げる', love:     '誰かを深く想う',
+    action:    '力強く体を動かす', dancing: '音楽に体を委ねる', crowd: '群衆が一体となる',
+  };
+  const vt   = sec => pick(VT[digest(sec).topVt]   || ['映像が展開する']);
+  const pose = sec => POSE[digest(sec).topPose]     || '動く';
+
+  // ── Build script by style ────────────────────────────────────────────────
+
+  // LIVESHOW
+  if (styleKey === 'liveshow') {
+    const mcLines = [
+      ['みんな、声出せるか！？','最高の夜にしようぜ！','全員で歌ってくれ！'],
+      ['声が聞こえないぞ！もっとだ！','これが俺たちのライブだ！','ありがとう、愛してるぞ！'],
+      ['今夜だけは、全部忘れてくれ！','お前たちがいるから俺たちは歌える！','最後まで一緒に行くぞ！'],
+    ][variant % 3];
+
+    const parts = [];
+
+    // Opening paragraph
+    parts.push(pick([
+      `会場が暗転し、静寂がアリーナを支配する。スモークが炊かれ、イントロのビートが一音目を落とした瞬間──スポットライトがステージを切り裂き、割れんばかりの歓声が爆発する。「${mcLines[0]}」アーティストの第一声が、数万の心臓を同時に揺らした。`,
+      `暗闇の中でカウントダウンが始まる。客席のスマートフォンライトが星のように揺れ、その熱量がステージへと押し寄せる。イントロが鳴り響いた瞬間、「${mcLines[0]}」──その言葉だけで会場全体が一つの生き物になった。`,
+      `本番直前の静寂。ステージ袖に立つアーティストの表情が、カメラが捉える最初の一フレームだ。そしてイントロとともにステージへ──「${mcLines[0]}」歓声が天井まで届く、最高の幕開け。`,
+    ]));
+
+    // Middle sections (verse/chorus)
+    const midSecs = secGroups.filter(s => { const r = roleOf(s.name); return r !== 'intro' && r !== 'outro'; });
+    if (midSecs.length) {
+      const verses  = midSecs.filter(s => roleOf(s.name) === 'verse');
+      const choruses= midSecs.filter(s => roleOf(s.name) === 'chorus');
+      const bridges = midSecs.filter(s => roleOf(s.name) === 'bridge');
+
+      if (verses.length) {
+        const d = digest(verses[0]);
+        parts.push(pick([
+          `${vt(verses[0])}が続く。ハンドヘルドカメラが縦横無尽に動き回り、${pose(verses[0])}アーティストとともにステージの熱量をそのまま映像に焼き付ける。${d.line ? `「${d.line.replace(/[。、]$/,'')}」という歌詞が会場を包んだとき、` : ''}客席との一体感がじわじわと高まっていく。`,
+          `${pose(verses[0])}姿が${vt(verses[0])}で切り取られる。クレーンとウィップパンを組み合わせ、ステージのあらゆる角度からパフォーマンスを追う。${d.desc ? d.desc + 'の映像が、' : ''}このライブの高揚感を余すことなく伝える。`,
+        ]));
+      }
+
+      if (choruses.length) {
+        parts.push(pick([
+          `サビで全照明が一斉に点灯、フルカラーのレーザーが会場を埋め尽くす。「${mcLines[1]}」──その言葉に呼応するように観客の合唱が始まり、カメラはEWSで客席の海を大きく捉える。このMV最大の見せ場、アーティストと観客が完全に溶け合う瞬間。`,
+          `サビの爆発と同時にステージが光に染まる。カット割りが一気に細かくなり、アーティストの表情と観客の表情が交互に繋がれる。「${mcLines[2]}」会場全体が震えるような熱量の中、このライブが最高潮に達する。`,
+        ]));
+      }
+
+      if (bridges.length) {
+        parts.push(pick([
+          `ブリッジで照明が絞られ、スポットライト一本だけが舞台を照らす。周囲の音が消えたような静けさの中、アーティストの声だけが会場に響く。この静の瞬間が、ラストサビへの巨大な助走となる。`,
+        ]));
+      }
+    }
+
+    // Outro paragraph
+    parts.push(pick([
+      `最後の音が消えても、観客の拍手と歓声は鳴り止まない。暗転したステージに余韻だけが漂い、カメラはゆっくりと客席の感動した表情を収めながらフェードアウト。この夜の記憶は、ここにいた全員の胸に永遠に刻まれる。`,
+      `メンバーが一列に並び、逆光の中でお辞儀をする。沸き立つ観客席とのコントラストが、このライブMVの最後の一フレームだ。言葉よりも雄弁なその絵で、幕が静かに下りる。`,
+    ]));
+
+    return parts.join('\n\n');
+  }
+
+  // ROCK
+  if (styleKey === 'rock') {
+    const d0 = secGroups.length ? digest(secGroups[0]) : {};
+    const dMid = secGroups.length > 1 ? digest(secGroups[Math.floor(secGroups.length/2)]) : d0;
+    const dEnd = secGroups.length > 1 ? digest(secGroups[secGroups.length-1]) : d0;
+    const hasBridge = secGroups.some(s => roleOf(s.name) === 'bridge');
+
+    return pick([
+      `${pick(['ドラムのカウントインとともに照明が爆発的に点灯する。','ギターのリフが暗闇を一閃する。スモークの向こうからバンドのシルエットが浮かび上がり、最初の一音が会場を震わせる。'])}${d0.desc ? d0.desc + 'を捉えた映像から始まり、' : ''}ハンドヘルドカメラが荒々しく揺れながらメンバー全員を追う。細かいカット割りとECUの連続で、楽器と表情のディテールを容赦なく切り取っていく。\n\nサビで映像が一気に爆発する。${dMid.desc || 'バンド全員のシルエット'}をWSで収め、そこからECUへの急激なズームイン。${hasBridge ? 'ブリッジではスローモーションを挿入し、ギターソロの指運びと表情の両面を際立たせる。' : ''}エネルギーが頂点に達したところで、最後のコードが長く伸び、フィードバックノイズとともにゆっくりと暗転する。`,
+
+      `${pick(['轟音のイントロ。ステージに仁王立ちするボーカル、その眼光が客席を射抜く。','スモークの中からバンドが現れる瞬間、時間が止まったように見えた。'])}${d0.desc ? d0.desc + 'の映像が最初のフレームを飾り、' : ''}そこからノンストップの映像が続く。ドラム・ギター・ベースの演奏を極めて近い距離で切り取り、楽器そのものが主役になる場面を多用する。\n\nサビでは広角レンズが全員を収め、それぞれのパートが絡み合う瞬間を逃さず捉える。${hasBridge ? 'ブリッジの静寂が、ラストサビの爆発力を何倍にも引き上げる設計。' : ''}最後の一音が空気を震わせた後、長い余韻とともに暗転。バンドの全力が、このMVに刻み込まれた。`,
+    ]);
+  }
+
+  // PERFORMANCE
+  if (styleKey === 'performance') {
+    const dv = secGroups.filter(s=>roleOf(s.name)==='verse')[0];
+    const dc = secGroups.filter(s=>roleOf(s.name)==='chorus')[0];
+
+    return pick([
+      `ステージが暗転し、スポットライトが一点を照らす。全員がオープニングポーズで静止した状態からビートが落ち、完璧に揃った動きでパフォーマンスが幕を開ける。${dv ? vt(dv) + 'でフォーメーションの変化を丁寧に追い、' : ''}WSとCUを緩急をつけて切り替えながらパフォーマーの技術と表現力を引き出す。\n\n${dc ? `サビでは全員が揃ったフォーメーションへ。ステージを広く使った隊形移動と、センターへの集中照明が重なる──このMV最大の見せ場。` : 'クライマックスへ向けてフォーメーションが激しく変化し、ステージ全体がダイナミックに動く。'}ラストはEWSでステージ全体を収め、照明がゆっくりとフェードアウトしていく。フリーズした最後のポーズが画面に長く刻まれ、静かに暗転する。`,
+
+      `イントロのビートとともにパフォーマーたちが定位置へ滑り込む。最初の一拍でポーズが揃い、その完璧な同期が最初の見せ場となる。${dv ? vt(dv) + 'を中心に、' : ''}複数のカメラアングルから振り付けの細部を余すことなく捉えていく。ソロパートでは他の全員が静止し、スポットライト一本の中で個の表現が際立つ。\n\n${dc ? 'サビのフォーメーション変化が最大のクライマックス。' : 'クライマックスは全員が揃った力強いパフォーマンス。'}ステージ全体が光に包まれる中、カメラはEWSで引き、次いでECUで表情を捉える。ラストポーズでフリーズ、フェードアウト。`,
+    ]);
+  }
+
+  // MYSTERIOUS / CONCEPT / BIZARRE
+  if (styleKey === 'mysterious' || styleKey === 'concept' || styleKey === 'bizarre') {
+    const allDescs = panels.map(p=>p.jaDesc).filter(Boolean);
+    const d0 = allDescs[0] || '';
+    const dMid = allDescs[Math.floor(allDescs.length/2)] || '';
+    const dEnd = allDescs[allDescs.length-1] || '';
+
+    const openers = {
+      mysterious: ['時間の概念が溶けたような空間から幕を開ける。霧と光が交差し、現実と夢の境界が意図的に曖昧にされる。','鏡の向こう側に広がる世界。物理法則が静かに無視されたその空間で、映像が静かに立ち上がる。'],
+      concept:    ['強烈なビジュアルコンセプトが最初の一フレームから確立される。色・形・光がこの作品の文法として機能し、観る者をその世界観に引き込む。','一つの美学が、すべての映像を貫く。統一されたトーンの中で、アーティストの表現が結晶化していく。'],
+      bizarre:    ['論理を拒絶した映像が展開する。既成概念を解体するところからこのMVは始まる。','夢と現実と妄想が等価に並ぶ。芸術家の意識の流れをそのまま映像化したような、ルールなき世界が広がる。'],
+    }[styleKey];
+
+    const closers = {
+      mysterious: ['問いかけだけが残り、答えのないまま画面が閉じる。その余白こそが、この作品の最後のメッセージだ。','夢から覚めるような、しかし覚めない終わり。観た後も像が頭に焼き付く設計。'],
+      concept:    ['コンセプトが完結し、最後の一フレームが観る者の記憶に刻み込まれる。','ビジュアルは終わっても、その世界観は観る者の中に生き続ける。これは消費されない映像だ。'],
+      bizarre:    ['崩壊と再生が同時に起こり、最後の映像が意識を塗り替える。','何も解決していない。それでいい。これはそういう作品だ。'],
+    }[styleKey];
+
+    return `${pick(openers)}${d0 ? '　' + d0 + 'を皮切りに、' : ''}映像の密度と抽象度が少しずつ高まっていく。\n\n${dMid ? dMid + 'が展開し、' : ''}意味を一義的に決定させない演出で、観る者それぞれの解釈に委ねる構成。${['abstract','bokeh','silhouette'].includes(secGroups[Math.floor(secGroups.length/2)]?.panels[0]?.visualType) ? '色と形が衝突し、感情が抽象として溢れ出す。' : 'アーティストの存在そのものがビジュアルモチーフとして機能する。'}クライマックスでは映像の密度が一気に高まり、抽象と具象が衝突する最大の見せ場へ。\n\n${dEnd ? dEnd + 'で幕を閉じる。' : ''}${pick(closers)}`;
+  }
+
+  // ── STORY / EMOTIONAL / BALLAD ──────────────────────────────────────────
+  const introSec   = secGroups.find(s => roleOf(s.name) === 'intro');
+  const verseSecs  = secGroups.filter(s => roleOf(s.name) === 'verse');
+  const chorusSecs = secGroups.filter(s => roleOf(s.name) === 'chorus');
+  const bridgeSecs = secGroups.filter(s => roleOf(s.name) === 'bridge');
+  const outroSec   = secGroups.find(s => roleOf(s.name) === 'outro');
+
+  const dIntro   = introSec   ? digest(introSec)      : null;
+  const dVerse   = verseSecs.length  ? digest(verseSecs[0])  : null;
+  const dChorus  = chorusSecs.length ? digest(chorusSecs[0]) : null;
+  const dBridge  = bridgeSecs.length ? digest(bridgeSecs[0]) : null;
+  const dOutro   = outroSec   ? digest(outroSec)      : null;
+  const dFallback= digest(secGroups[Math.floor(secGroups.length/2)] || secGroups[0]);
+
+  // 5 distinct approaches based on variant
+  const approaches = [
+    // 0: 映像演出プラン — visual/cinematic focus
+    () => {
+      const toneOpen = { bright:'光と躍動感を軸に据えた、希望あふれるMVとして構成する。', melancholic:'静けさと余白の中に感情を宿らせる、奥行きのある映像として設計する。', neutral:'日常と非日常が静かに交差する映像世界を構築する。' }[tone];
+      const iv = dIntro || dVerse || dFallback;
+      const cv = dChorus || dFallback;
+      const ov = dOutro || dFallback;
+      return `${toneOpen}\n\n冒頭、${vt({panels:[{visualType:iv.topVt}]})}から幕を開ける。${iv.desc ? iv.desc + 'が静かに提示され、' : ''}カメラはゆっくりと被写体に近づきながらこの物語の世界観を丁寧に確立する。過剰な説明を排し、最初の一フレームから観客を映像の中に引き込む設計とする。${dVerse ? `\n\nAメロでは${pose({panels:[{pose:dVerse.topPose}]})}人物を${vt({panels:[{visualType:dVerse.topVt}]})}で追う。` : '\n\n展開部では'}感情の機微を丁寧に積み重ね、一つひとつのカットに意味を持たせながら物語を前進させる。${dVerse?.line ? `「${dVerse.line.replace(/[。、]$/,'')}」という歌詞が流れるタイミングに合わせてカットを入れ、音と映像を完全に同期させる。` : 'カット割りは楽曲のビートに呼応させ、音と映像が一体となった体験を目指す。'}\n\n${dChorus ? `サビで映像が一気に解放される。${cv.desc ? cv.desc + 'の中で' : ''}カット割りが加速し、それまで抑制していた感情と映像の両方が爆発する。このMVの核心となる映像美がここで全開になる瞬間こそ、最大の見せ場だ。` : '展開が進むにつれ映像の密度と感情の強度が高まっていく。クライマックスでは、それまでのすべてが一点に収束する。'}${dBridge ? `\n\nブリッジでは一転して静の演出となり、${dBridge.desc || '抑制した映像'}がラストへの重要な布石を打つ。この静寂があるからこそ、フィナーレの感情が最大値に達する。` : ''}\n\n${ov.desc ? ov.desc + 'で幕を閉じる。' : 'エンディングは余白を大切に。'}観た直後より、少し時間が経ってから胸に響いてくるような、余韻を最優先した演出で最後の一フレームを設計する。`;
+    },
+    // 1: 脚本・演出メモ — director's notes
+    () => {
+      const iv = dIntro || dVerse || dFallback;
+      const cv = dChorus || dFallback;
+      return `オープニングは説明を一切排し、感覚だけで引き込むことを最優先とする。${iv.desc ? iv.desc + 'から始め、' : ''}音と映像が最初に出会う一致点を徹底的に設計する。冒頭の10秒でいかに観客の心を掴めるかが、このMVの勝負どころだ。視覚と聴覚が同時に揺さぶられるような、計算された偶然を演出する。\n\nAメロ〜Bメロは感情を意図的に抑制し、観客に想像の余地を残す演出で進める。${dVerse ? pose({panels:[{pose:dVerse.topPose}]}) + 'する人物を、' + vt({panels:[{visualType:dVerse.topVt}]}) + 'でシネマティックに捉える。' : ''}セリフも説明もない。映像と音楽だけが語る空間を作ること。饒舌にならないことが、この映像の強度と品質を生む最大の条件だ。${dVerse?.line ? `「${dVerse.line.replace(/[。、]$/,'')}」の歌詞が流れる瞬間だけは、映像もその言葉に正面から応える絵を作る。` : ''}\n\nサビにこそ全力と予算を注ぐ。${cv.desc ? cv.desc + 'において、' : 'このパートで、'}今まで積み上げてきた感情のすべてを解放する演出とする。カット割りを一気に細かくし、照明もカメラワークもここに最大のエネルギーを集中投下する。${dBridge ? '\n\nブリッジで意図的に息を抜き、ラストサビの爆発力を最大化する設計。ここでの静寂は、決して「休憩」ではなく「準備」だ。' : ''}終わり方は余白を恐れずに。最後の数秒、何も語らない映像が最も多くを語る。その沈黙こそが、このMVの最後のメッセージだ。`;
+    },
+    // 2: 詩的・感情中心
+    () => {
+      const iv = dIntro || dVerse || dFallback;
+      const cv = dChorus || dFallback;
+      return `言葉が生まれるより先に、映像が感情に触れる。${iv.desc ? iv.desc + 'が、' : '最初のフレームが、'}観る者の内側にある名前のつかない何かを静かに揺さぶり始めるところから、このMVは始まる。説明しない。ただ、感じさせる。それがこの映像の唯一のルールだ。\n\n感情は表に出さない。${dVerse ? pose({panels:[{pose:dVerse.topPose}]}) + 'する人物の姿が' + vt({panels:[{visualType:dVerse.topVt}]}) + 'で捉えられ、' : ''}その抑制がかえって、画面の外側にじわじわと感情を溢れ出させる。言葉と映像の間に意図的に作られた「距離」が、詩になっていく。${dVerse?.line ? `「${dVerse.line.replace(/[。、]$/,'')}」──この歌詞が流れる瞬間、映像は最大の力を持つ。歌と絵が共鳴し、観る者の時間が一瞬止まる。` : '歌詞と映像が微妙にずれながらも、深いところで共鳴する設計とする。'}\n\n${cv.desc ? cv.desc + 'で' : 'サビで'}初めて、すべての感情が名前を得る。それまで抑えていたものが一気に解き放たれ、画面が弾ける。涙でも歓喜でも怒りでも構わない──何かが動く、その瞬間のためにこのMV全体が設計されている。${dBridge ? '\n\nブリッジは痛みと優しさが同居する静寂として演出する。すべてを出し切った後にだけ訪れる、あの静けさだ。' : ''}\n\nエンディングは答えを出さない。何かが変わった──その感覚だけを、観た者の胸にそっと残して画面が閉じる。余韻が長ければ長いほど、このMVは成功だ。`;
+    },
+    // 3: 物語展開中心
+    () => {
+      const iv = dIntro || dVerse || dFallback;
+      const cv = dChorus || dFallback;
+      return `物語はここから静かに動き出す。${iv.desc ? iv.desc + 'が最初のシーンとして提示され、' : ''}セリフも説明もなく、観る者は自然と物語の中へと引き込まれる。主人公の置かれた状況、抱えている感情、その重さが、映像だけで伝わる設計とする。\n\nAメロ〜Bメロで伏線が丁寧に積み重なる。${dVerse ? pose({panels:[{pose:dVerse.topPose}]}) + 'する姿が' + vt({panels:[{visualType:dVerse.topVt}]}) + 'で描かれ、' : ''}一見何でもない日常の断片の中に、物語の核心へ続く手がかりが埋め込まれている。${dVerse?.line ? `「${dVerse.line.replace(/[。、]$/,'')}」という歌詞が、この物語のキーワードとして機能する。観客はこの言葉が何を意味するのか、後から気づく。` : '歌詞のひとつひとつが、物語の伏線として機能するよう映像を設計する。'}\n\nサビで物語が頂点に達する。${cv.desc ? cv.desc + 'において、' : ''}それまで散りばめた伏線が一点に収束し、このMVが本当に伝えたかったことの核心が、ようやく明かされる。感情とストーリーが同時に爆発するこの瞬間こそ、最大の見せ場だ。${dBridge ? '\n\nブリッジで物語に不可逆な変化が訪れる。引き返せない選択、あるいは取り返しのつかない喪失──その重さを静かな映像で表現する。' : ''}\n\nエンディングは「終わり」ではなく「次の始まりへの扉」として機能させる。すべてが解決されなくていい。むしろ、問いだけを残して幕を閉じることで、このMVは観た人の中で生き続ける。`;
+    },
+    // 4: 映像コンセプト寄り
+    () => {
+      const iv = dIntro || dVerse || dFallback;
+      const cv = dChorus || dFallback;
+      const toneColor = { bright:'明るく飽和度の高いカラーグレーディング', melancholic:'青みがかった低彩度・低コントラストのトーン', neutral:'ナチュラルで落ち着いたカラーパレット' }[tone];
+      return `映像コンセプト：全編を${toneColor}で統一する。色彩設計そのものがこのMVの「声」であり、楽曲の感情と色温度が常に連動するようカラーグレーディングを設計する。${iv.desc ? iv.desc + 'をオープニングショットとして配置し、' : ''}最初のフレームでこの世界の色とムードを宣言する。\n\nAメロは${vt({panels:[{visualType:(dVerse||dFallback).topVt}]})}を主体に展開。カメラは寄りと引きを意識的に使い分け、${pose({panels:[{pose:(dVerse||dFallback).topPose}]})}人物の内面を映像の構図そのもので語る。${dVerse?.line ? `「${dVerse.line.replace(/[。、]$/,'')}」という歌詞が流れるタイミングに、このMVで最も美しいフレームを配置する。` : '各カットのフレーミングと光の質が、歌詞の意味を補強するよう設計する。'}Bメロでは画角やレンズ特性を意図的に変え、視覚的な変化で物語の深化を表現する。\n\nサビには最大限の演出リソースを集中投下する。${cv.desc ? cv.desc + 'において' : 'このパートで'}視聴者の記憶に永く刻まれる一枚を作ることを最優先とする。照明・カメラワーク・編集リズムのすべてがここで最高値に達する設計だ。${dBridge ? '\n\nブリッジはカラートーンをさらに落とし、次のラストサビへの期待感を高める演出とする。コントラストの落差こそが、フィナーレの爆発力を何倍にも引き上げる。' : ''}\n\nラストカットは長めに保ち、フェードアウトで静かに終わる。曲が終わっても画面が暗くなるまでの数秒間、観客の感情が画面の中に残り続けるような設計で締めくくる。`;
+    },
+  ];
+
+  return approaches[variant]();
+}
+
+function renderScenario(script) {
+  const el = document.getElementById('scenario-text');
+  if (!el) return;
+  el.innerHTML = script.replace(/\n/g, '<br>');
+}
+
+function regenerateScenario() {
+  if (!savedState) return;
+  scenarioSeed = (scenarioSeed + 1) >>> 0;
+  const seed = (savedState.seed || 0) + scenarioSeed * 1013;
+  const analysis = savedState.lyricsAnalysis || analyzeFullLyrics(savedState.lyrics);
+  const script = generateScenario(allPanels, savedState.lyrics, analysis, seed);
+  renderScenario(script);
+}
+
+// ─────────────────────────────────────────
+// Reference video — color/brightness extraction (free, no API)
+// ─────────────────────────────────────────
+async function loadReferenceVideo(file) {
+  const status = document.getElementById('ref-status');
+  if (status) status.textContent = '動画を解析中...';
+  try {
+    const url = URL.createObjectURL(file);
+    const video = document.createElement('video');
+    video.src = url;
+    video.muted = true;
+    video.playsInline = true;
+    video.preload = 'auto';
+    await new Promise((res, rej) => {
+      video.addEventListener('loadedmetadata', res, { once: true });
+      video.addEventListener('error', rej, { once: true });
+    });
+    const dur = video.duration;
+    const samples = 8;
+    const colors = [];
+    let totalBrightness = 0;
+    const canvas = document.createElement('canvas');
+    canvas.width = 160; canvas.height = 90;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    for (let i = 0; i < samples; i++) {
+      const t = dur * (i + 0.5) / samples;
+      video.currentTime = t;
+      await new Promise(res => video.addEventListener('seeked', res, { once: true }));
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+      const { dominant, brightness } = analyzeImageData(data);
+      colors.push(...dominant);
+      totalBrightness += brightness;
+    }
+    URL.revokeObjectURL(url);
+    const finalColors = clusterColors(colors, 5);
+    referenceProfile = {
+      colors: finalColors,
+      brightness: totalBrightness / samples,
+      source: 'video'
+    };
+    renderRefPreview(referenceProfile, file.name);
+    if (status) status.textContent = `✓ ${file.name} を解析（${samples}フレーム）`;
+  } catch (e) {
+    if (status) status.textContent = `エラー: ${e.message}`;
+  }
+}
+
+async function loadReferenceYouTube(url) {
+  const status = document.getElementById('ref-status');
+  if (status) status.textContent = 'YouTubeサムネを解析中...';
+  try {
+    const m = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/))([\w-]{11})/);
+    if (!m) throw new Error('URLが無効です');
+    const id = m[1];
+    const thumbs = [
+      `https://img.youtube.com/vi/${id}/maxresdefault.jpg`,
+      `https://img.youtube.com/vi/${id}/hqdefault.jpg`,
+      `https://img.youtube.com/vi/${id}/mqdefault.jpg`,
+      `https://img.youtube.com/vi/${id}/0.jpg`,
+      `https://img.youtube.com/vi/${id}/1.jpg`,
+      `https://img.youtube.com/vi/${id}/2.jpg`,
+      `https://img.youtube.com/vi/${id}/3.jpg`,
+    ];
+    const colors = [];
+    let totalBrightness = 0;
+    let loadedCount = 0;
+    const canvas = document.createElement('canvas');
+    canvas.width = 320; canvas.height = 180;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    for (const tUrl of thumbs) {
+      try {
+        const img = await new Promise((res, rej) => {
+          const im = new Image();
+          im.crossOrigin = 'anonymous';
+          im.onload = () => res(im);
+          im.onerror = () => rej(new Error('load fail'));
+          im.src = tUrl;
+        });
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+        const { dominant, brightness } = analyzeImageData(data);
+        colors.push(...dominant);
+        totalBrightness += brightness;
+        loadedCount++;
+      } catch (_) { /* skip */ }
+    }
+    if (loadedCount === 0) throw new Error('サムネ取得失敗（CORSの可能性）');
+    const finalColors = clusterColors(colors, 5);
+    referenceProfile = {
+      colors: finalColors,
+      brightness: totalBrightness / loadedCount,
+      source: 'youtube'
+    };
+    renderRefPreview(referenceProfile, `YouTube (${id})`);
+    if (status) status.textContent = `✓ サムネ ${loadedCount}枚を解析`;
+  } catch (e) {
+    if (status) status.textContent = `エラー: ${e.message}`;
+  }
+}
+
+function clearReference() {
+  referenceProfile = null;
+  const status = document.getElementById('ref-status');
+  if (status) status.textContent = '未設定';
+  const preview = document.getElementById('ref-preview');
+  if (preview) preview.innerHTML = '';
+  const fileEl = document.getElementById('ref-video-file');
+  const urlEl = document.getElementById('ref-youtube-url');
+  if (fileEl) fileEl.value = '';
+  if (urlEl) urlEl.value = '';
+}
+
+function renderRefPreview(profile, label) {
+  const el = document.getElementById('ref-preview');
+  if (!el) return;
+  const swatches = profile.colors.map(c =>
+    `<div class="ref-swatch" style="background:${c}" title="${c}"></div>`
+  ).join('');
+  const moodLabel = profile.brightness > 0.55 ? '明るい' : profile.brightness < 0.32 ? '暗い' : '中間';
+  el.innerHTML = `
+    <div class="ref-label">${label}</div>
+    <div class="ref-swatches">${swatches}</div>
+    <div class="ref-mood">トーン: ${moodLabel} (${Math.round(profile.brightness*100)}%)</div>`;
+}
+
+function analyzeImageData(data) {
+  let r=0, g=0, b=0, n=0;
+  const buckets = {};
+  for (let i=0; i < data.length; i+=16) {  // sample every 4th pixel (4 channels x 4 step)
+    const R = data[i], G = data[i+1], B = data[i+2];
+    r += R; g += G; b += B; n++;
+    // Quantize to 32 levels per channel for bucketing
+    const key = `${R>>5},${G>>5},${B>>5}`;
+    buckets[key] = (buckets[key]||0) + 1;
+  }
+  const brightness = (r/n + g/n + b/n) / 3 / 255;
+  // Top 8 buckets → hex colors
+  const top = Object.entries(buckets).sort((a,b)=>b[1]-a[1]).slice(0, 8);
+  const dominant = top.map(([key]) => {
+    const [R,G,B] = key.split(',').map(Number);
+    return rgbToHex(R*8+16, G*8+16, B*8+16);
+  });
+  return { dominant, brightness };
+}
+
+function clusterColors(colors, k) {
+  // Simple frequency-based clustering: keep distinct colors by perceptual distance
+  const out = [];
+  for (const c of colors) {
+    if (out.every(o => colorDist(o, c) > 60)) {
+      out.push(c);
+      if (out.length >= k) break;
+    }
+  }
+  // Fallback to first k if not enough distinct
+  while (out.length < k && out.length < colors.length) {
+    const next = colors[out.length];
+    if (!out.includes(next)) out.push(next);
+    else break;
+  }
+  return out;
+}
+
+function colorDist(a, b) {
+  const ar = parseInt(a.slice(1,3),16), ag = parseInt(a.slice(3,5),16), ab = parseInt(a.slice(5,7),16);
+  const br = parseInt(b.slice(1,3),16), bg = parseInt(b.slice(3,5),16), bb = parseInt(b.slice(5,7),16);
+  return Math.sqrt((ar-br)**2 + (ag-bg)**2 + (ab-bb)**2);
+}
+
+function rgbToHex(r, g, b) {
+  const h = n => Math.max(0, Math.min(255, n|0)).toString(16).padStart(2,'0');
+  return '#' + h(r) + h(g) + h(b);
+}
+
+// ─────────────────────────────────────────
+// Per-panel PNG download
+// ─────────────────────────────────────────
+// ─────────────────────────────────────────
+// Per-panel alternative generation
+// ─────────────────────────────────────────
+async function regeneratePanel(btn) {
+  if (!savedState) return;
+  const panelEl = btn.closest('.sb-panel');
+  const idx = parseInt(panelEl.dataset.panelIdx);
+  if (isNaN(idx)) return;
+
+  btn.disabled = true;
+  btn.textContent = '⏳ 生成中...';
+
+  try {
+    const panel = allPanels[idx];
+    const regenCount = (panel._regenCount || 0) + 1;
+    // Deterministic per-regen seed — guaranteed different on each of 5+ presses
+    const newSeed = (idx * 31337 + regenCount * 9973) >>> 0;
+    const { lyrics, duration, styleKey, lyricsAnalysis } = savedState;
+    const lyricsContext = { seed: newSeed, lyricsAnalysis: lyricsAnalysis || analyzeFullLyrics(lyrics) };
+    const total = allPanels.length;
+
+    let newPanel;
+    const apiKey = document.getElementById('api-key').value.trim();
+
+    if (apiKey && !savedState.scenes) {
+      // API mode: ask Claude for a single alternative scene
+      const scene = panel._scene || { lines: panel.lines, section: panel.section, isIntro: panel.isIntro, isOutro: panel.isOutro };
+      const style = MV_STYLES[styleKey] || MV_STYLES.story;
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true' },
+        body: JSON.stringify({
+          model: 'claude-opus-4-7', max_tokens: 1024,
+          messages: [{ role:'user', content:
+            `プロのMV監督として、以下のカット1枚だけ別バージョン（パターン${regenCount}）を作ってください。前のパターンとは異なる構図・カメラワーク・ビジュアルタイプを選んでください。\n歌詞：${scene.lines.join(' ')}\nスタイル：${style.label}\n\n以下のJSONのみ返してください（説明不要）:\n{"shot":"EWS|WS|MS|2S|CU|ECU","pose":"standing|running|dancing|crying|love|action|crowd|reaching|sitting|lookingup|walking","bg":"city|nature|spotlight|rain|stars|abstract|default","color":"#rrggbb","visualType":"character|silhouette|abstract|macro|environment|object|bokeh|crowd-wide","jaDesc":"映像描写（日本語2文）","prompt":"日本語プロンプト","bgPrompt":"背景+カメラワーク（日本語）"}`
+          }]
+        })
+      });
+      const data = await res.json();
+      const match = data.content[0].text.match(/\{[\s\S]*\}/);
+      if (match) {
+        const s = JSON.parse(match[0]);
+        // Cycle svgVariant through 50 distinct values across regen presses
+        const newSvgVariant = (regenCount * 13) % 50;
+        // Generate English versions from structural fields
+        const enPrompts = buildImagePrompt(s.shot, s.pose, s.bg, styleKey, s.visualType);
+        const enBgPrompts = buildBgPrompt(s.bg, s.shot, s.pose, idx, styleKey, s.visualType);
+        newPanel = { ...panel, ...s, idx, _scene: panel._scene, _svgVariant: newSvgVariant, _regenCount: regenCount,
+                     promptEn: enPrompts.en, bgPromptEn: enBgPrompts.en };
+      } else { throw new Error('JSON parse failed'); }
+    } else {
+      // No-API mode: rebuild with deterministic new seed — different SVG each press
+      const scene = panel._scene || { lines: panel.lines, section: panel.section, isIntro: panel.isIntro, isOutro: panel.isOutro };
+      newPanel = buildPanel(scene, idx, total, duration, styleKey, lyricsContext);
+      newPanel._regenCount = regenCount; // preserve count so next press uses regenCount+1
+    }
+
+    allPanels[idx] = newPanel;
+    const displayNum = idx + 1;
+    const newEl = buildPanelEl(newPanel, displayNum);
+    newEl.style.animation = 'fadeUp .35s ease both';
+    panelEl.replaceWith(newEl);
+  } catch(e) {
+    btn.disabled = false;
+    btn.textContent = '🔄 別パターンを生成';
+    showError('再生成エラー: ' + e.message);
+  }
+}
+
+function downloadPanelPNG(btn) {
+  const panelEl = btn.closest('.sb-panel');
+  const svgEl   = panelEl.querySelector('.panel-art svg');
+  const numEl   = panelEl.querySelector('.panel-num');
+  if (!svgEl) return;
+
+  const svgData = new XMLSerializer().serializeToString(svgEl);
+  const encoded = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+  const img = new Image();
+  img.onload = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 640; canvas.height = 360;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#12122a';
+    ctx.fillRect(0, 0, 640, 360);
+    ctx.drawImage(img, 0, 0, 640, 360);
+    const a = document.createElement('a');
+    a.download = `panel-${(numEl?.textContent||'000').trim()}.png`;
+    a.href = canvas.toDataURL('image/png');
+    a.click();
+  };
+  img.src = encoded;
+}
+
+// ─────────────────────────────────────────
+// Utilities
+// ─────────────────────────────────────────
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function showError(msg) {
+  const el = document.getElementById('error-msg');
+  el.textContent = msg; el.classList.add('visible');
+}
+function hideError() { document.getElementById('error-msg').classList.remove('visible'); }
+
+function printStoryboard() { window.print(); }
+
+function copyPrompts() {
+  const panels = document.querySelectorAll('.panel-prompt');
+  const text = Array.from(panels).map((p,i) => `[カット ${i+1}]\n${p.textContent}`).join('\n\n');
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = event.currentTarget;
+    const orig = btn.textContent;
+    btn.textContent = '✓ コピーしました';
+    setTimeout(() => btn.textContent = orig, 2000);
+  });
+}
+
+function copyBgPrompts() {
+  const panels = document.querySelectorAll('.panel-bg-prompt');
+  const text = Array.from(panels).map((p,i) => `[背景 カット${i+1}]\n${p.textContent}`).join('\n\n');
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = event.currentTarget;
+    const orig = btn.textContent;
+    btn.textContent = '✓ コピーしました';
+    setTimeout(() => btn.textContent = orig, 2000);
+  });
+}
+
+// Print styles
+const printStyle = document.createElement('style');
+printStyle.textContent = `
+@media print {
+  body { background:#fff!important;color:#000!important; }
+  body::before,body::after{display:none}
+  .step-card,header,.gen-btn,#progress-area,.download-bar{display:none!important}
+  .sb-grid{grid-template-columns:repeat(3,1fr)!important;gap:.4rem!important}
+  .sb-panel{break-inside:avoid;border:1px solid #ccc!important;background:#f9f9f9!important}
+  .panel-art{background:#fff!important}
+  .panel-art svg rect{fill:#fff!important}
+  .panel-prompt,.panel-bg-prompt{background:#eee!important;color:#333!important}
+  .panel-section{color:#666!important}
+}`;
+document.head.appendChild(printStyle);
+
+// Init
+initStyleSelector();
+</script>
+</body>
+</html>
