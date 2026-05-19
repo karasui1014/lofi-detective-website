@@ -1904,6 +1904,32 @@ function setProgress(pct, msg) {
 }
 
 // ─────────────────────────────────────────
+// JSON repair: fix common LLM output issues
+// ─────────────────────────────────────────
+function repairJSON(raw) {
+  // 1. Replace unescaped literal newlines inside JSON strings
+  let s = raw.replace(/"(?:[^"\\]|\\.)*"/g, m =>
+    m.replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t')
+  );
+  // 2. Remove trailing commas before ] or }
+  s = s.replace(/,(\s*[}\]])/g, '$1');
+  // 3. If truncated mid-array/object, close open structures
+  const opens = [];
+  let inStr = false, esc = false;
+  for (const c of s) {
+    if (esc) { esc = false; continue; }
+    if (c === '\\' && inStr) { esc = true; continue; }
+    if (c === '"') { inStr = !inStr; continue; }
+    if (inStr) continue;
+    if (c === '{') opens.push('}');
+    else if (c === '[') opens.push(']');
+    else if (c === '}' || c === ']') opens.pop();
+  }
+  s += opens.reverse().join('');
+  return s;
+}
+
+// ─────────────────────────────────────────
 // Claude API analysis
 // ─────────────────────────────────────────
 async function analyzeWithClaude(apiKey, lyrics, genre, artist, panelCount, duration, styleKey, seed) {
@@ -1974,7 +2000,7 @@ ${lyrics}
     },
     body: JSON.stringify({
       model: 'claude-opus-4-7',
-      max_tokens: 8192,
+      max_tokens: 16000,
       messages: [{ role: 'user', content: prompt }]
     })
   });
@@ -1988,7 +2014,7 @@ ${lyrics}
   const text = data.content[0].text;
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) throw new Error('AIレスポンスのJSON解析に失敗しました');
-  const parsed = JSON.parse(jsonMatch[0]);
+  const parsed = JSON.parse(repairJSON(jsonMatch[0]));
 
   return parsed.scenes.map((s, i) => {
     const vt = getVisualType(i, styleKey, false, s.section?.includes('INTRO'), s.section?.includes('OUTRO'));
@@ -2757,7 +2783,7 @@ async function regeneratePanel(btn) {
       const data = await res.json();
       const match = data.content[0].text.match(/\{[\s\S]*\}/);
       if (match) {
-        const s = JSON.parse(match[0]);
+        const s = JSON.parse(repairJSON(match[0]));
         // Cycle svgVariant through 50 distinct values across regen presses
         const newSvgVariant = (regenCount * 13) % 50;
         // Generate English versions from structural fields
