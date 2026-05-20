@@ -2025,7 +2025,7 @@ function buildPanelEl(p, displayNum) {
         <input type="checkbox" class="panel-check" style="width:1rem;height:1rem;accent-color:var(--accent2);cursor:pointer;"> 完了チェック
       </label>
       <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
-        <button class="regen-btn" onclick="regeneratePanel(this)">🔄 別パターンを生成</button>
+        <button class="regen-btn" onclick="regeneratePanel(this)" title="押すたびに10種類の異なる演出パターンに切り替わります">🔄 別パターンを生成 ${p._regenCount ? `(${((p._regenCount-1)%10)+1}/10: ${(REGEN_PATTERNS[(p._regenCount-1)%10]||{label:''}).label})` : ''}</button>
       </div>
     </div>`;
   return el;
@@ -2688,6 +2688,51 @@ function rgbToHex(r, g, b) {
 
 // Per-panel alternative generation
 // ─────────────────────────────────────────
+// 10 cinematically distinct regeneration pattern templates.
+// Each template defines a unique lens/approach to interpret the scene.
+const REGEN_PATTERNS = [
+  // 0: 感情クローズアップ — キャラクターの表情・感情をECU/CUで正面から捉える
+  { shot: 'ECU', pose: 'crying',    visualType: 'character',   bg: 'spotlight', colorHint: '#7aa8ff',
+    label: '感情クローズアップ',
+    descFn: (lines) => `【感情表現・接写】「${lines.join(' / ')}」— キャラクターの表情を超接写で捉えた感情演出。光と影が感情を増幅する。` },
+  // 1: 超広角・世界観提示 — EWSで空間全体を見渡し、物語世界を一枚絵で表現
+  { shot: 'EWS', pose: 'lookingup', visualType: 'environment', bg: 'stars',     colorHint: '#aaddff',
+    label: '超広角・世界観',
+    descFn: (lines) => `【世界観・空間演出】「${lines.join(' / ')}」— 壮大な空間に人物を配した超広角ショット。夜空が物語の舞台を彩る。` },
+  // 2: シルエット・逆光演出 — バックライトで人物をシルエットとして詩的に描く
+  { shot: 'WS',  pose: 'reaching',  visualType: 'silhouette',  bg: 'spotlight', colorHint: '#ff9866',
+    label: 'シルエット逆光',
+    descFn: (lines) => `【逆光シルエット】「${lines.join(' / ')}」— 強い逆光で浮かび上がるシルエット。言葉を超えた詩的な映像表現。` },
+  // 3: アクション・動的エネルギー — 力強い動きとエネルギーをダイナミックに
+  { shot: 'MS',  pose: 'action',    visualType: 'character',   bg: 'city',      colorHint: '#ffb87a',
+    label: 'アクション・エネルギー',
+    descFn: (lines) => `【動き・エネルギー】「${lines.join(' / ')}」— 都市を背景にしたダイナミックなアクションショット。感情が身体の動きとなって爆発する。` },
+  // 4: 抽象・詩的映像 — 歌詞の感情を具象から解き放ち抽象的なビジュアルで表現
+  { shot: 'CU',  pose: 'sitting',   visualType: 'abstract',    bg: 'abstract',  colorHint: '#c0aaff',
+    label: '抽象・詩的映像',
+    descFn: (lines) => `【詩的抽象映像】「${lines.join(' / ')}」— 感情を光と形に変換した抽象的映像。歌詞の本質を視覚として結晶化。` },
+  // 5: 群衆・群像劇 — 個人ではなく集合体・社会的広がりを示す
+  { shot: 'EWS', pose: 'crowd',     visualType: 'crowd-wide',  bg: 'city',      colorHint: '#aaffdd',
+    label: '群衆・群像劇',
+    descFn: (lines) => `【群像・集合シーン】「${lines.join(' / ')}」— 個を超えた群衆の物語。この歌詞が描く感情は一人だけのものではない。` },
+  // 6: 二人・関係性・対話 — 2Sで人と人の繋がり・相互作用を描く
+  { shot: '2S',  pose: 'love',      visualType: 'character',   bg: 'nature',    colorHint: '#ffaacc',
+    label: '二人・関係性',
+    descFn: (lines) => `【関係性・対話シーン】「${lines.join(' / ')}」— 自然の中で向き合う二人。言葉と言葉の間に宿る感情の交差。` },
+  // 7: マクロ・細部・質感 — 小道具や素材の細部に物語を宿す
+  { shot: 'ECU', pose: 'sitting',   visualType: 'macro',       bg: 'abstract',  colorHint: '#88aaff',
+    label: 'マクロ・細部',
+    descFn: (lines) => `【細部・質感マクロ】「${lines.join(' / ')}」— 歌詞が暗示するモチーフを超マクロで撮影。小さな世界に大きな物語を封じ込める。` },
+  // 8: 夜景・雨・ドラマ — 雨夜の環境ショットで叙情的なムードを構築
+  { shot: 'WS',  pose: 'walking',   visualType: 'environment', bg: 'rain',      colorHint: '#7aa8ff',
+    label: '夜景・雨・ドラマ',
+    descFn: (lines) => `【夜景・雨のドラマ】「${lines.join(' / ')}」— 雨に濡れた夜の街。環境そのものが感情の言語として語りかける叙情的ショット。` },
+  // 9: 光のボケ・叙情的 — 光のボケと柔らかな奥行きで包み込む表現
+  { shot: 'MS',  pose: 'reaching',  visualType: 'bokeh',       bg: 'stars',     colorHint: '#fff8aa',
+    label: '光のボケ・叙情',
+    descFn: (lines) => `【光のボケ・叙情映像】「${lines.join(' / ')}」— 星空のボケ光に包まれた叙情的フレーム。焦点の外に広がる感情の余白。` },
+];
+
 async function regeneratePanel(btn) {
   if (!savedState) return;
   const panelEl = btn.closest('.sb-panel');
@@ -2700,14 +2745,36 @@ async function regeneratePanel(btn) {
   try {
     const panel = allPanels[idx];
     const regenCount = (panel._regenCount || 0) + 1;
-    // Deterministic per-regen seed — guaranteed different on each of 5+ presses
+
+    // Cycle through 10 distinct pattern templates
+    const patternIdx = (regenCount - 1) % REGEN_PATTERNS.length;
+    const pattern = REGEN_PATTERNS[patternIdx];
+
     const newSeed = (idx * 31337 + regenCount * 9973) >>> 0;
     const { lyrics, duration, styleKey, lyricsAnalysis } = savedState;
     const lyricsContext = { seed: newSeed, lyricsAnalysis: lyricsAnalysis || analyzeFullLyrics(lyrics) };
     const total = allPanels.length;
 
     const scene = panel._scene || { lines: panel.lines, section: panel.section, isIntro: panel.isIntro, isOutro: panel.isOutro };
+
+    // Build base panel then apply pattern overrides for guaranteed distinctness
     const newPanel = buildPanel(scene, idx, total, duration, styleKey, lyricsContext);
+
+    newPanel.shot       = pattern.shot;
+    newPanel.pose       = pattern.pose;
+    newPanel.visualType = pattern.visualType;
+    newPanel.bg         = pattern.bg;
+    if (pattern.colorHint) newPanel.color = pattern.colorHint;
+    // jaDesc: framed through the pattern lens, using actual lyric lines
+    newPanel.jaDesc = pattern.descFn(scene.lines);
+
+    // Rebuild image prompts with the overridden shot/pose/bg/visualType
+    const promptObj    = buildImagePrompt(newPanel.shot, newPanel.pose, newPanel.bg, styleKey, newPanel.visualType);
+    const bgPromptObj  = buildBgPrompt(newPanel.bg, newPanel.shot, newPanel.pose, idx, styleKey, newPanel.visualType);
+    newPanel.prompt    = promptObj.ja;
+    newPanel.promptEn  = promptObj.en;
+    newPanel.bgPrompt  = bgPromptObj.ja;
+    newPanel.bgPromptEn = bgPromptObj.en;
     newPanel._regenCount = regenCount;
 
     allPanels[idx] = newPanel;
