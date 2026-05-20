@@ -520,35 +520,6 @@ label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;
         <input type="number" id="panel-count" value="12" min="8" max="400">
         <p class="hint-text">5分の曲 ≈ 150カット（約2秒/カット）</p>
       </div>
-      <div>
-        <label>Claude API Key <span style="color:var(--accent3);font-size:.62rem;">（絵コンテAI生成）</span></label>
-        <input type="password" id="api-key" placeholder="sk-ant-api03-...">
-        <p class="api-hint">
-          入力するとClaude AIが歌詞を精読しプロ監督レベルで生成。未入力でもキーワード分析で動作します。キーはブラウザ外に送信されません。
-          <a href="https://console.anthropic.com/" target="_blank">→ 取得</a>
-        </p>
-      </div>
-      <div>
-        <label>画像生成API Key <span style="color:var(--accent3);font-size:.62rem;">（各パネルにAI画像を挿入）</span></label>
-        <div style="display:flex;gap:.5rem;margin-bottom:.4rem;">
-          <select id="img-api-service" style="flex:0 0 auto;padding:.35rem .55rem;background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:.45rem;font-size:.78rem;">
-            <option value="dalle">DALL-E 3 (OpenAI)</option>
-            <option value="stability">Stable Diffusion (Stability AI)</option>
-            <option value="runway">Runway Gen-3 Image</option>
-            <option value="imagen">Imagen 3 (Google AI Studio)</option>
-            <option value="replicate">Replicate（アニメ系）</option>
-          </select>
-          <input type="password" id="img-api-key" placeholder="APIキーを入力..." style="flex:1;">
-        </div>
-        <p class="api-hint">各パネルの「🎨 AI画像」ボタンでAI画像を生成・挿入できます。キーはブラウザ外に送信されません。<br>
-          <a href="https://platform.openai.com/api-keys" target="_blank">→ OpenAI</a> &nbsp;
-          <a href="https://platform.stability.ai/account/keys" target="_blank">→ Stability AI</a> &nbsp;
-          <a href="https://app.runwayml.com/account/api-keys" target="_blank">→ Runway</a> &nbsp;
-          <a href="https://aistudio.google.com/apikey" target="_blank">→ Google AI Studio</a> &nbsp;
-          <a href="https://replicate.com/account/api-tokens" target="_blank">→ Replicate</a>
-        </p>
-        <p class="api-hint" style="margin-top:.2rem;color:rgba(251,191,36,.7);">※ Nijijourney は公式APIなし。アニメ系画像は Replicate をご利用ください。</p>
-      </div>
     </div>
 
   </div><!-- /input-grid -->
@@ -2020,117 +1991,6 @@ function repairJSON(raw) {
 }
 
 // ─────────────────────────────────────────
-// Claude API analysis
-// ─────────────────────────────────────────
-async function analyzeWithClaude(apiKey, lyrics, genre, artist, panelCount, duration, styleKey, seed) {
-  const style = MV_STYLES[styleKey] || MV_STYLES.story;
-  const audioInfo = audioFeatures
-    ? `- 音楽分析: ${audioAnalyzer.featuresDescription(audioFeatures)}`
-    : '';
-  const lyricsAnalysis = analyzeFullLyrics(lyrics);
-  const toneJa = { bright:'明るく前向き', melancholic:'切なく内省的', neutral:'バランス型' }[lyricsAnalysis.tone];
-  const energyJa = { high:'高エネルギー', mid:'中程度のエネルギー', low:'静かなエネルギー' }[lyricsAnalysis.energy];
-  const dominantPoses = lyricsAnalysis.ranked.slice(0,3).join('・') || '（特になし）';
-  const variationHint = seed != null
-    ? `\n【バリエーション指示】今回の生成シード: ${seed}。過去の生成と異なる構図・カメラワーク・色彩を意識し、同じMVスタイル・同じ歌詞でも別バージョンに仕上げてください。`
-    : '';
-
-  const prompt = `あなたはキャリア20年のプロのMV監督です。歌詞全文を精読してから、${panelCount}カット分の絵コンテを作成してください。
-
-【楽曲情報】
-- アーティスト: ${artist||'不明'}
-- ユーザー特別要望: ${genre||'なし（自由に演出してください）'}
-- MVスタイル: ${style.label}（${style.hint}）
-- 曲の長さ: ${formatTime(duration)}（目安: 1カット約${(duration/panelCount).toFixed(1)}秒）
-${audioInfo}
-
-【歌詞全体の解析（参考）】
-- 全体のトーン: ${toneJa}
-- エネルギー感: ${energyJa}
-- 頻出感情/動作: ${dominantPoses}
-
-【重要な制作方針】
-1. 必ず歌詞全文を先に読み、楽曲の物語構造・主人公の感情変化・キーモチーフを把握すること
-2. 各カットの jaDesc には「なぜこの歌詞のこの部分でこの絵を選んだのか」を反映させること
-3. 前奏（INTRO）を冒頭${Math.round(panelCount*0.08)}カット、アウトロ（OUTRO）を最後${Math.round(panelCount*0.04)}カットに必ず含める
-4. 登場人物が連続しすぎないよう、抽象カット・風景カット・小物カット・シルエットを意図的に挟む（人物カットは全体の50〜60%程度）
-5. カメラワーク・ショットサイズは全カット意識して変化させる（同じショットを3連続させない）
-6. visualType は character / silhouette / abstract / macro / environment / object / bokeh / crowd-wide から選ぶ
-7. bgPrompt には背景の詳細な撮影プロンプトを書く
-8. 【重要】JSONの文字列値の中に改行文字・タブを絶対に入れないこと。jaDesc・prompt・bgPromptは1行で収めること
-${variationHint}
-
-【歌詞】
-${lyrics}
-
-以下のJSON形式のみで返してください（説明文不要）:
-{
-  "scenes": [
-    {
-      "lines": ["歌詞行1","歌詞行2"],
-      "section": "INTRO / Verse 1 / Chorus など",
-      "pose": "standing|running|dancing|crying|love|action|crowd|reaching|sitting|lookingup|walking のいずれか",
-      "shot": "EWS|WS|MS|2S|CU|ECU のいずれか",
-      "bg": "city|nature|spotlight|rain|stars|abstract|default のいずれか",
-      "color": "#rrggbb",
-      "visualType": "character|silhouette|abstract|macro|environment|object|bokeh|crowd-wide のいずれか",
-      "jaDesc": "映像描写（日本語1〜2文・改行なし・80文字以内）",
-      "prompt": "画像生成プロンプト（日本語・改行なし・60文字以内）",
-      "bgPrompt": "背景プロンプト（日本語・改行なし・60文字以内）"
-    }
-  ]
-}`;
-
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true'
-    },
-    body: JSON.stringify({
-      model: 'claude-opus-4-7',
-      max_tokens: 16000,
-      messages: [{ role: 'user', content: prompt }]
-    })
-  });
-
-  if (!res.ok) {
-    const err = await res.json().catch(()=>({}));
-    throw new Error(err.error?.message || `API error: ${res.status}`);
-  }
-
-  const data = await res.json();
-  const text = data.content[0].text;
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error('AIレスポンスのJSON解析に失敗しました');
-  const parsed = JSON.parse(repairJSON(jsonMatch[0]));
-
-  return parsed.scenes.map((s, i) => {
-    const vt = getVisualType(i, styleKey, false, s.section?.includes('INTRO'), s.section?.includes('OUTRO'));
-    const shot = s.shot || 'MS';
-    const pose = s.pose || 'standing';
-    const bg = s.bg || 'default';
-    const visualType = s.visualType || vt;
-    const enPrompts = buildImagePrompt(shot, pose, bg, styleKey, visualType);
-    const enBgPrompts = buildBgPrompt(bg, shot, pose, i, styleKey, visualType);
-    const bgPromptVal = s.bgPrompt || enBgPrompts.ja;
-    return {
-      ...s,
-      idx: i,
-      time: (duration / parsed.scenes.length) * i,
-      color: s.color || styleColor(styleKey, i),
-      visualType,
-      styleKey,
-      bgPrompt: bgPromptVal,
-      promptEn: enPrompts.en,
-      bgPromptEn: enBgPrompts.en,
-      _svgVariant: i * 7 + 3,
-      _regenCount: 0
-    };
-  });
-}
 
 // ─────────────────────────────────────────
 // Build panel DOM element
@@ -2166,7 +2026,6 @@ function buildPanelEl(p, displayNum) {
       </label>
       <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
         <button class="regen-btn" onclick="regeneratePanel(this)">🔄 別パターンを生成</button>
-        <button class="img-gen-btn" onclick="generatePanelImage(this)">🎨 AI画像</button>
       </div>
     </div>`;
   return el;
@@ -2236,14 +2095,13 @@ function updateContinueBtn() {
 async function generate() {
   hideError();
   const lyrics     = document.getElementById('lyrics-input').value.trim();
-  const apiKey     = document.getElementById('api-key').value.trim();
   const genre      = document.getElementById('genre-input').value.trim();
   const artist     = document.getElementById('artist-input').value.trim();
   const panelCount = Math.min(400, Math.max(8, parseInt(document.getElementById('panel-count').value)||12));
 
   if (!lyrics) { showError('歌詞を入力してください。'); return; }
 
-  userRequest = genre; // プロンプト要望をグローバルに保存
+  userRequest = genre;
   const duration = audioDuration || 300;
 
   document.getElementById('gen-btn').disabled = true;
@@ -2251,30 +2109,20 @@ async function generate() {
   document.getElementById('storyboard-area').classList.remove('visible');
   document.getElementById('download-bar').classList.remove('visible');
 
-  // Bump seed each click — produces different prompts for the same input
   genSeed = (genSeed + 1 + Math.floor(Math.random() * 9999)) >>> 0;
 
   try {
     let panels;
-    if (apiKey) {
-      setProgress(10, 'Claude AI に接続中...');
-      await delay(200);
-      setProgress(25, `${MV_STYLES[selectedStyle]?.label||''}スタイルで歌詞を分析中...`);
-      panels = await analyzeWithClaude(apiKey, lyrics, genre, artist, panelCount, duration, selectedStyle, genSeed);
-      setProgress(80, '絵コンテを構築中...');
-      savedState = { lyrics, genre, artist, duration, styleKey: selectedStyle, scenes: null, seed: genSeed, panelCount };
-    } else {
-      setProgress(15, '歌詞全体を解析中...');
-      await delay(300);
-      const lyricsAnalysis = analyzeFullLyrics(lyrics);
-      const lyricsContext = { seed: genSeed, lyricsAnalysis };
-      const scenes = parseLyrics(lyrics, panelCount, duration, selectedStyle);
-      setProgress(55, `${MV_STYLES[selectedStyle]?.label||''}スタイルでシーンを構築中...`);
-      await delay(200);
-      panels = scenes.map((s, i) => buildPanel(s, i, scenes.length, duration, selectedStyle, lyricsContext));
-      diversifyPanels(panels, selectedStyle);
-      savedState = { lyrics, genre, artist, duration, styleKey: selectedStyle, scenes, seed: genSeed, lyricsAnalysis, panelCount };
-    }
+    setProgress(15, '歌詞全体を解析中...');
+    await delay(300);
+    const lyricsAnalysis = analyzeFullLyrics(lyrics);
+    const lyricsContext = { seed: genSeed, lyricsAnalysis };
+    const scenes = parseLyrics(lyrics, panelCount, duration, selectedStyle);
+    setProgress(55, `${MV_STYLES[selectedStyle]?.label||''}スタイルでシーンを構築中...`);
+    await delay(200);
+    panels = scenes.map((s, i) => buildPanel(s, i, scenes.length, duration, selectedStyle, lyricsContext));
+    diversifyPanels(panels, selectedStyle);
+    savedState = { lyrics, genre, artist, duration, styleKey: selectedStyle, scenes, seed: genSeed, lyricsAnalysis, panelCount };
     // Feature 4: If stampMarks exist, remap panel times using stamp boundaries
     if (stampMarks.length > 1) {
       const marks = [0, ...stampMarks, duration].sort((a,b) => a-b);
@@ -2325,20 +2173,10 @@ async function continueGenerate() {
       // Diversify across boundary with previous panels
       diversifyPanels([...allPanels, ...newPanels], styleKey);
     } else {
-      // API mode: generate 6 standalone atmospheric panels continuing the mood
-      const apiKey = document.getElementById('api-key').value.trim();
-      if (apiKey) {
-        const extra = await analyzeWithClaude(apiKey, lyrics, genre, artist, BATCH, duration, styleKey, lyricsContext.seed);
-        newPanels = extra.map((p, i) => ({
-          ...p, idx: offset + i, time: duration / (offset + BATCH) * (offset + i)
-        }));
-      } else {
-        // Fallback: build extra panels from lyrics offset
-        const extScenes = parseLyrics(lyrics, offset + BATCH, duration, styleKey);
-        const batch = extScenes.slice(offset, offset + BATCH);
-        newPanels = batch.map((s, i) => buildPanel(s, offset + i, offset + BATCH, duration, styleKey, lyricsContext));
-        diversifyPanels([...allPanels, ...newPanels], styleKey);
-      }
+      const extScenes = parseLyrics(lyrics, offset + BATCH, duration, styleKey);
+      const batch = extScenes.slice(offset, offset + BATCH);
+      newPanels = batch.map((s, i) => buildPanel(s, offset + i, offset + BATCH, duration, styleKey, lyricsContext));
+      diversifyPanels([...allPanels, ...newPanels], styleKey);
     }
 
     allPanels = allPanels.concat(newPanels);
@@ -2847,174 +2685,6 @@ function rgbToHex(r, g, b) {
 // ─────────────────────────────────────────
 // Per-panel PNG download
 // ─────────────────────────────────────────
-// ─────────────────────────────────────────
-// ─────────────────────────────────────────
-// AI image generation per panel
-// ─────────────────────────────────────────
-async function generatePanelImage(btn) {
-  const service = document.getElementById('img-api-service')?.value || 'dalle';
-  const apiKey  = document.getElementById('img-api-key')?.value?.trim();
-  if (!apiKey) { alert('画像生成APIキーを入力してください（設定欄）'); return; }
-
-  const panelEl = btn.closest('.sb-panel');
-  const idx     = parseInt(panelEl.dataset.panelIdx);
-  const panel   = allPanels[idx];
-  if (!panel) return;
-
-  // Build a rich English prompt from panel data
-  const prompt = [panel.promptEn, panel.bgPromptEn].filter(Boolean).join(', ') || panel.prompt || '';
-
-  btn.disabled = true;
-  const origLabel = btn.textContent;
-  btn.textContent = '⏳ 生成中...';
-
-  try {
-    let b64;
-    if (service === 'dalle')           b64 = await callDallE3(prompt, apiKey);
-    else if (service === 'stability')  b64 = await callStabilityAI(prompt, apiKey);
-    else if (service === 'runway')     b64 = await callRunwayAI(prompt, apiKey);
-    else if (service === 'imagen')     b64 = await callImagenGoogle(prompt, apiKey);
-    else if (service === 'replicate')  b64 = await callReplicateAnime(prompt, apiKey);
-    else throw new Error('未対応のサービス: ' + service);
-
-    const artDiv = panelEl.querySelector('.panel-art');
-    const dlBtn  = artDiv.querySelector('.panel-dl-btn');
-    const img    = document.createElement('img');
-    img.src      = 'data:image/png;base64,' + b64;
-    img.className = 'panel-ai-img';
-    img.alt = 'AI generated panel';
-    artDiv.innerHTML = '';
-    artDiv.appendChild(img);
-    if (dlBtn) artDiv.appendChild(dlBtn);
-
-    btn.textContent = '🔄 再生成';
-    btn.disabled = false;
-  } catch(e) {
-    btn.textContent = origLabel;
-    btn.disabled = false;
-    showError('画像生成エラー: ' + e.message);
-  }
-}
-
-async function callDallE3(prompt, apiKey) {
-  const res = await fetch('https://api.openai.com/v1/images/generations', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
-    body: JSON.stringify({ model: 'dall-e-3', prompt, n: 1, size: '1024x1024', response_format: 'b64_json' })
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(()=>({}));
-    throw new Error(err.error?.message || 'DALL-E 3 error: ' + res.status);
-  }
-  const data = await res.json();
-  return data.data[0].b64_json;
-}
-
-async function callStabilityAI(prompt, apiKey) {
-  const res = await fetch('https://api.stability.ai/v1/generation/stable-diffusion-xl-1024-v1-0/text-to-image', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ' + apiKey,
-      'Accept': 'application/json'
-    },
-    body: JSON.stringify({
-      text_prompts: [{ text: prompt, weight: 1 }, { text: 'blurry, bad quality, deformed', weight: -1 }],
-      cfg_scale: 7, height: 1024, width: 1024, steps: 30, samples: 1
-    })
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(()=>({}));
-    throw new Error(err.message || 'Stability AI error: ' + res.status);
-  }
-  const data = await res.json();
-  return data.artifacts[0].base64;
-}
-
-async function callRunwayAI(prompt, apiKey) {
-  // Create task
-  const createRes = await fetch('https://api.runwayml.com/v1/text_to_image', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ' + apiKey,
-      'X-Runway-Version': '2024-11-06'
-    },
-    body: JSON.stringify({ promptText: prompt, model: 'gen3a_turbo', width: 1280, height: 720 })
-  });
-  if (!createRes.ok) {
-    const err = await createRes.json().catch(()=>({}));
-    throw new Error(err.message || 'Runway error: ' + createRes.status);
-  }
-  const { id: taskId } = await createRes.json();
-  // Poll up to 90s
-  for (let i = 0; i < 30; i++) {
-    await new Promise(r => setTimeout(r, 3000));
-    const statusRes = await fetch(`https://api.runwayml.com/v1/tasks/${taskId}`, {
-      headers: { 'Authorization': 'Bearer ' + apiKey, 'X-Runway-Version': '2024-11-06' }
-    });
-    const status = await statusRes.json();
-    if (status.status === 'SUCCEEDED') {
-      const imgRes = await fetch(status.output[0]);
-      const blob = await imgRes.blob();
-      return await new Promise(resolve => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result.split(',')[1]);
-        reader.readAsDataURL(blob);
-      });
-    }
-    if (status.status === 'FAILED') throw new Error('Runway task failed: ' + (status.failure || ''));
-  }
-  throw new Error('Runway timeout (90s)');
-}
-
-async function callImagenGoogle(prompt, apiKey) {
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ instances: [{ prompt }], parameters: { sampleCount: 1 } })
-    }
-  );
-  if (!res.ok) {
-    const err = await res.json().catch(()=>({}));
-    throw new Error(err.error?.message || 'Imagen error: ' + res.status);
-  }
-  const data = await res.json();
-  return data.predictions[0].bytesBase64Encoded;
-}
-
-async function callReplicateAnime(prompt, apiKey) {
-  // Use Anything V5 (anime-style) via Replicate
-  const createRes = await fetch('https://api.replicate.com/v1/models/cjwbw/anything-v5/predictions', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': 'Token ' + apiKey },
-    body: JSON.stringify({ input: { prompt: prompt + ', anime style, high quality', negative_prompt: 'blurry, bad quality', width: 768, height: 512, num_inference_steps: 30 } })
-  });
-  if (!createRes.ok) {
-    const err = await createRes.json().catch(()=>({}));
-    throw new Error(err.detail || 'Replicate error: ' + createRes.status);
-  }
-  const { id: predId, urls } = await createRes.json();
-  const pollUrl = urls?.get || `https://api.replicate.com/v1/predictions/${predId}`;
-  for (let i = 0; i < 30; i++) {
-    await new Promise(r => setTimeout(r, 3000));
-    const statusRes = await fetch(pollUrl, { headers: { 'Authorization': 'Token ' + apiKey } });
-    const status = await statusRes.json();
-    if (status.status === 'succeeded') {
-      const imgRes = await fetch(status.output[0]);
-      const blob = await imgRes.blob();
-      return await new Promise(resolve => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result.split(',')[1]);
-        reader.readAsDataURL(blob);
-      });
-    }
-    if (status.status === 'failed') throw new Error('Replicate task failed');
-  }
-  throw new Error('Replicate timeout (90s)');
-}
 
 // Per-panel alternative generation
 // ─────────────────────────────────────────
@@ -3036,41 +2706,9 @@ async function regeneratePanel(btn) {
     const lyricsContext = { seed: newSeed, lyricsAnalysis: lyricsAnalysis || analyzeFullLyrics(lyrics) };
     const total = allPanels.length;
 
-    let newPanel;
-    const apiKey = document.getElementById('api-key').value.trim();
-
-    if (apiKey && !savedState.scenes) {
-      // API mode: ask Claude for a single alternative scene
-      const scene = panel._scene || { lines: panel.lines, section: panel.section, isIntro: panel.isIntro, isOutro: panel.isOutro };
-      const style = MV_STYLES[styleKey] || MV_STYLES.story;
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true' },
-        body: JSON.stringify({
-          model: 'claude-opus-4-7', max_tokens: 1024,
-          messages: [{ role:'user', content:
-            `プロのMV監督として、以下のカット1枚だけ別バージョン（パターン${regenCount}）を作ってください。前のパターンとは異なる構図・カメラワーク・ビジュアルタイプを選んでください。\n歌詞：${scene.lines.join(' ')}\nスタイル：${style.label}\n\n以下のJSONのみ返してください（説明不要）:\n{"shot":"EWS|WS|MS|2S|CU|ECU","pose":"standing|running|dancing|crying|love|action|crowd|reaching|sitting|lookingup|walking","bg":"city|nature|spotlight|rain|stars|abstract|default","color":"#rrggbb","visualType":"character|silhouette|abstract|macro|environment|object|bokeh|crowd-wide","jaDesc":"映像描写（日本語2文）","prompt":"日本語プロンプト","bgPrompt":"背景+カメラワーク（日本語）"}`
-          }]
-        })
-      });
-      const data = await res.json();
-      const match = data.content[0].text.match(/\{[\s\S]*\}/);
-      if (match) {
-        const s = JSON.parse(repairJSON(match[0]));
-        // Cycle svgVariant through 50 distinct values across regen presses
-        const newSvgVariant = (regenCount * 13) % 50;
-        // Generate English versions from structural fields
-        const enPrompts = buildImagePrompt(s.shot, s.pose, s.bg, styleKey, s.visualType);
-        const enBgPrompts = buildBgPrompt(s.bg, s.shot, s.pose, idx, styleKey, s.visualType);
-        newPanel = { ...panel, ...s, idx, _scene: panel._scene, _svgVariant: newSvgVariant, _regenCount: regenCount,
-                     promptEn: enPrompts.en, bgPromptEn: enBgPrompts.en };
-      } else { throw new Error('JSON parse failed'); }
-    } else {
-      // No-API mode: rebuild with deterministic new seed — different SVG each press
-      const scene = panel._scene || { lines: panel.lines, section: panel.section, isIntro: panel.isIntro, isOutro: panel.isOutro };
-      newPanel = buildPanel(scene, idx, total, duration, styleKey, lyricsContext);
-      newPanel._regenCount = regenCount; // preserve count so next press uses regenCount+1
-    }
+    const scene = panel._scene || { lines: panel.lines, section: panel.section, isIntro: panel.isIntro, isOutro: panel.isOutro };
+    const newPanel = buildPanel(scene, idx, total, duration, styleKey, lyricsContext);
+    newPanel._regenCount = regenCount;
 
     allPanels[idx] = newPanel;
     const displayNum = idx + 1;
