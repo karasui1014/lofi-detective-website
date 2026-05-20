@@ -1466,7 +1466,7 @@ const LIVE_CAM_POOL    = [7,8,9,10,11,13,15,17,5,6];
 // Bizarre: vertiginous/surreal moves
 const BIZARRE_CAM_POOL = [13,10,14,15,12,8,1,2,5,7];
 
-function buildBgPrompt(bg, shot, pose, idx, styleKey, visualType) {
+function buildBgPrompt(bg, shot, pose, idx, styleKey, visualType, userReqHints) {
   const style = MV_STYLES[styleKey] || MV_STYLES.story;
   const bgDesc = BG_DETAILS[bg] || BG_DETAILS.default;
   let camIdx;
@@ -1517,9 +1517,57 @@ function buildBgPrompt(bg, shot, pose, idx, styleKey, visualType) {
     liveshow:'live concert MV with real stage lighting and crowd energy',
     bizarre:'bizarre surreal art MV with Dali/Magritte feel'
   }[styleKey] || 'cinematic MV';
-  const ja = `【ショット】${shotFull}　【背景】${bgDesc}　【カメラワーク】${camData.label}（${camData.prompt}）　【ビジュアル指示】${vtNote}シネマティックなカラーグレード、フィルムグレイン、プロ仕様のMV照明、${styleHint}`;
-  const en = `[shot] ${shotFullEn}　[background] ${bgDescEn}　[camera] ${camData.prompt}　[visual] ${vtNoteEn}cinematic color grade, film grain, pro MV lighting, ${styleHintEn}`;
+  const reqJa = userReqHints?.extraJa ? `　【要望】${userReqHints.extraJa}` : '';
+  const reqEn = userReqHints?.extraEn ? `, [user request] ${userReqHints.extraEn}` : '';
+  const ja = `【ショット】${shotFull}　【背景】${bgDesc}　【カメラワーク】${camData.label}（${camData.prompt}）　【ビジュアル指示】${vtNote}シネマティックなカラーグレード、フィルムグレイン、プロ仕様のMV照明、${styleHint}${reqJa}`;
+  const en = `[shot] ${shotFullEn}　[background] ${bgDescEn}　[camera] ${camData.prompt}　[visual] ${vtNoteEn}cinematic color grade, film grain, pro MV lighting, ${styleHintEn}${reqEn}`;
   return { ja, en };
+}
+
+// ─────────────────────────────────────────
+// User request parser — プロンプト要望欄の解析
+// ─────────────────────────────────────────
+function parseUserRequest(text) {
+  if (!text || !text.trim()) return null;
+  const t = text;
+  const hints = { raw: t };
+
+  // visualType overrides
+  if (/逆光|シルエット|silhouette/i.test(t))             hints.visualType = 'silhouette';
+  else if (/マクロ|macro|接写/i.test(t))                  hints.visualType = 'macro';
+  else if (/群衆|大勢|crowd/i.test(t))                    hints.visualType = 'crowd-wide';
+  else if (/ボケ|bokeh|光の粒/i.test(t))                  hints.visualType = 'bokeh';
+  else if (/風景|landscape|ambient|人物なし/i.test(t))    hints.visualType = 'environment';
+  else if (/抽象|abstract|幾何/i.test(t))                 hints.visualType = 'abstract';
+
+  // bg overrides
+  if (/水中|underwater|海中/i.test(t))                    hints.bg = 'abstract';
+  else if (/雨|rain/i.test(t))                            hints.bg = 'rain';
+  else if (/星|star|夜空/i.test(t))                       hints.bg = 'stars';
+  else if (/自然|nature|森|山|緑/i.test(t))               hints.bg = 'nature';
+  else if (/都市|city|街|ネオン|neon/i.test(t))           hints.bg = 'city';
+  else if (/ステージ|stage|spotlight|スポット/i.test(t))  hints.bg = 'spotlight';
+
+  // shot overrides
+  if (/超引き|extreme.?wide|EWS/i.test(t))               hints.shot = 'EWS';
+  else if (/引き|ワイド|wide|広角/i.test(t))              hints.shot = 'WS';
+  else if (/超寄り|extreme.?close|ECU/i.test(t))          hints.shot = 'ECU';
+  else if (/寄り|クロース|close.?up|CU/i.test(t))         hints.shot = 'CU';
+
+  // Extra prompt additions (appended verbatim + keyword expansions)
+  const extraJa = [], extraEn = [];
+  if (/モノクロ|白黒/i.test(t))           { extraJa.push('モノクロ・白黒'); extraEn.push('monochrome, black and white'); }
+  if (/水中|海中/i.test(t))               { extraJa.push('水中撮影・光の屈折・水面の揺らぎ'); extraEn.push('underwater photography, light refraction, water surface ripple'); }
+  if (/スロー|slow.?mo/i.test(t))         { extraJa.push('スローモーション'); extraEn.push('slow motion'); }
+  if (/霧|霞|fog|mist/i.test(t))         { extraJa.push('霧・霞・ミスト'); extraEn.push('fog, mist, haze'); }
+  if (/夕焼け|夕日|sunset|golden/i.test(t)){ extraJa.push('夕焼け・ゴールデンアワー'); extraEn.push('sunset, golden hour'); }
+  if (/フィルム|grain/i.test(t))          { extraJa.push('重厚なフィルムグレイン・アナログ質感'); extraEn.push('heavy film grain, analog look'); }
+  // Always append the raw request text as-is
+  extraJa.push(t);
+  extraEn.push(t);
+  hints.extraJa = extraJa.join('、');
+  hints.extraEn = extraEn.join(', ');
+  return hints;
 }
 
 // ─────────────────────────────────────────
@@ -1682,7 +1730,15 @@ function buildPanel(scene, idx, total, duration, styleKey, lyricsContext) {
 
   // Determine visual type
   const hasKw = !!detectLyricsOverride(scene.lines.join(' '));
-  const visualType = getVisualType(idx, styleKey, hasKw, !!scene.isIntro, !!scene.isOutro, seqOffset);
+  let visualType = getVisualType(idx, styleKey, hasKw, !!scene.isIntro, !!scene.isOutro, seqOffset);
+
+  // ── 最優先: ユーザー要望欄の内容を反映 ──
+  const userReqHints = lyricsContext?.userReqHints || null;
+  if (userReqHints) {
+    if (userReqHints.visualType) visualType = userReqHints.visualType;
+    if (userReqHints.bg)         bg         = userReqHints.bg;
+    if (userReqHints.shot)       shot       = userReqHints.shot;
+  }
 
   const jaDesc = scene.isIntro || scene.isOutro
     ? scene.lines[0]
@@ -1693,8 +1749,8 @@ function buildPanel(scene, idx, total, duration, styleKey, lyricsContext) {
     color = referenceProfile.colors[Math.floor(rand() * referenceProfile.colors.length)];
   }
 
-  const promptObj   = buildImagePrompt(shot, pose, bg, styleKey, visualType);
-  const bgPromptObj = buildBgPrompt(bg, shot, pose, idx, styleKey, visualType);
+  const promptObj   = buildImagePrompt(shot, pose, bg, styleKey, visualType, userReqHints);
+  const bgPromptObj = buildBgPrompt(bg, shot, pose, idx, styleKey, visualType, userReqHints);
 
   return { shot, pose, bg, color, idx, time: t, lines: scene.lines, section: scene.section,
            jaDesc,
@@ -1702,7 +1758,8 @@ function buildPanel(scene, idx, total, duration, styleKey, lyricsContext) {
            bgPrompt: bgPromptObj.ja, bgPromptEn: bgPromptObj.en,
            visualType, styleKey,
            isIntro: !!scene.isIntro, isOutro: !!scene.isOutro,
-           _scene: scene, _svgVariant: svgVariant, _regenCount: 0 };
+           _scene: scene, _svgVariant: svgVariant, _regenCount: 0,
+           _userReqHints: userReqHints || null };
 }
 
 // Avoid similar consecutive cuts (same visualType+pose) and vary the
@@ -1773,8 +1830,8 @@ function diversifyPanels(panels, styleKey) {
     }
 
     // Rebuild prompts if pose/visualType changed
-    const promptObj   = buildImagePrompt(cur.shot, cur.pose, cur.bg, cur.styleKey || styleKey, cur.visualType);
-    const bgPromptObj = buildBgPrompt(cur.bg, cur.shot, cur.pose, cur.idx, cur.styleKey || styleKey, cur.visualType);
+    const promptObj   = buildImagePrompt(cur.shot, cur.pose, cur.bg, cur.styleKey || styleKey, cur.visualType, cur._userReqHints);
+    const bgPromptObj = buildBgPrompt(cur.bg, cur.shot, cur.pose, cur.idx, cur.styleKey || styleKey, cur.visualType, cur._userReqHints);
     cur.prompt   = promptObj.ja;
     cur.promptEn = promptObj.en;
     cur.bgPrompt = bgPromptObj.ja;
@@ -1783,7 +1840,7 @@ function diversifyPanels(panels, styleKey) {
   return panels;
 }
 
-function buildImagePrompt(shot, pose, bg, styleKey, visualType) {
+function buildImagePrompt(shot, pose, bg, styleKey, visualType, userReqHints) {
   const shotMap = {'EWS':'超広角ショット','WS':'ワイドショット','MS':'ミディアムショット','2S':'ツーショット','CU':'クローズアップ','ECU':'超クローズアップ'};
   const shotMapEn = {'EWS':'extreme wide shot','WS':'wide shot','MS':'medium shot','2S':'two shot','CU':'close-up','ECU':'extreme close-up'};
   const poseMap = {
@@ -1857,8 +1914,10 @@ function buildImagePrompt(shot, pose, bg, styleKey, visualType) {
     : styleKey === 'liveshow'
     ? ', immersive venue lighting, handheld camera feel, live energy'
     : '';
-  const ja = `${shotPart}${posePart}${bgPart}${vtPart}シネマティックな照明・フィルムグレイン、${styleHint}${extraStyle}`.replace(/\s+/g,' ').trim();
-  const en = `${shotPartEn}${posePartEn}${bgPartEn}${vtPartEn}cinematic lighting, film grain, ${styleHintEn}${extraStyleEn}`.replace(/\s+/g,' ').trim();
+  const reqJa = userReqHints?.extraJa ? `　【要望】${userReqHints.extraJa}` : '';
+  const reqEn = userReqHints?.extraEn ? `, [user request] ${userReqHints.extraEn}` : '';
+  const ja = `${shotPart}${posePart}${bgPart}${vtPart}シネマティックな照明・フィルムグレイン、${styleHint}${extraStyle}${reqJa}`.replace(/\s+/g,' ').trim();
+  const en = `${shotPartEn}${posePartEn}${bgPartEn}${vtPartEn}cinematic lighting, film grain, ${styleHintEn}${extraStyleEn}${reqEn}`.replace(/\s+/g,' ').trim();
   return { ja, en };
 }
 
@@ -2117,7 +2176,8 @@ async function generate() {
     setProgress(15, '歌詞全体を解析中...');
     await delay(300);
     const lyricsAnalysis = analyzeFullLyrics(lyrics);
-    const lyricsContext = { seed: genSeed, lyricsAnalysis };
+    const userReqHints = genre ? parseUserRequest(genre) : null;
+    const lyricsContext = { seed: genSeed, lyricsAnalysis, userReqHints };
     const scenes = parseLyrics(lyrics, panelCount, duration, selectedStyle);
     setProgress(55, `${MV_STYLES[selectedStyle]?.label||''}スタイルでシーンを構築中...`);
     await delay(200);
@@ -2752,8 +2812,9 @@ async function regeneratePanel(btn) {
     const pattern = REGEN_PATTERNS[patternIdx];
 
     const newSeed = (idx * 31337 + regenCount * 9973) >>> 0;
-    const { lyrics, duration, styleKey, lyricsAnalysis } = savedState;
-    const lyricsContext = { seed: newSeed, lyricsAnalysis: lyricsAnalysis || analyzeFullLyrics(lyrics) };
+    const { lyrics, duration, styleKey, lyricsAnalysis, genre } = savedState;
+    const userReqHints = genre ? parseUserRequest(genre) : null;
+    const lyricsContext = { seed: newSeed, lyricsAnalysis: lyricsAnalysis || analyzeFullLyrics(lyrics), userReqHints };
     const total = allPanels.length;
 
     const scene = panel._scene || { lines: panel.lines, section: panel.section, isIntro: panel.isIntro, isOutro: panel.isOutro };
@@ -2769,9 +2830,9 @@ async function regeneratePanel(btn) {
     // jaDesc: framed through the pattern lens, using actual lyric lines
     newPanel.jaDesc = pattern.descFn(scene.lines);
 
-    // Rebuild image prompts with the overridden shot/pose/bg/visualType
-    const promptObj    = buildImagePrompt(newPanel.shot, newPanel.pose, newPanel.bg, styleKey, newPanel.visualType);
-    const bgPromptObj  = buildBgPrompt(newPanel.bg, newPanel.shot, newPanel.pose, idx, styleKey, newPanel.visualType);
+    // Rebuild image prompts with the overridden shot/pose/bg/visualType + user request
+    const promptObj    = buildImagePrompt(newPanel.shot, newPanel.pose, newPanel.bg, styleKey, newPanel.visualType, userReqHints);
+    const bgPromptObj  = buildBgPrompt(newPanel.bg, newPanel.shot, newPanel.pose, idx, styleKey, newPanel.visualType, userReqHints);
     newPanel.prompt    = promptObj.ja;
     newPanel.promptEn  = promptObj.en;
     newPanel.bgPrompt  = bgPromptObj.ja;
