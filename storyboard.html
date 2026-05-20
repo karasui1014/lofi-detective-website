@@ -378,6 +378,10 @@ label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;
 ::-webkit-scrollbar{width:4px;}
 ::-webkit-scrollbar-track{background:transparent;}
 ::-webkit-scrollbar-thumb{background:rgba(124,58,237,.35);border-radius:4px;}
+
+/* ── Feature 2: Panel image upload overlay ── */
+.panel-img-upload{position:absolute;top:.3rem;left:.3rem;background:rgba(0,0,0,.55);border-radius:.3rem;padding:.15rem .3rem;font-size:.75rem;cursor:pointer;z-index:2;}
+.panel-img-upload:hover{background:rgba(124,58,237,.7);}
 </style>
 </head>
 <body>
@@ -411,6 +415,17 @@ label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;
         <span class="badge badge-green">✓ 読み込み完了</span>
         <span class="badge badge-dur" id="duration-badge">--:--</span>
         <span id="audio-name" style="font-size:.7rem;color:var(--text-muted);"></span>
+      </div>
+      <!-- Feature 4: Click Stamping UI -->
+      <div id="stamp-ui" style="display:none;margin-top:.75rem;padding:.65rem .8rem;background:var(--surface2);border-radius:.5rem;border:1px solid var(--border);">
+        <div style="font-size:.72rem;color:var(--text-muted);margin-bottom:.5rem;">🥁 クリックスタンピング — 再生しながらボタンを押してカット割りタイミングを記録</div>
+        <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;">
+          <button onclick="toggleStampPlay()" id="stamp-play-btn" style="padding:.35rem .8rem;background:var(--accent);color:#fff;border:none;border-radius:.4rem;cursor:pointer;font-size:.78rem;">▶ 再生</button>
+          <button onclick="recordStamp()" id="stamp-btn" style="padding:.35rem 1rem;background:rgba(251,146,60,.2);border:1px solid rgba(251,146,60,.5);color:#fdba74;border-radius:.4rem;cursor:pointer;font-size:.85rem;font-weight:700;">🥁 スタンプ</button>
+          <button onclick="clearStamps()" style="padding:.35rem .6rem;background:transparent;border:1px solid var(--border);color:var(--text-muted);border-radius:.4rem;cursor:pointer;font-size:.72rem;">クリア</button>
+          <span id="stamp-count" style="font-size:.7rem;color:var(--text-muted);">0 points</span>
+        </div>
+        <div id="stamp-timeline" style="margin-top:.5rem;height:.4rem;background:var(--surface3);border-radius:.2rem;position:relative;overflow:hidden;"></div>
       </div>
       <div class="audio-analysis-card" id="audio-analysis-card">
         <div class="analysis-title">Audio Analysis</div>
@@ -473,6 +488,13 @@ label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;
 歌詞をここに...
 
 セクション名を入れると精度が上がります。"></textarea>
+      <!-- Feature 3: SRT/LRC import -->
+      <div style="margin-top:.5rem;display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;">
+        <label style="cursor:pointer;display:inline-flex;align-items:center;gap:.35rem;padding:.3rem .7rem;background:var(--surface2);border:1px solid var(--border);border-radius:.4rem;font-size:.72rem;color:var(--text-muted);">
+          📄 SRT/LRC読み込み<input type="file" accept=".srt,.lrc" style="display:none" onchange="loadSrtFile(this)">
+        </label>
+        <span id="srt-status" style="font-size:.68rem;color:var(--accent2);"></span>
+      </div>
       <p class="hint-text">前奏・間奏・アウトロはセクション名のみ記入でOK</p>
     </div>
 
@@ -1091,7 +1113,8 @@ dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-ove
 dropZone.addEventListener('drop', e => {
   e.preventDefault(); dropZone.classList.remove('drag-over');
   const file = e.dataTransfer.files[0];
-  if (file && file.type.startsWith('audio/')) loadAudio(file);
+  const audioExts = /\.(mp3|wav|m4a|aac|ogg|flac|aiff|aif)$/i;
+  if (file && (file.type.startsWith('audio/') || audioExts.test(file.name))) loadAudio(file);
 });
 
 function loadAudio(file) {
@@ -1121,7 +1144,34 @@ function loadAudio(file) {
     const autoPanels = Math.max(8, Math.min(400, Math.round(audioDuration / 2.0)));
     document.getElementById('panel-count').value = autoPanels;
     startAudioAnalysis(file);
+    initStampUI(file);
   });
+  // Feature 5: iOS WAV fallback — use AudioContext if loadedmetadata doesn't fire
+  audio.addEventListener('error', async () => {
+    if (audioDuration) return; // already handled
+    try {
+      const ab = await file.arrayBuffer();
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const buf = await ctx.decodeAudioData(ab);
+      audioDuration = buf.duration;
+      document.getElementById('audio-info').classList.add('visible');
+      document.getElementById('duration-badge').textContent = formatTime(audioDuration);
+      document.getElementById('audio-name').textContent = file.name;
+      const autoPanels = Math.max(8, Math.min(400, Math.round(audioDuration / 2.0)));
+      document.getElementById('panel-count').value = autoPanels;
+      startAudioAnalysis(file);
+      initStampUI(file);
+      ctx.close();
+    } catch(err) {
+      showError('音声ファイルの読み込みに失敗しました: ' + err.message);
+    }
+  });
+  // iOS timeout fallback - if loadedmetadata doesn't fire in 3s
+  setTimeout(() => {
+    if (!audioDuration && !audio.duration) {
+      audio.dispatchEvent(new Event('error'));
+    }
+  }, 3000);
 }
 
 async function startAudioAnalysis(file) {
@@ -2103,7 +2153,7 @@ function buildPanelEl(p, displayNum) {
       <span class="panel-shot">${vtLabel ? vtLabel : shotLabel}</span>
       <span class="panel-time">${formatTime(p.time)}</span>
     </div>
-    <div class="panel-art">${artSVG}<button class="panel-dl-btn" title="PNGをダウンロード" onclick="downloadPanelPNG(this)">⬇</button></div>
+    <div class="panel-art">${artSVG}<label class="panel-img-upload" title="画像を添付">📎<input type="file" accept="image/*" style="display:none" onchange="attachPanelImage(this)"></label><button class="panel-dl-btn" title="PNGをダウンロード" onclick="downloadPanelPNG(this)">⬇</button></div>
     <div class="panel-body">
       ${p.section ? `<div class="panel-section">${p.section.toUpperCase()}</div>` : ''}
       <div class="panel-scene">${(p.jaDesc||p.lines?.join('<br>')||'').replace(/\n/g,'<br>')}</div>
@@ -2111,6 +2161,9 @@ function buildPanelEl(p, displayNum) {
       <div class="panel-prompt" data-ja="${escapeAttr(promptJa)}" data-en="${escapeAttr(promptEn)}">${isEn ? promptEn : promptJa}</div>
       <div class="panel-bg-label">背景プロンプト</div>
       <div class="panel-bg-prompt" data-ja="${escapeAttr(bgJa)}" data-en="${escapeAttr(bgEn)}">${isEn ? bgEn : bgJa}</div>
+      <label style="display:flex;align-items:center;gap:.4rem;margin-top:.4rem;font-size:.68rem;color:var(--text-muted);cursor:pointer;">
+        <input type="checkbox" class="panel-check" style="width:1rem;height:1rem;accent-color:var(--accent2);cursor:pointer;"> 完了チェック
+      </label>
       <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
         <button class="regen-btn" onclick="regeneratePanel(this)">🔄 別パターンを生成</button>
         <button class="img-gen-btn" onclick="generatePanelImage(this)">🎨 AI画像</button>
@@ -2221,6 +2274,14 @@ async function generate() {
       panels = scenes.map((s, i) => buildPanel(s, i, scenes.length, duration, selectedStyle, lyricsContext));
       diversifyPanels(panels, selectedStyle);
       savedState = { lyrics, genre, artist, duration, styleKey: selectedStyle, scenes, seed: genSeed, lyricsAnalysis, panelCount };
+    }
+    // Feature 4: If stampMarks exist, remap panel times using stamp boundaries
+    if (stampMarks.length > 1) {
+      const marks = [0, ...stampMarks, duration].sort((a,b) => a-b);
+      panels.forEach((p, i) => {
+        const segIdx = Math.min(i, marks.length - 2);
+        p.time = marks[segIdx];
+      });
     }
     allPanels = panels;
     setProgress(92, 'レンダリング中...');
@@ -3097,6 +3158,164 @@ printStyle.textContent = `
   .panel-section{color:#666!important}
 }`;
 document.head.appendChild(printStyle);
+
+// ─────────────────────────────────────────
+// Feature 2: Panel image upload / drag-drop
+// ─────────────────────────────────────────
+function attachPanelImage(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const artDiv = input.closest('.panel-art');
+  const reader = new FileReader();
+  reader.onload = e => {
+    const dlBtn = artDiv.querySelector('.panel-dl-btn');
+    const uploadLabel = artDiv.querySelector('.panel-img-upload');
+    const img = document.createElement('img');
+    img.src = e.target.result;
+    img.className = 'panel-ai-img';
+    artDiv.innerHTML = '';
+    if (uploadLabel) artDiv.appendChild(uploadLabel);
+    artDiv.appendChild(img);
+    if (dlBtn) artDiv.appendChild(dlBtn);
+  };
+  reader.readAsDataURL(file);
+}
+
+// Drag-drop support on panel-art divs (delegated from document)
+document.addEventListener('dragover', e => {
+  if (e.target.closest && e.target.closest('.panel-art')) {
+    e.preventDefault();
+    e.target.closest('.panel-art').style.outline = '2px dashed var(--accent2)';
+  }
+});
+document.addEventListener('dragleave', e => {
+  if (e.target.closest && e.target.closest('.panel-art')) {
+    e.target.closest('.panel-art').style.outline = '';
+  }
+});
+document.addEventListener('drop', e => {
+  const artDiv = e.target.closest && e.target.closest('.panel-art');
+  if (!artDiv) return;
+  e.preventDefault();
+  artDiv.style.outline = '';
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) {
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const dlBtn = artDiv.querySelector('.panel-dl-btn');
+      const uploadLabel = artDiv.querySelector('.panel-img-upload');
+      const img = document.createElement('img');
+      img.src = ev.target.result;
+      img.className = 'panel-ai-img';
+      artDiv.innerHTML = '';
+      if (uploadLabel) artDiv.appendChild(uploadLabel);
+      artDiv.appendChild(img);
+      if (dlBtn) artDiv.appendChild(dlBtn);
+    };
+    reader.readAsDataURL(file);
+  }
+});
+
+// ─────────────────────────────────────────
+// Feature 3: SRT / LRC lyrics import
+// ─────────────────────────────────────────
+function loadSrtFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const text = e.target.result;
+    let lyrics = '';
+    // SRT format: number, timestamp line, text lines, blank line
+    if (file.name.endsWith('.srt')) {
+      const blocks = text.split(/\n\n+/);
+      for (const block of blocks) {
+        const lines = block.trim().split('\n');
+        if (lines.length < 3) continue;
+        // lines[0] = number, lines[1] = timestamps, lines[2+] = lyrics
+        const ts = lines[1].match(/(\d{2}:\d{2}:\d{2})/);
+        const lyricLines = lines.slice(2).join(' ');
+        if (ts) lyrics += `[${ts[1]}] ${lyricLines}\n`;
+        else lyrics += lyricLines + '\n';
+      }
+    } else {
+      // LRC format: [mm:ss.xx] text
+      lyrics = text.replace(/\[\d+:\d+\.\d+\]/g, m => {
+        const match = m.match(/\[(\d+):(\d+)/);
+        if (match) return `[00:${match[1].padStart(2,'0')}:${match[2].padStart(2,'0')}] `;
+        return '';
+      });
+    }
+    document.getElementById('lyrics-input').value = lyrics.trim();
+    document.getElementById('srt-status').textContent = '✓ 読み込み完了';
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+// ─────────────────────────────────────────
+// Feature 4: Click Stamping JS
+// ─────────────────────────────────────────
+let stampAudio = null;
+let stampMarks = [];  // timestamps in seconds
+
+function initStampUI(file) {
+  const ui = document.getElementById('stamp-ui');
+  if (!ui) return;
+  if (stampAudio) {
+    stampAudio.pause();
+    stampAudio = null;
+  }
+  stampAudio = new Audio(URL.createObjectURL(file));
+  stampMarks = [];
+  ui.style.display = 'block';
+  // Reset play button
+  const btn = document.getElementById('stamp-play-btn');
+  if (btn) btn.textContent = '▶ 再生';
+  // Clear timeline
+  const tl = document.getElementById('stamp-timeline');
+  if (tl) tl.innerHTML = '';
+  updateStampCount();
+}
+
+function toggleStampPlay() {
+  if (!stampAudio) return;
+  const btn = document.getElementById('stamp-play-btn');
+  if (stampAudio.paused) {
+    stampAudio.play();
+    btn.textContent = '⏸ 一時停止';
+  } else {
+    stampAudio.pause();
+    btn.textContent = '▶ 再生';
+  }
+}
+
+function recordStamp() {
+  if (!stampAudio) return;
+  const t = stampAudio.currentTime;
+  stampMarks.push(t);
+  stampMarks.sort((a,b) => a - b);
+  updateStampCount();
+  // Flash visual marker on timeline
+  const tl = document.getElementById('stamp-timeline');
+  const dur = stampAudio.duration || audioDuration;
+  if (tl && dur) {
+    const dot = document.createElement('div');
+    dot.style.cssText = `position:absolute;top:0;bottom:0;left:${(t/dur*100).toFixed(1)}%;width:2px;background:var(--accent2);`;
+    tl.appendChild(dot);
+  }
+}
+
+function clearStamps() {
+  stampMarks = [];
+  updateStampCount();
+  const tl = document.getElementById('stamp-timeline');
+  if (tl) tl.innerHTML = '';
+}
+
+function updateStampCount() {
+  const el = document.getElementById('stamp-count');
+  if (el) el.textContent = stampMarks.length + ' points' + (stampMarks.length > 0 ? ' → ' + stampMarks.length + 'カット' : '');
+}
 
 // Init
 initStyleSelector();
