@@ -1556,12 +1556,19 @@ function parseUserRequest(text) {
 
   // Extra prompt additions (appended verbatim + keyword expansions)
   const extraJa = [], extraEn = [];
-  if (/モノクロ|白黒/i.test(t))           { extraJa.push('モノクロ・白黒'); extraEn.push('monochrome, black and white'); }
-  if (/水中|海中/i.test(t))               { extraJa.push('水中撮影・光の屈折・水面の揺らぎ'); extraEn.push('underwater photography, light refraction, water surface ripple'); }
-  if (/スロー|slow.?mo/i.test(t))         { extraJa.push('スローモーション'); extraEn.push('slow motion'); }
-  if (/霧|霞|fog|mist/i.test(t))         { extraJa.push('霧・霞・ミスト'); extraEn.push('fog, mist, haze'); }
-  if (/夕焼け|夕日|sunset|golden/i.test(t)){ extraJa.push('夕焼け・ゴールデンアワー'); extraEn.push('sunset, golden hour'); }
-  if (/フィルム|grain/i.test(t))          { extraJa.push('重厚なフィルムグレイン・アナログ質感'); extraEn.push('heavy film grain, analog look'); }
+  if (/モノクロ|白黒/i.test(t))            { extraJa.push('モノクロ・白黒'); extraEn.push('monochrome, black and white'); }
+  if (/水中|海中/i.test(t))                { extraJa.push('水中撮影・光の屈折・水面の揺らぎ'); extraEn.push('underwater photography, light refraction, water surface ripple'); }
+  if (/スロー|slow.?mo/i.test(t))          { extraJa.push('スローモーション'); extraEn.push('slow motion'); }
+  if (/霧|霞|fog|mist/i.test(t))          { extraJa.push('霧・霞・ミスト'); extraEn.push('fog, mist, haze'); }
+  if (/夕焼け|夕日|sunset|golden/i.test(t)) { extraJa.push('夕焼け・ゴールデンアワー'); extraEn.push('sunset, golden hour'); }
+  if (/フィルム|grain/i.test(t))           { extraJa.push('重厚なフィルムグレイン・アナログ質感'); extraEn.push('heavy film grain, analog look'); }
+  // Story-based narrative keywords → pose/bg hints for each panel
+  if (/失恋|別れ|悲し|泣|tear|heartbreak/i.test(t))    { hints.pose = hints.pose || 'crying';    hints.bg = hints.bg || 'rain'; }
+  if (/再会|出会い|love|恋|ときめ/i.test(t))            { hints.pose = hints.pose || 'love';      hints.bg = hints.bg || 'stars'; }
+  if (/旅|journey|孤独|一人|さびしい/i.test(t))         { hints.pose = hints.pose || 'walking';   hints.bg = hints.bg || 'nature'; }
+  if (/夢|hope|希望|前へ|未来|fly|翼/i.test(t))        { hints.pose = hints.pose || 'lookingup'; hints.bg = hints.bg || 'stars'; }
+  if (/怒|fight|叫|反抗|resistance/i.test(t))          { hints.pose = hints.pose || 'action';    hints.bg = hints.bg || 'city'; }
+  if (/祭|festival|celebration|みんな|一緒/i.test(t))   { hints.pose = hints.pose || 'crowd';     hints.bg = hints.bg || 'spotlight'; }
   // Always append the raw request text as-is
   extraJa.push(t);
   extraEn.push(t);
@@ -1738,6 +1745,7 @@ function buildPanel(scene, idx, total, duration, styleKey, lyricsContext) {
     if (userReqHints.visualType) visualType = userReqHints.visualType;
     if (userReqHints.bg)         bg         = userReqHints.bg;
     if (userReqHints.shot)       shot       = userReqHints.shot;
+    if (userReqHints.pose)       pose       = userReqHints.pose;
   }
 
   const jaDesc = scene.isIntro || scene.isOutro
@@ -2126,7 +2134,7 @@ function renderStoryboard(panels, duration) {
   scenarioHistory = [];
   scenarioHistoryIdx = -1;
   const analysis = savedState?.lyricsAnalysis || analyzeFullLyrics(savedState?.lyrics || '');
-  const script = generateScenario(panels, savedState?.lyrics || '', analysis, savedState?.seed || 0);
+  const script = generateScenario(panels, savedState?.lyrics || '', analysis, savedState?.seed || 0, savedState?.genre || '');
   pushScenarioHistory(script);
   renderScenario(script);
 
@@ -2272,13 +2280,16 @@ function togglePromptLang() {
 // ─────────────────────────────────────────
 // Scenario script generation
 // ─────────────────────────────────────────
-function generateScenario(panels, lyrics, lyricsAnalysis, seed) {
+function generateScenario(panels, lyrics, lyricsAnalysis, seed, userRequest) {
   const rand     = seededRand((seed || 0) * 7919 + 12345);
   const pick     = arr => arr[Math.floor(rand() * arr.length)];
   const styleKey = panels[0]?.styleKey || 'story';
   const tone     = lyricsAnalysis?.tone || 'neutral';
   const energy   = lyricsAnalysis?.energy || 'mid';
   const variant  = ((seed || 0) >>> 0) % 10; // 0-9: 10 fully distinct narrative approaches
+
+  // ── ユーザー要望を台本に反映するプレフィックスを構築 ──
+  const reqNote = userRequest ? `【演出要望】${userRequest}\n\n以下のシナリオは上記の要望を最優先の演出方針として設計する。\n\n` : '';
 
   // ── Group panels into macro-sections ────────────────────────────────────
   const secGroups = [];
@@ -2388,7 +2399,7 @@ function generateScenario(panels, lyrics, lyricsAnalysis, seed) {
       `メンバーが一列に並び、逆光の中でお辞儀をする。沸き立つ観客席とのコントラストが、このライブMVの最後の一フレームだ。言葉よりも雄弁なその絵で、幕が静かに下りる。`,
     ]));
 
-    return parts.join('\n\n');
+    return reqNote + parts.join('\n\n');
   }
 
   // ROCK
@@ -2398,7 +2409,7 @@ function generateScenario(panels, lyrics, lyricsAnalysis, seed) {
     const dEnd = secGroups.length > 1 ? digest(secGroups[secGroups.length-1]) : d0;
     const hasBridge = secGroups.some(s => roleOf(s.name) === 'bridge');
 
-    return pick([
+    return reqNote + pick([
       `${pick(['ドラムのカウントインとともに照明が爆発的に点灯する。','ギターのリフが暗闇を一閃する。スモークの向こうからバンドのシルエットが浮かび上がり、最初の一音が会場を震わせる。'])}${d0.desc ? d0.desc + 'を捉えた映像から始まり、' : ''}ハンドヘルドカメラが荒々しく揺れながらメンバー全員を追う。細かいカット割りとECUの連続で、楽器と表情のディテールを容赦なく切り取っていく。\n\nサビで映像が一気に爆発する。${dMid.desc || 'バンド全員のシルエット'}をWSで収め、そこからECUへの急激なズームイン。${hasBridge ? 'ブリッジではスローモーションを挿入し、ギターソロの指運びと表情の両面を際立たせる。' : ''}エネルギーが頂点に達したところで、最後のコードが長く伸び、フィードバックノイズとともにゆっくりと暗転する。`,
 
       `${pick(['轟音のイントロ。ステージに仁王立ちするボーカル、その眼光が客席を射抜く。','スモークの中からバンドが現れる瞬間、時間が止まったように見えた。'])}${d0.desc ? d0.desc + 'の映像が最初のフレームを飾り、' : ''}そこからノンストップの映像が続く。ドラム・ギター・ベースの演奏を極めて近い距離で切り取り、楽器そのものが主役になる場面を多用する。\n\nサビでは広角レンズが全員を収め、それぞれのパートが絡み合う瞬間を逃さず捉える。${hasBridge ? 'ブリッジの静寂が、ラストサビの爆発力を何倍にも引き上げる設計。' : ''}最後の一音が空気を震わせた後、長い余韻とともに暗転。バンドの全力が、このMVに刻み込まれた。`,
@@ -2410,7 +2421,7 @@ function generateScenario(panels, lyrics, lyricsAnalysis, seed) {
     const dv = secGroups.filter(s=>roleOf(s.name)==='verse')[0];
     const dc = secGroups.filter(s=>roleOf(s.name)==='chorus')[0];
 
-    return pick([
+    return reqNote + pick([
       `ステージが暗転し、スポットライトが一点を照らす。全員がオープニングポーズで静止した状態からビートが落ち、完璧に揃った動きでパフォーマンスが幕を開ける。${dv ? vt(dv) + 'でフォーメーションの変化を丁寧に追い、' : ''}WSとCUを緩急をつけて切り替えながらパフォーマーの技術と表現力を引き出す。\n\n${dc ? `サビでは全員が揃ったフォーメーションへ。ステージを広く使った隊形移動と、センターへの集中照明が重なる──このMV最大の見せ場。` : 'クライマックスへ向けてフォーメーションが激しく変化し、ステージ全体がダイナミックに動く。'}ラストはEWSでステージ全体を収め、照明がゆっくりとフェードアウトしていく。フリーズした最後のポーズが画面に長く刻まれ、静かに暗転する。`,
 
       `イントロのビートとともにパフォーマーたちが定位置へ滑り込む。最初の一拍でポーズが揃い、その完璧な同期が最初の見せ場となる。${dv ? vt(dv) + 'を中心に、' : ''}複数のカメラアングルから振り付けの細部を余すことなく捉えていく。ソロパートでは他の全員が静止し、スポットライト一本の中で個の表現が際立つ。\n\n${dc ? 'サビのフォーメーション変化が最大のクライマックス。' : 'クライマックスは全員が揃った力強いパフォーマンス。'}ステージ全体が光に包まれる中、カメラはEWSで引き、次いでECUで表情を捉える。ラストポーズでフリーズ、フェードアウト。`,
@@ -2436,7 +2447,7 @@ function generateScenario(panels, lyrics, lyricsAnalysis, seed) {
       bizarre:    ['崩壊と再生が同時に起こり、最後の映像が意識を塗り替える。','何も解決していない。それでいい。これはそういう作品だ。'],
     }[styleKey];
 
-    return `${pick(openers)}${d0 ? '　' + d0 + 'を皮切りに、' : ''}映像の密度と抽象度が少しずつ高まっていく。\n\n${dMid ? dMid + 'が展開し、' : ''}意味を一義的に決定させない演出で、観る者それぞれの解釈に委ねる構成。${['abstract','bokeh','silhouette'].includes(secGroups[Math.floor(secGroups.length/2)]?.panels[0]?.visualType) ? '色と形が衝突し、感情が抽象として溢れ出す。' : 'アーティストの存在そのものがビジュアルモチーフとして機能する。'}クライマックスでは映像の密度が一気に高まり、抽象と具象が衝突する最大の見せ場へ。\n\n${dEnd ? dEnd + 'で幕を閉じる。' : ''}${pick(closers)}`;
+    return reqNote + `${pick(openers)}${d0 ? '　' + d0 + 'を皮切りに、' : ''}映像の密度と抽象度が少しずつ高まっていく。\n\n${dMid ? dMid + 'が展開し、' : ''}意味を一義的に決定させない演出で、観る者それぞれの解釈に委ねる構成。${['abstract','bokeh','silhouette'].includes(secGroups[Math.floor(secGroups.length/2)]?.panels[0]?.visualType) ? '色と形が衝突し、感情が抽象として溢れ出す。' : 'アーティストの存在そのものがビジュアルモチーフとして機能する。'}クライマックスでは映像の密度が一気に高まり、抽象と具象が衝突する最大の見せ場へ。\n\n${dEnd ? dEnd + 'で幕を閉じる。' : ''}${pick(closers)}`;
   }
 
   // ── STORY / EMOTIONAL / BALLAD ──────────────────────────────────────────
@@ -2521,7 +2532,7 @@ function generateScenario(panels, lyrics, lyricsAnalysis, seed) {
     },
   ];
 
-  return approaches[variant]();
+  return reqNote + approaches[variant]();
 }
 
 function renderScenario(script) {
@@ -2556,7 +2567,7 @@ function regenerateScenario() {
   scenarioSeed = (scenarioSeed + 1) >>> 0;
   const seed = (savedState.seed || 0) + scenarioSeed * 1013;
   const analysis = savedState.lyricsAnalysis || analyzeFullLyrics(savedState.lyrics);
-  const script = generateScenario(allPanels, savedState.lyrics, analysis, seed);
+  const script = generateScenario(allPanels, savedState.lyrics, analysis, seed, savedState.genre || '');
   pushScenarioHistory(script);
   renderScenario(script);
 }
