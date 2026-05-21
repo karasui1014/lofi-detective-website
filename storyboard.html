@@ -147,6 +147,25 @@ header h1{font-size:1.15rem;font-weight:700;letter-spacing:.02em;}
 .style-chip-label{font-size:.68rem;font-weight:700;letter-spacing:.02em;margin-bottom:.1rem;}
 .style-chip-desc{font-size:.56rem;color:var(--text-muted);line-height:1.3;}
 
+/* ── Keyword Chain ── */
+#keyword-chain{margin-bottom:.75rem;}
+.kw-chain-label{font-size:.63rem;color:var(--text-muted);letter-spacing:.04em;margin-bottom:.4rem;font-weight:500;}
+.kw-chips{display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:.35rem;}
+.kw-chip{
+  padding:.32rem .72rem;border-radius:999px;border:1px solid rgba(124,58,237,.45);
+  background:rgba(124,58,237,.1);color:var(--accent);font-size:.7rem;font-weight:600;
+  cursor:pointer;transition:background .15s,border-color .15s,transform .1s;line-height:1.4;
+}
+.kw-chip:hover{background:rgba(124,58,237,.25);border-color:var(--accent);transform:translateY(-1px);}
+.kw-chip.used{background:rgba(124,58,237,.35);border-color:var(--accent);color:#fff;cursor:default;}
+.kw-skip{
+  font-size:.62rem;color:var(--text-muted);background:none;border:none;
+  cursor:pointer;padding:.15rem .4rem;text-decoration:underline;opacity:.7;
+  transition:opacity .15s;
+}
+.kw-skip:hover{opacity:1;}
+.kw-done-note{font-size:.62rem;color:var(--accent2);padding:.2rem 0;}
+
 /* ── Inputs ── */
 textarea{
   width:100%;background:var(--surface2);border:1px solid var(--border);
@@ -516,6 +535,7 @@ label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;
           <input type="text" id="artist-input" placeholder="曲のタイトルを入力">
         </div>
       </div>
+      <div id="keyword-chain"></div>
       <div style="margin-bottom:.75rem;">
         <label>カット数 <span style="color:var(--accent2);font-size:.58rem;">（楽曲から自動算出）</span></label>
         <input type="number" id="panel-count" value="12" min="8" max="400">
@@ -917,9 +937,135 @@ function initStyleSelector() {
       document.querySelectorAll('.style-chip').forEach(c => c.classList.remove('selected'));
       chip.classList.add('selected');
       selectedStyle = key;
+      initKeywordChain(key);
     });
     grid.appendChild(chip);
   });
+}
+
+// ─────────────────────────────────────────
+// Keyword Chain (chained keyword selection)
+// ─────────────────────────────────────────
+const KEYWORD_CHAINS = {
+  liveshow: [
+    { label:'会場規模', keywords:['大規模な','ライブハウスで','野外フェスで','アリーナ規模の','小さなバーで'] },
+    { label:'観客・雰囲気', keywords:['満員の熱狂した観客','1000人キャパの','クラウドサーフあり','スタンディングのみ','幻想的な照明で'] },
+    { label:'ステージ演出', keywords:['炎の特効あり','煙幕と照明','レーザー演出で','花道を使って','シンプルな白背景で'] },
+    { label:'カメラワーク', keywords:['POV映像で','ドローン撮影で','観客側からの視点','スローモーション多め','広角レンズで'] },
+    { label:'演出トーン', keywords:['エネルギッシュに','感動的なラストで','ドキュメンタリー風に','エモーショナルに','カオティックに'] },
+  ],
+  rock: [
+    { label:'バンドスタイル', keywords:['ハードロック調','パンクロック風','オルタナティブに','メタルな雰囲気で','ガレージロック感'] },
+    { label:'撮影場所', keywords:['廃工場で','屋上で','地下スタジオで','夜の路上で','廃墟の中で'] },
+    { label:'映像トーン', keywords:['モノクロ映像で','ハイコントラストで','荒い粒子感で','鮮烈な赤と黒で','アナログテープ風で'] },
+    { label:'アクション', keywords:['激しいヘドバンで','ギターを壊すシーン','飛び跳ねながら','叫びながら','汗と熱狂で'] },
+    { label:'編集スタイル', keywords:['高速カット編集','フラッシュ効果多め','エフェクト荒め','手持ちカメラで','ライブ感重視で'] },
+  ],
+  ballad: [
+    { label:'情景', keywords:['雨の中で','夕暮れ時に','窓辺で','海辺で','冬の街で'] },
+    { label:'主人公の状態', keywords:['別れた後の','一人たたずむ','手紙を書きながら','思い出に浸る','涙をこらえながら'] },
+    { label:'色調', keywords:['青みがかった映像で','セピア調で','暖かい色調で','モノクロで','霧の中のような'] },
+    { label:'カメラ', keywords:['ゆっくりとしたズームで','固定カメラで','被写界深度浅めで','寄りのショットで','引きで全身を映して'] },
+    { label:'感情の深め方', keywords:['回想シーンを交えて','モノローグを入れて','静寂から始まり','ラストで希望を見せて','余韻のある終わり方で'] },
+  ],
+  emotional: [
+    { label:'感情テーマ', keywords:['再会の喜びで','後悔と償いで','自己受容の物語で','喪失から再生へ','成長と別れで'] },
+    { label:'映像手法', keywords:['交差編集で','時系列を逆にして','カラーグレーディング強め','スロー映像多用','フラッシュバックで'] },
+    { label:'登場人物', keywords:['二人の関係性を中心に','一人の内面世界で','家族の絆を描いて','友人との記憶で','見知らぬ他人との出会いで'] },
+    { label:'象徴的なモチーフ', keywords:['水を使ったシーンで','鏡を使って','時計や砂時計で','手紙や写真で','光と影で'] },
+    { label:'エンディング', keywords:['希望が見えるラスト','開かれたラストで','円環構造で終わる','主人公が変わった姿で','静かな余韻で終わる'] },
+  ],
+  mysterious: [
+    { label:'世界観', keywords:['ダークファンタジー風','ノワール探偵ストーリー','夢と現実の境界で','オカルト・霊的な','SF的な近未来で'] },
+    { label:'視覚的な謎', keywords:['鏡の中の別世界','繰り返す同じシーン','逆さまになった映像','顔が見えない人物','消えていくものたち'] },
+    { label:'色と光', keywords:['深い青と紫で','霧に包まれた','ネオンが滲む夜に','ロウソクの炎だけで','月明かりのみで'] },
+    { label:'テンポと間', keywords:['長い沈黙を活かして','突然の暗転で','ゆっくりとした不安感','音のない瞬間で','ループ構造で'] },
+    { label:'解釈の余地', keywords:['答えを出さずに終わる','夢オチかもしれない','視点が変わって驚く','最後に全てが逆転する','視聴者に委ねる結末で'] },
+  ],
+  performance: [
+    { label:'ダンスジャンル', keywords:['ストリートダンスで','クラシックバレエ風','コンテンポラリーで','ブレイクダンスで','群舞を中心に'] },
+    { label:'舞台設定', keywords:['白いスタジオで','鏡張りの部屋で','屋外オープンスペースで','劇場のステージで','工業的な空間で'] },
+    { label:'ダンサー人数', keywords:['ソロパフォーマンス','デュエットで','5人以下のグループで','大人数群舞で','一人から増えていく'] },
+    { label:'カメラワーク', keywords:['足元から顔までパンアップ','俯瞰ショット多め','360度回転カメラで','ダンサーに密着して','引きで全体を見せて'] },
+    { label:'演出効果', keywords:['影と光のコントラストで','床に映る映像と','衣装の変化で場面転換','スローモーションで感情を','シンメトリー構図で'] },
+  ],
+  story: [
+    { label:'ストーリータイプ', keywords:['青春ラブストーリー','別れと再会の物語','自分探しの旅','夢を追う主人公','日常の中の奇跡'] },
+    { label:'主な舞台', keywords:['学校・教室で','商店街・街中で','駅と電車で','海辺の町で','森や自然の中で'] },
+    { label:'時間軸', keywords:['現在進行形で','過去を回想しながら','未来へ向かって','一日の出来事で','四季を通して'] },
+    { label:'サブキャラ', keywords:['友人との関係を描いて','恋人との最後の日','見知らぬ人との縁','家族の温かさで','一人旅の出会いで'] },
+    { label:'クライマックス', keywords:['告白シーンで','決断の瞬間に','追いかけるシーンで','手を伸ばす瞬間','ラストカットに余韻を'] },
+  ],
+  concept: [
+    { label:'コンセプト軸', keywords:['対比と反転がテーマ','色の変化で感情を表現','数字や記号を使って','自然vs文明で','アイデンティティの探求'] },
+    { label:'映像スタイル', keywords:['コラージュ映像で','アニメーションと実写混在','アート写真風に','グラフィックデザイン的に','映画的な構図で'] },
+    { label:'繰り返し要素', keywords:['同じシーンを違う角度で','色だけ変えて繰り返す','逆再生を使って','モチーフを全編に散りばめて','始まりと終わりを繋げて'] },
+    { label:'テキスト・記号', keywords:['歌詞を映像に重ねて','数字がカウントダウン','文字が崩れていく','記号が意味を持つ','タイポグラフィを活かして'] },
+    { label:'抽象度', keywords:['完全に抽象的なビジュアルで','解釈を視聴者に委ねて','意味が分かりにくいほどアートに','ストーリーは排除して','純粋に美しさだけを追求して'] },
+  ],
+  bizarre: [
+    { label:'異世界感', keywords:['重力が逆になった世界','縮尺がおかしい空間','時間が止まった場所','色が存在しない世界','生き物が無機物になった'] },
+    { label:'シュール要素', keywords:['関係ない物体が踊る','意味のない会話が続く','突然の転換を繰り返す','ありえない組み合わせで','夢の論理で進む'] },
+    { label:'視覚的な奇妙さ', keywords:['顔が溶けていく','体が増殖していく','背景が歪む','人物が透明になる','物体が浮遊する'] },
+    { label:'トーン', keywords:['コミカルに仕上げる','不気味で不安な感じ','純粋に楽しくシュールに','ホラー寄りのビザールで','哲学的な問いを含めて'] },
+    { label:'オチ・結末', keywords:['夢オチで終わる','謎のまま終わる','最初に戻って終わる','突然の日常に戻る','視聴者が主人公になる'] },
+  ],
+};
+
+let _kwStyle = null;
+let _kwStep  = 0;
+const _kwUsed = [];
+
+function initKeywordChain(styleKey) {
+  _kwStyle = styleKey;
+  _kwStep  = 0;
+  _kwUsed.length = 0;
+  renderKwStep();
+}
+
+function renderKwStep() {
+  const container = document.getElementById('keyword-chain');
+  if (!container) return;
+  const chain = KEYWORD_CHAINS[_kwStyle];
+  if (!chain) { container.innerHTML = ''; return; }
+
+  if (_kwStep >= chain.length) {
+    container.innerHTML = `<p class="kw-done-note">✓ キーワード選択完了 — 要望欄に追加済みです</p>`;
+    return;
+  }
+
+  const step = chain[_kwStep];
+  const chips = step.keywords.map(kw =>
+    `<button class="kw-chip" onclick="addKeyword(this,'${kw.replace(/'/g,"\\'")}')">
+      ${kw}
+    </button>`
+  ).join('');
+
+  container.innerHTML = `
+    <div class="kw-chain-label">
+      キーワード選択（${_kwStep + 1}/${chain.length}）&nbsp;—&nbsp;${step.label}
+    </div>
+    <div class="kw-chips">${chips}</div>
+    <button class="kw-skip" onclick="skipKwStep()">スキップ →</button>
+  `;
+}
+
+function addKeyword(btn, kw) {
+  btn.classList.add('used');
+  btn.disabled = true;
+
+  const input = document.getElementById('genre-input');
+  const cur = input.value.trim();
+  input.value = cur ? cur + '、' + kw : kw;
+
+  _kwUsed.push(kw);
+  _kwStep++;
+  setTimeout(renderKwStep, 220);
+}
+
+function skipKwStep() {
+  _kwStep++;
+  renderKwStep();
 }
 
 // ─────────────────────────────────────────
@@ -2898,8 +3044,11 @@ function downloadPanelPNG(btn) {
   const numEl   = panelEl.querySelector('.panel-num');
   if (!svgEl) return;
 
-  const svgData = new XMLSerializer().serializeToString(svgEl);
-  const encoded = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+  const filename = `panel-${(numEl?.textContent||'000').trim()}.png`;
+  const svgData  = new XMLSerializer().serializeToString(svgEl);
+  // Use Blob URL so the download works regardless of async/gesture context
+  const svgBlob  = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+  const svgUrl   = URL.createObjectURL(svgBlob);
   const img = new Image();
   img.onload = () => {
     const canvas = document.createElement('canvas');
@@ -2908,12 +3057,20 @@ function downloadPanelPNG(btn) {
     ctx.fillStyle = '#12122a';
     ctx.fillRect(0, 0, 640, 360);
     ctx.drawImage(img, 0, 0, 640, 360);
-    const a = document.createElement('a');
-    a.download = `panel-${(numEl?.textContent||'000').trim()}.png`;
-    a.href = canvas.toDataURL('image/png');
-    a.click();
+    URL.revokeObjectURL(svgUrl);
+    canvas.toBlob(blob => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }, 'image/png');
   };
-  img.src = encoded;
+  img.onerror = () => URL.revokeObjectURL(svgUrl);
+  img.src = svgUrl;
 }
 
 // ─────────────────────────────────────────
