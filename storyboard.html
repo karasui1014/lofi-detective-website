@@ -165,6 +165,13 @@ header h1{font-size:1.15rem;font-weight:700;letter-spacing:.02em;}
 }
 .kw-skip:hover{opacity:1;}
 .kw-done-note{font-size:.62rem;color:var(--accent2);padding:.2rem 0;}
+.help-tip{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:14px;height:14px;border-radius:50%;font-size:.58rem;font-weight:700;
+  background:rgba(124,58,237,.25);color:var(--accent);cursor:help;
+  margin-left:.3rem;vertical-align:middle;
+}
+.help-tip:hover{background:rgba(124,58,237,.45);color:#fff;}
 
 /* ── Inputs ── */
 textarea{
@@ -527,8 +534,8 @@ label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;
       </div>
       <div class="field-row" style="margin-bottom:.75rem;">
         <div>
-          <label>プロンプト要望記載欄</label>
-          <input type="text" id="genre-input" placeholder="逆光多め、モノクロ、水中シーンを入れてほしい など">
+          <label>プロンプト要望記載欄 <span class="help-tip" title="絵コンテ全体に反映させたい演出・雰囲気・小道具などを自由に記入してください。下のキーワードチップから選んでも、自由記述しても、両方併用しても構いません。例：「夜の海で」「失恋ソング」「モノクロ」">?</span></label>
+          <input type="text" id="genre-input" placeholder="例：夜の海で / モノクロ / 失恋ソング / 逆光多め…自由に記入 or 下のチップから選択">
         </div>
         <div>
           <label>楽曲名</label>
@@ -1665,8 +1672,10 @@ function buildBgPrompt(bg, shot, pose, idx, styleKey, visualType, userReqHints) 
   }[styleKey] || 'cinematic MV';
   const reqJa = userReqHints?.extraJa ? `　【要望】${userReqHints.extraJa}` : '';
   const reqEn = userReqHints?.extraEn ? `, [user request] ${userReqHints.extraEn}` : '';
-  const ja = `【ショット】${shotFull}　【背景】${bgDesc}　【カメラワーク】${camData.label}（${camData.prompt}）　【ビジュアル指示】${vtNote}シネマティックなカラーグレード、フィルムグレイン、プロ仕様のMV照明、${styleHint}${reqJa}`;
-  const en = `[shot] ${shotFullEn}　[background] ${bgDescEn}　[camera] ${camData.prompt}　[visual] ${vtNoteEn}cinematic color grade, film grain, pro MV lighting, ${styleHintEn}${reqEn}`;
+  const cineJa = styleCineJa(styleKey);
+  const cineEn = styleCineEn(styleKey);
+  const ja = `【ショット】${shotFull}　【背景】${bgDesc}　【カメラワーク】${camData.label}（${camData.prompt}）　【ビジュアル指示】${vtNote}${cineJa}　${styleHint}${reqJa}`;
+  const en = `[shot] ${shotFullEn}, [background] ${bgDescEn}, [camera] ${camData.prompt}, [visual] ${vtNoteEn}${cineEn}, ${styleHintEn}${reqEn}`;
   return { ja, en };
 }
 
@@ -1994,6 +2003,40 @@ function diversifyPanels(panels, styleKey) {
   return panels;
 }
 
+// ─────────────────────────────────────────
+// Per-style cinematography details (lens / lighting / color grade / camera / aspect)
+// 各MVスタイルの撮影スペック — プロンプトに注入して精度を底上げ
+// ─────────────────────────────────────────
+const STYLE_CINE = {
+  rock:        { lensJa:'24mmワイドアングルレンズ', lightJa:'真上からのハードなステージライト・濃い影', colorJa:'高コントラストのティール&オレンジ・潰れた黒', camJa:'手持ちカメラの荒い揺れ・速いパン', moodJa:'荒々しく生のエネルギー', aspect:'2.39:1 アナモルフィック',
+                 lensEn:'24mm wide-angle lens', lightEn:'harsh top-down stage light, deep shadows', colorEn:'high-contrast teal-and-orange grade, crushed blacks', camEn:'handheld jerky pans, kinetic motion', moodEn:'gritty raw energy', aspectEn:'2.39:1 anamorphic' },
+  ballad:      { lensJa:'85mmポートレートレンズ', lightJa:'柔らかい窓辺の自然光・ローキー', colorJa:'彩度を落とした寒色パレット・低コントラスト', camJa:'スロードリーイン・固定ショット', moodJa:'繊細でメランコリック', aspect:'2.39:1 シネマスコープ',
+                 lensEn:'85mm portrait lens', lightEn:'soft window light, low-key', colorEn:'desaturated cool palette, gentle contrast', camEn:'slow dolly-in, locked-off shots', moodEn:'tender melancholic', aspectEn:'2.39:1 cinemascope' },
+  emotional:   { lensJa:'50mm単焦点', lightJa:'ゴールデンアワーの暖かい逆光', colorJa:'Kodak Portra風の温かい肌色', camJa:'ゆるやかなプッシュイン・優しい手持ち', moodJa:'心揺さぶる親密さ', aspect:'2.39:1',
+                 lensEn:'50mm prime', lightEn:'golden hour warm backlight', colorEn:'Kodak Portra film emulation, warm skin tones', camEn:'slow push-in with gentle handheld', moodEn:'heartfelt intimacy', aspectEn:'2.39:1' },
+  mysterious:  { lensJa:'35mm単焦点', lightJa:'シングルキーライトのキアロスクーロ', colorJa:'深いティールの影・マゼンタのハイライト', camJa:'忍び寄るドリー・不穏なティルト', moodJa:'夢幻的で謎めいた', aspect:'2.39:1',
+                 lensEn:'35mm prime', lightEn:'low-key chiaroscuro, single key light', colorEn:'deep teal shadows, magenta highlights', camEn:'creeping dolly, unsettling tilt', moodEn:'enigmatic dreamlike', aspectEn:'2.39:1' },
+  performance: { lensJa:'24-70mmズーム', lightJa:'マルチソースのステージウォッシュ＋バックリム', colorJa:'鮮やかな高彩度パレット', camJa:'クレーンのスウープ・スムーズなジンバル', moodJa:'躍動的で華やか', aspect:'2.39:1',
+                 lensEn:'24-70mm zoom', lightEn:'multi-source stage wash with back rim', colorEn:'saturated vivid palette', camEn:'crane swoops, smooth gimbal moves', moodEn:'kinetic exuberant', aspectEn:'2.39:1' },
+  story:       { lensJa:'40mmハイブリッドレンズ', lightJa:'自然動機付け照明（モチベーテッドライト）', colorJa:'フィルム調のバランスの取れた色味', camJa:'人物に追従するドリー', moodJa:'物語的・観察的', aspect:'2.39:1',
+                 lensEn:'40mm hybrid lens', lightEn:'naturally motivated lighting', colorEn:'film-graded balanced tones', camEn:'character-following dolly', moodEn:'narrative observational', aspectEn:'2.39:1' },
+  concept:     { lensJa:'固定単焦点・シンメトリーフレーミング', lightJa:'コントロールされたスタジオキー＋フィル', colorJa:'限定されたアートディレクションパレット', camJa:'三脚固定の精緻な構図', moodJa:'デザインされた意図的な構成', aspect:'1:1 または 2.39:1',
+                 lensEn:'fixed prime with symmetrical framing', lightEn:'controlled studio key + fill', colorEn:'limited art-directed palette', camEn:'locked tripod precise composition', moodEn:'designed deliberate', aspectEn:'1:1 or 2.39:1' },
+  liveshow:    { lensJa:'高速35mm＋望遠カット', lightJa:'実ステージ照明・スポットからのレンズフレア', colorJa:'高コントラストのライブ映像グレード', camJa:'手持ちオーバーザショルダー＋クレーン', moodJa:'内臓を揺さぶる電撃感', aspect:'2.39:1',
+                 lensEn:'fast 35mm + telephoto cuts', lightEn:'real stage lighting, lens flares from spots', colorEn:'high-contrast concert grade', camEn:'handheld over-the-shoulder + crane', moodEn:'visceral electric', aspectEn:'2.39:1' },
+  bizarre:     { lensJa:'ティルトシフト＋魚眼の混在', lightJa:'フラットなトップライト＋カラージェル', colorJa:'過剰な彩度のダリ的パレット', camJa:'静止したシュールな構図', moodJa:'不条理で夢のような', aspect:'4:3 または 2.39:1',
+                 lensEn:'tilt-shift mixed with fisheye', lightEn:'flat top light with colored gels', colorEn:'oversaturated Dali palette', camEn:'static surreal compositions', moodEn:'absurd dreamlike', aspectEn:'4:3 or 2.39:1' },
+};
+
+function styleCineJa(styleKey) {
+  const c = STYLE_CINE[styleKey] || STYLE_CINE.story;
+  return `【レンズ】${c.lensJa}　【照明】${c.lightJa}　【カラーグレード】${c.colorJa}　【カメラ】${c.camJa}　【質感】${c.moodJa}　【画角比】${c.aspect}`;
+}
+function styleCineEn(styleKey) {
+  const c = STYLE_CINE[styleKey] || STYLE_CINE.story;
+  return `[lens] ${c.lensEn}, [lighting] ${c.lightEn}, [color grade] ${c.colorEn}, [camera] ${c.camEn}, [mood] ${c.moodEn}, [aspect ratio] ${c.aspectEn}`;
+}
+
 function buildImagePrompt(shot, pose, bg, styleKey, visualType, userReqHints) {
   const shotMap = {'EWS':'超広角ショット','WS':'ワイドショット','MS':'ミディアムショット','2S':'ツーショット','CU':'クローズアップ','ECU':'超クローズアップ'};
   const shotMapEn = {'EWS':'extreme wide shot','WS':'wide shot','MS':'medium shot','2S':'two shot','CU':'close-up','ECU':'extreme close-up'};
@@ -2070,8 +2113,10 @@ function buildImagePrompt(shot, pose, bg, styleKey, visualType, userReqHints) {
     : '';
   const reqJa = userReqHints?.extraJa ? `　【要望】${userReqHints.extraJa}` : '';
   const reqEn = userReqHints?.extraEn ? `, [user request] ${userReqHints.extraEn}` : '';
-  const ja = `${shotPart}${posePart}${bgPart}${vtPart}シネマティックな照明・フィルムグレイン、${styleHint}${extraStyle}${reqJa}`.replace(/\s+/g,' ').trim();
-  const en = `${shotPartEn}${posePartEn}${bgPartEn}${vtPartEn}cinematic lighting, film grain, ${styleHintEn}${extraStyleEn}${reqEn}`.replace(/\s+/g,' ').trim();
+  const cineJa = styleCineJa(styleKey);
+  const cineEn = styleCineEn(styleKey);
+  const ja = `${shotPart}${posePart}${bgPart}${vtPart}${cineJa}　${styleHint}${extraStyle}${reqJa}`.replace(/\s+/g,' ').trim();
+  const en = `${shotPartEn}${posePartEn}${bgPartEn}${vtPartEn}${cineEn}, ${styleHintEn}${extraStyleEn}${reqEn}`.replace(/\s+/g,' ').trim();
   return { ja, en };
 }
 
@@ -3284,6 +3329,7 @@ function updateStampCount() {
 
 // Init
 initStyleSelector();
+initKeywordChain(selectedStyle);
 </script>
 </body>
 </html>
