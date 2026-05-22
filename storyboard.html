@@ -165,6 +165,25 @@ header h1{font-size:1.15rem;font-weight:700;letter-spacing:.02em;}
 }
 .kw-skip:hover{opacity:1;}
 .kw-done-note{font-size:.62rem;color:var(--accent2);padding:.2rem 0;}
+/* ── Lyrics keyword suggest ── */
+.lyrics-kw-btn{
+  margin-top:.5rem;width:100%;padding:.42rem .9rem;
+  background:rgba(124,58,237,.12);border:1px solid rgba(124,58,237,.4);
+  border-radius:.5rem;color:var(--accent);font-size:.72rem;font-weight:600;
+  cursor:pointer;transition:background .15s,border-color .15s;letter-spacing:.03em;
+}
+.lyrics-kw-btn:hover{background:rgba(124,58,237,.25);border-color:var(--accent);}
+.lkw-section{margin-bottom:.55rem;}
+.lkw-title{font-size:.6rem;color:var(--text-muted);letter-spacing:.05em;font-weight:700;
+  text-transform:uppercase;margin-bottom:.35rem;}
+.lkw-chip{
+  padding:.28rem .65rem;border-radius:999px;border:1px solid rgba(99,202,183,.45);
+  background:rgba(99,202,183,.1);color:#63cab7;font-size:.68rem;font-weight:600;
+  cursor:pointer;transition:background .15s,border-color .15s,transform .1s;
+}
+.lkw-chip:hover{background:rgba(99,202,183,.25);border-color:#63cab7;transform:translateY(-1px);}
+.lkw-chip.used{background:rgba(99,202,183,.35);border-color:#63cab7;color:#fff;cursor:default;opacity:.7;}
+.lkw-note{font-size:.6rem;color:var(--text-muted);padding:.15rem 0 .3rem;}
 .help-tip{
   display:inline-flex;align-items:center;justify-content:center;
   width:14px;height:14px;border-radius:50%;font-size:.58rem;font-weight:700;
@@ -523,6 +542,9 @@ label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;
         <span id="srt-status" style="font-size:.68rem;color:var(--accent2);"></span>
       </div>
       <p class="hint-text">前奏・間奏・アウトロはセクション名のみ記入でOK</p>
+      <!-- Lyrics keyword suggest -->
+      <div id="lyrics-kw-area" style="margin-top:.6rem;"></div>
+      <button class="lyrics-kw-btn" onclick="analyzeLyricsKeywords()">✦ 歌詞からキーワードを提案</button>
     </div>
 
     <!-- Step 4: Settings -->
@@ -1019,6 +1041,117 @@ const KEYWORD_CHAINS = {
   ],
 };
 
+// ─────────────────────────────────────────
+// Lyrics keyword analyzer — 歌詞からキーワードを提案
+// ─────────────────────────────────────────
+const LYRICS_KW_RULES = {
+  scene: [
+    { words:/夜|よる|night|深夜|midnight/i,           kw:'夜の情景' },
+    { words:/空|そら|sky|雲|くも/i,                   kw:'空・雲のショット' },
+    { words:/星|ほし|star|銀河|宇宙/i,                kw:'星空のシーン' },
+    { words:/海|うみ|ocean|波|なみ|sea/i,              kw:'海辺のシーン' },
+    { words:/雨|あめ|rain|雫|しずく/i,                kw:'雨のシーン' },
+    { words:/雪|ゆき|snow|冬|ふゆ|winter/i,           kw:'雪・冬の景色' },
+    { words:/春|はる|spring|桜|さくら/i,              kw:'春・桜のシーン' },
+    { words:/森|もり|木|tree|forest|自然/i,            kw:'森・自然の風景' },
+    { words:/街|まち|city|都市|都会|ビル/i,            kw:'都市・夜景' },
+    { words:/道|みち|road|路地|旅|journey/i,           kw:'道・旅のシーン' },
+    { words:/光|ひかり|light|太陽|陽|sun/i,            kw:'光・太陽の演出' },
+    { words:/闇|暗|くら|darkness|影|かげ/i,            kw:'闇・影の演出' },
+    { words:/花|はな|flower|咲|さ/i,                  kw:'花のシーン' },
+    { words:/川|かわ|river|流れ|なが/i,               kw:'川・水のシーン' },
+    { words:/窓|まど|window|部屋|へや/i,               kw:'室内・窓辺のシーン' },
+  ],
+  emotion: [
+    { words:/悲し|かなし|sad|泣|な|涙|なみだ|tear/i,   kw:'悲しみ・涙の表情' },
+    { words:/嬉し|うれし|happy|joy|笑|わら/i,          kw:'喜び・笑顔のシーン' },
+    { words:/孤独|こどく|alone|ひとり|一人|lonely/i,   kw:'孤独・一人のシーン' },
+    { words:/愛|あい|love|恋|こい|好き|すき/i,         kw:'愛・恋のシーン' },
+    { words:/怒|おこ|angry|激し|はげし|rage/i,         kw:'激しい感情表現' },
+    { words:/希望|きぼう|hope|夢|ゆめ|dream/i,         kw:'希望・夢へ向かう' },
+    { words:/絶望|ぜつぼう|despair|諦め|あきら/i,      kw:'絶望・崩れ落ちる' },
+    { words:/不安|ふあん|anxiety|迷|まよ|confuse/i,    kw:'不安・迷いの表情' },
+    { words:/別れ|わかれ|goodbye|さよなら|離れ/i,      kw:'別れのシーン' },
+    { words:/再会|さいかい|reunion|また|また会/i,      kw:'再会・出会いのシーン' },
+    { words:/自由|じゆう|free|解放|かいほう/i,         kw:'自由・解放感のある映像' },
+    { words:/痛|いた|pain|傷|きず|hurt/i,              kw:'痛みを抱えた表情' },
+    { words:/強|つよ|strong|力|ちから|power/i,         kw:'力強い・エンパワーメント' },
+    { words:/静|しず|quiet|calm|穏|おだ|peace/i,       kw:'静けさ・落ち着いた空間' },
+  ],
+  visual: [
+    { words:/シルエット|silhouette|逆光/i,             kw:'シルエット・逆光' },
+    { words:/モノクロ|白黒|monochrome|mono/i,          kw:'モノクロ映像' },
+    { words:/スロー|slow|ゆっくり/i,                  kw:'スローモーション' },
+    { words:/走|はし|run|追いかけ/i,                  kw:'走るシーン' },
+    { words:/踊|おど|dance|舞|ダンス/i,                kw:'ダンスシーン' },
+    { words:/歩|ある|walk|步む|进む/i,                 kw:'歩くシーン' },
+    { words:/抱|だ|embrace|寄り添/i,                  kw:'抱き合うシーン' },
+    { words:/手|て|hand|指|ゆび/i,                    kw:'手のクローズアップ' },
+    { words:/目|め|eye|瞳|ひとみ|視線/i,               kw:'目・瞳のクローズアップ' },
+    { words:/回転|まわ|spinning|ぐるぐる/i,            kw:'回転カメラワーク' },
+    { words:/群衆|群れ|crowd|みんな|大勢/i,            kw:'群衆・大勢のシーン' },
+    { words:/空飛|そらとぶ|fly|浮|うか|空中/i,         kw:'浮遊・飛ぶシーン' },
+    { words:/消え|きえ|fade|消える|사라/i,             kw:'フェードアウト演出' },
+    { words:/鏡|かがみ|mirror|反射|反|はんしゃ/i,     kw:'鏡・反射の演出' },
+  ],
+};
+
+function analyzeLyricsKeywords() {
+  const lyrics = document.getElementById('lyrics-input').value.trim();
+  const area   = document.getElementById('lyrics-kw-area');
+  if (!area) return;
+
+  if (!lyrics) {
+    area.innerHTML = `<p class="lkw-note">歌詞を入力してからボタンを押してください。</p>`;
+    return;
+  }
+
+  const CATS = [
+    { key:'scene',   label:'情景・場面', rules: LYRICS_KW_RULES.scene },
+    { key:'emotion', label:'感情・ムード', rules: LYRICS_KW_RULES.emotion },
+    { key:'visual',  label:'映像・演出アイデア', rules: LYRICS_KW_RULES.visual },
+  ];
+
+  let anyFound = false;
+  let html = `<p class="lkw-note">歌詞から検出されたキーワード — クリックで要望欄に追記します</p>`;
+
+  CATS.forEach(cat => {
+    const found = cat.rules.filter(r => r.words.test(lyrics)).map(r => r.kw);
+    // dedup
+    const uniq = [...new Set(found)];
+    if (!uniq.length) return;
+    anyFound = true;
+    const chips = uniq.map(kw =>
+      `<button class="lkw-chip" onclick="appendLyricsKw(this,'${kw.replace(/'/g,"\\'")}')">
+        ${kw}
+      </button>`
+    ).join('');
+    html += `<div class="lkw-section">
+      <div class="lkw-title">${cat.label}</div>
+      <div class="kw-chips">${chips}</div>
+    </div>`;
+  });
+
+  if (!anyFound) {
+    area.innerHTML = `<p class="lkw-note">歌詞から特定のキーワードは検出されませんでした。要望欄に直接記入してください。</p>`;
+    return;
+  }
+
+  area.innerHTML = html;
+}
+
+function appendLyricsKw(btn, kw) {
+  if (btn.classList.contains('used')) return;
+  btn.classList.add('used');
+  btn.disabled = true;
+  const input = document.getElementById('genre-input');
+  const cur = input.value.trim();
+  input.value = cur ? cur + '、' + kw : kw;
+}
+
+// ─────────────────────────────────────────
+// Keyword Chain (chained keyword selection)
+// ─────────────────────────────────────────
 let _kwStyle = null;
 let _kwStep  = 0;
 const _kwUsed = [];
