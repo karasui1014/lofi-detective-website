@@ -165,6 +165,8 @@ header h1{font-size:1.15rem;font-weight:700;letter-spacing:.02em;}
 }
 .kw-skip:hover{opacity:1;}
 .kw-done-note{font-size:.62rem;color:var(--accent2);padding:.2rem 0;}
+.kw-wait-note{font-size:.63rem;color:var(--text-muted);opacity:.55;padding:.2rem 0;font-style:italic;}
+.kw-panel-sep{border-top:1px solid var(--border);margin:.45rem 0 .4rem;}
 /* ── Lyrics keyword suggest ── */
 .lyrics-kw-btn{
   margin-top:.5rem;width:100%;padding:.42rem .9rem;
@@ -524,7 +526,7 @@ label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;
         <div class="step-badge">3</div>
         <span class="card-title">歌詞</span>
       </div>
-      <textarea id="lyrics-input" placeholder="[Intro]
+      <textarea id="lyrics-input" oninput="onLyricsInput()" placeholder="[Intro]
 （前奏部分）
 
 [Verse 1]
@@ -542,9 +544,6 @@ label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;
         <span id="srt-status" style="font-size:.68rem;color:var(--accent2);"></span>
       </div>
       <p class="hint-text">前奏・間奏・アウトロはセクション名のみ記入でOK</p>
-      <!-- Lyrics keyword suggest -->
-      <div id="lyrics-kw-area" style="margin-top:.6rem;"></div>
-      <button class="lyrics-kw-btn" onclick="analyzeLyricsKeywords()">✦ 歌詞からキーワードを提案</button>
     </div>
 
     <!-- Step 4: Settings -->
@@ -564,7 +563,7 @@ label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;
           <input type="text" id="artist-input" placeholder="曲のタイトルを入力">
         </div>
       </div>
-      <div id="keyword-chain"></div>
+      <div id="keyword-chain"><p class="kw-wait-note">歌詞を入力するとキーワード選択が表示されます</p></div>
       <div style="margin-bottom:.75rem;">
         <label>カット数 <span style="color:var(--accent2);font-size:.58rem;">（楽曲から自動算出）</span></label>
         <input type="number" id="panel-count" value="12" min="8" max="400">
@@ -1096,50 +1095,7 @@ const LYRICS_KW_RULES = {
   ],
 };
 
-function analyzeLyricsKeywords() {
-  const lyrics = document.getElementById('lyrics-input').value.trim();
-  const area   = document.getElementById('lyrics-kw-area');
-  if (!area) return;
-
-  if (!lyrics) {
-    area.innerHTML = `<p class="lkw-note">歌詞を入力してからボタンを押してください。</p>`;
-    return;
-  }
-
-  const CATS = [
-    { key:'scene',   label:'情景・場面', rules: LYRICS_KW_RULES.scene },
-    { key:'emotion', label:'感情・ムード', rules: LYRICS_KW_RULES.emotion },
-    { key:'visual',  label:'映像・演出アイデア', rules: LYRICS_KW_RULES.visual },
-  ];
-
-  let anyFound = false;
-  let html = `<p class="lkw-note">歌詞から検出されたキーワード — クリックで要望欄に追記します</p>`;
-
-  CATS.forEach(cat => {
-    const found = cat.rules.filter(r => r.words.test(lyrics)).map(r => r.kw);
-    // dedup
-    const uniq = [...new Set(found)];
-    if (!uniq.length) return;
-    anyFound = true;
-    const chips = uniq.map(kw =>
-      `<button class="lkw-chip" onclick="appendLyricsKw(this,'${kw.replace(/'/g,"\\'")}')">
-        ${kw}
-      </button>`
-    ).join('');
-    html += `<div class="lkw-section">
-      <div class="lkw-title">${cat.label}</div>
-      <div class="kw-chips">${chips}</div>
-    </div>`;
-  });
-
-  if (!anyFound) {
-    area.innerHTML = `<p class="lkw-note">歌詞から特定のキーワードは検出されませんでした。要望欄に直接記入してください。</p>`;
-    return;
-  }
-
-  area.innerHTML = html;
-}
-
+// appendLyricsKw — used by lkw-chip buttons (lyrics-derived)
 function appendLyricsKw(btn, kw) {
   if (btn.classList.contains('used')) return;
   btn.classList.add('used');
@@ -1147,6 +1103,77 @@ function appendLyricsKw(btn, kw) {
   const input = document.getElementById('genre-input');
   const cur = input.value.trim();
   input.value = cur ? cur + '、' + kw : kw;
+}
+
+// ─────────────────────────────────────────
+// refreshKeywordPanel — 歌詞＋スタイルから統合キーワードパネルを描画
+// ─────────────────────────────────────────
+function refreshKeywordPanel() {
+  const lyrics    = (document.getElementById('lyrics-input')?.value || '').trim();
+  const container = document.getElementById('keyword-chain');
+  if (!container) return;
+
+  if (!lyrics || lyrics.length < 10) {
+    container.innerHTML = '<p class="kw-wait-note">歌詞を入力するとキーワード選択が表示されます</p>';
+    return;
+  }
+
+  let html = '';
+
+  // ── Part 1: 歌詞由来キーワード ──
+  const CATS = [
+    { label:'情景・場面',     rules: LYRICS_KW_RULES.scene },
+    { label:'感情・ムード',   rules: LYRICS_KW_RULES.emotion },
+    { label:'映像・演出',     rules: LYRICS_KW_RULES.visual },
+  ];
+  let lyricsFound = false;
+  CATS.forEach(cat => {
+    const uniq = [...new Set(cat.rules.filter(r => r.words.test(lyrics)).map(r => r.kw))];
+    if (!uniq.length) return;
+    lyricsFound = true;
+    const chips = uniq.map(kw =>
+      `<button class="lkw-chip" onclick="appendLyricsKw(this,'${kw.replace(/'/g,"\\'")}')">
+        ${kw}
+       </button>`
+    ).join('');
+    html += `<div class="lkw-section">
+      <div class="lkw-title">${cat.label}</div>
+      <div class="kw-chips">${chips}</div>
+    </div>`;
+  });
+  if (!lyricsFound) {
+    html += `<p class="lkw-note">歌詞からキーワードは検出されませんでした — 手動で要望欄に入力してください</p>`;
+  }
+
+  // ── Part 2: スタイルキーワードチェーン ──
+  const chain = KEYWORD_CHAINS[_kwStyle];
+  if (chain) {
+    html += '<div class="kw-panel-sep"></div>';
+    if (_kwStep < chain.length) {
+      const step  = chain[_kwStep];
+      const chips = step.keywords.map(kw =>
+        `<button class="kw-chip" onclick="addKeyword(this,'${kw.replace(/'/g,"\\'")}')">
+          ${kw}
+         </button>`
+      ).join('');
+      html += `<div class="kw-chain-label">
+        スタイル演出（${_kwStep + 1}/${chain.length}）&nbsp;—&nbsp;${step.label}
+      </div>
+      <div class="kw-chips">${chips}</div>
+      <button class="kw-skip" onclick="skipKwStep()">スキップ →</button>`;
+    } else {
+      html += `<p class="kw-done-note">✓ スタイルキーワード選択完了</p>`;
+    }
+  }
+
+  container.innerHTML = html;
+}
+
+// debounce helper
+let _lyricsDebTimer = null;
+function onLyricsInput() {
+  clearTimeout(_lyricsDebTimer);
+  _lyricsDebTimer = setTimeout(refreshKeywordPanel, 400);
 }
 
 // ─────────────────────────────────────────
@@ -1168,56 +1195,26 @@ function initKeywordChain(styleKey) {
     val = val.replace(/^、+|、+$/g, '').replace(/、{2,}/g, '、').trim();
     input.value = val;
   }
-
   _kwStyle = styleKey;
   _kwStep  = 0;
   _kwUsed.length = 0;
-  renderKwStep();
-}
-
-function renderKwStep() {
-  const container = document.getElementById('keyword-chain');
-  if (!container) return;
-  const chain = KEYWORD_CHAINS[_kwStyle];
-  if (!chain) { container.innerHTML = ''; return; }
-
-  if (_kwStep >= chain.length) {
-    container.innerHTML = `<p class="kw-done-note">✓ キーワード選択完了 — 要望欄に追加済みです</p>`;
-    return;
-  }
-
-  const step = chain[_kwStep];
-  const chips = step.keywords.map(kw =>
-    `<button class="kw-chip" onclick="addKeyword(this,'${kw.replace(/'/g,"\\'")}')">
-      ${kw}
-    </button>`
-  ).join('');
-
-  container.innerHTML = `
-    <div class="kw-chain-label">
-      キーワード選択（${_kwStep + 1}/${chain.length}）&nbsp;—&nbsp;${step.label}
-    </div>
-    <div class="kw-chips">${chips}</div>
-    <button class="kw-skip" onclick="skipKwStep()">スキップ →</button>
-  `;
+  refreshKeywordPanel();
 }
 
 function addKeyword(btn, kw) {
   btn.classList.add('used');
   btn.disabled = true;
-
   const input = document.getElementById('genre-input');
   const cur = input.value.trim();
   input.value = cur ? cur + '、' + kw : kw;
-
   _kwUsed.push(kw);
   _kwStep++;
-  setTimeout(renderKwStep, 220);
+  setTimeout(refreshKeywordPanel, 220);
 }
 
 function skipKwStep() {
   _kwStep++;
-  renderKwStep();
+  refreshKeywordPanel();
 }
 
 // ─────────────────────────────────────────
@@ -1854,22 +1851,70 @@ function parseUserRequest(text) {
   else if (/超寄り|extreme.?close|ECU/i.test(t))          hints.shot = 'ECU';
   else if (/寄り|クロース|close.?up|CU/i.test(t))         hints.shot = 'CU';
 
-  // Extra prompt additions (appended verbatim + keyword expansions)
+  // ── visualType overrides (keyword labels + raw text) ──
+  if (/シルエット・逆光|シルエット|逆光|silhouette/i.test(t))           hints.visualType = 'silhouette';
+  else if (/手のクローズアップ|目・瞳のクローズアップ|マクロ|macro|接写/i.test(t)) hints.visualType = 'macro';
+  else if (/群衆・大勢のシーン|群衆|大勢|crowd/i.test(t))               hints.visualType = 'crowd-wide';
+  else if (/ボケ|bokeh|光の粒/i.test(t))                                hints.visualType = 'bokeh';
+  else if (/空・雲のショット|森・自然の風景|川・水のシーン|風景|landscape|ambient|人物なし/i.test(t)) hints.visualType = 'environment';
+  else if (/抽象|abstract|幾何/i.test(t))                               hints.visualType = 'abstract';
+
+  // ── bg overrides (keyword labels + raw text) ──
+  if      (/雨のシーン|雨|rain/i.test(t))                               hints.bg = 'rain';
+  else if (/星空のシーン|星空|星|star|夜空/i.test(t))                   hints.bg = 'stars';
+  else if (/春・桜のシーン|森・自然の風景|海辺のシーン|川・水のシーン|雪・冬の景色|自然|nature|森|山|緑|花のシーン/i.test(t)) hints.bg = 'nature';
+  else if (/都市・夜景|都市|city|街|ネオン|neon/i.test(t))              hints.bg = 'city';
+  else if (/ステージ|stage|spotlight|スポット/i.test(t))                hints.bg = 'spotlight';
+  else if (/水中|underwater|海中/i.test(t))                             hints.bg = 'abstract';
+  else if (/夜の情景|夜|night/i.test(t))                                hints.bg = hints.bg || 'city';
+  else if (/室内・窓辺のシーン/i.test(t))                              hints.bg = hints.bg || 'default';
+
+  // ── shot overrides ──
+  if      (/超引き|extreme.?wide|EWS/i.test(t))                        hints.shot = 'EWS';
+  else if (/空・雲のショット|引き|ワイド|wide|広角/i.test(t))           hints.shot = 'WS';
+  else if (/超寄り|extreme.?close|ECU/i.test(t))                       hints.shot = 'ECU';
+  else if (/手のクローズアップ|目・瞳のクローズアップ|寄り|クロース|close.?up|CU/i.test(t)) hints.shot = 'CU';
+
+  // ── pose overrides (keyword labels → structural pose) ──
+  if      (/悲しみ・涙の表情|絶望・崩れ落ちる|痛みを抱えた表情|失恋|別れのシーン|tear|heartbreak/i.test(t)) { hints.pose = hints.pose || 'crying'; }
+  if      (/ダンスシーン|踊|dance/i.test(t))                           hints.pose = 'dancing';
+  else if (/走るシーン|走|run/i.test(t))                               hints.pose = 'running';
+  else if (/歩くシーン|歩|walk/i.test(t))                              hints.pose = 'walking';
+  else if (/抱き合うシーン|再会・出会いのシーン|love|恋|ときめ/i.test(t)) hints.pose = hints.pose || 'love';
+  else if (/孤独・一人のシーン|孤独|一人|さびしい/i.test(t))          hints.pose = hints.pose || 'sitting';
+  else if (/希望・夢へ向かう|自由・解放感のある映像|夢|hope|希望|前へ|未来|fly|翼/i.test(t)) hints.pose = hints.pose || 'lookingup';
+  else if (/激しい感情表現|力強い・エンパワーメント|怒|fight|叫|反抗/i.test(t)) hints.pose = hints.pose || 'action';
+  else if (/祭|festival|みんな|一緒/i.test(t))                         hints.pose = hints.pose || 'crowd';
+  else if (/別れのシーン/i.test(t))                                    hints.pose = hints.pose || 'reaching';
+
+  // ── extra prompt text (Japanese + English) ──
   const extraJa = [], extraEn = [];
-  if (/モノクロ|白黒/i.test(t))            { extraJa.push('モノクロ・白黒'); extraEn.push('monochrome, black and white'); }
-  if (/水中|海中/i.test(t))                { extraJa.push('水中撮影・光の屈折・水面の揺らぎ'); extraEn.push('underwater photography, light refraction, water surface ripple'); }
-  if (/スロー|slow.?mo/i.test(t))          { extraJa.push('スローモーション'); extraEn.push('slow motion'); }
-  if (/霧|霞|fog|mist/i.test(t))          { extraJa.push('霧・霞・ミスト'); extraEn.push('fog, mist, haze'); }
-  if (/夕焼け|夕日|sunset|golden/i.test(t)) { extraJa.push('夕焼け・ゴールデンアワー'); extraEn.push('sunset, golden hour'); }
-  if (/フィルム|grain/i.test(t))           { extraJa.push('重厚なフィルムグレイン・アナログ質感'); extraEn.push('heavy film grain, analog look'); }
-  // Story-based narrative keywords → pose/bg hints for each panel
-  if (/失恋|別れ|悲し|泣|tear|heartbreak/i.test(t))    { hints.pose = hints.pose || 'crying';    hints.bg = hints.bg || 'rain'; }
-  if (/再会|出会い|love|恋|ときめ/i.test(t))            { hints.pose = hints.pose || 'love';      hints.bg = hints.bg || 'stars'; }
-  if (/旅|journey|孤独|一人|さびしい/i.test(t))         { hints.pose = hints.pose || 'walking';   hints.bg = hints.bg || 'nature'; }
-  if (/夢|hope|希望|前へ|未来|fly|翼/i.test(t))        { hints.pose = hints.pose || 'lookingup'; hints.bg = hints.bg || 'stars'; }
-  if (/怒|fight|叫|反抗|resistance/i.test(t))          { hints.pose = hints.pose || 'action';    hints.bg = hints.bg || 'city'; }
-  if (/祭|festival|celebration|みんな|一緒/i.test(t))   { hints.pose = hints.pose || 'crowd';     hints.bg = hints.bg || 'spotlight'; }
-  // Always append the raw request text as-is
+  if (/モノクロ映像|モノクロ|白黒/i.test(t))            { extraJa.push('モノクロ・白黒'); extraEn.push('monochrome, black and white'); }
+  if (/水中|海中/i.test(t))                             { extraJa.push('水中撮影・光の屈折・水面の揺らぎ'); extraEn.push('underwater photography, light refraction, water surface ripple'); }
+  if (/スローモーション|スロー|slow.?mo/i.test(t))      { extraJa.push('スローモーション・240fps'); extraEn.push('slow motion, 240fps high speed'); }
+  if (/霧|霞|fog|mist/i.test(t))                       { extraJa.push('霧・霞・ミスト'); extraEn.push('fog, mist, haze'); }
+  if (/夕焼け|夕日|sunset|golden/i.test(t))             { extraJa.push('夕焼け・ゴールデンアワー'); extraEn.push('sunset, golden hour lighting'); }
+  if (/フィルム|grain/i.test(t))                        { extraJa.push('重厚なフィルムグレイン・アナログ質感'); extraEn.push('heavy film grain, analog look'); }
+  if (/春・桜のシーン/i.test(t))                        { extraJa.push('桜・花びら舞う春の景色'); extraEn.push('cherry blossoms, petals falling, spring scenery'); }
+  if (/雪・冬の景色/i.test(t))                          { extraJa.push('雪・冬の静寂'); extraEn.push('snow, winter stillness, frost'); }
+  if (/花のシーン/i.test(t))                            { extraJa.push('花・花びら・自然の美しさ'); extraEn.push('flowers, petals, natural beauty'); }
+  if (/光・太陽の演出/i.test(t))                        { extraJa.push('強い陽光・レンズフレア・光条'); extraEn.push('strong sunlight, lens flare, light rays'); }
+  if (/闇・影の演出/i.test(t))                          { extraJa.push('深い影・暗闇・コントラスト'); extraEn.push('deep shadows, darkness, high contrast'); }
+  if (/鏡・反射の演出/i.test(t))                        { extraJa.push('鏡面反射・シンメトリー・二重像'); extraEn.push('mirror reflection, symmetry, double image'); }
+  if (/回転カメラワーク/i.test(t))                      { extraJa.push('カメラ回転・360度回転ショット'); extraEn.push('rotating camera, 360-degree spin shot'); }
+  if (/浮遊・飛ぶシーン/i.test(t))                      { extraJa.push('浮遊・空中・重力を感じさせない'); extraEn.push('floating, levitation, weightless, airborne'); }
+  if (/フェードアウト演出/i.test(t))                    { extraJa.push('フェードアウト・溶け込む・エーテル的'); extraEn.push('fade out, dissolve, ethereal, ghostly'); }
+  if (/手のクローズアップ/i.test(t))                    { extraJa.push('手・指のマクロ接写・繊細な質感'); extraEn.push('extreme close-up of hands, fingers, delicate texture'); }
+  if (/目・瞳のクローズアップ/i.test(t))                { extraJa.push('目・瞳のマクロ接写・感情が宿る視線'); extraEn.push('extreme close-up of eyes, pupils, emotional gaze'); }
+  if (/室内・窓辺のシーン/i.test(t))                    { extraJa.push('室内・窓辺・自然光が差し込む'); extraEn.push('interior, window light, soft natural light indoors'); }
+  if (/川・水のシーン/i.test(t))                        { extraJa.push('川・水面・光の揺らぎ・反射'); extraEn.push('river, water surface, shimmering reflections'); }
+  if (/大規模な|アリーナ|野外フェス/i.test(t))          { extraJa.push('大規模会場・圧倒的なスケール'); extraEn.push('massive venue, overwhelming scale, huge crowd'); }
+  if (/ライブハウス/i.test(t))                          { extraJa.push('ライブハウス・密なグルーヴ・汗と熱狂'); extraEn.push('live house, intimate groove, sweat and heat'); }
+  if (/ドローン/i.test(t))                              { extraJa.push('ドローン空撮・俯瞰'); extraEn.push('drone aerial shot, birds-eye view'); }
+  if (/POV|主観/i.test(t))                              { extraJa.push('一人称POV主観映像'); extraEn.push('first-person POV shot'); }
+  if (/廃墟|廃工場/i.test(t))                           { extraJa.push('廃墟・荒廃した空間・退廃的な美'); extraEn.push('ruins, abandoned space, decadent beauty'); }
+  if (/炎|特効|煙幕|レーザー/i.test(t))                 { extraJa.push('炎・煙・特殊効果の演出'); extraEn.push('fire, smoke, special effects, pyrotechnics'); }
+  // Always append raw text for full context
   extraJa.push(t);
   extraEn.push(t);
   hints.extraJa = extraJa.join('、');
@@ -3474,7 +3519,6 @@ function updateStampCount() {
 
 // Init
 initStyleSelector();
-initKeywordChain(selectedStyle);
 </script>
 </body>
 </html>
