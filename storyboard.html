@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MV Storyboard Generator | プロ仕様絵コンテ生成ツール</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230d0818'/%3E%3Crect x='3' y='5' width='26' height='8' rx='2' fill='%23ede9fe'/%3E%3CclipPath id='c'%3E%3Crect x='3' y='5' width='26' height='8' rx='2'/%3E%3C/clipPath%3E%3Cg clip-path='url(%23c)' fill='%230d0818'%3E%3Cpolygon points='3,5 8,5 3,13'/%3E%3Cpolygon points='10,5 15,5 10,13 5,13'/%3E%3Cpolygon points='17,5 22,5 17,13 12,13'/%3E%3Cpolygon points='24,5 29,5 24,13 19,13'/%3E%3C/g%3E%3Crect x='3' y='12' width='26' height='2' fill='%230d0818'/%3E%3Crect x='3' y='15' width='26' height='13' rx='2' fill='%237c3aed'/%3E%3Crect x='7' y='19' width='2' height='5' rx='1' fill='%23ede9fe' opacity='0.9'/%3E%3Crect x='11' y='17' width='2' height='9' rx='1' fill='%23ede9fe' opacity='0.9'/%3E%3Crect x='15' y='20' width='2' height='4' rx='1' fill='%23ede9fe' opacity='0.9'/%3E%3Crect x='19' y='18' width='2' height='7' rx='1' fill='%23ede9fe' opacity='0.9'/%3E%3Crect x='23' y='21' width='2' height='3' rx='1' fill='%23ede9fe' opacity='0.9'/%3E%3C/svg%3E">
 <style>
 :root {
   --bg: #08080e;
@@ -145,6 +146,32 @@ header h1{font-size:1.15rem;font-weight:700;letter-spacing:.02em;}
 .style-chip-emoji{font-size:1.25rem;margin-bottom:.2rem;line-height:1.2;}
 .style-chip-label{font-size:.68rem;font-weight:700;letter-spacing:.02em;margin-bottom:.1rem;}
 .style-chip-desc{font-size:.56rem;color:var(--text-muted);line-height:1.3;}
+
+/* ── Keyword Chain ── */
+#keyword-chain{margin-bottom:.75rem;}
+.kw-chain-label{font-size:.63rem;color:var(--text-muted);letter-spacing:.04em;margin-bottom:.4rem;font-weight:500;}
+.kw-chips{display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:.35rem;}
+.kw-chip{
+  padding:.32rem .72rem;border-radius:999px;border:1px solid rgba(124,58,237,.45);
+  background:rgba(124,58,237,.1);color:var(--accent);font-size:.7rem;font-weight:600;
+  cursor:pointer;transition:background .15s,border-color .15s,transform .1s;line-height:1.4;
+}
+.kw-chip:hover{background:rgba(124,58,237,.25);border-color:var(--accent);transform:translateY(-1px);}
+.kw-chip.used{background:rgba(124,58,237,.35);border-color:var(--accent);color:#fff;cursor:default;}
+.kw-skip{
+  font-size:.62rem;color:var(--text-muted);background:none;border:none;
+  cursor:pointer;padding:.15rem .4rem;text-decoration:underline;opacity:.7;
+  transition:opacity .15s;
+}
+.kw-skip:hover{opacity:1;}
+.kw-done-note{font-size:.62rem;color:var(--accent2);padding:.2rem 0;}
+.help-tip{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:14px;height:14px;border-radius:50%;font-size:.58rem;font-weight:700;
+  background:rgba(124,58,237,.25);color:var(--accent);cursor:help;
+  margin-left:.3rem;vertical-align:middle;
+}
+.help-tip:hover{background:rgba(124,58,237,.45);color:#fff;}
 
 /* ── Inputs ── */
 textarea{
@@ -507,14 +534,15 @@ label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;
       </div>
       <div class="field-row" style="margin-bottom:.75rem;">
         <div>
-          <label>プロンプト要望記載欄</label>
-          <input type="text" id="genre-input" placeholder="逆光多め、モノクロ、水中シーンを入れてほしい など">
+          <label>プロンプト要望記載欄 <span class="help-tip" title="絵コンテ全体に反映させたい演出・雰囲気・小道具などを自由に記入してください。下のキーワードチップから選んでも、自由記述しても、両方併用しても構いません。例：「夜の海で」「失恋ソング」「モノクロ」">?</span></label>
+          <input type="text" id="genre-input" placeholder="例：夜の海で / モノクロ / 失恋ソング / 逆光多め…自由に記入 or 下のチップから選択">
         </div>
         <div>
           <label>楽曲名</label>
           <input type="text" id="artist-input" placeholder="曲のタイトルを入力">
         </div>
       </div>
+      <div id="keyword-chain"></div>
       <div style="margin-bottom:.75rem;">
         <label>カット数 <span style="color:var(--accent2);font-size:.58rem;">（楽曲から自動算出）</span></label>
         <input type="number" id="panel-count" value="12" min="8" max="400">
@@ -916,9 +944,135 @@ function initStyleSelector() {
       document.querySelectorAll('.style-chip').forEach(c => c.classList.remove('selected'));
       chip.classList.add('selected');
       selectedStyle = key;
+      initKeywordChain(key);
     });
     grid.appendChild(chip);
   });
+}
+
+// ─────────────────────────────────────────
+// Keyword Chain (chained keyword selection)
+// ─────────────────────────────────────────
+const KEYWORD_CHAINS = {
+  liveshow: [
+    { label:'会場規模', keywords:['大規模な','ライブハウスで','野外フェスで','アリーナ規模の','小さなバーで'] },
+    { label:'観客・雰囲気', keywords:['満員の熱狂した観客','1000人キャパの','クラウドサーフあり','スタンディングのみ','幻想的な照明で'] },
+    { label:'ステージ演出', keywords:['炎の特効あり','煙幕と照明','レーザー演出で','花道を使って','シンプルな白背景で'] },
+    { label:'カメラワーク', keywords:['POV映像で','ドローン撮影で','観客側からの視点','スローモーション多め','広角レンズで'] },
+    { label:'演出トーン', keywords:['エネルギッシュに','感動的なラストで','ドキュメンタリー風に','エモーショナルに','カオティックに'] },
+  ],
+  rock: [
+    { label:'バンドスタイル', keywords:['ハードロック調','パンクロック風','オルタナティブに','メタルな雰囲気で','ガレージロック感'] },
+    { label:'撮影場所', keywords:['廃工場で','屋上で','地下スタジオで','夜の路上で','廃墟の中で'] },
+    { label:'映像トーン', keywords:['モノクロ映像で','ハイコントラストで','荒い粒子感で','鮮烈な赤と黒で','アナログテープ風で'] },
+    { label:'アクション', keywords:['激しいヘドバンで','ギターを壊すシーン','飛び跳ねながら','叫びながら','汗と熱狂で'] },
+    { label:'編集スタイル', keywords:['高速カット編集','フラッシュ効果多め','エフェクト荒め','手持ちカメラで','ライブ感重視で'] },
+  ],
+  ballad: [
+    { label:'情景', keywords:['雨の中で','夕暮れ時に','窓辺で','海辺で','冬の街で'] },
+    { label:'主人公の状態', keywords:['別れた後の','一人たたずむ','手紙を書きながら','思い出に浸る','涙をこらえながら'] },
+    { label:'色調', keywords:['青みがかった映像で','セピア調で','暖かい色調で','モノクロで','霧の中のような'] },
+    { label:'カメラ', keywords:['ゆっくりとしたズームで','固定カメラで','被写界深度浅めで','寄りのショットで','引きで全身を映して'] },
+    { label:'感情の深め方', keywords:['回想シーンを交えて','モノローグを入れて','静寂から始まり','ラストで希望を見せて','余韻のある終わり方で'] },
+  ],
+  emotional: [
+    { label:'感情テーマ', keywords:['再会の喜びで','後悔と償いで','自己受容の物語で','喪失から再生へ','成長と別れで'] },
+    { label:'映像手法', keywords:['交差編集で','時系列を逆にして','カラーグレーディング強め','スロー映像多用','フラッシュバックで'] },
+    { label:'登場人物', keywords:['二人の関係性を中心に','一人の内面世界で','家族の絆を描いて','友人との記憶で','見知らぬ他人との出会いで'] },
+    { label:'象徴的なモチーフ', keywords:['水を使ったシーンで','鏡を使って','時計や砂時計で','手紙や写真で','光と影で'] },
+    { label:'エンディング', keywords:['希望が見えるラスト','開かれたラストで','円環構造で終わる','主人公が変わった姿で','静かな余韻で終わる'] },
+  ],
+  mysterious: [
+    { label:'世界観', keywords:['ダークファンタジー風','ノワール探偵ストーリー','夢と現実の境界で','オカルト・霊的な','SF的な近未来で'] },
+    { label:'視覚的な謎', keywords:['鏡の中の別世界','繰り返す同じシーン','逆さまになった映像','顔が見えない人物','消えていくものたち'] },
+    { label:'色と光', keywords:['深い青と紫で','霧に包まれた','ネオンが滲む夜に','ロウソクの炎だけで','月明かりのみで'] },
+    { label:'テンポと間', keywords:['長い沈黙を活かして','突然の暗転で','ゆっくりとした不安感','音のない瞬間で','ループ構造で'] },
+    { label:'解釈の余地', keywords:['答えを出さずに終わる','夢オチかもしれない','視点が変わって驚く','最後に全てが逆転する','視聴者に委ねる結末で'] },
+  ],
+  performance: [
+    { label:'ダンスジャンル', keywords:['ストリートダンスで','クラシックバレエ風','コンテンポラリーで','ブレイクダンスで','群舞を中心に'] },
+    { label:'舞台設定', keywords:['白いスタジオで','鏡張りの部屋で','屋外オープンスペースで','劇場のステージで','工業的な空間で'] },
+    { label:'ダンサー人数', keywords:['ソロパフォーマンス','デュエットで','5人以下のグループで','大人数群舞で','一人から増えていく'] },
+    { label:'カメラワーク', keywords:['足元から顔までパンアップ','俯瞰ショット多め','360度回転カメラで','ダンサーに密着して','引きで全体を見せて'] },
+    { label:'演出効果', keywords:['影と光のコントラストで','床に映る映像と','衣装の変化で場面転換','スローモーションで感情を','シンメトリー構図で'] },
+  ],
+  story: [
+    { label:'ストーリータイプ', keywords:['青春ラブストーリー','別れと再会の物語','自分探しの旅','夢を追う主人公','日常の中の奇跡'] },
+    { label:'主な舞台', keywords:['学校・教室で','商店街・街中で','駅と電車で','海辺の町で','森や自然の中で'] },
+    { label:'時間軸', keywords:['現在進行形で','過去を回想しながら','未来へ向かって','一日の出来事で','四季を通して'] },
+    { label:'サブキャラ', keywords:['友人との関係を描いて','恋人との最後の日','見知らぬ人との縁','家族の温かさで','一人旅の出会いで'] },
+    { label:'クライマックス', keywords:['告白シーンで','決断の瞬間に','追いかけるシーンで','手を伸ばす瞬間','ラストカットに余韻を'] },
+  ],
+  concept: [
+    { label:'コンセプト軸', keywords:['対比と反転がテーマ','色の変化で感情を表現','数字や記号を使って','自然vs文明で','アイデンティティの探求'] },
+    { label:'映像スタイル', keywords:['コラージュ映像で','アニメーションと実写混在','アート写真風に','グラフィックデザイン的に','映画的な構図で'] },
+    { label:'繰り返し要素', keywords:['同じシーンを違う角度で','色だけ変えて繰り返す','逆再生を使って','モチーフを全編に散りばめて','始まりと終わりを繋げて'] },
+    { label:'テキスト・記号', keywords:['歌詞を映像に重ねて','数字がカウントダウン','文字が崩れていく','記号が意味を持つ','タイポグラフィを活かして'] },
+    { label:'抽象度', keywords:['完全に抽象的なビジュアルで','解釈を視聴者に委ねて','意味が分かりにくいほどアートに','ストーリーは排除して','純粋に美しさだけを追求して'] },
+  ],
+  bizarre: [
+    { label:'異世界感', keywords:['重力が逆になった世界','縮尺がおかしい空間','時間が止まった場所','色が存在しない世界','生き物が無機物になった'] },
+    { label:'シュール要素', keywords:['関係ない物体が踊る','意味のない会話が続く','突然の転換を繰り返す','ありえない組み合わせで','夢の論理で進む'] },
+    { label:'視覚的な奇妙さ', keywords:['顔が溶けていく','体が増殖していく','背景が歪む','人物が透明になる','物体が浮遊する'] },
+    { label:'トーン', keywords:['コミカルに仕上げる','不気味で不安な感じ','純粋に楽しくシュールに','ホラー寄りのビザールで','哲学的な問いを含めて'] },
+    { label:'オチ・結末', keywords:['夢オチで終わる','謎のまま終わる','最初に戻って終わる','突然の日常に戻る','視聴者が主人公になる'] },
+  ],
+};
+
+let _kwStyle = null;
+let _kwStep  = 0;
+const _kwUsed = [];
+
+function initKeywordChain(styleKey) {
+  _kwStyle = styleKey;
+  _kwStep  = 0;
+  _kwUsed.length = 0;
+  renderKwStep();
+}
+
+function renderKwStep() {
+  const container = document.getElementById('keyword-chain');
+  if (!container) return;
+  const chain = KEYWORD_CHAINS[_kwStyle];
+  if (!chain) { container.innerHTML = ''; return; }
+
+  if (_kwStep >= chain.length) {
+    container.innerHTML = `<p class="kw-done-note">✓ キーワード選択完了 — 要望欄に追加済みです</p>`;
+    return;
+  }
+
+  const step = chain[_kwStep];
+  const chips = step.keywords.map(kw =>
+    `<button class="kw-chip" onclick="addKeyword(this,'${kw.replace(/'/g,"\\'")}')">
+      ${kw}
+    </button>`
+  ).join('');
+
+  container.innerHTML = `
+    <div class="kw-chain-label">
+      キーワード選択（${_kwStep + 1}/${chain.length}）&nbsp;—&nbsp;${step.label}
+    </div>
+    <div class="kw-chips">${chips}</div>
+    <button class="kw-skip" onclick="skipKwStep()">スキップ →</button>
+  `;
+}
+
+function addKeyword(btn, kw) {
+  btn.classList.add('used');
+  btn.disabled = true;
+
+  const input = document.getElementById('genre-input');
+  const cur = input.value.trim();
+  input.value = cur ? cur + '、' + kw : kw;
+
+  _kwUsed.push(kw);
+  _kwStep++;
+  setTimeout(renderKwStep, 220);
+}
+
+function skipKwStep() {
+  _kwStep++;
+  renderKwStep();
 }
 
 // ─────────────────────────────────────────
@@ -1465,7 +1619,7 @@ const LIVE_CAM_POOL    = [7,8,9,10,11,13,15,17,5,6];
 // Bizarre: vertiginous/surreal moves
 const BIZARRE_CAM_POOL = [13,10,14,15,12,8,1,2,5,7];
 
-function buildBgPrompt(bg, shot, pose, idx, styleKey, visualType) {
+function buildBgPrompt(bg, shot, pose, idx, styleKey, visualType, userReqHints) {
   const style = MV_STYLES[styleKey] || MV_STYLES.story;
   const bgDesc = BG_DETAILS[bg] || BG_DETAILS.default;
   let camIdx;
@@ -1516,9 +1670,66 @@ function buildBgPrompt(bg, shot, pose, idx, styleKey, visualType) {
     liveshow:'live concert MV with real stage lighting and crowd energy',
     bizarre:'bizarre surreal art MV with Dali/Magritte feel'
   }[styleKey] || 'cinematic MV';
-  const ja = `【ショット】${shotFull}　【背景】${bgDesc}　【カメラワーク】${camData.label}（${camData.prompt}）　【ビジュアル指示】${vtNote}シネマティックなカラーグレード、フィルムグレイン、プロ仕様のMV照明、${styleHint}`;
-  const en = `[shot] ${shotFullEn}　[background] ${bgDescEn}　[camera] ${camData.prompt}　[visual] ${vtNoteEn}cinematic color grade, film grain, pro MV lighting, ${styleHintEn}`;
+  const reqJa = userReqHints?.extraJa ? `　【要望】${userReqHints.extraJa}` : '';
+  const reqEn = userReqHints?.extraEn ? `, [user request] ${userReqHints.extraEn}` : '';
+  const cineJa = styleCineJa(styleKey);
+  const cineEn = styleCineEn(styleKey);
+  const ja = `【ショット】${shotFull}　【背景】${bgDesc}　【カメラワーク】${camData.label}（${camData.prompt}）　【ビジュアル指示】${vtNote}${cineJa}　${styleHint}${reqJa}`;
+  const en = `[shot] ${shotFullEn}, [background] ${bgDescEn}, [camera] ${camData.prompt}, [visual] ${vtNoteEn}${cineEn}, ${styleHintEn}${reqEn}`;
   return { ja, en };
+}
+
+// ─────────────────────────────────────────
+// User request parser — プロンプト要望欄の解析
+// ─────────────────────────────────────────
+function parseUserRequest(text) {
+  if (!text || !text.trim()) return null;
+  const t = text;
+  const hints = { raw: t };
+
+  // visualType overrides
+  if (/逆光|シルエット|silhouette/i.test(t))             hints.visualType = 'silhouette';
+  else if (/マクロ|macro|接写/i.test(t))                  hints.visualType = 'macro';
+  else if (/群衆|大勢|crowd/i.test(t))                    hints.visualType = 'crowd-wide';
+  else if (/ボケ|bokeh|光の粒/i.test(t))                  hints.visualType = 'bokeh';
+  else if (/風景|landscape|ambient|人物なし/i.test(t))    hints.visualType = 'environment';
+  else if (/抽象|abstract|幾何/i.test(t))                 hints.visualType = 'abstract';
+
+  // bg overrides
+  if (/水中|underwater|海中/i.test(t))                    hints.bg = 'abstract';
+  else if (/雨|rain/i.test(t))                            hints.bg = 'rain';
+  else if (/星|star|夜空/i.test(t))                       hints.bg = 'stars';
+  else if (/自然|nature|森|山|緑/i.test(t))               hints.bg = 'nature';
+  else if (/都市|city|街|ネオン|neon/i.test(t))           hints.bg = 'city';
+  else if (/ステージ|stage|spotlight|スポット/i.test(t))  hints.bg = 'spotlight';
+
+  // shot overrides
+  if (/超引き|extreme.?wide|EWS/i.test(t))               hints.shot = 'EWS';
+  else if (/引き|ワイド|wide|広角/i.test(t))              hints.shot = 'WS';
+  else if (/超寄り|extreme.?close|ECU/i.test(t))          hints.shot = 'ECU';
+  else if (/寄り|クロース|close.?up|CU/i.test(t))         hints.shot = 'CU';
+
+  // Extra prompt additions (appended verbatim + keyword expansions)
+  const extraJa = [], extraEn = [];
+  if (/モノクロ|白黒/i.test(t))            { extraJa.push('モノクロ・白黒'); extraEn.push('monochrome, black and white'); }
+  if (/水中|海中/i.test(t))                { extraJa.push('水中撮影・光の屈折・水面の揺らぎ'); extraEn.push('underwater photography, light refraction, water surface ripple'); }
+  if (/スロー|slow.?mo/i.test(t))          { extraJa.push('スローモーション'); extraEn.push('slow motion'); }
+  if (/霧|霞|fog|mist/i.test(t))          { extraJa.push('霧・霞・ミスト'); extraEn.push('fog, mist, haze'); }
+  if (/夕焼け|夕日|sunset|golden/i.test(t)) { extraJa.push('夕焼け・ゴールデンアワー'); extraEn.push('sunset, golden hour'); }
+  if (/フィルム|grain/i.test(t))           { extraJa.push('重厚なフィルムグレイン・アナログ質感'); extraEn.push('heavy film grain, analog look'); }
+  // Story-based narrative keywords → pose/bg hints for each panel
+  if (/失恋|別れ|悲し|泣|tear|heartbreak/i.test(t))    { hints.pose = hints.pose || 'crying';    hints.bg = hints.bg || 'rain'; }
+  if (/再会|出会い|love|恋|ときめ/i.test(t))            { hints.pose = hints.pose || 'love';      hints.bg = hints.bg || 'stars'; }
+  if (/旅|journey|孤独|一人|さびしい/i.test(t))         { hints.pose = hints.pose || 'walking';   hints.bg = hints.bg || 'nature'; }
+  if (/夢|hope|希望|前へ|未来|fly|翼/i.test(t))        { hints.pose = hints.pose || 'lookingup'; hints.bg = hints.bg || 'stars'; }
+  if (/怒|fight|叫|反抗|resistance/i.test(t))          { hints.pose = hints.pose || 'action';    hints.bg = hints.bg || 'city'; }
+  if (/祭|festival|celebration|みんな|一緒/i.test(t))   { hints.pose = hints.pose || 'crowd';     hints.bg = hints.bg || 'spotlight'; }
+  // Always append the raw request text as-is
+  extraJa.push(t);
+  extraEn.push(t);
+  hints.extraJa = extraJa.join('、');
+  hints.extraEn = extraEn.join(', ');
+  return hints;
 }
 
 // ─────────────────────────────────────────
@@ -1681,7 +1892,16 @@ function buildPanel(scene, idx, total, duration, styleKey, lyricsContext) {
 
   // Determine visual type
   const hasKw = !!detectLyricsOverride(scene.lines.join(' '));
-  const visualType = getVisualType(idx, styleKey, hasKw, !!scene.isIntro, !!scene.isOutro, seqOffset);
+  let visualType = getVisualType(idx, styleKey, hasKw, !!scene.isIntro, !!scene.isOutro, seqOffset);
+
+  // ── 最優先: ユーザー要望欄の内容を反映 ──
+  const userReqHints = lyricsContext?.userReqHints || null;
+  if (userReqHints) {
+    if (userReqHints.visualType) visualType = userReqHints.visualType;
+    if (userReqHints.bg)         bg         = userReqHints.bg;
+    if (userReqHints.shot)       shot       = userReqHints.shot;
+    if (userReqHints.pose)       pose       = userReqHints.pose;
+  }
 
   const jaDesc = scene.isIntro || scene.isOutro
     ? scene.lines[0]
@@ -1692,8 +1912,8 @@ function buildPanel(scene, idx, total, duration, styleKey, lyricsContext) {
     color = referenceProfile.colors[Math.floor(rand() * referenceProfile.colors.length)];
   }
 
-  const promptObj   = buildImagePrompt(shot, pose, bg, styleKey, visualType);
-  const bgPromptObj = buildBgPrompt(bg, shot, pose, idx, styleKey, visualType);
+  const promptObj   = buildImagePrompt(shot, pose, bg, styleKey, visualType, userReqHints);
+  const bgPromptObj = buildBgPrompt(bg, shot, pose, idx, styleKey, visualType, userReqHints);
 
   return { shot, pose, bg, color, idx, time: t, lines: scene.lines, section: scene.section,
            jaDesc,
@@ -1701,7 +1921,8 @@ function buildPanel(scene, idx, total, duration, styleKey, lyricsContext) {
            bgPrompt: bgPromptObj.ja, bgPromptEn: bgPromptObj.en,
            visualType, styleKey,
            isIntro: !!scene.isIntro, isOutro: !!scene.isOutro,
-           _scene: scene, _svgVariant: svgVariant, _regenCount: 0 };
+           _scene: scene, _svgVariant: svgVariant, _regenCount: 0,
+           _userReqHints: userReqHints || null };
 }
 
 // Avoid similar consecutive cuts (same visualType+pose) and vary the
@@ -1772,8 +1993,8 @@ function diversifyPanels(panels, styleKey) {
     }
 
     // Rebuild prompts if pose/visualType changed
-    const promptObj   = buildImagePrompt(cur.shot, cur.pose, cur.bg, cur.styleKey || styleKey, cur.visualType);
-    const bgPromptObj = buildBgPrompt(cur.bg, cur.shot, cur.pose, cur.idx, cur.styleKey || styleKey, cur.visualType);
+    const promptObj   = buildImagePrompt(cur.shot, cur.pose, cur.bg, cur.styleKey || styleKey, cur.visualType, cur._userReqHints);
+    const bgPromptObj = buildBgPrompt(cur.bg, cur.shot, cur.pose, cur.idx, cur.styleKey || styleKey, cur.visualType, cur._userReqHints);
     cur.prompt   = promptObj.ja;
     cur.promptEn = promptObj.en;
     cur.bgPrompt = bgPromptObj.ja;
@@ -1782,7 +2003,41 @@ function diversifyPanels(panels, styleKey) {
   return panels;
 }
 
-function buildImagePrompt(shot, pose, bg, styleKey, visualType) {
+// ─────────────────────────────────────────
+// Per-style cinematography details (lens / lighting / color grade / camera / aspect)
+// 各MVスタイルの撮影スペック — プロンプトに注入して精度を底上げ
+// ─────────────────────────────────────────
+const STYLE_CINE = {
+  rock:        { lensJa:'24mmワイドアングルレンズ', lightJa:'真上からのハードなステージライト・濃い影', colorJa:'高コントラストのティール&オレンジ・潰れた黒', camJa:'手持ちカメラの荒い揺れ・速いパン', moodJa:'荒々しく生のエネルギー', aspect:'2.39:1 アナモルフィック',
+                 lensEn:'24mm wide-angle lens', lightEn:'harsh top-down stage light, deep shadows', colorEn:'high-contrast teal-and-orange grade, crushed blacks', camEn:'handheld jerky pans, kinetic motion', moodEn:'gritty raw energy', aspectEn:'2.39:1 anamorphic' },
+  ballad:      { lensJa:'85mmポートレートレンズ', lightJa:'柔らかい窓辺の自然光・ローキー', colorJa:'彩度を落とした寒色パレット・低コントラスト', camJa:'スロードリーイン・固定ショット', moodJa:'繊細でメランコリック', aspect:'2.39:1 シネマスコープ',
+                 lensEn:'85mm portrait lens', lightEn:'soft window light, low-key', colorEn:'desaturated cool palette, gentle contrast', camEn:'slow dolly-in, locked-off shots', moodEn:'tender melancholic', aspectEn:'2.39:1 cinemascope' },
+  emotional:   { lensJa:'50mm単焦点', lightJa:'ゴールデンアワーの暖かい逆光', colorJa:'Kodak Portra風の温かい肌色', camJa:'ゆるやかなプッシュイン・優しい手持ち', moodJa:'心揺さぶる親密さ', aspect:'2.39:1',
+                 lensEn:'50mm prime', lightEn:'golden hour warm backlight', colorEn:'Kodak Portra film emulation, warm skin tones', camEn:'slow push-in with gentle handheld', moodEn:'heartfelt intimacy', aspectEn:'2.39:1' },
+  mysterious:  { lensJa:'35mm単焦点', lightJa:'シングルキーライトのキアロスクーロ', colorJa:'深いティールの影・マゼンタのハイライト', camJa:'忍び寄るドリー・不穏なティルト', moodJa:'夢幻的で謎めいた', aspect:'2.39:1',
+                 lensEn:'35mm prime', lightEn:'low-key chiaroscuro, single key light', colorEn:'deep teal shadows, magenta highlights', camEn:'creeping dolly, unsettling tilt', moodEn:'enigmatic dreamlike', aspectEn:'2.39:1' },
+  performance: { lensJa:'24-70mmズーム', lightJa:'マルチソースのステージウォッシュ＋バックリム', colorJa:'鮮やかな高彩度パレット', camJa:'クレーンのスウープ・スムーズなジンバル', moodJa:'躍動的で華やか', aspect:'2.39:1',
+                 lensEn:'24-70mm zoom', lightEn:'multi-source stage wash with back rim', colorEn:'saturated vivid palette', camEn:'crane swoops, smooth gimbal moves', moodEn:'kinetic exuberant', aspectEn:'2.39:1' },
+  story:       { lensJa:'40mmハイブリッドレンズ', lightJa:'自然動機付け照明（モチベーテッドライト）', colorJa:'フィルム調のバランスの取れた色味', camJa:'人物に追従するドリー', moodJa:'物語的・観察的', aspect:'2.39:1',
+                 lensEn:'40mm hybrid lens', lightEn:'naturally motivated lighting', colorEn:'film-graded balanced tones', camEn:'character-following dolly', moodEn:'narrative observational', aspectEn:'2.39:1' },
+  concept:     { lensJa:'固定単焦点・シンメトリーフレーミング', lightJa:'コントロールされたスタジオキー＋フィル', colorJa:'限定されたアートディレクションパレット', camJa:'三脚固定の精緻な構図', moodJa:'デザインされた意図的な構成', aspect:'1:1 または 2.39:1',
+                 lensEn:'fixed prime with symmetrical framing', lightEn:'controlled studio key + fill', colorEn:'limited art-directed palette', camEn:'locked tripod precise composition', moodEn:'designed deliberate', aspectEn:'1:1 or 2.39:1' },
+  liveshow:    { lensJa:'高速35mm＋望遠カット', lightJa:'実ステージ照明・スポットからのレンズフレア', colorJa:'高コントラストのライブ映像グレード', camJa:'手持ちオーバーザショルダー＋クレーン', moodJa:'内臓を揺さぶる電撃感', aspect:'2.39:1',
+                 lensEn:'fast 35mm + telephoto cuts', lightEn:'real stage lighting, lens flares from spots', colorEn:'high-contrast concert grade', camEn:'handheld over-the-shoulder + crane', moodEn:'visceral electric', aspectEn:'2.39:1' },
+  bizarre:     { lensJa:'ティルトシフト＋魚眼の混在', lightJa:'フラットなトップライト＋カラージェル', colorJa:'過剰な彩度のダリ的パレット', camJa:'静止したシュールな構図', moodJa:'不条理で夢のような', aspect:'4:3 または 2.39:1',
+                 lensEn:'tilt-shift mixed with fisheye', lightEn:'flat top light with colored gels', colorEn:'oversaturated Dali palette', camEn:'static surreal compositions', moodEn:'absurd dreamlike', aspectEn:'4:3 or 2.39:1' },
+};
+
+function styleCineJa(styleKey) {
+  const c = STYLE_CINE[styleKey] || STYLE_CINE.story;
+  return `【レンズ】${c.lensJa}　【照明】${c.lightJa}　【カラーグレード】${c.colorJa}　【カメラ】${c.camJa}　【質感】${c.moodJa}　【画角比】${c.aspect}`;
+}
+function styleCineEn(styleKey) {
+  const c = STYLE_CINE[styleKey] || STYLE_CINE.story;
+  return `[lens] ${c.lensEn}, [lighting] ${c.lightEn}, [color grade] ${c.colorEn}, [camera] ${c.camEn}, [mood] ${c.moodEn}, [aspect ratio] ${c.aspectEn}`;
+}
+
+function buildImagePrompt(shot, pose, bg, styleKey, visualType, userReqHints) {
   const shotMap = {'EWS':'超広角ショット','WS':'ワイドショット','MS':'ミディアムショット','2S':'ツーショット','CU':'クローズアップ','ECU':'超クローズアップ'};
   const shotMapEn = {'EWS':'extreme wide shot','WS':'wide shot','MS':'medium shot','2S':'two shot','CU':'close-up','ECU':'extreme close-up'};
   const poseMap = {
@@ -1856,8 +2111,12 @@ function buildImagePrompt(shot, pose, bg, styleKey, visualType) {
     : styleKey === 'liveshow'
     ? ', immersive venue lighting, handheld camera feel, live energy'
     : '';
-  const ja = `${shotPart}${posePart}${bgPart}${vtPart}シネマティックな照明・フィルムグレイン、${styleHint}${extraStyle}`.replace(/\s+/g,' ').trim();
-  const en = `${shotPartEn}${posePartEn}${bgPartEn}${vtPartEn}cinematic lighting, film grain, ${styleHintEn}${extraStyleEn}`.replace(/\s+/g,' ').trim();
+  const reqJa = userReqHints?.extraJa ? `　【要望】${userReqHints.extraJa}` : '';
+  const reqEn = userReqHints?.extraEn ? `, [user request] ${userReqHints.extraEn}` : '';
+  const cineJa = styleCineJa(styleKey);
+  const cineEn = styleCineEn(styleKey);
+  const ja = `${shotPart}${posePart}${bgPart}${vtPart}${cineJa}　${styleHint}${extraStyle}${reqJa}`.replace(/\s+/g,' ').trim();
+  const en = `${shotPartEn}${posePartEn}${bgPartEn}${vtPartEn}${cineEn}, ${styleHintEn}${extraStyleEn}${reqEn}`.replace(/\s+/g,' ').trim();
   return { ja, en };
 }
 
@@ -2025,7 +2284,7 @@ function buildPanelEl(p, displayNum) {
         <input type="checkbox" class="panel-check" style="width:1rem;height:1rem;accent-color:var(--accent2);cursor:pointer;"> 完了チェック
       </label>
       <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
-        <button class="regen-btn" onclick="regeneratePanel(this)">🔄 別パターンを生成</button>
+        <button class="regen-btn" onclick="regeneratePanel(this)" title="押すたびに10種類の異なる演出パターンに切り替わります">🔄 別パターンを生成 ${p._regenCount ? `(${((p._regenCount-1)%10)+1}/10: ${(REGEN_PATTERNS[(p._regenCount-1)%10]||{label:''}).label})` : ''}</button>
       </div>
     </div>`;
   return el;
@@ -2066,7 +2325,7 @@ function renderStoryboard(panels, duration) {
   scenarioHistory = [];
   scenarioHistoryIdx = -1;
   const analysis = savedState?.lyricsAnalysis || analyzeFullLyrics(savedState?.lyrics || '');
-  const script = generateScenario(panels, savedState?.lyrics || '', analysis, savedState?.seed || 0);
+  const script = generateScenario(panels, savedState?.lyrics || '', analysis, savedState?.seed || 0, savedState?.genre || '');
   pushScenarioHistory(script);
   renderScenario(script);
 
@@ -2116,7 +2375,8 @@ async function generate() {
     setProgress(15, '歌詞全体を解析中...');
     await delay(300);
     const lyricsAnalysis = analyzeFullLyrics(lyrics);
-    const lyricsContext = { seed: genSeed, lyricsAnalysis };
+    const userReqHints = genre ? parseUserRequest(genre) : null;
+    const lyricsContext = { seed: genSeed, lyricsAnalysis, userReqHints };
     const scenes = parseLyrics(lyrics, panelCount, duration, selectedStyle);
     setProgress(55, `${MV_STYLES[selectedStyle]?.label||''}スタイルでシーンを構築中...`);
     await delay(200);
@@ -2211,13 +2471,16 @@ function togglePromptLang() {
 // ─────────────────────────────────────────
 // Scenario script generation
 // ─────────────────────────────────────────
-function generateScenario(panels, lyrics, lyricsAnalysis, seed) {
+function generateScenario(panels, lyrics, lyricsAnalysis, seed, userRequest) {
   const rand     = seededRand((seed || 0) * 7919 + 12345);
   const pick     = arr => arr[Math.floor(rand() * arr.length)];
   const styleKey = panels[0]?.styleKey || 'story';
   const tone     = lyricsAnalysis?.tone || 'neutral';
   const energy   = lyricsAnalysis?.energy || 'mid';
   const variant  = ((seed || 0) >>> 0) % 10; // 0-9: 10 fully distinct narrative approaches
+
+  // ── ユーザー要望を台本に反映するプレフィックスを構築 ──
+  const reqNote = userRequest ? `【演出要望】${userRequest}\n\n以下のシナリオは上記の要望を最優先の演出方針として設計する。\n\n` : '';
 
   // ── Group panels into macro-sections ────────────────────────────────────
   const secGroups = [];
@@ -2283,13 +2546,34 @@ function generateScenario(panels, lyrics, lyricsAnalysis, seed) {
       ['今夜だけは、全部忘れてくれ！','お前たちがいるから俺たちは歌える！','最後まで一緒に行くぞ！'],
     ][variant % 3];
 
+    // userRequest を本文に織り込む文脈センテンス
+    const reqConceptLine = userRequest
+      ? pick([
+          `「${userRequest}」──このコンセプトがこの夜のステージ全体を貫く演出の軸となる。`,
+          `${userRequest}という演出方針が、この一夜のすべてのカットに宿る。`,
+          `今夜のMVは「${userRequest}」を軸に設計されている。その意図が映像のすべての判断に影響する。`,
+        ])
+      : '';
+    const reqMidLine = userRequest
+      ? pick([
+          `${userRequest}という要望に応える形で、このセクションの演出が組み立てられる。`,
+          `「${userRequest}」の意図がここで最も強く映像に現れる場面として設計する。`,
+        ])
+      : '';
+    const reqOutroLine = userRequest
+      ? pick([
+          `${userRequest}──この夜が体現しようとしたすべてが、最後の一フレームに凝縮される。`,
+          `「${userRequest}」というコンセプトを完遂したライブの幕引きとして、映像が静かに閉じる。`,
+        ])
+      : '';
+
     const parts = [];
 
     // Opening paragraph
     parts.push(pick([
-      `会場が暗転し、静寂がアリーナを支配する。スモークが炊かれ、イントロのビートが一音目を落とした瞬間──スポットライトがステージを切り裂き、割れんばかりの歓声が爆発する。「${mcLines[0]}」アーティストの第一声が、数万の心臓を同時に揺らした。`,
-      `暗闇の中でカウントダウンが始まる。客席のスマートフォンライトが星のように揺れ、その熱量がステージへと押し寄せる。イントロが鳴り響いた瞬間、「${mcLines[0]}」──その言葉だけで会場全体が一つの生き物になった。`,
-      `本番直前の静寂。ステージ袖に立つアーティストの表情が、カメラが捉える最初の一フレームだ。そしてイントロとともにステージへ──「${mcLines[0]}」歓声が天井まで届く、最高の幕開け。`,
+      `会場が暗転し、静寂がアリーナを支配する。スモークが炊かれ、イントロのビートが一音目を落とした瞬間──スポットライトがステージを切り裂き、割れんばかりの歓声が爆発する。「${mcLines[0]}」アーティストの第一声が、数万の心臓を同時に揺らした。${reqConceptLine ? '\n\n' + reqConceptLine : ''}`,
+      `暗闇の中でカウントダウンが始まる。客席のスマートフォンライトが星のように揺れ、その熱量がステージへと押し寄せる。イントロが鳴り響いた瞬間、「${mcLines[0]}」──その言葉だけで会場全体が一つの生き物になった。${reqConceptLine ? '\n\n' + reqConceptLine : ''}`,
+      `本番直前の静寂。ステージ袖に立つアーティストの表情が、カメラが捉える最初の一フレームだ。そしてイントロとともにステージへ──「${mcLines[0]}」歓声が天井まで届く、最高の幕開け。${reqConceptLine ? '\n\n' + reqConceptLine : ''}`,
     ]));
 
     // Middle sections (verse/chorus)
@@ -2302,8 +2586,8 @@ function generateScenario(panels, lyrics, lyricsAnalysis, seed) {
       if (verses.length) {
         const d = digest(verses[0]);
         parts.push(pick([
-          `${vt(verses[0])}が続く。ハンドヘルドカメラが縦横無尽に動き回り、${pose(verses[0])}アーティストとともにステージの熱量をそのまま映像に焼き付ける。${d.line ? `「${d.line.replace(/[。、]$/,'')}」という歌詞が会場を包んだとき、` : ''}客席との一体感がじわじわと高まっていく。`,
-          `${pose(verses[0])}姿が${vt(verses[0])}で切り取られる。クレーンとウィップパンを組み合わせ、ステージのあらゆる角度からパフォーマンスを追う。${d.desc ? d.desc + 'の映像が、' : ''}このライブの高揚感を余すことなく伝える。`,
+          `${vt(verses[0])}が続く。ハンドヘルドカメラが縦横無尽に動き回り、${pose(verses[0])}アーティストとともにステージの熱量をそのまま映像に焼き付ける。${d.line ? `「${d.line.replace(/[。、]$/,'')}」という歌詞が会場を包んだとき、` : ''}客席との一体感がじわじわと高まっていく。${reqMidLine ? '\n\n' + reqMidLine : ''}`,
+          `${pose(verses[0])}姿が${vt(verses[0])}で切り取られる。クレーンとウィップパンを組み合わせ、ステージのあらゆる角度からパフォーマンスを追う。${d.desc ? d.desc + 'の映像が、' : ''}このライブの高揚感を余すことなく伝える。${reqMidLine ? '\n\n' + reqMidLine : ''}`,
         ]));
       }
 
@@ -2323,11 +2607,11 @@ function generateScenario(panels, lyrics, lyricsAnalysis, seed) {
 
     // Outro paragraph
     parts.push(pick([
-      `最後の音が消えても、観客の拍手と歓声は鳴り止まない。暗転したステージに余韻だけが漂い、カメラはゆっくりと客席の感動した表情を収めながらフェードアウト。この夜の記憶は、ここにいた全員の胸に永遠に刻まれる。`,
-      `メンバーが一列に並び、逆光の中でお辞儀をする。沸き立つ観客席とのコントラストが、このライブMVの最後の一フレームだ。言葉よりも雄弁なその絵で、幕が静かに下りる。`,
+      `最後の音が消えても、観客の拍手と歓声は鳴り止まない。暗転したステージに余韻だけが漂い、カメラはゆっくりと客席の感動した表情を収めながらフェードアウト。${reqOutroLine ? reqOutroLine : 'この夜の記憶は、ここにいた全員の胸に永遠に刻まれる。'}`,
+      `メンバーが一列に並び、逆光の中でお辞儀をする。沸き立つ観客席とのコントラストが、このライブMVの最後の一フレームだ。${reqOutroLine ? reqOutroLine : '言葉よりも雄弁なその絵で、幕が静かに下りる。'}`,
     ]));
 
-    return parts.join('\n\n');
+    return reqNote + parts.join('\n\n');
   }
 
   // ROCK
@@ -2336,11 +2620,14 @@ function generateScenario(panels, lyrics, lyricsAnalysis, seed) {
     const dMid = secGroups.length > 1 ? digest(secGroups[Math.floor(secGroups.length/2)]) : d0;
     const dEnd = secGroups.length > 1 ? digest(secGroups[secGroups.length-1]) : d0;
     const hasBridge = secGroups.some(s => roleOf(s.name) === 'bridge');
+    const reqRockLine = userRequest
+      ? `\n\n${pick([`「${userRequest}」──この演出意図がバンドの映像全体に貫かれる設計とする。`, `${userRequest}という要望を軸に、荒削りでも正直なロックの映像を構築する。`])}`
+      : '';
 
-    return pick([
-      `${pick(['ドラムのカウントインとともに照明が爆発的に点灯する。','ギターのリフが暗闇を一閃する。スモークの向こうからバンドのシルエットが浮かび上がり、最初の一音が会場を震わせる。'])}${d0.desc ? d0.desc + 'を捉えた映像から始まり、' : ''}ハンドヘルドカメラが荒々しく揺れながらメンバー全員を追う。細かいカット割りとECUの連続で、楽器と表情のディテールを容赦なく切り取っていく。\n\nサビで映像が一気に爆発する。${dMid.desc || 'バンド全員のシルエット'}をWSで収め、そこからECUへの急激なズームイン。${hasBridge ? 'ブリッジではスローモーションを挿入し、ギターソロの指運びと表情の両面を際立たせる。' : ''}エネルギーが頂点に達したところで、最後のコードが長く伸び、フィードバックノイズとともにゆっくりと暗転する。`,
+    return reqNote + pick([
+      `${pick(['ドラムのカウントインとともに照明が爆発的に点灯する。','ギターのリフが暗闇を一閃する。スモークの向こうからバンドのシルエットが浮かび上がり、最初の一音が会場を震わせる。'])}${d0.desc ? d0.desc + 'を捉えた映像から始まり、' : ''}ハンドヘルドカメラが荒々しく揺れながらメンバー全員を追う。細かいカット割りとECUの連続で、楽器と表情のディテールを容赦なく切り取っていく。${reqRockLine}\n\nサビで映像が一気に爆発する。${dMid.desc || 'バンド全員のシルエット'}をWSで収め、そこからECUへの急激なズームイン。${hasBridge ? 'ブリッジではスローモーションを挿入し、ギターソロの指運びと表情の両面を際立たせる。' : ''}エネルギーが頂点に達したところで、最後のコードが長く伸び、フィードバックノイズとともにゆっくりと暗転する。`,
 
-      `${pick(['轟音のイントロ。ステージに仁王立ちするボーカル、その眼光が客席を射抜く。','スモークの中からバンドが現れる瞬間、時間が止まったように見えた。'])}${d0.desc ? d0.desc + 'の映像が最初のフレームを飾り、' : ''}そこからノンストップの映像が続く。ドラム・ギター・ベースの演奏を極めて近い距離で切り取り、楽器そのものが主役になる場面を多用する。\n\nサビでは広角レンズが全員を収め、それぞれのパートが絡み合う瞬間を逃さず捉える。${hasBridge ? 'ブリッジの静寂が、ラストサビの爆発力を何倍にも引き上げる設計。' : ''}最後の一音が空気を震わせた後、長い余韻とともに暗転。バンドの全力が、このMVに刻み込まれた。`,
+      `${pick(['轟音のイントロ。ステージに仁王立ちするボーカル、その眼光が客席を射抜く。','スモークの中からバンドが現れる瞬間、時間が止まったように見えた。'])}${d0.desc ? d0.desc + 'の映像が最初のフレームを飾り、' : ''}そこからノンストップの映像が続く。ドラム・ギター・ベースの演奏を極めて近い距離で切り取り、楽器そのものが主役になる場面を多用する。${reqRockLine}\n\nサビでは広角レンズが全員を収め、それぞれのパートが絡み合う瞬間を逃さず捉える。${hasBridge ? 'ブリッジの静寂が、ラストサビの爆発力を何倍にも引き上げる設計。' : ''}最後の一音が空気を震わせた後、長い余韻とともに暗転。バンドの全力が、このMVに刻み込まれた。`,
     ]);
   }
 
@@ -2348,11 +2635,14 @@ function generateScenario(panels, lyrics, lyricsAnalysis, seed) {
   if (styleKey === 'performance') {
     const dv = secGroups.filter(s=>roleOf(s.name)==='verse')[0];
     const dc = secGroups.filter(s=>roleOf(s.name)==='chorus')[0];
+    const reqPerfLine = userRequest
+      ? `\n\n${pick([`「${userRequest}」という演出方針のもと、すべての振り付けと照明設計が組み立てられている。`, `${userRequest}──このコンセプトがパフォーマンスの一挙一動に宿るよう意図して演出する。`])}`
+      : '';
 
-    return pick([
-      `ステージが暗転し、スポットライトが一点を照らす。全員がオープニングポーズで静止した状態からビートが落ち、完璧に揃った動きでパフォーマンスが幕を開ける。${dv ? vt(dv) + 'でフォーメーションの変化を丁寧に追い、' : ''}WSとCUを緩急をつけて切り替えながらパフォーマーの技術と表現力を引き出す。\n\n${dc ? `サビでは全員が揃ったフォーメーションへ。ステージを広く使った隊形移動と、センターへの集中照明が重なる──このMV最大の見せ場。` : 'クライマックスへ向けてフォーメーションが激しく変化し、ステージ全体がダイナミックに動く。'}ラストはEWSでステージ全体を収め、照明がゆっくりとフェードアウトしていく。フリーズした最後のポーズが画面に長く刻まれ、静かに暗転する。`,
+    return reqNote + pick([
+      `ステージが暗転し、スポットライトが一点を照らす。全員がオープニングポーズで静止した状態からビートが落ち、完璧に揃った動きでパフォーマンスが幕を開ける。${dv ? vt(dv) + 'でフォーメーションの変化を丁寧に追い、' : ''}WSとCUを緩急をつけて切り替えながらパフォーマーの技術と表現力を引き出す。${reqPerfLine}\n\n${dc ? `サビでは全員が揃ったフォーメーションへ。ステージを広く使った隊形移動と、センターへの集中照明が重なる──このMV最大の見せ場。` : 'クライマックスへ向けてフォーメーションが激しく変化し、ステージ全体がダイナミックに動く。'}ラストはEWSでステージ全体を収め、照明がゆっくりとフェードアウトしていく。フリーズした最後のポーズが画面に長く刻まれ、静かに暗転する。`,
 
-      `イントロのビートとともにパフォーマーたちが定位置へ滑り込む。最初の一拍でポーズが揃い、その完璧な同期が最初の見せ場となる。${dv ? vt(dv) + 'を中心に、' : ''}複数のカメラアングルから振り付けの細部を余すことなく捉えていく。ソロパートでは他の全員が静止し、スポットライト一本の中で個の表現が際立つ。\n\n${dc ? 'サビのフォーメーション変化が最大のクライマックス。' : 'クライマックスは全員が揃った力強いパフォーマンス。'}ステージ全体が光に包まれる中、カメラはEWSで引き、次いでECUで表情を捉える。ラストポーズでフリーズ、フェードアウト。`,
+      `イントロのビートとともにパフォーマーたちが定位置へ滑り込む。最初の一拍でポーズが揃い、その完璧な同期が最初の見せ場となる。${dv ? vt(dv) + 'を中心に、' : ''}複数のカメラアングルから振り付けの細部を余すことなく捉えていく。ソロパートでは他の全員が静止し、スポットライト一本の中で個の表現が際立つ。${reqPerfLine}\n\n${dc ? 'サビのフォーメーション変化が最大のクライマックス。' : 'クライマックスは全員が揃った力強いパフォーマンス。'}ステージ全体が光に包まれる中、カメラはEWSで引き、次いでECUで表情を捉える。ラストポーズでフリーズ、フェードアウト。`,
     ]);
   }
 
@@ -2362,6 +2652,9 @@ function generateScenario(panels, lyrics, lyricsAnalysis, seed) {
     const d0 = allDescs[0] || '';
     const dMid = allDescs[Math.floor(allDescs.length/2)] || '';
     const dEnd = allDescs[allDescs.length-1] || '';
+    const reqMystLine = userRequest
+      ? `\n\n${pick([`「${userRequest}」──この演出意図が、映像のすべての抽象表現の根底に流れている。`, `${userRequest}という要望が、このMVの世界観そのものを規定する核心となる。`])}`
+      : '';
 
     const openers = {
       mysterious: ['時間の概念が溶けたような空間から幕を開ける。霧と光が交差し、現実と夢の境界が意図的に曖昧にされる。','鏡の向こう側に広がる世界。物理法則が静かに無視されたその空間で、映像が静かに立ち上がる。'],
@@ -2375,7 +2668,7 @@ function generateScenario(panels, lyrics, lyricsAnalysis, seed) {
       bizarre:    ['崩壊と再生が同時に起こり、最後の映像が意識を塗り替える。','何も解決していない。それでいい。これはそういう作品だ。'],
     }[styleKey];
 
-    return `${pick(openers)}${d0 ? '　' + d0 + 'を皮切りに、' : ''}映像の密度と抽象度が少しずつ高まっていく。\n\n${dMid ? dMid + 'が展開し、' : ''}意味を一義的に決定させない演出で、観る者それぞれの解釈に委ねる構成。${['abstract','bokeh','silhouette'].includes(secGroups[Math.floor(secGroups.length/2)]?.panels[0]?.visualType) ? '色と形が衝突し、感情が抽象として溢れ出す。' : 'アーティストの存在そのものがビジュアルモチーフとして機能する。'}クライマックスでは映像の密度が一気に高まり、抽象と具象が衝突する最大の見せ場へ。\n\n${dEnd ? dEnd + 'で幕を閉じる。' : ''}${pick(closers)}`;
+    return reqNote + `${pick(openers)}${d0 ? '　' + d0 + 'を皮切りに、' : ''}映像の密度と抽象度が少しずつ高まっていく。${reqMystLine}\n\n${dMid ? dMid + 'が展開し、' : ''}意味を一義的に決定させない演出で、観る者それぞれの解釈に委ねる構成。${['abstract','bokeh','silhouette'].includes(secGroups[Math.floor(secGroups.length/2)]?.panels[0]?.visualType) ? '色と形が衝突し、感情が抽象として溢れ出す。' : 'アーティストの存在そのものがビジュアルモチーフとして機能する。'}クライマックスでは映像の密度が一気に高まり、抽象と具象が衝突する最大の見せ場へ。\n\n${dEnd ? dEnd + 'で幕を閉じる。' : ''}${pick(closers)}`;
   }
 
   // ── STORY / EMOTIONAL / BALLAD ──────────────────────────────────────────
@@ -2460,7 +2753,7 @@ function generateScenario(panels, lyrics, lyricsAnalysis, seed) {
     },
   ];
 
-  return approaches[variant]();
+  return reqNote + approaches[variant]();
 }
 
 function renderScenario(script) {
@@ -2495,7 +2788,7 @@ function regenerateScenario() {
   scenarioSeed = (scenarioSeed + 1) >>> 0;
   const seed = (savedState.seed || 0) + scenarioSeed * 1013;
   const analysis = savedState.lyricsAnalysis || analyzeFullLyrics(savedState.lyrics);
-  const script = generateScenario(allPanels, savedState.lyrics, analysis, seed);
+  const script = generateScenario(allPanels, savedState.lyrics, analysis, seed, savedState.genre || '');
   pushScenarioHistory(script);
   renderScenario(script);
 }
@@ -2688,6 +2981,51 @@ function rgbToHex(r, g, b) {
 
 // Per-panel alternative generation
 // ─────────────────────────────────────────
+// 10 cinematically distinct regeneration pattern templates.
+// Each template defines a unique lens/approach to interpret the scene.
+const REGEN_PATTERNS = [
+  // 0: 感情クローズアップ — キャラクターの表情・感情をECU/CUで正面から捉える
+  { shot: 'ECU', pose: 'crying',    visualType: 'character',   bg: 'spotlight', colorHint: '#7aa8ff',
+    label: '感情クローズアップ',
+    descFn: (lines) => `【感情表現・接写】「${lines.join(' / ')}」— キャラクターの表情を超接写で捉えた感情演出。光と影が感情を増幅する。` },
+  // 1: 超広角・世界観提示 — EWSで空間全体を見渡し、物語世界を一枚絵で表現
+  { shot: 'EWS', pose: 'lookingup', visualType: 'environment', bg: 'stars',     colorHint: '#aaddff',
+    label: '超広角・世界観',
+    descFn: (lines) => `【世界観・空間演出】「${lines.join(' / ')}」— 壮大な空間に人物を配した超広角ショット。夜空が物語の舞台を彩る。` },
+  // 2: シルエット・逆光演出 — バックライトで人物をシルエットとして詩的に描く
+  { shot: 'WS',  pose: 'reaching',  visualType: 'silhouette',  bg: 'spotlight', colorHint: '#ff9866',
+    label: 'シルエット逆光',
+    descFn: (lines) => `【逆光シルエット】「${lines.join(' / ')}」— 強い逆光で浮かび上がるシルエット。言葉を超えた詩的な映像表現。` },
+  // 3: アクション・動的エネルギー — 力強い動きとエネルギーをダイナミックに
+  { shot: 'MS',  pose: 'action',    visualType: 'character',   bg: 'city',      colorHint: '#ffb87a',
+    label: 'アクション・エネルギー',
+    descFn: (lines) => `【動き・エネルギー】「${lines.join(' / ')}」— 都市を背景にしたダイナミックなアクションショット。感情が身体の動きとなって爆発する。` },
+  // 4: 抽象・詩的映像 — 歌詞の感情を具象から解き放ち抽象的なビジュアルで表現
+  { shot: 'CU',  pose: 'sitting',   visualType: 'abstract',    bg: 'abstract',  colorHint: '#c0aaff',
+    label: '抽象・詩的映像',
+    descFn: (lines) => `【詩的抽象映像】「${lines.join(' / ')}」— 感情を光と形に変換した抽象的映像。歌詞の本質を視覚として結晶化。` },
+  // 5: 群衆・群像劇 — 個人ではなく集合体・社会的広がりを示す
+  { shot: 'EWS', pose: 'crowd',     visualType: 'crowd-wide',  bg: 'city',      colorHint: '#aaffdd',
+    label: '群衆・群像劇',
+    descFn: (lines) => `【群像・集合シーン】「${lines.join(' / ')}」— 個を超えた群衆の物語。この歌詞が描く感情は一人だけのものではない。` },
+  // 6: 二人・関係性・対話 — 2Sで人と人の繋がり・相互作用を描く
+  { shot: '2S',  pose: 'love',      visualType: 'character',   bg: 'nature',    colorHint: '#ffaacc',
+    label: '二人・関係性',
+    descFn: (lines) => `【関係性・対話シーン】「${lines.join(' / ')}」— 自然の中で向き合う二人。言葉と言葉の間に宿る感情の交差。` },
+  // 7: マクロ・細部・質感 — 小道具や素材の細部に物語を宿す
+  { shot: 'ECU', pose: 'sitting',   visualType: 'macro',       bg: 'abstract',  colorHint: '#88aaff',
+    label: 'マクロ・細部',
+    descFn: (lines) => `【細部・質感マクロ】「${lines.join(' / ')}」— 歌詞が暗示するモチーフを超マクロで撮影。小さな世界に大きな物語を封じ込める。` },
+  // 8: 夜景・雨・ドラマ — 雨夜の環境ショットで叙情的なムードを構築
+  { shot: 'WS',  pose: 'walking',   visualType: 'environment', bg: 'rain',      colorHint: '#7aa8ff',
+    label: '夜景・雨・ドラマ',
+    descFn: (lines) => `【夜景・雨のドラマ】「${lines.join(' / ')}」— 雨に濡れた夜の街。環境そのものが感情の言語として語りかける叙情的ショット。` },
+  // 9: 光のボケ・叙情的 — 光のボケと柔らかな奥行きで包み込む表現
+  { shot: 'MS',  pose: 'reaching',  visualType: 'bokeh',       bg: 'stars',     colorHint: '#fff8aa',
+    label: '光のボケ・叙情',
+    descFn: (lines) => `【光のボケ・叙情映像】「${lines.join(' / ')}」— 星空のボケ光に包まれた叙情的フレーム。焦点の外に広がる感情の余白。` },
+];
+
 async function regeneratePanel(btn) {
   if (!savedState) return;
   const panelEl = btn.closest('.sb-panel');
@@ -2700,14 +3038,37 @@ async function regeneratePanel(btn) {
   try {
     const panel = allPanels[idx];
     const regenCount = (panel._regenCount || 0) + 1;
-    // Deterministic per-regen seed — guaranteed different on each of 5+ presses
+
+    // Cycle through 10 distinct pattern templates
+    const patternIdx = (regenCount - 1) % REGEN_PATTERNS.length;
+    const pattern = REGEN_PATTERNS[patternIdx];
+
     const newSeed = (idx * 31337 + regenCount * 9973) >>> 0;
-    const { lyrics, duration, styleKey, lyricsAnalysis } = savedState;
-    const lyricsContext = { seed: newSeed, lyricsAnalysis: lyricsAnalysis || analyzeFullLyrics(lyrics) };
+    const { lyrics, duration, styleKey, lyricsAnalysis, genre } = savedState;
+    const userReqHints = genre ? parseUserRequest(genre) : null;
+    const lyricsContext = { seed: newSeed, lyricsAnalysis: lyricsAnalysis || analyzeFullLyrics(lyrics), userReqHints };
     const total = allPanels.length;
 
     const scene = panel._scene || { lines: panel.lines, section: panel.section, isIntro: panel.isIntro, isOutro: panel.isOutro };
+
+    // Build base panel then apply pattern overrides for guaranteed distinctness
     const newPanel = buildPanel(scene, idx, total, duration, styleKey, lyricsContext);
+
+    newPanel.shot       = pattern.shot;
+    newPanel.pose       = pattern.pose;
+    newPanel.visualType = pattern.visualType;
+    newPanel.bg         = pattern.bg;
+    if (pattern.colorHint) newPanel.color = pattern.colorHint;
+    // jaDesc: framed through the pattern lens, using actual lyric lines
+    newPanel.jaDesc = pattern.descFn(scene.lines);
+
+    // Rebuild image prompts with the overridden shot/pose/bg/visualType + user request
+    const promptObj    = buildImagePrompt(newPanel.shot, newPanel.pose, newPanel.bg, styleKey, newPanel.visualType, userReqHints);
+    const bgPromptObj  = buildBgPrompt(newPanel.bg, newPanel.shot, newPanel.pose, idx, styleKey, newPanel.visualType, userReqHints);
+    newPanel.prompt    = promptObj.ja;
+    newPanel.promptEn  = promptObj.en;
+    newPanel.bgPrompt  = bgPromptObj.ja;
+    newPanel.bgPromptEn = bgPromptObj.en;
     newPanel._regenCount = regenCount;
 
     allPanels[idx] = newPanel;
@@ -2728,8 +3089,11 @@ function downloadPanelPNG(btn) {
   const numEl   = panelEl.querySelector('.panel-num');
   if (!svgEl) return;
 
-  const svgData = new XMLSerializer().serializeToString(svgEl);
-  const encoded = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+  const filename = `panel-${(numEl?.textContent||'000').trim()}.png`;
+  const svgData  = new XMLSerializer().serializeToString(svgEl);
+  // Use Blob URL so the download works regardless of async/gesture context
+  const svgBlob  = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+  const svgUrl   = URL.createObjectURL(svgBlob);
   const img = new Image();
   img.onload = () => {
     const canvas = document.createElement('canvas');
@@ -2738,12 +3102,20 @@ function downloadPanelPNG(btn) {
     ctx.fillStyle = '#12122a';
     ctx.fillRect(0, 0, 640, 360);
     ctx.drawImage(img, 0, 0, 640, 360);
-    const a = document.createElement('a');
-    a.download = `panel-${(numEl?.textContent||'000').trim()}.png`;
-    a.href = canvas.toDataURL('image/png');
-    a.click();
+    URL.revokeObjectURL(svgUrl);
+    canvas.toBlob(blob => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }, 'image/png');
   };
-  img.src = encoded;
+  img.onerror = () => URL.revokeObjectURL(svgUrl);
+  img.src = svgUrl;
 }
 
 // ─────────────────────────────────────────
@@ -2957,6 +3329,7 @@ function updateStampCount() {
 
 // Init
 initStyleSelector();
+initKeywordChain(selectedStyle);
 </script>
 </body>
 </html>
