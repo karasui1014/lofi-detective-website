@@ -1157,6 +1157,18 @@ let _kwStep  = 0;
 const _kwUsed = [];
 
 function initKeywordChain(styleKey) {
+  // Strip previously-chained keywords from input on style change
+  const input = document.getElementById('genre-input');
+  if (input && _kwUsed.length) {
+    let val = input.value;
+    _kwUsed.forEach(kw => {
+      const escaped = kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      val = val.replace(new RegExp('、?\\s*' + escaped, 'g'), '');
+    });
+    val = val.replace(/^、+|、+$/g, '').replace(/、{2,}/g, '、').trim();
+    input.value = val;
+  }
+
   _kwStyle = styleKey;
   _kwStep  = 0;
   _kwUsed.length = 0;
