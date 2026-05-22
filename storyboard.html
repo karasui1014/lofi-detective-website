@@ -1123,35 +1123,9 @@ function refreshKeywordPanel() {
 
   let html = '';
 
-  // ── Part 1: 歌詞由来キーワード ──
-  const CATS = [
-    { label:'情景・場面',     rules: LYRICS_KW_RULES.scene },
-    { label:'感情・ムード',   rules: LYRICS_KW_RULES.emotion },
-    { label:'映像・演出',     rules: LYRICS_KW_RULES.visual },
-  ];
-  let lyricsFound = false;
-  CATS.forEach(cat => {
-    const uniq = [...new Set(cat.rules.filter(r => r.words.test(lyrics)).map(r => r.kw))];
-    if (!uniq.length) return;
-    lyricsFound = true;
-    const chips = uniq.map(kw =>
-      `<button class="lkw-chip" onclick="appendLyricsKw(this,'${kw.replace(/'/g,"\\'")}')">
-        ${kw}
-       </button>`
-    ).join('');
-    html += `<div class="lkw-section">
-      <div class="lkw-title">${cat.label}</div>
-      <div class="kw-chips">${chips}</div>
-    </div>`;
-  });
-  if (!lyricsFound) {
-    html += `<p class="lkw-note">歌詞からキーワードは検出されませんでした — 手動で要望欄に入力してください</p>`;
-  }
-
-  // ── Part 2: スタイルキーワードチェーン ──
+  // ── Part 1: スタイルキーワードチェーン（上段）──
   const chain = KEYWORD_CHAINS[_kwStyle];
   if (chain) {
-    html += '<div class="kw-panel-sep"></div>';
     if (_kwStep < chain.length) {
       const step  = chain[_kwStep];
       const chips = step.keywords.map(kw =>
@@ -1167,6 +1141,35 @@ function refreshKeywordPanel() {
     } else {
       html += `<p class="kw-done-note">✓ スタイルキーワード選択完了</p>`;
     }
+  }
+
+  // ── Part 2: 歌詞由来キーワード（下段）── 情景・場面のみ先頭、残りは後
+  const CATS = [
+    { label:'情景・場面',     rules: LYRICS_KW_RULES.scene },
+    { label:'感情・ムード',   rules: LYRICS_KW_RULES.emotion },
+    { label:'映像・演出',     rules: LYRICS_KW_RULES.visual },
+  ];
+  let lyricsFound = false;
+  let lyricsHtml = '';
+  CATS.forEach(cat => {
+    const uniq = [...new Set(cat.rules.filter(r => r.words.test(lyrics)).map(r => r.kw))];
+    if (!uniq.length) return;
+    lyricsFound = true;
+    const chips = uniq.map(kw =>
+      `<button class="lkw-chip" onclick="appendLyricsKw(this,'${kw.replace(/'/g,"\\'")}')">
+        ${kw}
+       </button>`
+    ).join('');
+    lyricsHtml += `<div class="lkw-section">
+      <div class="lkw-title">${cat.label}</div>
+      <div class="kw-chips">${chips}</div>
+    </div>`;
+  });
+
+  if (lyricsFound) {
+    html += `<div class="kw-panel-sep"></div>${lyricsHtml}`;
+  } else {
+    html += `<div class="kw-panel-sep"></div><p class="lkw-note">歌詞からキーワードは検出されませんでした — 手動で要望欄に入力してください</p>`;
   }
 
   container.innerHTML = html;
@@ -1196,17 +1199,9 @@ let _kwStep  = 0;
 const _kwUsed = [];
 
 function initKeywordChain(styleKey) {
-  // Strip previously-chained keywords from input on style change
+  // MVスタイル変更時に要望欄を完全リセット
   const input = document.getElementById('genre-input');
-  if (input && _kwUsed.length) {
-    let val = input.value;
-    _kwUsed.forEach(kw => {
-      const escaped = kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      val = val.replace(new RegExp('、?\\s*' + escaped, 'g'), '');
-    });
-    val = val.replace(/^、+|、+$/g, '').replace(/、{2,}/g, '、').trim();
-    input.value = val;
-  }
+  if (input) input.value = '';
   _kwStyle = styleKey;
   _kwStep  = 0;
   _kwUsed.length = 0;
