@@ -553,11 +553,11 @@ label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;
         <span class="card-title">設定</span>
         <span class="opt-badge">OPTIONAL</span>
       </div>
+      <div style="margin-bottom:.75rem;">
+        <label>プロンプト要望記載欄 <span class="help-tip" title="絵コンテ全体に反映させたい演出・雰囲気・小道具などを自由に記入してください。下のキーワードチップから選んでも、自由記述しても、両方併用しても構いません。例：「夜の海で」「失恋ソング」「モノクロ」">?</span></label>
+        <textarea id="genre-input" rows="2" style="min-height:54px;resize:vertical;line-height:1.6;font-size:.83rem;" placeholder="例：夜の海で / モノクロ / 失恋ソング / 逆光多め…自由に記入 or 下のチップから選択" oninput="autoResizeGenre(this)"></textarea>
+      </div>
       <div class="field-row" style="margin-bottom:.75rem;">
-        <div>
-          <label>プロンプト要望記載欄 <span class="help-tip" title="絵コンテ全体に反映させたい演出・雰囲気・小道具などを自由に記入してください。下のキーワードチップから選んでも、自由記述しても、両方併用しても構いません。例：「夜の海で」「失恋ソング」「モノクロ」">?</span></label>
-          <input type="text" id="genre-input" placeholder="例：夜の海で / モノクロ / 失恋ソング / 逆光多め…自由に記入 or 下のチップから選択">
-        </div>
         <div>
           <label>楽曲名</label>
           <input type="text" id="artist-input" placeholder="曲のタイトルを入力">
@@ -1098,6 +1098,11 @@ const LYRICS_KW_RULES = {
   ],
 };
 
+function autoResizeGenre(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.max(54, el.scrollHeight) + 'px';
+}
+
 // appendLyricsKw — used by lkw-chip buttons (lyrics-derived)
 function appendLyricsKw(btn, kw) {
   if (btn.classList.contains('used')) return;
@@ -1106,6 +1111,7 @@ function appendLyricsKw(btn, kw) {
   const input = document.getElementById('genre-input');
   const cur = input.value.trim();
   input.value = cur ? cur + '、' + kw : kw;
+  autoResizeGenre(input);
 }
 
 // ─────────────────────────────────────────
@@ -1201,7 +1207,7 @@ const _kwUsed = [];
 function initKeywordChain(styleKey) {
   // MVスタイル変更時に要望欄を完全リセット
   const input = document.getElementById('genre-input');
-  if (input) input.value = '';
+  if (input) { input.value = ''; autoResizeGenre(input); }
   _kwStyle = styleKey;
   _kwStep  = 0;
   _kwUsed.length = 0;
@@ -1214,6 +1220,7 @@ function addKeyword(btn, kw) {
   const input = document.getElementById('genre-input');
   const cur = input.value.trim();
   input.value = cur ? cur + '、' + kw : kw;
+  autoResizeGenre(input);
   _kwUsed.push(kw);
   _kwStep++;
   setTimeout(refreshKeywordPanel, 220);
