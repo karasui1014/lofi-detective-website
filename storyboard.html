@@ -1184,6 +1184,8 @@ function updateGenBtn() {
   const hasLyrics = !!(document.getElementById('lyrics-input')?.value.trim());
   const hint = document.getElementById('gen-prereq-hint');
   if (hint) hint.style.display = (hasAudio && hasLyrics) ? 'none' : 'block';
+  // Auto-clear error when both inputs are satisfied
+  if (hasAudio && hasLyrics) hideError();
 }
 
 // ─────────────────────────────────────────
@@ -1617,84 +1619,82 @@ const POSES = {
 function bgSketch(type, w, h) {
   switch(type) {
     case 'city': return `
-      <rect x="0" y="0" width="${w}" height="${h*.7}" fill="rgba(10,12,30,.55)"/>
-      <rect x="0" y="${h*.7}" width="${w}" height="${h*.3}" fill="rgba(5,5,20,.7)"/>
-      <rect x="${w*.04}" y="${h*.28}" width="${w*.07}" height="${h*.72}" fill="rgba(200,210,255,.05)"/>
-      <rect x="${w*.13}" y="${h*.15}" width="${w*.1}" height="${h*.85}" fill="rgba(200,210,255,.06)"/>
-      <rect x="${w*.25}" y="${h*.22}" width="${w*.07}" height="${h*.78}" fill="rgba(200,210,255,.04)"/>
-      <rect x="${w*.55}" y="${h*.12}" width="${w*.12}" height="${h*.88}" fill="rgba(200,210,255,.06)"/>
-      <rect x="${w*.7}" y="${h*.26}" width="${w*.09}" height="${h*.74}" fill="rgba(200,210,255,.05)"/>
-      <rect x="${w*.83}" y="${h*.19}" width="${w*.08}" height="${h*.81}" fill="rgba(200,210,255,.04)"/>
-      ${Array.from({length:10},(_,i)=>{const bx=w*(.14+Math.sin(i*1.7)*.06+Math.floor(i/3)*.18),by=h*(.18+i*.06);return `<rect x="${bx.toFixed(0)}" y="${by.toFixed(0)}" width="4" height="3" fill="rgba(255,230,120,.2)"/>`}).join('')}
-      <line x1="0" y1="${h*.72}" x2="${w}" y2="${h*.72}" stroke="rgba(138,43,226,.18)" stroke-width=".8"/>
-      <line x1="${w*.12}" y1="${h*.75}" x2="${w*.42}" y2="${h*.75}" stroke="rgba(0,212,255,.12)" stroke-width="1.5"/>
-      <line x1="${w*.62}" y1="${h*.76}" x2="${w*.88}" y2="${h*.76}" stroke="rgba(255,100,150,.1)" stroke-width="1.2"/>
-      <ellipse cx="${w*.3}" cy="${h*.88}" rx="${w*.1}" ry="${h*.025}" fill="rgba(0,212,255,.05)"/>`;
+      <rect x="0" y="0" width="${w}" height="${h*.7}" fill="rgba(8,10,28,.6)"/>
+      <rect x="0" y="${h*.7}" width="${w}" height="${h*.3}" fill="rgba(4,4,18,.7)"/>
+      <rect x="${w*.04}" y="${h*.28}" width="${w*.07}" height="${h*.72}" fill="none" stroke="rgba(200,210,255,.14)" stroke-width=".8" stroke-dasharray="3,5"/>
+      <rect x="${w*.13}" y="${h*.15}" width="${w*.1}" height="${h*.85}" fill="none" stroke="rgba(200,210,255,.16)" stroke-width=".9" stroke-dasharray="2,4"/>
+      <rect x="${w*.25}" y="${h*.22}" width="${w*.07}" height="${h*.78}" fill="none" stroke="rgba(200,210,255,.11)" stroke-width=".7" stroke-dasharray="3,6"/>
+      <rect x="${w*.55}" y="${h*.12}" width="${w*.12}" height="${h*.88}" fill="none" stroke="rgba(200,210,255,.16)" stroke-width=".9" stroke-dasharray="2,4"/>
+      <rect x="${w*.7}" y="${h*.26}" width="${w*.09}" height="${h*.74}" fill="none" stroke="rgba(200,210,255,.13)" stroke-width=".8" stroke-dasharray="3,5"/>
+      <rect x="${w*.83}" y="${h*.19}" width="${w*.08}" height="${h*.81}" fill="none" stroke="rgba(200,210,255,.11)" stroke-width=".7" stroke-dasharray="3,6"/>
+      ${Array.from({length:8},(_,i)=>{const bx=w*(.14+Math.sin(i*1.7)*.06+Math.floor(i/3)*.22),by=h*(.18+i*.07);return `<rect x="${bx.toFixed(0)}" y="${by.toFixed(0)}" width="4" height="3" fill="rgba(255,230,120,.28)" rx=".5"/>`}).join('')}
+      <line x1="0" y1="${h*.72}" x2="${w}" y2="${h*.72}" stroke="rgba(138,43,226,.3)" stroke-width="1" stroke-dasharray="5,3"/>
+      <line x1="${w*.1}" y1="${h*.75}" x2="${w*.45}" y2="${h*.75}" stroke="rgba(0,212,255,.22)" stroke-width="1.2"/>
+      <ellipse cx="${w*.3}" cy="${h*.88}" rx="${w*.1}" ry="${h*.025}" fill="none" stroke="rgba(0,212,255,.12)" stroke-width=".7"/>`;
 
     case 'nature': return `
-      <rect x="0" y="0" width="${w}" height="${h*.68}" fill="rgba(10,18,35,.5)"/>
-      <path d="M0 ${h*.72} Q${w*.18} ${h*.45} ${w*.35} ${h*.65} Q${w*.52} ${h*.38} ${w*.68} ${h*.62} Q${w*.82} ${h*.42} ${w} ${h*.6} L${w} ${h} L0 ${h}Z" fill="rgba(255,255,255,.05)"/>
-      <rect x="0" y="${h*.78}" width="${w}" height="${h*.22}" fill="rgba(255,255,255,.025)"/>
-      <line x1="${w*.11}" y1="${h*.76}" x2="${w*.11}" y2="${h*.42}" stroke="rgba(255,255,255,.08)" stroke-width="1.5"/>
-      <ellipse cx="${w*.11}" cy="${h*.39}" rx="${w*.055}" ry="${h*.09}" fill="rgba(255,255,255,.05)"/>
-      <line x1="${w*.11-w*.03}" y1="${h*.55}" x2="${w*.11-w*.07}" y2="${h*.47}" stroke="rgba(255,255,255,.04)" stroke-width="1"/>
-      <line x1="${w*.21}" y1="${h*.76}" x2="${w*.21}" y2="${h*.33}" stroke="rgba(255,255,255,.07)" stroke-width="1.2"/>
-      <ellipse cx="${w*.21}" cy="${h*.3}" rx="${w*.047}" ry="${h*.08}" fill="rgba(255,255,255,.045)"/>
-      <line x1="${w*.78}" y1="${h*.76}" x2="${w*.78}" y2="${h*.38}" stroke="rgba(255,255,255,.08)" stroke-width="1.5"/>
-      <ellipse cx="${w*.78}" cy="${h*.35}" rx="${w*.055}" ry="${h*.09}" fill="rgba(255,255,255,.05)"/>
-      <ellipse cx="${w*.5}" cy="${h*.2}" rx="${w*.22}" ry="${h*.1}" fill="rgba(255,220,150,.04)"/>
-      <line x1="0" y1="${h*.78}" x2="${w}" y2="${h*.78}" stroke="rgba(255,255,255,.06)" stroke-width=".8"/>`;
+      <rect x="0" y="0" width="${w}" height="${h*.68}" fill="rgba(8,16,32,.5)"/>
+      <path d="M0 ${h*.72} Q${w*.18} ${h*.45} ${w*.35} ${h*.65} Q${w*.52} ${h*.38} ${w*.68} ${h*.62} Q${w*.82} ${h*.42} ${w} ${h*.6} L${w} ${h} L0 ${h}Z" fill="none" stroke="rgba(255,255,255,.14)" stroke-width="1" stroke-dasharray="4,5"/>
+      <line x1="${w*.11}" y1="${h*.76}" x2="${w*.11}" y2="${h*.42}" stroke="rgba(255,255,255,.15)" stroke-width="1.5" stroke-linecap="round"/>
+      <ellipse cx="${w*.11}" cy="${h*.39}" rx="${w*.055}" ry="${h*.09}" fill="none" stroke="rgba(255,255,255,.14)" stroke-width=".9" stroke-dasharray="3,4"/>
+      <line x1="${w*.11-w*.03}" y1="${h*.55}" x2="${w*.11-w*.09}" y2="${h*.46}" stroke="rgba(255,255,255,.1)" stroke-width=".9"/>
+      <line x1="${w*.11+w*.03}" y1="${h*.55}" x2="${w*.11+w*.07}" y2="${h*.46}" stroke="rgba(255,255,255,.08)" stroke-width=".8"/>
+      <line x1="${w*.21}" y1="${h*.76}" x2="${w*.21}" y2="${h*.33}" stroke="rgba(255,255,255,.13)" stroke-width="1.2" stroke-linecap="round"/>
+      <ellipse cx="${w*.21}" cy="${h*.3}" rx="${w*.047}" ry="${h*.08}" fill="none" stroke="rgba(255,255,255,.12)" stroke-width=".9" stroke-dasharray="3,4"/>
+      <line x1="${w*.78}" y1="${h*.76}" x2="${w*.78}" y2="${h*.38}" stroke="rgba(255,255,255,.15)" stroke-width="1.5" stroke-linecap="round"/>
+      <ellipse cx="${w*.78}" cy="${h*.35}" rx="${w*.055}" ry="${h*.09}" fill="none" stroke="rgba(255,255,255,.12)" stroke-width=".9" stroke-dasharray="3,4"/>
+      <ellipse cx="${w*.5}" cy="${h*.18}" rx="${w*.22}" ry="${h*.09}" fill="none" stroke="rgba(255,220,150,.1)" stroke-width=".8" stroke-dasharray="5,6"/>
+      <line x1="0" y1="${h*.78}" x2="${w}" y2="${h*.78}" stroke="rgba(255,255,255,.12)" stroke-width=".9" stroke-dasharray="4,5"/>`;
 
     case 'spotlight': return `
-      <rect x="0" y="0" width="${w}" height="${h}" fill="rgba(0,0,0,.35)"/>
-      <path d="M${w*.5} 0 L${w*.16} ${h} L${w*.84} ${h}Z" fill="rgba(255,250,220,.04)"/>
-      <path d="M${w*.5} 0 L${w*.32} ${h} L${w*.68} ${h}Z" fill="rgba(255,250,220,.04)"/>
-      <path d="M${w*.5} 0 L${w*.41} ${h} L${w*.59} ${h}Z" fill="rgba(255,250,220,.03)"/>
-      <ellipse cx="${w*.5}" cy="${h*.94}" rx="${w*.32}" ry="${h*.07}" fill="rgba(255,250,200,.1)"/>
-      <ellipse cx="${w*.5}" cy="${h*.94}" rx="${w*.16}" ry="${h*.04}" fill="rgba(255,250,200,.12)"/>
-      <line x1="0" y1="${h*.87}" x2="${w}" y2="${h*.87}" stroke="rgba(255,255,255,.07)" stroke-width="1"/>
-      ${Array.from({length:5},(_,i)=>`<ellipse cx="${(w*(.3+i*.1)).toFixed(0)}" cy="${(h*(.28+Math.sin(i)*.18)).toFixed(0)}" rx="${(6+i*2).toFixed(0)}" ry="${(3+i).toFixed(0)}" fill="rgba(255,255,255,.018)"/>`).join('')}
-      <rect x="0" y="0" width="${w*.1}" height="${h}" fill="rgba(0,0,0,.4)"/>
-      <rect x="${w*.9}" y="0" width="${w*.1}" height="${h}" fill="rgba(0,0,0,.4)"/>`;
+      <rect x="0" y="0" width="${w}" height="${h}" fill="rgba(0,0,0,.4)"/>
+      <path d="M${w*.5} 0 L${w*.16} ${h} L${w*.84} ${h}Z" fill="none" stroke="rgba(255,250,220,.07)" stroke-width=".6" stroke-dasharray="5,7"/>
+      <path d="M${w*.5} 0 L${w*.32} ${h} L${w*.68} ${h}Z" fill="none" stroke="rgba(255,250,220,.08)" stroke-width=".7" stroke-dasharray="4,6"/>
+      <path d="M${w*.5} 0 L${w*.41} ${h} L${w*.59} ${h}Z" fill="rgba(255,250,220,.04)"/>
+      <ellipse cx="${w*.5}" cy="${h*.94}" rx="${w*.3}" ry="${h*.07}" fill="none" stroke="rgba(255,250,200,.2)" stroke-width="1" stroke-dasharray="5,4"/>
+      <ellipse cx="${w*.5}" cy="${h*.94}" rx="${w*.14}" ry="${h*.035}" fill="rgba(255,250,200,.12)"/>
+      <line x1="0" y1="${h*.87}" x2="${w}" y2="${h*.87}" stroke="rgba(255,255,255,.12)" stroke-width=".8" stroke-dasharray="5,4"/>
+      ${Array.from({length:4},(_,i)=>`<circle cx="${(w*(.32+i*.12)).toFixed(0)}" cy="${(h*(.6+Math.sin(i*.9)*.1)).toFixed(0)}" r="${(5+i).toFixed(0)}" fill="none" stroke="rgba(255,255,200,.06)" stroke-width=".7" stroke-dasharray="3,4"/>`).join('')}
+      <rect x="0" y="0" width="${w*.08}" height="${h}" fill="rgba(0,0,0,.45)"/>
+      <rect x="${w*.92}" y="0" width="${w*.08}" height="${h}" fill="rgba(0,0,0,.45)"/>`;
 
     case 'rain': return `
-      <rect x="0" y="0" width="${w}" height="${h}" fill="rgba(0,20,45,.3)"/>
-      ${Array.from({length:22},(_,i)=>{
-        const x=w*(i/22+Math.sin(i*.6)*.03);
-        const y=h*(Math.cos(i*.55)*.3+.12);
-        return `<line x1="${x.toFixed(0)}" y1="${y.toFixed(0)}" x2="${(x-3.5).toFixed(0)}" y2="${(y+h*.38).toFixed(0)}" stroke="rgba(140,200,255,.12)" stroke-width="${(.5+Math.sin(i)*.25).toFixed(2)}"/>`;
+      <rect x="0" y="0" width="${w}" height="${h}" fill="rgba(0,18,42,.35)"/>
+      ${Array.from({length:30},(_,i)=>{
+        const x=w*(i/30+Math.sin(i*.6)*.03);
+        const y=h*(Math.cos(i*.55)*.32+.08);
+        return `<line x1="${x.toFixed(1)}" y1="${y.toFixed(1)}" x2="${(x-4).toFixed(1)}" y2="${(y+h*.35).toFixed(1)}" stroke="rgba(140,200,255,.16)" stroke-width="${(.6+Math.sin(i)*.3).toFixed(2)}" stroke-linecap="round"/>`;
       }).join('')}
-      <rect x="0" y="${h*.83}" width="${w}" height="${h*.17}" fill="rgba(0,40,80,.18)"/>
-      <ellipse cx="${w*.42}" cy="${h*.87}" rx="${w*.18}" ry="${h*.03}" fill="rgba(0,180,255,.06)" stroke="rgba(0,180,255,.09)" stroke-width=".8"/>
-      <ellipse cx="${w*.72}" cy="${h*.89}" rx="${w*.1}" ry="${h*.02}" fill="rgba(0,180,255,.05)"/>
-      <line x1="0" y1="${h*.84}" x2="${w}" y2="${h*.84}" stroke="rgba(100,160,220,.07)" stroke-width=".8"/>`;
+      <rect x="0" y="${h*.83}" width="${w}" height="${h*.17}" fill="rgba(0,40,80,.22)"/>
+      <ellipse cx="${w*.42}" cy="${h*.87}" rx="${w*.18}" ry="${h*.03}" fill="none" stroke="rgba(0,180,255,.16)" stroke-width=".8" stroke-dasharray="4,5"/>
+      <line x1="0" y1="${h*.84}" x2="${w}" y2="${h*.84}" stroke="rgba(100,160,220,.14)" stroke-width=".9" stroke-dasharray="5,4"/>`;
 
     case 'stars': return `
-      <rect x="0" y="0" width="${w}" height="${h*.74}" fill="rgba(4,4,22,.55)"/>
-      <ellipse cx="${w*.62}" cy="${h*.32}" rx="${w*.58}" ry="${h*.14}" fill="rgba(120,120,255,.02)" transform="rotate(-22 ${(w*.62).toFixed(0)} ${(h*.32).toFixed(0)})"/>
-      ${Array.from({length:32},(_,i)=>{
+      <rect x="0" y="0" width="${w}" height="${h*.74}" fill="rgba(3,3,20,.6)"/>
+      <ellipse cx="${w*.62}" cy="${h*.32}" rx="${w*.55}" ry="${h*.13}" fill="none" stroke="rgba(120,120,255,.06)" stroke-width=".6" stroke-dasharray="5,8" transform="rotate(-22 ${(w*.62).toFixed(0)} ${(h*.32).toFixed(0)})"/>
+      ${Array.from({length:38},(_,i)=>{
         const x=w*(Math.sin(i*2.1+.7)*.48+.5), y=h*(Math.cos(i*1.7+.5)*.34+.27);
-        const r=.5+Math.abs(Math.sin(i*.9))*.85;
-        const op=.07+Math.abs(Math.sin(i*.7))*.28;
+        const r=.5+Math.abs(Math.sin(i*.9))*.9;
+        const op=.1+Math.abs(Math.sin(i*.7))*.32;
         return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r.toFixed(1)}" fill="rgba(255,255,255,${op.toFixed(2)})"/>`;
       }).join('')}
-      ${Array.from({length:4},(_,i)=>{const x=w*(i*.22+.1),y=h*(Math.sin(i*1.2)*.14+.18);return `<circle cx="${x.toFixed(0)}" cy="${y.toFixed(0)}" r="1.8" fill="rgba(255,255,255,.45)"/><circle cx="${x.toFixed(0)}" cy="${y.toFixed(0)}" r="5" fill="rgba(255,255,255,.05)"/>`;}).join('')}
-      <line x1="0" y1="${h*.74}" x2="${w}" y2="${h*.74}" stroke="rgba(255,255,255,.05)" stroke-width=".8"/>
-      <rect x="0" y="${h*.74}" width="${w}" height="${h*.26}" fill="rgba(0,0,0,.25)"/>`;
+      ${Array.from({length:5},(_,i)=>{const x=w*(i*.18+.08),y=h*(Math.sin(i*1.2)*.12+.16);return `<circle cx="${x.toFixed(0)}" cy="${y.toFixed(0)}" r="2" fill="rgba(255,255,255,.5)"/><circle cx="${x.toFixed(0)}" cy="${y.toFixed(0)}" r="5" fill="none" stroke="rgba(255,255,255,.06)" stroke-width=".6"/>`;}).join('')}
+      <line x1="0" y1="${h*.74}" x2="${w}" y2="${h*.74}" stroke="rgba(255,255,255,.08)" stroke-width=".8" stroke-dasharray="4,6"/>
+      <rect x="0" y="${h*.74}" width="${w}" height="${h*.26}" fill="rgba(0,0,0,.28)"/>`;
 
     case 'abstract': return `
-      <ellipse cx="${w*.3}" cy="${h*.42}" rx="${w*.26}" ry="${h*.22}" fill="rgba(138,43,226,.07)" stroke="rgba(138,43,226,.14)" stroke-width="1"/>
-      <ellipse cx="${w*.72}" cy="${h*.58}" rx="${w*.21}" ry="${h*.18}" fill="rgba(0,212,255,.05)" stroke="rgba(0,212,255,.12)" stroke-width="1"/>
-      <ellipse cx="${w*.55}" cy="${h*.24}" rx="${w*.16}" ry="${h*.12}" fill="rgba(255,107,157,.04)" stroke="rgba(255,107,157,.1)" stroke-width=".8"/>
-      <line x1="${w*.05}" y1="${h*.9}" x2="${w*.95}" y2="${h*.1}" stroke="rgba(255,255,255,.05)" stroke-width=".8"/>
-      <line x1="${w*.05}" y1="${h*.1}" x2="${w*.95}" y2="${h*.9}" stroke="rgba(255,255,255,.04)" stroke-width=".6"/>
-      ${Array.from({length:5},(_,i)=>`<circle cx="${(w*(.18+i*.17)).toFixed(0)}" cy="${(h*(.5+Math.sin(i)*.2)).toFixed(0)}" r="${(3+i*1.5).toFixed(0)}" fill="rgba(255,255,255,.025)"/>`).join('')}`;
+      <ellipse cx="${w*.3}" cy="${h*.42}" rx="${w*.26}" ry="${h*.22}" fill="none" stroke="rgba(138,43,226,.22)" stroke-width="1.2" stroke-dasharray="5,6"/>
+      <ellipse cx="${w*.72}" cy="${h*.58}" rx="${w*.21}" ry="${h*.18}" fill="none" stroke="rgba(0,212,255,.2)" stroke-width="1" stroke-dasharray="4,5"/>
+      <ellipse cx="${w*.55}" cy="${h*.24}" rx="${w*.16}" ry="${h*.12}" fill="none" stroke="rgba(255,107,157,.18)" stroke-width=".9" stroke-dasharray="4,6"/>
+      <line x1="${w*.05}" y1="${h*.9}" x2="${w*.95}" y2="${h*.1}" stroke="rgba(255,255,255,.1)" stroke-width=".9" stroke-dasharray="5,6"/>
+      <line x1="${w*.05}" y1="${h*.1}" x2="${w*.95}" y2="${h*.9}" stroke="rgba(255,255,255,.08)" stroke-width=".7" stroke-dasharray="4,7"/>
+      ${Array.from({length:5},(_,i)=>`<circle cx="${(w*(.18+i*.17)).toFixed(0)}" cy="${(h*(.5+Math.sin(i)*.2)).toFixed(0)}" r="${(3+i*1.5).toFixed(0)}" fill="none" stroke="rgba(255,255,255,.12)" stroke-width=".7" stroke-dasharray="3,4"/>`).join('')}`;
 
     default: return `
-      <rect x="0" y="${h*.68}" width="${w}" height="${h*.32}" fill="rgba(255,255,255,.018)"/>
-      <line x1="0" y1="${h*.68}" x2="${w}" y2="${h*.68}" stroke="rgba(255,255,255,.07)" stroke-width=".8"/>
-      <line x1="${w*.2}" y1="${h*.68}" x2="${w*.2}" y2="${h}" stroke="rgba(255,255,255,.03)" stroke-width=".8"/>
-      <line x1="${w*.7}" y1="${h*.68}" x2="${w*.7}" y2="${h}" stroke="rgba(255,255,255,.025)" stroke-width=".6"/>`;
+      <line x1="0" y1="${h*.68}" x2="${w}" y2="${h*.68}" stroke="rgba(255,255,255,.12)" stroke-width=".9" stroke-dasharray="5,4"/>
+      <line x1="${w*.2}" y1="${h*.68}" x2="${w*.2}" y2="${h}" stroke="rgba(255,255,255,.08)" stroke-width=".8" stroke-dasharray="3,5"/>
+      <line x1="${w*.7}" y1="${h*.68}" x2="${w*.7}" y2="${h}" stroke="rgba(255,255,255,.07)" stroke-width=".7" stroke-dasharray="3,6"/>
+      <path d="M0 ${h*.68} Q${w*.25} ${h*.6} ${w*.5} ${h*.65} Q${w*.75} ${h*.7} ${w} ${h*.63}" fill="none" stroke="rgba(255,255,255,.07)" stroke-width=".7"/>`;
   }
 }
 
@@ -2380,14 +2380,47 @@ function renderPanelSVG(panel) {
   const col = brightenColor(panel.color || '#c0c0e0');
   const bg  = bgSketch(panel.bg, W, H);
   const svgVar = panel._svgVariant ?? panel.idx ?? 0;
-  const guideLine = `
-    <line x1="${W*.33}" y1="0" x2="${W*.33}" y2="${H}" stroke="rgba(255,255,255,.04)" stroke-width="1"/>
-    <line x1="${W*.67}" y1="0" x2="${W*.67}" y2="${H}" stroke="rgba(255,255,255,.04)" stroke-width="1"/>
-    <line x1="0" y1="${H*.5}" x2="${W}" y2="${H*.5}" stroke="rgba(255,255,255,.04)" stroke-width="1"/>`;
-  const overlay = panel.isIntro ? `<rect width="${W}" height="${H}" fill="rgba(0,212,255,.05)"/>` :
-                  panel.isOutro ? `<rect width="${W}" height="${H}" fill="rgba(255,107,157,.05)"/>` : '';
+  const uid = (panel.idx || 0);
 
-  let defs = '';
+  // ── Sketch-style guide lines (rule-of-thirds, horizon) ──
+  const guideLine = `
+    <line x1="${W*.33}" y1="0" x2="${W*.33}" y2="${H}" stroke="rgba(255,255,255,.05)" stroke-width=".7" stroke-dasharray="4,6"/>
+    <line x1="${W*.67}" y1="0" x2="${W*.67}" y2="${H}" stroke="rgba(255,255,255,.05)" stroke-width=".7" stroke-dasharray="4,6"/>
+    <line x1="0" y1="${H*.5}" x2="${W}" y2="${H*.5}" stroke="rgba(255,255,255,.04)" stroke-width=".7" stroke-dasharray="4,6"/>`;
+
+  // ── Storyboard corner registration marks ──
+  const T=9, M=5;
+  const corners = `
+    <line x1="${M}" y1="${M}" x2="${M+T}" y2="${M}" stroke="rgba(255,255,255,.35)" stroke-width="1.4" stroke-linecap="square"/>
+    <line x1="${M}" y1="${M}" x2="${M}" y2="${M+T}" stroke="rgba(255,255,255,.35)" stroke-width="1.4" stroke-linecap="square"/>
+    <line x1="${W-M}" y1="${M}" x2="${W-M-T}" y2="${M}" stroke="rgba(255,255,255,.35)" stroke-width="1.4" stroke-linecap="square"/>
+    <line x1="${W-M}" y1="${M}" x2="${W-M}" y2="${M+T}" stroke="rgba(255,255,255,.35)" stroke-width="1.4" stroke-linecap="square"/>
+    <line x1="${M}" y1="${H-M}" x2="${M+T}" y2="${H-M}" stroke="rgba(255,255,255,.35)" stroke-width="1.4" stroke-linecap="square"/>
+    <line x1="${M}" y1="${H-M}" x2="${M}" y2="${H-M-T}" stroke="rgba(255,255,255,.35)" stroke-width="1.4" stroke-linecap="square"/>
+    <line x1="${W-M}" y1="${H-M}" x2="${W-M-T}" y2="${H-M}" stroke="rgba(255,255,255,.35)" stroke-width="1.4" stroke-linecap="square"/>
+    <line x1="${W-M}" y1="${H-M}" x2="${W-M}" y2="${H-M-T}" stroke="rgba(255,255,255,.35)" stroke-width="1.4" stroke-linecap="square"/>`;
+
+  // ── Hatching texture for sketch feel ──
+  const hatchId = `ht${uid}`;
+  const hatchDef = `<pattern id="${hatchId}" x="0" y="0" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(38)">
+    <line x1="0" y1="0" x2="0" y2="7" stroke="rgba(255,255,255,.022)" stroke-width="0.7"/>
+  </pattern>`;
+  const hatch = `<rect width="${W}" height="${H}" fill="url(#${hatchId})"/>`;
+
+  // ── Hand-drawn wobble filter ──
+  const filterId = `rf${uid}`;
+  const roughDef = `<filter id="${filterId}" x="-3%" y="-3%" width="106%" height="106%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.055" numOctaves="3" seed="${uid*11+3}" result="n"/>
+    <feDisplacementMap in="SourceGraphic" in2="n" scale="2.2" xChannelSelector="R" yChannelSelector="G"/>
+  </filter>`;
+
+  // ── Ground / horizon sketch line ──
+  const groundLine = `<line x1="${cx-70}" y1="${cy+scale*1.55}" x2="${cx+70}" y2="${cy+scale*1.55}" stroke="${col}" stroke-width="1.1" opacity=".35" stroke-dasharray="3,5"/>`;
+
+  const overlay = panel.isIntro ? `<rect width="${W}" height="${H}" fill="rgba(0,212,255,.04)"/>` :
+                  panel.isOutro ? `<rect width="${W}" height="${H}" fill="rgba(255,107,157,.04)"/>` : '';
+
+  let defs = hatchDef + roughDef;
   let innerSVG = '';
   const vt = panel.visualType || 'character';
 
@@ -2395,44 +2428,75 @@ function renderPanelSVG(panel) {
     const poseKey = (vt === 'crowd' || panel.pose === 'crowd') ? 'crowd'
                   : (panel.pose in POSES ? panel.pose : 'standing');
     const figSVG = POSES[poseKey](cx, cy, scale);
-    const ground = `<line x1="${cx-55}" y1="${cy+scale*1.55}" x2="${cx+60}" y2="${cy+scale*1.55}" stroke="${col}" stroke-width="1.2" opacity=".45"/>`;
-    innerSVG = `${bg}<g color="${col}" opacity="1" stroke-width="1.4">${figSVG}</g>${ground}`;
+    const motionLines = motionSketch(panel.pose, cx, cy, scale, col);
+    innerSVG = `${bg}${hatch}
+      <g filter="url(#${filterId})" color="${col}" opacity=".95" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        ${figSVG}
+      </g>
+      ${motionLines}${groundLine}`;
 
   } else if (vt === 'silhouette') {
-    const uid = panel.idx || 0;
-    defs = silhouetteDefs(uid, col);
+    defs += silhouetteDefs(uid, col);
     const sil = silhouetteSVG(cx, cy, scale, uid, col);
-    const ground = `<line x1="${cx-60}" y1="${cy+scale*1.55}" x2="${cx+60}" y2="${cy+scale*1.55}" stroke="${col}" stroke-width="1" opacity=".3"/>`;
-    innerSVG = `${bg}${sil}${ground}`;
+    innerSVG = `${bg}${hatch}
+      <g filter="url(#${filterId})">${sil}</g>${groundLine}`;
 
   } else if (vt === 'abstract') {
     innerSVG = abstractSVG(W, H, col, svgVar);
 
   } else if (vt === 'macro') {
-    innerSVG = `<rect width="${W}" height="${H}" fill="rgba(12,12,30,.55)"/>${macroSVG(W, H, col, svgVar)}`;
+    innerSVG = `<rect width="${W}" height="${H}" fill="rgba(12,12,30,.55)"/>${hatch}${macroSVG(W, H, col, svgVar)}`;
 
   } else if (vt === 'object') {
-    innerSVG = `${bgSketch(panel.bg, W, H)}<rect width="${W}" height="${H}" fill="rgba(12,12,30,.42)"/>${objectSVG(W, H, col, panel.styleKey || selectedStyle, svgVar)}`;
+    innerSVG = `${bgSketch(panel.bg, W, H)}${hatch}<rect width="${W}" height="${H}" fill="rgba(12,12,30,.38)"/>${objectSVG(W, H, col, panel.styleKey || selectedStyle, svgVar)}`;
 
   } else if (vt === 'bokeh') {
-    innerSVG = `<rect width="${W}" height="${H}" fill="rgba(8,8,22,.8)"/>${bokehSVG(W, H, col, svgVar)}`;
+    innerSVG = `<rect width="${W}" height="${H}" fill="rgba(8,8,22,.8)"/>${hatch}${bokehSVG(W, H, col, svgVar)}`;
 
   } else if (vt === 'environment') {
-    innerSVG = environmentOnlySVG(panel.bg, W, H, col);
+    innerSVG = `${environmentOnlySVG(panel.bg, W, H, col)}${hatch}`;
 
   } else if (vt === 'crowd-wide') {
-    innerSVG = `${bg}${crowdOnlySVG(W, H, col)}`;
+    innerSVG = `${bg}${hatch}
+      <g filter="url(#${filterId})">${crowdOnlySVG(W, H, col)}</g>`;
 
   } else {
     const figSVG = POSES['standing'](cx, cy, scale);
-    innerSVG = `${bg}<g color="${col}" opacity="1">${figSVG}</g>`;
+    innerSVG = `${bg}${hatch}
+      <g filter="url(#${filterId})" color="${col}" opacity=".95" stroke-width="1.6">${figSVG}</g>`;
   }
 
   return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
-    ${defs ? `<defs>${defs}</defs>` : ''}
-    <rect width="${W}" height="${H}" fill="#12122a"/>
-    ${overlay}${guideLine}${innerSVG}
+    <defs>${defs}</defs>
+    <rect width="${W}" height="${H}" fill="#0e0e22"/>
+    ${overlay}${guideLine}${innerSVG}${corners}
   </svg>`;
+}
+
+// Motion / action sketch lines for dynamic poses
+function motionSketch(pose, cx, cy, s, col) {
+  if (pose === 'running' || pose === 'action') {
+    return `
+      <line x1="${cx-s*2.2}" y1="${cy-s*.4}" x2="${cx-s*3.8}" y2="${cy-s*.4}" stroke="${col}" stroke-width=".7" opacity=".28" stroke-linecap="round"/>
+      <line x1="${cx-s*2.2}" y1="${cy+s*.2}" x2="${cx-s*3.5}" y2="${cy+s*.2}" stroke="${col}" stroke-width=".7" opacity=".22" stroke-linecap="round"/>
+      <line x1="${cx-s*2.2}" y1="${cy-s*1.0}" x2="${cx-s*3.2}" y2="${cy-s*1.0}" stroke="${col}" stroke-width=".7" opacity=".18" stroke-linecap="round"/>`;
+  }
+  if (pose === 'dancing') {
+    const arcs = Array.from({length:4},(_,i)=>{
+      const a = i*(Math.PI/2); const r=s*2.5;
+      return `<circle cx="${cx}" cy="${cy-s*1.5}" r="${r*(0.5+i*.12)}" fill="none" stroke="${col}" stroke-width=".6" opacity="${.1-.02*i}" stroke-dasharray="4,5"/>`;
+    }).join('');
+    return arcs;
+  }
+  if (pose === 'lookingup') {
+    return `
+      <line x1="${cx}" y1="${cy-s*5}" x2="${cx+s*.6}" y2="${cy-s*3.6}" stroke="${col}" stroke-width=".8" opacity=".22" stroke-linecap="round" stroke-dasharray="3,4"/>
+      <line x1="${cx-s*.3}" y1="${cy-s*4.5}" x2="${cx+s*.3}" y2="${cy-s*3.3}" stroke="${col}" stroke-width=".6" opacity=".15" stroke-linecap="round" stroke-dasharray="2,4"/>`;
+  }
+  if (pose === 'reaching') {
+    return `<line x1="${cx+s*2.5}" y1="${cy-s*2.6}" x2="${cx+s*4.0}" y2="${cy-s*3.2}" stroke="${col}" stroke-width=".7" opacity=".25" stroke-linecap="round" stroke-dasharray="3,4"/>`;
+  }
+  return '';
 }
 
 // Brighten panel color so figures stand out against dark background
