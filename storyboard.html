@@ -945,12 +945,16 @@ function environmentOnlySVG(bg, W, H, color) {
 }
 
 function crowdOnlySVG(W, H, color) {
-  const rows = 3, perRow = 12;
+  const rows = 3, perRow = 11;
   return Array.from({length:rows},(_,r)=>
     Array.from({length:perRow},(_,c)=>{
-      const x=W*(c+.5)/perRow, y=H*(.6+r*.12), s=H*.04+r*H*.005;
-      return `<circle cx="${x.toFixed(1)}" cy="${(y-s*2.2).toFixed(1)}" r="${(s*.7).toFixed(1)}" fill="${color}" opacity="${(.08+r*.04).toFixed(2)}"/>
-        <line x1="${x.toFixed(1)}" y1="${(y-s*1.5).toFixed(1)}" x2="${x.toFixed(1)}" y2="${(y+s*.5).toFixed(1)}" stroke="${color}" stroke-width="${(s*.4).toFixed(1)}" opacity="${(.07+r*.04).toFixed(2)}" stroke-linecap="round"/>`;
+      const x=W*(c+.5)/perRow + (r%2===0?0:W/(perRow*2));
+      const y=H*(.58+r*.13), s=H*.046+r*H*.006;
+      const op=(.18+r*.07).toFixed(2);
+      return `<circle cx="${x.toFixed(1)}" cy="${(y-s*2.2).toFixed(1)}" r="${(s*.82).toFixed(1)}" fill="${color}" opacity="${op}"/>
+        <path d="M${x.toFixed(1)} ${(y-s*1.5).toFixed(1)} Q${(x+s*.15).toFixed(1)} ${(y-s*.5).toFixed(1)} ${x.toFixed(1)} ${(y+s*.5).toFixed(1)}" stroke="${color}" stroke-width="${(s*.45).toFixed(1)}" fill="none" opacity="${op}" stroke-linecap="round"/>
+        <path d="M${(x-s*.48).toFixed(1)} ${(y-s*1.2).toFixed(1)} Q${(x-s*.28).toFixed(1)} ${(y-s*.7).toFixed(1)} ${x.toFixed(1)} ${(y-s*.9).toFixed(1)}" stroke="${color}" stroke-width="${(s*.3).toFixed(1)}" fill="none" opacity="${(parseFloat(op)*.7).toFixed(2)}" stroke-linecap="round"/>
+        <path d="M${(x+s*.48).toFixed(1)} ${(y-s*1.2).toFixed(1)} Q${(x+s*.28).toFixed(1)} ${(y-s*.7).toFixed(1)} ${x.toFixed(1)} ${(y-s*.9).toFixed(1)}" stroke="${color}" stroke-width="${(s*.3).toFixed(1)}" fill="none" opacity="${(parseFloat(op)*.7).toFixed(2)}" stroke-linecap="round"/>`;
     }).join('')
   ).join('');
 }
@@ -1518,101 +1522,106 @@ function formatTime(s) {
 // ─────────────────────────────────────────
 function figBase(cx, cy, s) {
   return `
-    <circle cx="${cx}" cy="${cy-s*2.8}" r="${s*.88}" fill="currentColor" fill-opacity=".2" stroke="currentColor" stroke-width="${s*.1}"/>
-    <circle cx="${cx-s*.3}" cy="${cy-s*3.01}" r="${s*.11}" fill="currentColor" opacity=".68"/>
-    <circle cx="${cx+s*.3}" cy="${cy-s*3.01}" r="${s*.11}" fill="currentColor" opacity=".68"/>
-    <line x1="${cx}" y1="${cy-s*1.92}" x2="${cx}" y2="${cy-s*1.84}" stroke="currentColor" stroke-width="${s*.26}" stroke-linecap="round"/>
-    <path d="M${cx-s*.5} ${cy-s*1.84} L${cx-s*.41} ${cy+.06} L${cx+s*.41} ${cy+.06} L${cx+s*.5} ${cy-s*1.84}Z" fill="currentColor" fill-opacity=".17" stroke="currentColor" stroke-width="${s*.08}" stroke-linejoin="round"/>`;
+    <path d="M${cx-s*.755} ${cy-s*2.85} Q${cx} ${cy-s*3.98} ${cx+s*.755} ${cy-s*2.85}" fill="currentColor" fill-opacity=".45" stroke="none"/>
+    <circle cx="${cx}" cy="${cy-s*2.8}" r="${s*.92}" fill="currentColor" fill-opacity=".32" stroke="currentColor" stroke-width="${s*.12}"/>
+    <circle cx="${cx-s*.28}" cy="${cy-s*2.85}" r="${s*.13}" fill="currentColor" opacity=".82"/>
+    <circle cx="${cx+s*.28}" cy="${cy-s*2.85}" r="${s*.13}" fill="currentColor" opacity=".82"/>
+    <rect x="${cx-s*.13}" y="${cy-s*1.97}" width="${s*.26}" height="${s*.18}" fill="currentColor" fill-opacity=".38"/>
+    <path d="M${cx-s*.54} ${cy-s*1.84} L${cx-s*.42} ${cy+.06} L${cx+s*.42} ${cy+.06} L${cx+s*.54} ${cy-s*1.84}Z" fill="currentColor" fill-opacity=".3" stroke="currentColor" stroke-width="${s*.1}" stroke-linejoin="round"/>`;
 }
 
 const POSES = {
   standing: (cx,cy,s) => figBase(cx,cy,s) + `
-    <line x1="${cx-s*.5}" y1="${cy-s*1.52}" x2="${cx-s*1.28}" y2="${cy-s*.88}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
-    <line x1="${cx+s*.5}" y1="${cy-s*1.52}" x2="${cx+s*1.28}" y2="${cy-s*.88}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
-    <line x1="${cx-s*.32}" y1="${cy+.06}" x2="${cx-s*.78}" y2="${cy+s*1.52}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
-    <line x1="${cx+s*.32}" y1="${cy+.06}" x2="${cx+s*.78}" y2="${cy+s*1.52}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>`,
+    <path d="M${cx-s*.5} ${cy-s*1.52} Q${cx-s*.88} ${cy-s*1.15} ${cx-s*1.28} ${cy-s*.88}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
+    <path d="M${cx+s*.5} ${cy-s*1.52} Q${cx+s*.88} ${cy-s*1.15} ${cx+s*1.28} ${cy-s*.88}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
+    <path d="M${cx-s*.32} ${cy+.06} Q${cx-s*.55} ${cy+s*.75} ${cx-s*.78} ${cy+s*1.52}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
+    <path d="M${cx+s*.32} ${cy+.06} Q${cx+s*.55} ${cy+s*.75} ${cx+s*.78} ${cy+s*1.52}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>`,
 
   running: (cx,cy,s) => figBase(cx,cy,s) + `
-    <line x1="${cx-s*1.4}" y1="${cy-s*1.7}" x2="${cx+s*.2}" y2="${cy-s*1.05}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
-    <line x1="${cx+s*.2}" y1="${cy-s*1.05}" x2="${cx+s*1.5}" y2="${cy-s*1.55}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
-    <line x1="${cx-s*.3}" y1="${cy+.06}" x2="${cx-s*.9}" y2="${cy+s*1.2}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
-    <line x1="${cx+s*.3}" y1="${cy+.06}" x2="${cx+s*1.1}" y2="${cy+s*.7}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>`,
+    <path d="M${cx-s*1.4} ${cy-s*1.7} Q${cx-s*.6} ${cy-s*1.38} ${cx+s*.2} ${cy-s*1.05}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
+    <path d="M${cx+s*.2} ${cy-s*1.05} Q${cx+s*.85} ${cy-s*1.3} ${cx+s*1.5} ${cy-s*1.55}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
+    <path d="M${cx-s*.3} ${cy+.06} Q${cx-s*.6} ${cy+s*.62} ${cx-s*.9} ${cy+s*1.2}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
+    <path d="M${cx+s*.3} ${cy+.06} Q${cx+s*.7} ${cy+s*.38} ${cx+s*1.1} ${cy+s*.7}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>`,
 
   dancing: (cx,cy,s) => figBase(cx,cy,s) + `
-    <line x1="${cx-s*.5}" y1="${cy-s*1.52}" x2="${cx-s*1.45}" y2="${cy-s*2.35}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
-    <line x1="${cx+s*.5}" y1="${cy-s*1.52}" x2="${cx+s*1.45}" y2="${cy-s*2.35}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
-    <line x1="${cx-s*.32}" y1="${cy+.06}" x2="${cx-s*1.1}" y2="${cy+s*1.15}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
-    <line x1="${cx+s*.32}" y1="${cy+.06}" x2="${cx+s*.6}" y2="${cy+s*1.55}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>`,
+    <path d="M${cx-s*.5} ${cy-s*1.52} Q${cx-s*.95} ${cy-s*2.0} ${cx-s*1.45} ${cy-s*2.35}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
+    <path d="M${cx+s*.5} ${cy-s*1.52} Q${cx+s*.95} ${cy-s*2.0} ${cx+s*1.45} ${cy-s*2.35}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
+    <path d="M${cx-s*.32} ${cy+.06} Q${cx-s*.72} ${cy+s*.62} ${cx-s*1.1} ${cy+s*1.15}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
+    <path d="M${cx+s*.32} ${cy+.06} Q${cx+s*.46} ${cy+s*.82} ${cx+s*.6} ${cy+s*1.55}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>`,
 
   crying: (cx,cy,s) => figBase(cx,cy,s) + `
-    <line x1="${cx-s*.5}" y1="${cy-s*1.52}" x2="${cx-s*.75}" y2="${cy-s*1.2}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
-    <line x1="${cx+s*.5}" y1="${cy-s*1.52}" x2="${cx+s*.75}" y2="${cy-s*1.2}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
-    <line x1="${cx-s*.32}" y1="${cy+.06}" x2="${cx-s*.95}" y2="${cy+s*1.5}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
-    <line x1="${cx+s*.32}" y1="${cy+.06}" x2="${cx+s*.85}" y2="${cy+s*1.45}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
+    <path d="M${cx-s*.5} ${cy-s*1.52} Q${cx-s*.62} ${cy-s*1.36} ${cx-s*.75} ${cy-s*1.2}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
+    <path d="M${cx+s*.5} ${cy-s*1.52} Q${cx+s*.62} ${cy-s*1.36} ${cx+s*.75} ${cy-s*1.2}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
+    <path d="M${cx-s*.32} ${cy+.06} Q${cx-s*.63} ${cy+s*.78} ${cx-s*.95} ${cy+s*1.5}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
+    <path d="M${cx+s*.32} ${cy+.06} Q${cx+s*.58} ${cy+s*.76} ${cx+s*.85} ${cy+s*1.45}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
     <line x1="${cx-s*.32}" y1="${cy-s*2.45}" x2="${cx-s*.38}" y2="${cy-s*1.8}" stroke="currentColor" stroke-width="${s*.07}" stroke-dasharray="2.5,2" opacity=".65"/>
     <line x1="${cx+s*.32}" y1="${cy-s*2.45}" x2="${cx+s*.38}" y2="${cy-s*1.8}" stroke="currentColor" stroke-width="${s*.07}" stroke-dasharray="2.5,2" opacity=".65"/>`,
 
   love: (cx,cy,s) => `
-    <circle cx="${cx-s}" cy="${cy-s*2.8}" r="${s*.82}" fill="currentColor" fill-opacity=".18" stroke="currentColor" stroke-width="${s*.1}"/>
-    <circle cx="${cx+s}" cy="${cy-s*2.8}" r="${s*.82}" fill="currentColor" fill-opacity=".18" stroke="currentColor" stroke-width="${s*.1}"/>
-    <line x1="${cx-s}" y1="${cy-s*1.97}" x2="${cx-s*.2}" y2="${cy+.05}" stroke="currentColor" stroke-width="${s*.14}" stroke-linecap="round"/>
-    <line x1="${cx+s}" y1="${cy-s*1.97}" x2="${cx+s*.2}" y2="${cy+.05}" stroke="currentColor" stroke-width="${s*.14}" stroke-linecap="round"/>
-    <line x1="${cx-s*.2}" y1="${cy-s*1.42}" x2="${cx+s*.2}" y2="${cy-s*1.42}" stroke="currentColor" stroke-width="${s*.14}" stroke-linecap="round"/>
-    <line x1="${cx-s*.2}" y1="${cy+.05}" x2="${cx-s*1.05}" y2="${cy+s*1.35}" stroke="currentColor" stroke-width="${s*.14}" stroke-linecap="round"/>
-    <line x1="${cx-s*.2}" y1="${cy+.05}" x2="${cx+s*.25}" y2="${cy+s*1.35}" stroke="currentColor" stroke-width="${s*.14}" stroke-linecap="round"/>
-    <line x1="${cx+s*.2}" y1="${cy+.05}" x2="${cx+s*1.05}" y2="${cy+s*1.35}" stroke="currentColor" stroke-width="${s*.14}" stroke-linecap="round"/>
-    <line x1="${cx+s*.2}" y1="${cy+.05}" x2="${cx-s*.25}" y2="${cy+s*1.35}" stroke="currentColor" stroke-width="${s*.14}" stroke-linecap="round"/>
-    <text x="${cx}" y="${cy-s*3.55}" text-anchor="middle" font-size="${s*.95}" fill="#ff6b9d" opacity=".85">♥</text>`,
+    <path d="M${cx-s*1.755} ${cy-s*2.85} Q${cx-s} ${cy-s*3.82} ${cx-s*.245} ${cy-s*2.85}" fill="currentColor" fill-opacity=".42" stroke="none"/>
+    <circle cx="${cx-s}" cy="${cy-s*2.8}" r="${s*.88}" fill="currentColor" fill-opacity=".3" stroke="currentColor" stroke-width="${s*.12}"/>
+    <path d="M${cx+s*.245} ${cy-s*2.85} Q${cx+s} ${cy-s*3.82} ${cx+s*1.755} ${cy-s*2.85}" fill="currentColor" fill-opacity=".42" stroke="none"/>
+    <circle cx="${cx+s}" cy="${cy-s*2.8}" r="${s*.88}" fill="currentColor" fill-opacity=".3" stroke="currentColor" stroke-width="${s*.12}"/>
+    <path d="M${cx-s} ${cy-s*1.97} Q${cx-s*.6} ${cy-s*1.0} ${cx-s*.2} ${cy+.05}" stroke="currentColor" stroke-width="${s*.2}" fill="none" stroke-linecap="round"/>
+    <path d="M${cx+s} ${cy-s*1.97} Q${cx+s*.6} ${cy-s*1.0} ${cx+s*.2} ${cy+.05}" stroke="currentColor" stroke-width="${s*.2}" fill="none" stroke-linecap="round"/>
+    <line x1="${cx-s*.2}" y1="${cy-s*1.42}" x2="${cx+s*.2}" y2="${cy-s*1.42}" stroke="currentColor" stroke-width="${s*.2}" stroke-linecap="round"/>
+    <path d="M${cx-s*.2} ${cy+.05} Q${cx-s*.6} ${cy+s*.7} ${cx-s*1.05} ${cy+s*1.35}" stroke="currentColor" stroke-width="${s*.2}" fill="none" stroke-linecap="round"/>
+    <path d="M${cx-s*.2} ${cy+.05} Q${cx+s*.02} ${cy+s*.7} ${cx+s*.25} ${cy+s*1.35}" stroke="currentColor" stroke-width="${s*.2}" fill="none" stroke-linecap="round"/>
+    <path d="M${cx+s*.2} ${cy+.05} Q${cx+s*.6} ${cy+s*.7} ${cx+s*1.05} ${cy+s*1.35}" stroke="currentColor" stroke-width="${s*.2}" fill="none" stroke-linecap="round"/>
+    <path d="M${cx+s*.2} ${cy+.05} Q${cx-s*.02} ${cy+s*.7} ${cx-s*.25} ${cy+s*1.35}" stroke="currentColor" stroke-width="${s*.2}" fill="none" stroke-linecap="round"/>
+    <text x="${cx}" y="${cy-s*3.6}" text-anchor="middle" font-size="${s*1.0}" fill="#ff6b9d" opacity=".9">♥</text>`,
 
   action: (cx,cy,s) => figBase(cx,cy,s) + `
-    <line x1="${cx-s*1.5}" y1="${cy-s*.85}" x2="${cx+s*.35}" y2="${cy-s*1.72}" stroke="currentColor" stroke-width="${s*.17}" stroke-linecap="round"/>
-    <line x1="${cx+s*.35}" y1="${cy-s*1.72}" x2="${cx+s*1.6}" y2="${cy-s*2.25}" stroke="currentColor" stroke-width="${s*.17}" stroke-linecap="round"/>
-    <line x1="${cx-s*.32}" y1="${cy+.06}" x2="${cx-s*1.0}" y2="${cy+s*1.05}" stroke="currentColor" stroke-width="${s*.17}" stroke-linecap="round"/>
-    <line x1="${cx+s*.32}" y1="${cy+.06}" x2="${cx+s*1.25}" y2="${cy+s*1.3}" stroke="currentColor" stroke-width="${s*.17}" stroke-linecap="round"/>`,
+    <path d="M${cx-s*1.5} ${cy-s*.85} Q${cx-s*.6} ${cy-s*1.28} ${cx+s*.35} ${cy-s*1.72}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
+    <path d="M${cx+s*.35} ${cy-s*1.72} Q${cx+s*.98} ${cy-s*1.98} ${cx+s*1.6} ${cy-s*2.25}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
+    <path d="M${cx-s*.32} ${cy+.06} Q${cx-s*.66} ${cy+s*.55} ${cx-s*1.0} ${cy+s*1.05}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
+    <path d="M${cx+s*.32} ${cy+.06} Q${cx+s*.78} ${cy+s*.68} ${cx+s*1.25} ${cy+s*1.3}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>`,
 
   crowd: (cx,cy,s) => {
     const offsets=[-s*2.6,-s*1.0,s*.4,s*1.9,s*3.3];
     return offsets.map((ox,i)=>{
       const sy=i%2===0?s:s*.85;
       return `
-        <circle cx="${cx+ox}" cy="${cy-sy*2.8}" r="${sy*.78}" fill="currentColor" fill-opacity="${.12+i*.02}" stroke="currentColor" stroke-width="${sy*.1}"/>
-        <path d="M${cx+ox-sy*.48} ${cy-sy*1.84} L${cx+ox-sy*.38} ${cy+.06} L${cx+ox+sy*.38} ${cy+.06} L${cx+ox+sy*.48} ${cy-sy*1.84}Z" fill="currentColor" fill-opacity=".12" stroke="currentColor" stroke-width="${sy*.08}" stroke-linejoin="round"/>
-        <line x1="${cx+ox-sy*.48}" y1="${cy-sy*1.52}" x2="${cx+ox-sy*1.2}" y2="${cy-sy*.9}" stroke="currentColor" stroke-width="${sy*.13}" stroke-linecap="round"/>
-        <line x1="${cx+ox+sy*.48}" y1="${cy-sy*1.52}" x2="${cx+ox+sy*1.2}" y2="${cy-sy*.9}" stroke="currentColor" stroke-width="${sy*.13}" stroke-linecap="round"/>
-        <line x1="${cx+ox-sy*.3}" y1="${cy+.06}" x2="${cx+ox-sy*.72}" y2="${cy+sy*1.1}" stroke="currentColor" stroke-width="${sy*.13}" stroke-linecap="round"/>
-        <line x1="${cx+ox+sy*.3}" y1="${cy+.06}" x2="${cx+ox+sy*.72}" y2="${cy+sy*1.1}" stroke="currentColor" stroke-width="${sy*.13}" stroke-linecap="round"/>`;
+        <path d="M${cx+ox-sy*.72} ${cy-sy*2.78} Q${cx+ox} ${cy-sy*3.72} ${cx+ox+sy*.72} ${cy-sy*2.78}" fill="currentColor" fill-opacity=".4" stroke="none"/>
+        <circle cx="${cx+ox}" cy="${cy-sy*2.8}" r="${sy*.85}" fill="currentColor" fill-opacity="${.25+i*.04}" stroke="currentColor" stroke-width="${sy*.1}"/>
+        <path d="M${cx+ox-sy*.48} ${cy-sy*1.84} L${cx+ox-sy*.38} ${cy+.06} L${cx+ox+sy*.38} ${cy+.06} L${cx+ox+sy*.48} ${cy-sy*1.84}Z" fill="currentColor" fill-opacity=".22" stroke="currentColor" stroke-width="${sy*.08}" stroke-linejoin="round"/>
+        <path d="M${cx+ox-sy*.48} ${cy-sy*1.52} Q${cx+ox-sy*.84} ${cy-sy*1.2} ${cx+ox-sy*1.2} ${cy-sy*.9}" stroke="currentColor" stroke-width="${sy*.18}" fill="none" stroke-linecap="round"/>
+        <path d="M${cx+ox+sy*.48} ${cy-sy*1.52} Q${cx+ox+sy*.84} ${cy-sy*1.2} ${cx+ox+sy*1.2} ${cy-sy*.9}" stroke="currentColor" stroke-width="${sy*.18}" fill="none" stroke-linecap="round"/>
+        <path d="M${cx+ox-sy*.3} ${cy+.06} Q${cx+ox-sy*.51} ${cy+sy*.55} ${cx+ox-sy*.72} ${cy+sy*1.1}" stroke="currentColor" stroke-width="${sy*.18}" fill="none" stroke-linecap="round"/>
+        <path d="M${cx+ox+sy*.3} ${cy+.06} Q${cx+ox+sy*.51} ${cy+sy*.55} ${cx+ox+sy*.72} ${cy+sy*1.1}" stroke="currentColor" stroke-width="${sy*.18}" fill="none" stroke-linecap="round"/>`;
     }).join('');
   },
 
   reaching: (cx,cy,s) => figBase(cx,cy,s) + `
-    <line x1="${cx+s*.5}" y1="${cy-s*1.52}" x2="${cx+s*1.95}" y2="${cy-s*2.6}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
-    <line x1="${cx-s*.5}" y1="${cy-s*1.52}" x2="${cx-s*.82}" y2="${cy-s*.98}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
-    <line x1="${cx-s*.32}" y1="${cy+.06}" x2="${cx-s*.78}" y2="${cy+s*1.52}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
-    <line x1="${cx+s*.32}" y1="${cy+.06}" x2="${cx+s*.78}" y2="${cy+s*1.52}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
+    <path d="M${cx+s*.5} ${cy-s*1.52} Q${cx+s*1.22} ${cy-s*2.06} ${cx+s*1.95} ${cy-s*2.6}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
+    <path d="M${cx-s*.5} ${cy-s*1.52} Q${cx-s*.66} ${cy-s*1.25} ${cx-s*.82} ${cy-s*.98}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
+    <path d="M${cx-s*.32} ${cy+.06} Q${cx-s*.55} ${cy+s*.75} ${cx-s*.78} ${cy+s*1.52}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
+    <path d="M${cx+s*.32} ${cy+.06} Q${cx+s*.55} ${cy+s*.75} ${cx+s*.78} ${cy+s*1.52}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
     <circle cx="${cx+s*2.15}" cy="${cy-s*2.8}" r="${s*.32}" fill="none" stroke="currentColor" stroke-width="${s*.1}" opacity=".5"/>`,
 
   sitting: (cx,cy,s) => figBase(cx,cy,s) + `
-    <line x1="${cx-s*.5}" y1="${cy-s*1.52}" x2="${cx-s*1.1}" y2="${cy-s*1.1}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
-    <line x1="${cx+s*.5}" y1="${cy-s*1.52}" x2="${cx+s*1.1}" y2="${cy-s*1.1}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
-    <line x1="${cx-s*.32}" y1="${cy+.06}" x2="${cx+s*1.1}" y2="${cy+.06}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
-    <line x1="${cx+s*1.1}" y1="${cy+.06}" x2="${cx+s*1.1}" y2="${cy+s*1.35}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
-    <line x1="${cx+s*.32}" y1="${cy+.06}" x2="${cx+s*.32}" y2="${cy+s*1.35}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>`,
+    <path d="M${cx-s*.5} ${cy-s*1.52} Q${cx-s*.8} ${cy-s*1.3} ${cx-s*1.1} ${cy-s*1.1}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
+    <path d="M${cx+s*.5} ${cy-s*1.52} Q${cx+s*.8} ${cy-s*1.3} ${cx+s*1.1} ${cy-s*1.1}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
+    <path d="M${cx-s*.32} ${cy+.06} Q${cx+s*.38} ${cy+.06} ${cx+s*1.1} ${cy+.06}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
+    <path d="M${cx+s*1.1} ${cy+.06} Q${cx+s*1.1} ${cy+s*.68} ${cx+s*1.1} ${cy+s*1.35}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
+    <path d="M${cx+s*.32} ${cy+.06} Q${cx+s*.32} ${cy+s*.68} ${cx+s*.32} ${cy+s*1.35}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>`,
 
   lookingup: (cx,cy,s) => `
-    <circle cx="${cx}" cy="${cy-s*2.35}" r="${s*.88}" fill="currentColor" fill-opacity=".2" stroke="currentColor" stroke-width="${s*.1}"/>
-    <circle cx="${cx-s*.3}" cy="${cy-s*2.55}" r="${s*.11}" fill="currentColor" opacity=".68"/>
-    <circle cx="${cx+s*.3}" cy="${cy-s*2.55}" r="${s*.11}" fill="currentColor" opacity=".68"/>
-    <line x1="${cx}" y1="${cy-s*1.46}" x2="${cx}" y2="${cy-s*1.38}" stroke="currentColor" stroke-width="${s*.26}" stroke-linecap="round"/>
-    <path d="M${cx-s*.5} ${cy-s*1.38} L${cx-s*.41} ${cy+.06} L${cx+s*.41} ${cy+.06} L${cx+s*.5} ${cy-s*1.38}Z" fill="currentColor" fill-opacity=".17" stroke="currentColor" stroke-width="${s*.08}" stroke-linejoin="round"/>
-    <line x1="${cx-s*.5}" y1="${cy-s*1.1}" x2="${cx+s*1.22}" y2="${cy-s*1.28}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
-    <line x1="${cx-s*.32}" y1="${cy+.06}" x2="${cx-s*.78}" y2="${cy+s*1.52}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
-    <line x1="${cx+s*.32}" y1="${cy+.06}" x2="${cx+s*.78}" y2="${cy+s*1.52}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
-    <line x1="${cx}" y1="${cy-s*3.18}" x2="${cx}" y2="${cy-s*4.05}" stroke="currentColor" stroke-width="${s*.08}" stroke-dasharray="3,3" opacity=".4"/>`,
+    <path d="M${cx-s*.755} ${cy-s*3.12} Q${cx} ${cy-s*4.15} ${cx+s*.755} ${cy-s*3.12}" fill="currentColor" fill-opacity=".45" stroke="none"/>
+    <circle cx="${cx}" cy="${cy-s*2.35}" r="${s*.92}" fill="currentColor" fill-opacity=".32" stroke="currentColor" stroke-width="${s*.12}"/>
+    <circle cx="${cx-s*.28}" cy="${cy-s*2.4}" r="${s*.13}" fill="currentColor" opacity=".82"/>
+    <circle cx="${cx+s*.28}" cy="${cy-s*2.4}" r="${s*.13}" fill="currentColor" opacity=".82"/>
+    <rect x="${cx-s*.13}" y="${cy-s*1.47}" width="${s*.26}" height="${s*.18}" fill="currentColor" fill-opacity=".38"/>
+    <path d="M${cx-s*.54} ${cy-s*1.38} L${cx-s*.42} ${cy+.06} L${cx+s*.42} ${cy+.06} L${cx+s*.54} ${cy-s*1.38}Z" fill="currentColor" fill-opacity=".3" stroke="currentColor" stroke-width="${s*.1}" stroke-linejoin="round"/>
+    <path d="M${cx-s*.5} ${cy-s*1.1} Q${cx+s*.36} ${cy-s*1.19} ${cx+s*1.22} ${cy-s*1.28}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
+    <path d="M${cx-s*.32} ${cy+.06} Q${cx-s*.55} ${cy+s*.75} ${cx-s*.78} ${cy+s*1.52}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
+    <path d="M${cx+s*.32} ${cy+.06} Q${cx+s*.55} ${cy+s*.75} ${cx+s*.78} ${cy+s*1.52}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
+    <line x1="${cx}" y1="${cy-s*3.22}" x2="${cx}" y2="${cy-s*4.05}" stroke="currentColor" stroke-width="${s*.08}" stroke-dasharray="3,3" opacity=".4"/>`,
 
   walking: (cx,cy,s) => figBase(cx,cy,s) + `
-    <line x1="${cx-s*1.0}" y1="${cy-s*1.48}" x2="${cx+s*.8}" y2="${cy-s*1.28}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
-    <line x1="${cx-s*.32}" y1="${cy+.06}" x2="${cx-s*.68}" y2="${cy+s*1.48}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>
-    <line x1="${cx+s*.32}" y1="${cy+.06}" x2="${cx+s*.88}" y2="${cy+s*1.22}" stroke="currentColor" stroke-width="${s*.16}" stroke-linecap="round"/>`,
+    <path d="M${cx-s*1.0} ${cy-s*1.48} Q${cx-s*.1} ${cy-s*1.38} ${cx+s*.8} ${cy-s*1.28}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
+    <path d="M${cx-s*.32} ${cy+.06} Q${cx-s*.5} ${cy+s*.77} ${cx-s*.68} ${cy+s*1.48}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
+    <path d="M${cx+s*.32} ${cy+.06} Q${cx+s*.6} ${cy+s*.64} ${cx+s*.88} ${cy+s*1.22}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>`,
 };
 
 // ─────────────────────────────────────────
@@ -1621,55 +1630,73 @@ const POSES = {
 function bgSketch(type, w, h) {
   switch(type) {
     case 'city': return `
-      <rect x="0" y="0" width="${w}" height="${h*.7}" fill="rgba(8,10,28,.6)"/>
-      <rect x="0" y="${h*.7}" width="${w}" height="${h*.3}" fill="rgba(4,4,18,.7)"/>
-      <rect x="${w*.04}" y="${h*.28}" width="${w*.07}" height="${h*.72}" fill="none" stroke="rgba(200,210,255,.14)" stroke-width=".8" stroke-dasharray="3,5"/>
-      <rect x="${w*.13}" y="${h*.15}" width="${w*.1}" height="${h*.85}" fill="none" stroke="rgba(200,210,255,.16)" stroke-width=".9" stroke-dasharray="2,4"/>
-      <rect x="${w*.25}" y="${h*.22}" width="${w*.07}" height="${h*.78}" fill="none" stroke="rgba(200,210,255,.11)" stroke-width=".7" stroke-dasharray="3,6"/>
-      <rect x="${w*.55}" y="${h*.12}" width="${w*.12}" height="${h*.88}" fill="none" stroke="rgba(200,210,255,.16)" stroke-width=".9" stroke-dasharray="2,4"/>
-      <rect x="${w*.7}" y="${h*.26}" width="${w*.09}" height="${h*.74}" fill="none" stroke="rgba(200,210,255,.13)" stroke-width=".8" stroke-dasharray="3,5"/>
-      <rect x="${w*.83}" y="${h*.19}" width="${w*.08}" height="${h*.81}" fill="none" stroke="rgba(200,210,255,.11)" stroke-width=".7" stroke-dasharray="3,6"/>
-      ${Array.from({length:8},(_,i)=>{const bx=w*(.14+Math.sin(i*1.7)*.06+Math.floor(i/3)*.22),by=h*(.18+i*.07);return `<rect x="${bx.toFixed(0)}" y="${by.toFixed(0)}" width="4" height="3" fill="rgba(255,230,120,.28)" rx=".5"/>`}).join('')}
-      <line x1="0" y1="${h*.72}" x2="${w}" y2="${h*.72}" stroke="rgba(138,43,226,.3)" stroke-width="1" stroke-dasharray="5,3"/>
-      <line x1="${w*.1}" y1="${h*.75}" x2="${w*.45}" y2="${h*.75}" stroke="rgba(0,212,255,.22)" stroke-width="1.2"/>
-      <ellipse cx="${w*.3}" cy="${h*.88}" rx="${w*.1}" ry="${h*.025}" fill="none" stroke="rgba(0,212,255,.12)" stroke-width=".7"/>`;
+      <rect x="0" y="0" width="${w}" height="${h*.72}" fill="rgba(5,7,20,.95)"/>
+      <rect x="0" y="${h*.48}" width="${w*.09}" height="${h*.52}" fill="rgba(16,18,46,.97)" stroke="rgba(90,110,180,.2)" stroke-width=".5"/>
+      <rect x="${w*.07}" y="${h*.22}" width="${w*.12}" height="${h*.78}" fill="rgba(20,22,54,.97)" stroke="rgba(90,110,180,.22)" stroke-width=".5"/>
+      <rect x="${w*.21}" y="${h*.36}" width="${w*.08}" height="${h*.64}" fill="rgba(14,16,42,.97)" stroke="rgba(90,110,180,.18)" stroke-width=".5"/>
+      <rect x="${w*.31}" y="${h*.5}" width="${w*.16}" height="${h*.5}" fill="rgba(18,20,50,.97)" stroke="rgba(90,110,180,.15)" stroke-width=".5"/>
+      <rect x="${w*.48}" y="${h*.13}" width="${w*.14}" height="${h*.87}" fill="rgba(22,24,58,.97)" stroke="rgba(90,110,180,.22)" stroke-width=".5"/>
+      <rect x="${w*.65}" y="${h*.28}" width="${w*.1}" height="${h*.72}" fill="rgba(16,18,46,.97)" stroke="rgba(90,110,180,.2)" stroke-width=".5"/>
+      <rect x="${w*.78}" y="${h*.18}" width="${w*.1}" height="${h*.82}" fill="rgba(20,22,52,.97)" stroke="rgba(90,110,180,.2)" stroke-width=".5"/>
+      <rect x="${w*.91}" y="${h*.42}" width="${w*.09}" height="${h*.58}" fill="rgba(14,16,42,.97)" stroke="rgba(90,110,180,.18)" stroke-width=".5"/>
+      ${Array.from({length:24},(_,i)=>{
+        const bldX=[.08,.49,.79];
+        const bldW=[.11,.13,.09];
+        const col2=i%3===0?'rgba(255,230,110,.5)':i%3===1?'rgba(160,210,255,.4)':'rgba(255,200,80,.38)';
+        const bi=i%3;
+        const bx=w*(bldX[bi]+bldW[bi]*.12+Math.floor(i/3)*(bldW[bi]*.28));
+        const by=h*(.22+Math.floor(i%5)*.1);
+        return `<rect x="${bx.toFixed(0)}" y="${by.toFixed(0)}" width="4" height="3" fill="${col2}" rx=".5"/>`;
+      }).join('')}
+      <rect x="0" y="${h*.72}" width="${w}" height="${h*.28}" fill="rgba(3,3,14,.97)"/>
+      <line x1="0" y1="${h*.72}" x2="${w}" y2="${h*.72}" stroke="rgba(138,43,226,.55)" stroke-width="1.2"/>
+      <line x1="${w*.06}" y1="${h*.74}" x2="${w*.58}" y2="${h*.74}" stroke="rgba(0,212,255,.38)" stroke-width="1.8"/>
+      <ellipse cx="${w*.28}" cy="${h*.87}" rx="${w*.13}" ry="${h*.028}" fill="rgba(0,212,255,.1)" stroke="rgba(0,212,255,.22)" stroke-width=".8"/>
+      <ellipse cx="${w*.7}" cy="${h*.85}" rx="${w*.08}" ry="${h*.02}" fill="rgba(138,43,226,.08)" stroke="rgba(138,43,226,.18)" stroke-width=".6"/>`;
 
     case 'nature': return `
-      <rect x="0" y="0" width="${w}" height="${h*.68}" fill="rgba(8,16,32,.5)"/>
-      <path d="M0 ${h*.72} Q${w*.18} ${h*.45} ${w*.35} ${h*.65} Q${w*.52} ${h*.38} ${w*.68} ${h*.62} Q${w*.82} ${h*.42} ${w} ${h*.6} L${w} ${h} L0 ${h}Z" fill="none" stroke="rgba(255,255,255,.14)" stroke-width="1" stroke-dasharray="4,5"/>
-      <line x1="${w*.11}" y1="${h*.76}" x2="${w*.11}" y2="${h*.42}" stroke="rgba(255,255,255,.15)" stroke-width="1.5" stroke-linecap="round"/>
-      <ellipse cx="${w*.11}" cy="${h*.39}" rx="${w*.055}" ry="${h*.09}" fill="none" stroke="rgba(255,255,255,.14)" stroke-width=".9" stroke-dasharray="3,4"/>
-      <line x1="${w*.11-w*.03}" y1="${h*.55}" x2="${w*.11-w*.09}" y2="${h*.46}" stroke="rgba(255,255,255,.1)" stroke-width=".9"/>
-      <line x1="${w*.11+w*.03}" y1="${h*.55}" x2="${w*.11+w*.07}" y2="${h*.46}" stroke="rgba(255,255,255,.08)" stroke-width=".8"/>
-      <line x1="${w*.21}" y1="${h*.76}" x2="${w*.21}" y2="${h*.33}" stroke="rgba(255,255,255,.13)" stroke-width="1.2" stroke-linecap="round"/>
-      <ellipse cx="${w*.21}" cy="${h*.3}" rx="${w*.047}" ry="${h*.08}" fill="none" stroke="rgba(255,255,255,.12)" stroke-width=".9" stroke-dasharray="3,4"/>
-      <line x1="${w*.78}" y1="${h*.76}" x2="${w*.78}" y2="${h*.38}" stroke="rgba(255,255,255,.15)" stroke-width="1.5" stroke-linecap="round"/>
-      <ellipse cx="${w*.78}" cy="${h*.35}" rx="${w*.055}" ry="${h*.09}" fill="none" stroke="rgba(255,255,255,.12)" stroke-width=".9" stroke-dasharray="3,4"/>
-      <ellipse cx="${w*.5}" cy="${h*.18}" rx="${w*.22}" ry="${h*.09}" fill="none" stroke="rgba(255,220,150,.1)" stroke-width=".8" stroke-dasharray="5,6"/>
-      <line x1="0" y1="${h*.78}" x2="${w}" y2="${h*.78}" stroke="rgba(255,255,255,.12)" stroke-width=".9" stroke-dasharray="4,5"/>`;
+      <rect x="0" y="0" width="${w}" height="${h*.76}" fill="rgba(5,10,24,.92)"/>
+      <path d="M0 ${h*.74} Q${w*.2} ${h*.56} ${w*.38} ${h*.68} Q${w*.55} ${h*.46} ${w*.72} ${h*.65} Q${w*.86} ${h*.52} ${w} ${h*.62} L${w} ${h} L0 ${h}Z" fill="rgba(8,18,8,.88)"/>
+      <rect x="${w*.095}" y="${h*.5}" width="${w*.022}" height="${h*.25}" fill="rgba(18,28,12,.95)"/>
+      <ellipse cx="${w*.106}" cy="${h*.44}" rx="${w*.062}" ry="${h*.1}" fill="rgba(10,20,8,.92)"/>
+      <ellipse cx="${w*.1}" cy="${h*.48}" rx="${w*.042}" ry="${h*.06}" fill="rgba(12,22,10,.85)"/>
+      <rect x="${w*.195}" y="${h*.45}" width="${w*.018}" height="${h*.3}" fill="rgba(18,28,12,.95)"/>
+      <ellipse cx="${w*.204}" cy="${h*.39}" rx="${w*.055}" ry="${h*.09}" fill="rgba(10,20,8,.92)"/>
+      <ellipse cx="${w*.198}" cy="${h*.44}" rx="${w*.036}" ry="${h*.05}" fill="rgba(12,22,10,.85)"/>
+      <rect x="${w*.765}" y="${h*.43}" width="${w*.022}" height="${h*.32}" fill="rgba(18,28,12,.95)"/>
+      <ellipse cx="${w*.776}" cy="${h*.37}" rx="${w*.062}" ry="${h*.1}" fill="rgba(10,20,8,.92)"/>
+      <ellipse cx="${w*.77}" cy="${h*.42}" rx="${w*.042}" ry="${h*.06}" fill="rgba(12,22,10,.85)"/>
+      <rect x="${w*.875}" y="${h*.52}" width="${w*.016}" height="${h*.23}" fill="rgba(18,28,12,.9)"/>
+      <ellipse cx="${w*.883}" cy="${h*.46}" rx="${w*.048}" ry="${h*.08}" fill="rgba(10,20,8,.88)"/>
+      <ellipse cx="${w*.5}" cy="${h*.2}" rx="${w*.2}" ry="${h*.09}" fill="rgba(255,220,150,.07)" stroke="rgba(255,220,150,.15)" stroke-width=".8"/>
+      <line x1="0" y1="${h*.74}" x2="${w}" y2="${h*.74}" stroke="rgba(60,100,50,.4)" stroke-width="1.2"/>`;
 
     case 'spotlight': return `
-      <rect x="0" y="0" width="${w}" height="${h}" fill="rgba(0,0,0,.4)"/>
-      <path d="M${w*.5} 0 L${w*.16} ${h} L${w*.84} ${h}Z" fill="none" stroke="rgba(255,250,220,.07)" stroke-width=".6" stroke-dasharray="5,7"/>
-      <path d="M${w*.5} 0 L${w*.32} ${h} L${w*.68} ${h}Z" fill="none" stroke="rgba(255,250,220,.08)" stroke-width=".7" stroke-dasharray="4,6"/>
-      <path d="M${w*.5} 0 L${w*.41} ${h} L${w*.59} ${h}Z" fill="rgba(255,250,220,.04)"/>
-      <ellipse cx="${w*.5}" cy="${h*.94}" rx="${w*.3}" ry="${h*.07}" fill="none" stroke="rgba(255,250,200,.2)" stroke-width="1" stroke-dasharray="5,4"/>
-      <ellipse cx="${w*.5}" cy="${h*.94}" rx="${w*.14}" ry="${h*.035}" fill="rgba(255,250,200,.12)"/>
-      <line x1="0" y1="${h*.87}" x2="${w}" y2="${h*.87}" stroke="rgba(255,255,255,.12)" stroke-width=".8" stroke-dasharray="5,4"/>
-      ${Array.from({length:4},(_,i)=>`<circle cx="${(w*(.32+i*.12)).toFixed(0)}" cy="${(h*(.6+Math.sin(i*.9)*.1)).toFixed(0)}" r="${(5+i).toFixed(0)}" fill="none" stroke="rgba(255,255,200,.06)" stroke-width=".7" stroke-dasharray="3,4"/>`).join('')}
-      <rect x="0" y="0" width="${w*.08}" height="${h}" fill="rgba(0,0,0,.45)"/>
-      <rect x="${w*.92}" y="0" width="${w*.08}" height="${h}" fill="rgba(0,0,0,.45)"/>`;
+      <rect x="0" y="0" width="${w}" height="${h}" fill="rgba(0,0,0,.65)"/>
+      <path d="M${w*.5} 0 L${w*.15} ${h} L${w*.85} ${h}Z" fill="rgba(255,250,220,.025)"/>
+      <path d="M${w*.5} 0 L${w*.28} ${h} L${w*.72} ${h}Z" fill="rgba(255,250,220,.04)"/>
+      <path d="M${w*.5} 0 L${w*.38} ${h} L${w*.62} ${h}Z" fill="rgba(255,250,220,.07)"/>
+      <path d="M${w*.5} 0 L${w*.44} ${h} L${w*.56} ${h}Z" fill="rgba(255,250,220,.09)"/>
+      <rect x="0" y="${h*.86}" width="${w}" height="${h*.14}" fill="rgba(15,12,8,.88)"/>
+      <ellipse cx="${w*.5}" cy="${h*.93}" rx="${w*.28}" ry="${h*.065}" fill="rgba(255,250,200,.22)"/>
+      <ellipse cx="${w*.5}" cy="${h*.93}" rx="${w*.13}" ry="${h*.032}" fill="rgba(255,250,200,.42)"/>
+      <ellipse cx="${w*.5}" cy="${h*.92}" rx="${w*.06}" ry="${h*.016}" fill="rgba(255,255,220,.65)"/>
+      <line x1="0" y1="${h*.86}" x2="${w}" y2="${h*.86}" stroke="rgba(255,255,255,.28)" stroke-width="1.4"/>
+      <rect x="0" y="0" width="${w*.07}" height="${h}" fill="rgba(0,0,0,.55)"/>
+      <rect x="${w*.93}" y="0" width="${w*.07}" height="${h}" fill="rgba(0,0,0,.55)"/>`;
 
     case 'rain': return `
-      <rect x="0" y="0" width="${w}" height="${h}" fill="rgba(0,18,42,.35)"/>
-      ${Array.from({length:30},(_,i)=>{
-        const x=w*(i/30+Math.sin(i*.6)*.03);
-        const y=h*(Math.cos(i*.55)*.32+.08);
-        return `<line x1="${x.toFixed(1)}" y1="${y.toFixed(1)}" x2="${(x-4).toFixed(1)}" y2="${(y+h*.35).toFixed(1)}" stroke="rgba(140,200,255,.16)" stroke-width="${(.6+Math.sin(i)*.3).toFixed(2)}" stroke-linecap="round"/>`;
+      <rect x="0" y="0" width="${w}" height="${h}" fill="rgba(0,14,36,.6)"/>
+      ${Array.from({length:48},(_,i)=>{
+        const x=w*(i/48+Math.sin(i*.55)*.018);
+        const y=h*(Math.cos(i*.52)*.38+.04);
+        const len=h*(0.22+Math.abs(Math.sin(i*.35))*.18);
+        return `<line x1="${x.toFixed(1)}" y1="${y.toFixed(1)}" x2="${(x-len*.14).toFixed(1)}" y2="${(y+len).toFixed(1)}" stroke="rgba(140,200,255,.26)" stroke-width="${(.8+Math.sin(i)*.35).toFixed(2)}" stroke-linecap="round"/>`;
       }).join('')}
-      <rect x="0" y="${h*.83}" width="${w}" height="${h*.17}" fill="rgba(0,40,80,.22)"/>
-      <ellipse cx="${w*.42}" cy="${h*.87}" rx="${w*.18}" ry="${h*.03}" fill="none" stroke="rgba(0,180,255,.16)" stroke-width=".8" stroke-dasharray="4,5"/>
-      <line x1="0" y1="${h*.84}" x2="${w}" y2="${h*.84}" stroke="rgba(100,160,220,.14)" stroke-width=".9" stroke-dasharray="5,4"/>`;
+      <rect x="0" y="${h*.8}" width="${w}" height="${h*.2}" fill="rgba(0,28,64,.5)"/>
+      <ellipse cx="${w*.4}" cy="${h*.85}" rx="${w*.2}" ry="${h*.032}" fill="rgba(0,180,255,.14)" stroke="rgba(0,180,255,.28)" stroke-width=".9"/>
+      <ellipse cx="${w*.72}" cy="${h*.87}" rx="${w*.1}" ry="${h*.022}" fill="rgba(60,140,220,.08)" stroke="rgba(60,140,220,.2)" stroke-width=".7"/>
+      <line x1="0" y1="${h*.8}" x2="${w}" y2="${h*.8}" stroke="rgba(80,150,220,.35)" stroke-width="1.5"/>`;
 
     case 'stars': return `
       <rect x="0" y="0" width="${w}" height="${h*.74}" fill="rgba(3,3,20,.6)"/>
