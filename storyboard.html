@@ -603,6 +603,9 @@ label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;
 
   <!-- Generate button -->
   <button class="gen-btn" id="gen-btn" onclick="generate()">✦ 絵コンテを生成する</button>
+  <p id="gen-prereq-hint" class="hint-text" style="text-align:center;margin-top:.4rem;display:none;">
+    ⚠ 楽曲ファイル（Step 1）と歌詞（Step 3）の両方が必要です
+  </p>
 
   <!-- Progress -->
   <div id="progress-area">
@@ -1173,7 +1176,14 @@ function refreshKeywordPanel() {
 let _lyricsDebTimer = null;
 function onLyricsInput() {
   clearTimeout(_lyricsDebTimer);
-  _lyricsDebTimer = setTimeout(refreshKeywordPanel, 400);
+  _lyricsDebTimer = setTimeout(() => { refreshKeywordPanel(); updateGenBtn(); }, 400);
+}
+
+function updateGenBtn() {
+  const hasAudio  = !!(audioDuration && audioFileName);
+  const hasLyrics = !!(document.getElementById('lyrics-input')?.value.trim());
+  const hint = document.getElementById('gen-prereq-hint');
+  if (hint) hint.style.display = (hasAudio && hasLyrics) ? 'none' : 'block';
 }
 
 // ─────────────────────────────────────────
@@ -1412,6 +1422,7 @@ function loadAudio(file) {
     document.getElementById('panel-count').value = autoPanels;
     startAudioAnalysis(file);
     initStampUI(file);
+    updateGenBtn();
   });
   // Feature 5: iOS WAV fallback — use AudioContext if loadedmetadata doesn't fire
   audio.addEventListener('error', async () => {
@@ -1428,6 +1439,7 @@ function loadAudio(file) {
       document.getElementById('panel-count').value = autoPanels;
       startAudioAnalysis(file);
       initStampUI(file);
+      updateGenBtn();
       ctx.close();
     } catch(err) {
       showError('音声ファイルの読み込みに失敗しました: ' + err.message);
@@ -1816,8 +1828,11 @@ function buildBgPrompt(bg, shot, pose, idx, styleKey, visualType, userReqHints) 
   const reqEn = userReqHints?.extraEn ? `, [user request] ${userReqHints.extraEn}` : '';
   const cineJa = styleCineJa(styleKey);
   const cineEn = styleCineEn(styleKey);
-  const ja = `【ショット】${shotFull}　【背景】${bgDesc}　【カメラワーク】${camData.label}（${camData.prompt}）　【ビジュアル指示】${vtNote}${cineJa}　${styleHint}${reqJa}`;
-  const en = `[shot] ${shotFullEn}, [background] ${bgDescEn}, [camera] ${camData.prompt}, [visual] ${vtNoteEn}${cineEn}, ${styleHintEn}${reqEn}`;
+  const audio  = audioPromptHints();
+  const audioJa = audio.ja ? `　${audio.ja}` : '';
+  const audioEn = audio.en ? `, ${audio.en}` : '';
+  const ja = `【ショット】${shotFull}　【背景】${bgDesc}　【カメラワーク】${camData.label}（${camData.prompt}）　【ビジュアル指示】${vtNote}${cineJa}${audioJa}　${styleHint}${reqJa}`;
+  const en = `[shot] ${shotFullEn}, [background] ${bgDescEn}, [camera] ${camData.prompt}, [visual] ${vtNoteEn}${cineEn}${audioEn}, ${styleHintEn}${reqEn}`;
   return { ja, en };
 }
 
@@ -2194,6 +2209,41 @@ function diversifyPanels(panels, styleKey) {
 }
 
 // ─────────────────────────────────────────
+// Audio features → prompt hint text
+// audioFeatures グローバルから楽曲特性をプロンプト文に変換
+// ─────────────────────────────────────────
+function audioPromptHints() {
+  if (!audioFeatures) return { ja: '', en: '' };
+  const f = audioFeatures;
+  const jaP = [], enP = [];
+
+  // BPM / tempo
+  const bpmJa = { 'very-slow':'非常にゆっくりとした静寂のテンポ', 'slow':'スローテンポ・内省的なペース',
+    'moderate':'中程度のテンポ・流れるようなリズム', 'upbeat':'アップビート・躍動するリズム',
+    'fast':'速いテンポ・高エネルギー', 'very-fast':'極めて速いテンポ・激しい疾走感' };
+  const bpmEn = { 'very-slow':'very slow tempo, brooding stillness', 'slow':'slow tempo, introspective pace',
+    'moderate':'moderate tempo, flowing rhythm', 'upbeat':'upbeat tempo, energetic beat',
+    'fast':'fast tempo, high energy drive', 'very-fast':'extremely fast tempo, frantic intensity' };
+  if (bpmJa[f.bpmCategory]) { jaP.push(bpmJa[f.bpmCategory]); enP.push(bpmEn[f.bpmCategory]); }
+
+  // Frequency balance
+  if (f.bassRatio > 0.48)        { jaP.push('重厚な低音・グルーヴ感・地を這う振動'); enP.push('heavy bass, deep groove, subwoofer rumble'); }
+  else if (f.highRatio > 0.38)   { jaP.push('高音が際立つ明るく透明感のある音色'); enP.push('bright treble, crystalline highs, airy texture'); }
+  else if (f.midRatio > 0.52)    { jaP.push('中音域が豊かで温かみのある音像'); enP.push('rich midrange, warm vocal presence'); }
+
+  // Overall energy
+  if (f.energy !== undefined) {
+    if (f.energy > 0.68)         { jaP.push('強いエネルギー・圧倒的な迫力'); enP.push('powerful high-intensity energy'); }
+    else if (f.energy < 0.28)    { jaP.push('穏やかで繊細なエネルギー・静寂感'); enP.push('gentle low-energy, delicate stillness'); }
+  }
+
+  return {
+    ja: jaP.length ? `【楽曲特性】${jaP.join('、')}` : '',
+    en: enP.length ? `[music character] ${enP.join(', ')}` : ''
+  };
+}
+
+// ─────────────────────────────────────────
 // Per-style cinematography details (lens / lighting / color grade / camera / aspect)
 // 各MVスタイルの撮影スペック — プロンプトに注入して精度を底上げ
 // ─────────────────────────────────────────
@@ -2305,8 +2355,11 @@ function buildImagePrompt(shot, pose, bg, styleKey, visualType, userReqHints) {
   const reqEn = userReqHints?.extraEn ? `, [user request] ${userReqHints.extraEn}` : '';
   const cineJa = styleCineJa(styleKey);
   const cineEn = styleCineEn(styleKey);
-  const ja = `${shotPart}${posePart}${bgPart}${vtPart}${cineJa}　${styleHint}${extraStyle}${reqJa}`.replace(/\s+/g,' ').trim();
-  const en = `${shotPartEn}${posePartEn}${bgPartEn}${vtPartEn}${cineEn}, ${styleHintEn}${extraStyleEn}${reqEn}`.replace(/\s+/g,' ').trim();
+  const audio  = audioPromptHints();
+  const audioJa = audio.ja ? `　${audio.ja}` : '';
+  const audioEn = audio.en ? `, ${audio.en}` : '';
+  const ja = `${shotPart}${posePart}${bgPart}${vtPart}${cineJa}${audioJa}　${styleHint}${extraStyle}${reqJa}`.replace(/\s+/g,' ').trim();
+  const en = `${shotPartEn}${posePartEn}${bgPartEn}${vtPartEn}${cineEn}${audioEn}, ${styleHintEn}${extraStyleEn}${reqEn}`.replace(/\s+/g,' ').trim();
   return { ja, en };
 }
 
@@ -2548,7 +2601,16 @@ async function generate() {
   const artist     = document.getElementById('artist-input').value.trim();
   const panelCount = Math.min(400, Math.max(8, parseInt(document.getElementById('panel-count').value)||12));
 
-  if (!lyrics) { showError('歌詞を入力してください。'); return; }
+  if (!audioDuration || !audioFileName) {
+    showError('楽曲ファイルをアップロードしてください（Step 1）。');
+    document.getElementById('drop-zone')?.scrollIntoView({ behavior:'smooth', block:'center' });
+    return;
+  }
+  if (!lyrics) {
+    showError('歌詞を入力してください（Step 3）。');
+    document.getElementById('lyrics-input')?.scrollIntoView({ behavior:'smooth', block:'center' });
+    return;
+  }
 
   userRequest = genre;
   const duration = audioDuration || 300;
@@ -2566,7 +2628,7 @@ async function generate() {
     await delay(300);
     const lyricsAnalysis = analyzeFullLyrics(lyrics);
     const userReqHints = genre ? parseUserRequest(genre) : null;
-    const lyricsContext = { seed: genSeed, lyricsAnalysis, userReqHints };
+    const lyricsContext = { seed: genSeed, lyricsAnalysis, userReqHints, audioFeatures: audioFeatures || null };
     const scenes = parseLyrics(lyrics, panelCount, duration, selectedStyle);
     setProgress(55, `${MV_STYLES[selectedStyle]?.label||''}スタイルでシーンを構築中...`);
     await delay(200);
