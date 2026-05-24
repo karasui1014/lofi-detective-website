@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Background -->
+  <rect width="32" height="32" rx="7" fill="#0d1117"/>
+
+  <!-- Film strip top -->
+  <rect x="3" y="4" width="26" height="7" rx="2" fill="#e8e0ff"/>
+  <clipPath id="c">
+    <rect x="3" y="4" width="26" height="7" rx="2"/>
+  </clipPath>
+  <g clip-path="url(#c)" fill="#0d1117">
+    <polygon points="3,4 8,4 3,11"/>
+    <polygon points="10,4 15,4 10,11 5,11"/>
+    <polygon points="17,4 22,4 17,11 12,11"/>
+    <polygon points="24,4 29,4 24,11 19,11"/>
+  </g>
+
+  <!-- Divider bar -->
+  <rect x="3" y="10.5" width="26" height="2" fill="#0d1117"/>
+
+  <!-- Storyboard panels area -->
+  <rect x="3" y="13" width="26" height="16" rx="2" fill="#1a1035"/>
+
+  <!-- Panel grid: 2x2 -->
+  <rect x="4.5" y="14.5" width="11" height="6.5" rx="1.5" fill="#2d1f5e"/>
+  <rect x="16.5" y="14.5" width="11" height="6.5" rx="1.5" fill="#2d1f5e"/>
+  <rect x="4.5" y="22" width="11" height="6" rx="1.5" fill="#2d1f5e"/>
+  <rect x="16.5" y="22" width="11" height="6" rx="1.5" fill="#2d1f5e"/>
+
+  <!-- Accent lines in panels (sketch strokes) -->
+  <line x1="6" y1="19" x2="14" y2="19" stroke="#7c3aed" stroke-width="1.2" opacity="0.7"/>
+  <line x1="6" y1="17" x2="11" y2="17" stroke="#7c3aed" stroke-width="1.2" opacity="0.4"/>
+  <line x1="18" y1="18" x2="26" y2="18" stroke="#06b6d4" stroke-width="1.2" opacity="0.7"/>
+  <line x1="18" y1="16" x2="23" y2="16" stroke="#06b6d4" stroke-width="1.2" opacity="0.4"/>
+  <line x1="6" y1="26.5" x2="14" y2="26.5" stroke="#7c3aed" stroke-width="1.2" opacity="0.7"/>
+  <line x1="18" y1="25.5" x2="26" y2="25.5" stroke="#06b6d4" stroke-width="1.2" opacity="0.7"/>
+
+  <!-- Figure silhouette in top-left panel -->
+  <circle cx="9.5" cy="16.5" r="1.2" fill="#a78bfa" opacity="0.8"/>
+  <line x1="9.5" y1="17.7" x2="9.5" y2="20.2" stroke="#a78bfa" stroke-width="1" opacity="0.7"/>
+</svg>
