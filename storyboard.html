@@ -115,12 +115,8 @@ header h1{font-size:1.15rem;font-weight:700;letter-spacing:.02em;}
 .audio-analysis-card{display:none;margin-top:.8rem;padding:.85rem 1rem;background:var(--surface3);border:1px solid var(--border);border-radius:var(--radius-sm);}
 .audio-analysis-card.visible{display:block;}
 .analysis-title{font-size:.55rem;letter-spacing:.18em;color:var(--accent2);margin-bottom:.6rem;opacity:.6;text-transform:uppercase;}
-.analysis-grid{display:grid;grid-template-columns:60px 1fr 72px;gap:.8rem;align-items:center;}
-@media(max-width:500px){.analysis-grid{grid-template-columns:55px 1fr}.sparkline-box{display:none}}
-.bpm-box{text-align:center;}
-.bpm-num{font-size:1.7rem;font-weight:800;color:var(--accent);line-height:1;font-variant-numeric:tabular-nums;}
-.bpm-unit{font-size:.5rem;letter-spacing:.12em;color:var(--text-muted);display:block;margin-top:.1rem;}
-.bpm-cat{font-size:.54rem;color:var(--accent3);margin-top:.15rem;}
+.analysis-grid{display:grid;grid-template-columns:1fr 72px;gap:.8rem;align-items:center;}
+@media(max-width:500px){.analysis-grid{grid-template-columns:1fr}.sparkline-box{display:none}}
 .freq-row{display:flex;align-items:center;gap:.45rem;margin-bottom:.3rem;}
 .freq-name{font-size:.53rem;letter-spacing:.06em;color:var(--text-muted);width:24px;flex-shrink:0;}
 .freq-bar-track{flex:1;height:3px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden;}
@@ -129,6 +125,29 @@ header h1{font-size:1.15rem;font-weight:700;letter-spacing:.02em;}
 .sparkline-box svg{display:block;}
 .analysis-desc{margin-top:.6rem;font-size:.67rem;color:var(--text-muted);line-height:1.6;border-top:1px solid var(--border);padding-top:.55rem;}
 .analysis-status{font-size:.7rem;color:var(--text-muted);text-align:center;padding:.2rem 0;}
+/* ── Stamp UI ── */
+.stamp-label{font-size:.7rem;color:var(--text-muted);margin-bottom:.55rem;}
+.stamp-ctrl-row{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;margin-bottom:.65rem;}
+.stamp-play-btn{padding:.32rem .75rem;background:var(--accent);color:#fff;border:none;border-radius:.4rem;cursor:pointer;font-size:.78rem;}
+.stamp-play-btn:active{opacity:.8;}
+.stamp-time{font-size:.72rem;color:var(--accent3);font-variant-numeric:tabular-nums;min-width:6.5rem;flex-shrink:0;}
+.stamp-mark-btn{padding:.32rem .9rem;background:rgba(251,146,60,.2);border:1px solid rgba(251,146,60,.5);color:#fdba74;border-radius:.4rem;cursor:pointer;font-size:.82rem;font-weight:700;}
+.stamp-mark-btn:active{background:rgba(251,146,60,.38);}
+.stamp-clear-btn{padding:.3rem .55rem;background:transparent;border:1px solid var(--border);color:var(--text-muted);border-radius:.4rem;cursor:pointer;font-size:.7rem;}
+.stamp-timeline-wrap{position:relative;height:14px;background:var(--surface3);border-radius:.3rem;cursor:crosshair;margin-bottom:.3rem;border:1px solid var(--border);}
+.stamp-timeline{position:absolute;inset:0;border-radius:.3rem;overflow:hidden;}
+.stamp-playhead{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--accent2);transform:translateX(-50%);pointer-events:none;z-index:3;transition:left .05s linear;}
+.stamp-fader{display:block;width:100%;margin:.15rem 0 .55rem;-webkit-appearance:none;appearance:none;height:3px;background:transparent;outline:none;cursor:pointer;}
+.stamp-fader::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:var(--accent);cursor:pointer;box-shadow:0 0 0 2px rgba(124,58,237,.3);}
+.stamp-fader::-moz-range-thumb{width:13px;height:13px;border-radius:50%;background:var(--accent);cursor:pointer;border:none;}
+.stamp-fader::-webkit-slider-runnable-track{height:3px;background:var(--border);border-radius:2px;}
+.stamp-fader::-moz-range-track{height:3px;background:var(--border);border-radius:2px;}
+.stamp-chips{display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.2rem;min-height:.5rem;}
+.stamp-chip{padding:.2rem .5rem;background:rgba(251,146,60,.12);border:1px solid rgba(251,146,60,.38);border-radius:.3rem;font-size:.67rem;color:#fdba74;cursor:pointer;display:flex;align-items:center;gap:.35rem;transition:background .12s;}
+.stamp-chip:hover{background:rgba(251,146,60,.26);}
+.stamp-chip-del{opacity:.55;font-size:.58rem;line-height:1;padding:0 .1rem;}
+.stamp-chip-del:hover{opacity:1;}
+.stamp-count-lbl{font-size:.67rem;color:var(--text-muted);margin-top:.45rem;}
 
 /* ── MV Style grid ── */
 .style-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:.5rem;}
@@ -464,27 +483,28 @@ label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;
         <span class="badge badge-dur" id="duration-badge">--:--</span>
         <span id="audio-name" style="font-size:.7rem;color:var(--text-muted);"></span>
       </div>
-      <!-- Feature 4: Click Stamping UI -->
-      <div id="stamp-ui" style="display:none;margin-top:.75rem;padding:.65rem .8rem;background:var(--surface2);border-radius:.5rem;border:1px solid var(--border);">
-        <div style="font-size:.72rem;color:var(--text-muted);margin-bottom:.5rem;">🥁 クリックスタンピング — 再生しながらボタンを押してカット割りタイミングを記録</div>
-        <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;">
-          <button onclick="toggleStampPlay()" id="stamp-play-btn" style="padding:.35rem .8rem;background:var(--accent);color:#fff;border:none;border-radius:.4rem;cursor:pointer;font-size:.78rem;">▶ 再生</button>
-          <button onclick="recordStamp()" id="stamp-btn" style="padding:.35rem 1rem;background:rgba(251,146,60,.2);border:1px solid rgba(251,146,60,.5);color:#fdba74;border-radius:.4rem;cursor:pointer;font-size:.85rem;font-weight:700;">🥁 スタンプ</button>
-          <button onclick="clearStamps()" style="padding:.35rem .6rem;background:transparent;border:1px solid var(--border);color:var(--text-muted);border-radius:.4rem;cursor:pointer;font-size:.72rem;">クリア</button>
-          <span id="stamp-count" style="font-size:.7rem;color:var(--text-muted);">0 points</span>
+      <!-- Click Stamping UI -->
+      <div id="stamp-ui" style="display:none;margin-top:.75rem;padding:.7rem .85rem;background:var(--surface2);border-radius:.5rem;border:1px solid var(--border);">
+        <div class="stamp-label">🎬 クリックスタンピング — 再生しながら[スタンプ]でカット位置を記録</div>
+        <div class="stamp-ctrl-row">
+          <button class="stamp-play-btn" id="stamp-play-btn" onclick="toggleStampPlay()">▶ 再生</button>
+          <span class="stamp-time" id="stamp-time">0:00 / 0:00</span>
+          <button class="stamp-mark-btn" onclick="recordStamp()">🎬 スタンプ</button>
+          <button class="stamp-clear-btn" onclick="clearStamps()">クリア</button>
         </div>
-        <div id="stamp-timeline" style="margin-top:.5rem;height:.4rem;background:var(--surface3);border-radius:.2rem;position:relative;overflow:hidden;"></div>
+        <div class="stamp-timeline-wrap" onclick="seekStampClick(event)" title="クリックで再生位置を移動">
+          <div id="stamp-timeline" class="stamp-timeline"></div>
+          <div id="stamp-playhead" class="stamp-playhead" style="left:0%"></div>
+        </div>
+        <input type="range" class="stamp-fader" id="stamp-fader" min="0" max="1000" value="0" oninput="onStampFader(this.value)" title="再生位置フェーダー">
+        <div id="stamp-chips" class="stamp-chips"></div>
+        <div id="stamp-count-lbl" class="stamp-count-lbl">スタンプなし</div>
       </div>
       <div class="audio-analysis-card" id="audio-analysis-card">
         <div class="analysis-title">Audio Analysis</div>
         <div class="analysis-status" id="analysis-status">分析中...</div>
         <div id="analysis-results" style="display:none">
           <div class="analysis-grid">
-            <div class="bpm-box">
-              <div class="bpm-num" id="bpm-num">--</div>
-              <span class="bpm-unit">BPM</span>
-              <div class="bpm-cat" id="bpm-cat"></div>
-            </div>
             <div>
               <div class="freq-row">
                 <span class="freq-name">BASS</span>
@@ -1326,12 +1346,11 @@ class AudioAnalyzer {
     if (bpm<160) return 'fast'; return 'very-fast';
   }
   featuresDescription(f) {
-    const bL={'very-slow':'ゆったり','slow':'スロー','moderate':'ミドルテンポ','upbeat':'アップビート','fast':'アップテンポ','very-fast':'超高速'}[f.bpmCategory]||'';
     const bsL=f.bassRatio>0.5?'重厚な低音':f.bassRatio>0.32?'適度な低音':'軽めの低音';
     const hL=f.highRatio>0.22?'煌びやかな高音':f.highRatio>0.10?'適度な高音':'落ち着いた音色';
     const dL={dynamic:'起伏のある激しい展開',moderate:'適度な抑揚',flat:'均一なエネルギー'}[f.energyCategory]||'';
     const pL=f.peakPosition<0.35?'序盤にクライマックス':f.peakPosition<0.65?'中盤にクライマックス':'終盤に向けて盛り上がる';
-    return `BPM ${Math.round(f.bpm)}（${bL}）、${bsL}・${hL}。${dL}で${pL}。`;
+    return `${bsL}・${hL}。${dL}で${pL}。`;
   }
 }
 const audioAnalyzer = new AudioAnalyzer();
@@ -1481,9 +1500,6 @@ async function startAudioAnalysis(file) {
 function renderAnalysisResults(f) {
   document.getElementById('analysis-status').style.display = 'none';
   document.getElementById('analysis-results').style.display = 'block';
-  document.getElementById('bpm-num').textContent = Math.round(f.bpm);
-  const catLabels = {'very-slow':'Very Slow','slow':'Slow','moderate':'Moderate','upbeat':'Upbeat','fast':'Fast','very-fast':'Very Fast'};
-  document.getElementById('bpm-cat').textContent = catLabels[f.bpmCategory]||'';
   const bP=Math.round(f.bassRatio*100), mP=Math.round(f.midRatio*100), hP=Math.round(f.highRatio*100);
   requestAnimationFrame(() => {
     document.getElementById('bass-bar').style.width = bP+'%';
@@ -2728,12 +2744,25 @@ async function generate() {
     panels = scenes.map((s, i) => buildPanel(s, i, scenes.length, duration, selectedStyle, lyricsContext));
     diversifyPanels(panels, selectedStyle);
     savedState = { lyrics, genre, artist, duration, styleKey: selectedStyle, scenes, seed: genSeed, lyricsAnalysis, panelCount };
-    // Feature 4: If stampMarks exist, remap panel times using stamp boundaries
-    if (stampMarks.length > 1) {
-      const marks = [0, ...stampMarks, duration].sort((a,b) => a-b);
-      panels.forEach((p, i) => {
-        const segIdx = Math.min(i, marks.length - 2);
-        p.time = marks[segIdx];
+    // If stampMarks exist, distribute panels proportionally across stamp segments
+    if (stampMarks.length >= 1) {
+      const marks = [0, ...stampMarks.slice().sort((a,b) => a-b), duration];
+      const segCount = marks.length - 1;
+      const n = panels.length;
+      // Each segment gets at least 1 panel; extras distributed by segment duration
+      const segDurs = Array.from({length:segCount}, (_, i) => marks[i+1] - marks[i]);
+      const extra = Math.max(0, n - segCount);
+      const assign = segDurs.map(d => 1 + Math.round(d / duration * extra));
+      // Clamp to exact panel count
+      let sum = assign.reduce((a,b) => a+b, 0);
+      while (sum > n) { const i = assign.indexOf(Math.max(...assign)); assign[i]--; sum--; }
+      while (sum < n) { const i = assign.indexOf(Math.min(...assign)); assign[i]++; sum++; }
+      let pIdx = 0;
+      assign.forEach((count, seg) => {
+        const segStart = marks[seg], segLen = marks[seg+1] - marks[seg];
+        for (let j = 0; j < count && pIdx < n; j++, pIdx++) {
+          panels[pIdx].time = segStart + (j / Math.max(1, count)) * segLen;
+        }
       });
     }
     allPanels = panels;
@@ -3611,25 +3640,33 @@ function loadSrtFile(input) {
 // Feature 4: Click Stamping JS
 // ─────────────────────────────────────────
 let stampAudio = null;
-let stampMarks = [];  // timestamps in seconds
+let stampMarks = [];
+let stampTickId = null;
+
+function fmtTime(s) {
+  const m = Math.floor(s / 60), ss = Math.floor(s % 60);
+  return `${m}:${ss.toString().padStart(2, '0')}`;
+}
 
 function initStampUI(file) {
   const ui = document.getElementById('stamp-ui');
   if (!ui) return;
-  if (stampAudio) {
-    stampAudio.pause();
-    stampAudio = null;
-  }
+  if (stampAudio) { stampAudio.pause(); stampAudio = null; }
+  if (stampTickId) { cancelAnimationFrame(stampTickId); stampTickId = null; }
   stampAudio = new Audio(URL.createObjectURL(file));
+  stampAudio.addEventListener('ended', () => {
+    const btn = document.getElementById('stamp-play-btn');
+    if (btn) btn.textContent = '▶ 再生';
+    if (stampTickId) { cancelAnimationFrame(stampTickId); stampTickId = null; }
+  });
   stampMarks = [];
   ui.style.display = 'block';
-  // Reset play button
-  const btn = document.getElementById('stamp-play-btn');
-  if (btn) btn.textContent = '▶ 再生';
-  // Clear timeline
-  const tl = document.getElementById('stamp-timeline');
-  if (tl) tl.innerHTML = '';
-  updateStampCount();
+  document.getElementById('stamp-play-btn').textContent = '▶ 再生';
+  document.getElementById('stamp-timeline').innerHTML = '';
+  document.getElementById('stamp-chips').innerHTML = '';
+  document.getElementById('stamp-fader').value = 0;
+  updateStampTimeDisplay();
+  updateStampCountLabel();
 }
 
 function toggleStampPlay() {
@@ -3638,38 +3675,120 @@ function toggleStampPlay() {
   if (stampAudio.paused) {
     stampAudio.play();
     btn.textContent = '⏸ 一時停止';
+    startStampTick();
   } else {
     stampAudio.pause();
     btn.textContent = '▶ 再生';
+    if (stampTickId) { cancelAnimationFrame(stampTickId); stampTickId = null; }
   }
+}
+
+function startStampTick() {
+  if (stampTickId) cancelAnimationFrame(stampTickId);
+  function tick() {
+    if (!stampAudio || stampAudio.paused) return;
+    updateStampPlayhead();
+    updateStampTimeDisplay();
+    stampTickId = requestAnimationFrame(tick);
+  }
+  stampTickId = requestAnimationFrame(tick);
+}
+
+function updateStampPlayhead() {
+  const dur = stampAudio?.duration || 1;
+  const ct = stampAudio?.currentTime || 0;
+  const pct = Math.min(100, ct / dur * 100);
+  const ph = document.getElementById('stamp-playhead');
+  if (ph) ph.style.left = pct.toFixed(2) + '%';
+  const fader = document.getElementById('stamp-fader');
+  if (fader && document.activeElement !== fader)
+    fader.value = Math.round(ct / dur * 1000);
+}
+
+function updateStampTimeDisplay() {
+  const ct = stampAudio?.currentTime || 0;
+  const dur = stampAudio?.duration || 0;
+  const el = document.getElementById('stamp-time');
+  if (el) el.textContent = `${fmtTime(ct)} / ${fmtTime(dur)}`;
+}
+
+function seekStampClick(e) {
+  if (!stampAudio) return;
+  const rect = e.currentTarget.getBoundingClientRect();
+  const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+  stampAudio.currentTime = pct * (stampAudio.duration || 0);
+  updateStampPlayhead();
+  updateStampTimeDisplay();
+}
+
+function onStampFader(val) {
+  if (!stampAudio || !stampAudio.duration) return;
+  stampAudio.currentTime = (val / 1000) * stampAudio.duration;
+  updateStampPlayhead();
+  updateStampTimeDisplay();
 }
 
 function recordStamp() {
   if (!stampAudio) return;
   const t = stampAudio.currentTime;
+  if (stampMarks.some(m => Math.abs(m - t) < 0.5)) return; // ignore duplicates within 0.5s
   stampMarks.push(t);
-  stampMarks.sort((a,b) => a - b);
-  updateStampCount();
-  // Flash visual marker on timeline
-  const tl = document.getElementById('stamp-timeline');
-  const dur = stampAudio.duration || audioDuration;
-  if (tl && dur) {
-    const dot = document.createElement('div');
-    dot.style.cssText = `position:absolute;top:0;bottom:0;left:${(t/dur*100).toFixed(1)}%;width:2px;background:var(--accent2);`;
-    tl.appendChild(dot);
-  }
+  stampMarks.sort((a, b) => a - b);
+  updateStampCountLabel();
+  renderStampMarkers();
+  renderStampChips();
 }
 
 function clearStamps() {
   stampMarks = [];
-  updateStampCount();
-  const tl = document.getElementById('stamp-timeline');
-  if (tl) tl.innerHTML = '';
+  updateStampCountLabel();
+  renderStampMarkers();
+  renderStampChips();
 }
 
-function updateStampCount() {
-  const el = document.getElementById('stamp-count');
-  if (el) el.textContent = stampMarks.length + ' points' + (stampMarks.length > 0 ? ' → ' + stampMarks.length + 'カット' : '');
+function removeStamp(idx) {
+  stampMarks.splice(idx, 1);
+  updateStampCountLabel();
+  renderStampMarkers();
+  renderStampChips();
+}
+
+function seekToStamp(idx) {
+  if (!stampAudio || idx >= stampMarks.length) return;
+  stampAudio.currentTime = stampMarks[idx];
+  updateStampPlayhead();
+  updateStampTimeDisplay();
+}
+
+function renderStampMarkers() {
+  const tl = document.getElementById('stamp-timeline');
+  if (!tl) return;
+  const dur = stampAudio?.duration || audioDuration || 1;
+  tl.innerHTML = stampMarks.map((t, i) => {
+    const pct = (t / dur * 100).toFixed(2);
+    return `<div style="position:absolute;top:0;bottom:0;left:${pct}%;width:2px;background:rgba(251,146,60,.85);transform:translateX(-50%);z-index:1;" title="${fmtTime(t)}"></div>`;
+  }).join('');
+}
+
+function renderStampChips() {
+  const el = document.getElementById('stamp-chips');
+  if (!el) return;
+  el.innerHTML = stampMarks.map((t, i) =>
+    `<div class="stamp-chip" onclick="seekToStamp(${i})" title="クリックでここに移動">
+       <span>${i + 1}: ${fmtTime(t)}</span>
+       <span class="stamp-chip-del" onclick="event.stopPropagation();removeStamp(${i})">✕</span>
+     </div>`
+  ).join('');
+}
+
+function updateStampCountLabel() {
+  const el = document.getElementById('stamp-count-lbl');
+  if (!el) return;
+  if (stampMarks.length === 0) {
+    el.textContent = 'スタンプなし';
+  } else {
+    el.textContent = `${stampMarks.length}か所記録済み → ${stampMarks.length + 1}カット割りに反映`;
+  }
 }
 
 // Init
