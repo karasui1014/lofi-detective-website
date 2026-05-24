@@ -1537,13 +1537,24 @@ function formatTime(s) {
 // Improved character figures
 // ─────────────────────────────────────────
 function figBase(cx, cy, s) {
+  const hy = cy - s*2.8;
   return `
-    <path d="M${cx-s*.755} ${cy-s*2.85} Q${cx} ${cy-s*3.98} ${cx+s*.755} ${cy-s*2.85}" fill="currentColor" fill-opacity=".45" stroke="none"/>
-    <circle cx="${cx}" cy="${cy-s*2.8}" r="${s*.92}" fill="currentColor" fill-opacity=".32" stroke="currentColor" stroke-width="${s*.12}"/>
-    <circle cx="${cx-s*.28}" cy="${cy-s*2.85}" r="${s*.13}" fill="currentColor" opacity=".82"/>
-    <circle cx="${cx+s*.28}" cy="${cy-s*2.85}" r="${s*.13}" fill="currentColor" opacity=".82"/>
+    <path d="M${cx-s*.755} ${cy-s*2.85} Q${cx} ${cy-s*4.02} ${cx+s*.755} ${cy-s*2.85}" fill="currentColor" fill-opacity=".45" stroke="none"/>
+    <path d="M${cx-s*.66} ${cy-s*3.0} Q${cx-s*.35} ${cy-s*3.55} ${cx-s*.08} ${cy-s*3.15}" fill="none" stroke="currentColor" stroke-width="${s*.07}" opacity=".4"/>
+    <path d="M${cx+s*.66} ${cy-s*3.0} Q${cx+s*.35} ${cy-s*3.55} ${cx+s*.08} ${cy-s*3.15}" fill="none" stroke="currentColor" stroke-width="${s*.07}" opacity=".4"/>
+    <circle cx="${cx}" cy="${hy}" r="${s*.92}" fill="currentColor" fill-opacity=".32" stroke="currentColor" stroke-width="${s*.12}"/>
+    <ellipse cx="${cx+s*.42}" cy="${hy+s*.12}" rx="${s*.3}" ry="${s*.6}" fill="currentColor" fill-opacity=".12" stroke="none"/>
+    <path d="M${cx-s*.44} ${hy-s*.24} Q${cx-s*.28} ${hy-s*.34} ${cx-s*.12} ${hy-s*.24}" fill="none" stroke="currentColor" stroke-width="${s*.07}" opacity=".55"/>
+    <path d="M${cx+s*.12} ${hy-s*.24} Q${cx+s*.28} ${hy-s*.34} ${cx+s*.44} ${hy-s*.24}" fill="none" stroke="currentColor" stroke-width="${s*.07}" opacity=".55"/>
+    <circle cx="${cx-s*.28}" cy="${hy-s*.05}" r="${s*.13}" fill="currentColor" opacity=".82"/>
+    <circle cx="${cx+s*.28}" cy="${hy-s*.05}" r="${s*.13}" fill="currentColor" opacity=".82"/>
+    <path d="M${cx+s*.02} ${hy+s*.08} L${cx-s*.07} ${hy+s*.32}" fill="none" stroke="currentColor" stroke-width="${s*.06}" opacity=".42"/>
+    <path d="M${cx-s*.2} ${hy+s*.52} Q${cx} ${hy+s*.66} ${cx+s*.2} ${hy+s*.52}" fill="none" stroke="currentColor" stroke-width="${s*.07}" opacity=".5"/>
     <rect x="${cx-s*.13}" y="${cy-s*1.97}" width="${s*.26}" height="${s*.18}" fill="currentColor" fill-opacity=".38"/>
-    <path d="M${cx-s*.54} ${cy-s*1.84} L${cx-s*.42} ${cy+.06} L${cx+s*.42} ${cy+.06} L${cx+s*.54} ${cy-s*1.84}Z" fill="currentColor" fill-opacity=".3" stroke="currentColor" stroke-width="${s*.1}" stroke-linejoin="round"/>`;
+    <path d="M${cx-s*.54} ${cy-s*1.84} L${cx-s*.42} ${cy+.06} L${cx+s*.42} ${cy+.06} L${cx+s*.54} ${cy-s*1.84}Z" fill="currentColor" fill-opacity=".3" stroke="currentColor" stroke-width="${s*.1}" stroke-linejoin="round"/>
+    <path d="M${cx-s*.22} ${cy-s*1.83} L${cx} ${cy-s*1.48} L${cx+s*.22} ${cy-s*1.83}" fill="none" stroke="currentColor" stroke-width="${s*.08}" opacity=".55" stroke-linejoin="round"/>
+    <line x1="${cx}" y1="${cy-s*1.48}" x2="${cx}" y2="${cy-s*.02}" stroke="currentColor" stroke-width="${s*.05}" opacity=".35"/>
+    <path d="M${cx+s*.12} ${cy-s*1.5} L${cx+s*.42} ${cy+.04} L${cx+s*.18} ${cy+.05}Z" fill="currentColor" fill-opacity=".1" stroke="none"/>`;
 }
 
 const POSES = {
@@ -2459,13 +2470,30 @@ function renderPanelSVG(panel) {
     <feDisplacementMap in="SourceGraphic" in2="n" scale="2.2" xChannelSelector="R" yChannelSelector="G"/>
   </filter>`;
 
-  // ── Ground / horizon sketch line ──
-  const groundLine = `<line x1="${cx-70}" y1="${cy+scale*1.55}" x2="${cx+70}" y2="${cy+scale*1.55}" stroke="${col}" stroke-width="1.1" opacity=".35" stroke-dasharray="3,5"/>`;
+  // ── Ground shadow + horizon sketch line ──
+  const groundShadow = `<ellipse cx="${cx}" cy="${cy+scale*1.62}" rx="${scale*1.95}" ry="${scale*.42}" fill="${col}" opacity=".15"/>`;
+  const groundLine = `${groundShadow}<line x1="${cx-70}" y1="${cy+scale*1.55}" x2="${cx+70}" y2="${cy+scale*1.55}" stroke="${col}" stroke-width="1.1" opacity=".3" stroke-dasharray="3,5"/>`;
+
+  // ── Atmospheric dust / light motes (depth) ──
+  const atmosphere = (() => {
+    const r = seededRand(uid*131 + 7);
+    return Array.from({length:11},() => {
+      const x = r()*W, y = r()*H*.9, rad = .5+r()*2.0, op = (.04+r()*.11).toFixed(3);
+      return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${rad.toFixed(1)}" fill="${col}" opacity="${op}"/>`;
+    }).join('');
+  })();
+
+  // ── Vignette for cinematic depth ──
+  const vignetteDef = `<radialGradient id="vg${uid}" cx="50%" cy="48%" r="72%">
+    <stop offset="52%" stop-color="#000" stop-opacity="0"/>
+    <stop offset="100%" stop-color="#000" stop-opacity=".4"/>
+  </radialGradient>`;
+  const vignette = `<rect width="${W}" height="${H}" fill="url(#vg${uid})" pointer-events="none"/>`;
 
   const overlay = panel.isIntro ? `<rect width="${W}" height="${H}" fill="rgba(0,212,255,.04)"/>` :
                   panel.isOutro ? `<rect width="${W}" height="${H}" fill="rgba(255,107,157,.04)"/>` : '';
 
-  let defs = hatchDef + roughDef;
+  let defs = hatchDef + roughDef + vignetteDef;
   let innerSVG = '';
   const vt = panel.visualType || 'character';
 
@@ -2474,17 +2502,17 @@ function renderPanelSVG(panel) {
                   : (panel.pose in POSES ? panel.pose : 'standing');
     const figSVG = POSES[poseKey](cx, cy, scale);
     const motionLines = motionSketch(panel.pose, cx, cy, scale, col);
-    innerSVG = `${bg}${hatch}
+    innerSVG = `${bg}${hatch}${atmosphere}${groundLine}
       <g filter="url(#${filterId})" color="${col}" opacity=".95" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
         ${figSVG}
       </g>
-      ${motionLines}${groundLine}`;
+      ${motionLines}`;
 
   } else if (vt === 'silhouette') {
     defs += silhouetteDefs(uid, col);
     const sil = silhouetteSVG(cx, cy, scale, uid, col);
-    innerSVG = `${bg}${hatch}
-      <g filter="url(#${filterId})">${sil}</g>${groundLine}`;
+    innerSVG = `${bg}${hatch}${atmosphere}${groundLine}
+      <g filter="url(#${filterId})">${sil}</g>`;
 
   } else if (vt === 'abstract') {
     innerSVG = abstractSVG(W, H, col, svgVar);
@@ -2514,7 +2542,7 @@ function renderPanelSVG(panel) {
   return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
     <defs>${defs}</defs>
     <rect width="${W}" height="${H}" fill="#0e0e22"/>
-    ${overlay}${guideLine}${innerSVG}${corners}
+    ${overlay}${guideLine}${innerSVG}${vignette}${corners}
   </svg>`;
 }
 
@@ -2738,31 +2766,21 @@ async function generate() {
     const lyricsAnalysis = analyzeFullLyrics(lyrics);
     const userReqHints = genre ? parseUserRequest(genre) : null;
     const lyricsContext = { seed: genSeed, lyricsAnalysis, userReqHints, audioFeatures: audioFeatures || null };
-    const scenes = parseLyrics(lyrics, panelCount, duration, selectedStyle);
+    // If stamps exist, they define the cut count (N stamps → N+1 cuts)
+    const sortedStamps = stampMarks.slice().sort((a,b) => a-b);
+    const effectivePanelCount = sortedStamps.length >= 1 ? sortedStamps.length + 1 : panelCount;
+    const scenes = parseLyrics(lyrics, effectivePanelCount, duration, selectedStyle);
     setProgress(55, `${MV_STYLES[selectedStyle]?.label||''}スタイルでシーンを構築中...`);
     await delay(200);
     panels = scenes.map((s, i) => buildPanel(s, i, scenes.length, duration, selectedStyle, lyricsContext));
     diversifyPanels(panels, selectedStyle);
-    savedState = { lyrics, genre, artist, duration, styleKey: selectedStyle, scenes, seed: genSeed, lyricsAnalysis, panelCount };
-    // If stampMarks exist, distribute panels proportionally across stamp segments
-    if (stampMarks.length >= 1) {
-      const marks = [0, ...stampMarks.slice().sort((a,b) => a-b), duration];
-      const segCount = marks.length - 1;
-      const n = panels.length;
-      // Each segment gets at least 1 panel; extras distributed by segment duration
-      const segDurs = Array.from({length:segCount}, (_, i) => marks[i+1] - marks[i]);
-      const extra = Math.max(0, n - segCount);
-      const assign = segDurs.map(d => 1 + Math.round(d / duration * extra));
-      // Clamp to exact panel count
-      let sum = assign.reduce((a,b) => a+b, 0);
-      while (sum > n) { const i = assign.indexOf(Math.max(...assign)); assign[i]--; sum--; }
-      while (sum < n) { const i = assign.indexOf(Math.min(...assign)); assign[i]++; sum++; }
-      let pIdx = 0;
-      assign.forEach((count, seg) => {
-        const segStart = marks[seg], segLen = marks[seg+1] - marks[seg];
-        for (let j = 0; j < count && pIdx < n; j++, pIdx++) {
-          panels[pIdx].time = segStart + (j / Math.max(1, count)) * segLen;
-        }
+    savedState = { lyrics, genre, artist, duration, styleKey: selectedStyle, scenes, seed: genSeed, lyricsAnalysis, panelCount: effectivePanelCount };
+    // If stamps exist, snap each panel's time to its stamp boundary so cuts land exactly where recorded
+    if (sortedStamps.length >= 1) {
+      const marks = [0, ...sortedStamps];
+      panels.forEach((p, i) => {
+        p.time = marks[Math.min(i, marks.length - 1)];
+        p.stampDriven = true;
       });
     }
     allPanels = panels;
@@ -3783,11 +3801,13 @@ function renderStampChips() {
 
 function updateStampCountLabel() {
   const el = document.getElementById('stamp-count-lbl');
-  if (!el) return;
+  const pc = document.getElementById('panel-count');
   if (stampMarks.length === 0) {
-    el.textContent = 'スタンプなし';
+    if (el) el.textContent = 'スタンプなし（カット数は手動指定）';
   } else {
-    el.textContent = `${stampMarks.length}か所記録済み → ${stampMarks.length + 1}カット割りに反映`;
+    if (el) el.textContent = `${stampMarks.length}か所記録済み → ${stampMarks.length + 1}カットに反映（カット数欄を上書き）`;
+    // Keep the panel-count field in sync so the user sees stamps drive the cut count
+    if (pc) pc.value = stampMarks.length + 1;
   }
 }
 
