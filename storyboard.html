@@ -2049,11 +2049,45 @@ function styleColor(styleKey, idx) {
 // ─────────────────────────────────────────
 // Lyrics → scenes (with intro/outro)
 // ─────────────────────────────────────────
-function parseLyrics(raw, panelCount, duration, styleKey) {
+function parseLyrics(raw, panelCount, duration, styleKey, stampBoundaries) {
   const style = MV_STYLES[styleKey] || MV_STYLES.story;
   const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
 
   const isHeader = l => /^\[.+\]$/.test(l) || /^(verse|chorus|bridge|outro|intro|refrain|hook|pre-chorus|interlude|instrumental)/i.test(l);
+
+  // ── Stamp-aware mode: distribute lyrics proportionally by segment duration ──
+  if (stampBoundaries && stampBoundaries.length >= 2) {
+    const segCount = stampBoundaries.length - 1;
+    const totalDur = stampBoundaries[stampBoundaries.length - 1] - stampBoundaries[0];
+    // Collect all non-header lines with their section labels
+    const allLines = [];
+    let curSection = '';
+    for (const line of lines) {
+      if (isHeader(line)) { curSection = line.replace(/[\[\]]/g, '').trim(); }
+      else { allLines.push({ text: line, section: curSection }); }
+    }
+    if (allLines.length === 0) allLines.push({ text: '♪', section: '' });
+    // Distribute lines proportionally
+    const scenes = [];
+    let ptr = 0;
+    for (let i = 0; i < segCount; i++) {
+      const segDur = stampBoundaries[i + 1] - stampBoundaries[i];
+      const proportion = totalDur > 0 ? segDur / totalDur : 1 / segCount;
+      const want = Math.max(1, Math.round(allLines.length * proportion));
+      const take = i === segCount - 1 ? allLines.slice(ptr) : allLines.slice(ptr, ptr + want);
+      ptr = Math.min(ptr + want, allLines.length);
+      const segLines = take.length > 0 ? take.map(l => l.text) : ['♪'];
+      scenes.push({
+        section: take.length > 0 ? take[0].section : '',
+        lines: segLines,
+        stampTime: stampBoundaries[i],
+        stampEnd: stampBoundaries[i + 1],
+        isIntro: false,
+        isOutro: false
+      });
+    }
+    return scenes.slice(0, panelCount);
+  }
 
   // Parse lyric scenes
   const lyricScenes = [];
@@ -2110,7 +2144,7 @@ function parseLyrics(raw, panelCount, duration, styleKey) {
 // ─────────────────────────────────────────
 function buildPanel(scene, idx, total, duration, styleKey, lyricsContext) {
   const text = scene.lines.join(' ');
-  const t = (duration / total) * idx;
+  const t = lyricsContext?.panelTime !== undefined ? lyricsContext.panelTime : (duration / total) * idx;
   const seed = (lyricsContext && lyricsContext.seed) || 0;
   const rand = seededRand(seed * 7919 + idx * 53);
   const svgVariant = Math.floor(rand() * 50);  // drives SVG visual variety on regen
@@ -2190,12 +2224,24 @@ function buildPanel(scene, idx, total, duration, styleKey, lyricsContext) {
   const promptObj   = buildImagePrompt(shot, pose, bg, styleKey, visualType, userReqHints);
   const bgPromptObj = buildBgPrompt(bg, shot, pose, idx, styleKey, visualType, userReqHints);
 
+  // Stamp-driven panels: prepend timestamp + lyrics snippet to prompts for precise AI context
+  let finalPromptJa = promptObj.ja, finalPromptEn = promptObj.en;
+  if (lyricsContext?.stampDriven && !scene.isIntro && !scene.isOutro) {
+    const ts = formatTime(t);
+    const tsEnd = (scene.stampEnd !== undefined) ? formatTime(scene.stampEnd) : '';
+    const snippet = scene.lines.slice(0, 2).join(' ／ ');
+    const timeRange = tsEnd ? `${ts}〜${tsEnd}` : ts;
+    finalPromptJa = `【カットタイム】${timeRange}　【歌詞】${snippet}　${finalPromptJa}`;
+    finalPromptEn = `[cut time: ${timeRange}] [lyrics: ${scene.lines.slice(0,2).join(' / ')}] ${finalPromptEn}`;
+  }
+
   return { shot, pose, bg, color, idx, time: t, lines: scene.lines, section: scene.section,
            jaDesc,
-           prompt: promptObj.ja, promptEn: promptObj.en,
+           prompt: finalPromptJa, promptEn: finalPromptEn,
            bgPrompt: bgPromptObj.ja, bgPromptEn: bgPromptObj.en,
            visualType, styleKey,
            isIntro: !!scene.isIntro, isOutro: !!scene.isOutro,
+           stampDriven: !!lyricsContext?.stampDriven,
            _scene: scene, _svgVariant: svgVariant, _regenCount: 0,
            _userReqHints: userReqHints || null };
 }
@@ -2664,7 +2710,7 @@ function buildPanelEl(p, displayNum) {
     <div class="panel-top">
       <span class="panel-num">${String(displayNum).padStart(3,'0')}</span>
       <span class="panel-shot">${vtLabel ? vtLabel : shotLabel}</span>
-      <span class="panel-time">${formatTime(p.time)}</span>
+      <span class="panel-time">${p.stampDriven ? '🎬 ' : ''}${formatTime(p.time)}</span>
     </div>
     <div class="panel-art">${artSVG}<label class="panel-img-upload" title="画像を添付">📎<input type="file" accept="image/*" style="display:none" onchange="attachPanelImage(this)"></label><button class="panel-dl-btn" title="PNGをダウンロード" onclick="downloadPanelPNG(this)">⬇</button></div>
     <div class="panel-body">
@@ -2783,20 +2829,17 @@ async function generate() {
     // If stamps exist, they define the cut count (N stamps → N+1 cuts)
     const sortedStamps = stampMarks.slice().sort((a,b) => a-b);
     const effectivePanelCount = sortedStamps.length >= 1 ? sortedStamps.length + 1 : panelCount;
-    const scenes = parseLyrics(lyrics, effectivePanelCount, duration, selectedStyle);
+    const stampBoundaries = sortedStamps.length >= 1 ? [0, ...sortedStamps, duration] : null;
+    const scenes = parseLyrics(lyrics, effectivePanelCount, duration, selectedStyle, stampBoundaries);
     setProgress(55, `${MV_STYLES[selectedStyle]?.label||''}スタイルでシーンを構築中...`);
     await delay(200);
-    panels = scenes.map((s, i) => buildPanel(s, i, scenes.length, duration, selectedStyle, lyricsContext));
+    panels = scenes.map((s, i) => {
+      const panelTime = s.stampTime !== undefined ? s.stampTime : (duration / scenes.length) * i;
+      const ctx = { ...lyricsContext, panelTime, stampDriven: !!stampBoundaries };
+      return buildPanel(s, i, scenes.length, duration, selectedStyle, ctx);
+    });
     diversifyPanels(panels, selectedStyle);
     savedState = { lyrics, genre, artist, duration, styleKey: selectedStyle, scenes, seed: genSeed, lyricsAnalysis, panelCount: effectivePanelCount };
-    // If stamps exist, snap each panel's time to its stamp boundary so cuts land exactly where recorded
-    if (sortedStamps.length >= 1) {
-      const marks = [0, ...sortedStamps];
-      panels.forEach((p, i) => {
-        p.time = marks[Math.min(i, marks.length - 1)];
-        p.stampDriven = true;
-      });
-    }
     allPanels = panels;
     setProgress(92, 'レンダリング中...');
     await delay(150);
