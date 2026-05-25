@@ -4,8 +4,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>顔タイプ × パーソナルカラー スタイリスト</title>
-  <meta name="description" content="写真をアップロードするだけで、顔タイプ診断とパーソナルカラー診断を行い、似合う服のおすすめ検索と試着（はめ込み）ができる無料ツール。すべてブラウザ内で処理し、写真は外部に送信されません。">
+  <title>顔タイプ × パーソナルカラー スタイリスト（AI診断）</title>
+  <meta name="description" content="写真をアップロードするだけで、AI（Claude）が顔タイプ診断とパーソナルカラー診断を行い、似合う服のおすすめ検索と試着（はめ込み）ができるツール。">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
@@ -17,8 +17,8 @@
 <body>
   <header class="site-header">
     <h1>顔タイプ × パーソナルカラー <span>スタイリスト</span></h1>
-    <p class="lead">写真を1枚アップロードするだけで、顔タイプ・パーソナルカラーを診断し、似合う服を検索＆試着できます。</p>
-    <p class="privacy">🔒 すべての処理はあなたのブラウザ内で完結します。写真がサーバーに送られることはありません。</p>
+    <p class="lead">写真を1枚アップロードすると、AI（Claude）が顔タイプ・パーソナルカラーを診断し、似合う服を検索＆試着できます。</p>
+    <p class="privacy">📷 写真は診断のため、あなたが立てたサーバー経由でClaude APIに送信されます（サーバー側に保存はしません）。</p>
   </header>
 
   <main>
@@ -37,7 +37,7 @@
       <div id="preview-wrap" class="preview-wrap" hidden>
         <canvas id="preview-canvas"></canvas>
         <div class="preview-actions">
-          <button id="analyze-btn" class="btn btn-primary" type="button">この写真で診断する</button>
+          <button id="analyze-btn" class="btn btn-primary" type="button">この写真でAI診断する</button>
           <button id="reset-btn" class="btn btn-ghost" type="button">別の写真にする</button>
         </div>
       </div>
@@ -46,43 +46,31 @@
 
     <!-- STEP 2: diagnosis -->
     <section class="card" id="step-result" hidden>
-      <h2><span class="step-no">2</span>診断結果</h2>
-      <p class="hint disclaimer">※ 写真の明るさや角度で結果は変わります。簡易判定のため、違和感があれば下のメニューで手動補正できます。</p>
+      <h2><span class="step-no">2</span>AI診断結果</h2>
+      <p class="hint disclaimer">※ 写真の明るさや角度で結果は変わります。あくまで目安としてお楽しみください。</p>
       <div class="result-grid">
         <div class="result-box">
           <h3>パーソナルカラー</h3>
           <div id="season-name" class="big-label">—</div>
+          <div id="season-meta" class="meta-line"></div>
           <div id="season-palette" class="palette"></div>
           <p id="season-words" class="result-desc"></p>
-          <label class="override">手動で変更：
-            <select id="season-select">
-              <option value="spring">スプリング（イエベ春）</option>
-              <option value="summer">サマー（ブルベ夏）</option>
-              <option value="autumn">オータム（イエベ秋）</option>
-              <option value="winter">ウィンター（ブルベ冬）</option>
-            </select>
-          </label>
         </div>
         <div class="result-box">
           <h3>顔タイプ</h3>
           <div id="facetype-name" class="big-label">—</div>
           <p id="facetype-axis" class="axis-note"></p>
           <p id="facetype-words" class="result-desc"></p>
-          <label class="override">手動で変更：
-            <select id="facetype-select"></select>
-          </label>
         </div>
       </div>
-      <details class="measured">
-        <summary>測定値の詳細（透明性のため公開）</summary>
-        <div id="measured-body"></div>
-      </details>
     </section>
 
     <!-- STEP 3: recommendations -->
     <section class="card" id="step-reco" hidden>
       <h2><span class="step-no">3</span>おすすめコーデ & ネット検索</h2>
-      <p id="reco-text" class="result-desc"></p>
+      <p id="reco-summary" class="result-desc"></p>
+      <div id="reco-items" class="reco-items"></div>
+      <p id="reco-avoid" class="avoid-note"></p>
       <div class="search-row">
         <input type="text" id="search-query" class="search-input" aria-label="検索キーワード">
         <div class="search-btns">
@@ -91,14 +79,12 @@
           <a id="btn-google" class="btn btn-shop" target="_blank" rel="noopener">Google画像で探す</a>
         </div>
       </div>
-      <p class="hint">キーワードは自由に編集できます。下のチップでアイテムを切り替え。</p>
-      <div id="item-chips" class="chips"></div>
     </section>
 
     <!-- STEP 4: try-on overlay -->
     <section class="card" id="step-tryon" hidden>
       <h2><span class="step-no">4</span>試着（はめ込み）</h2>
-      <p class="hint">服をドラッグして位置合わせ、スライダーで大きさ調整。色はパーソナルカラーから選べます。手持ちの透過PNG（服の切り抜き）も重ねられます。</p>
+      <p class="hint">服をドラッグして位置合わせ、スライダーで大きさ調整。色は診断されたパーソナルカラーから選べます。手持ちの透過PNG（服の切り抜き）も重ねられます。</p>
       <div class="tryon-layout">
         <div class="tryon-canvas-wrap">
           <canvas id="tryon-canvas"></canvas>
@@ -126,7 +112,6 @@
             手持ちの服PNGを重ねる
             <input type="file" id="garment-file" accept="image/png" hidden>
           </label>
-          <button id="garment-front" class="btn btn-ghost" type="button">服を最前面に</button>
           <button id="export-btn" class="btn btn-primary" type="button">画像を書き出す</button>
         </div>
       </div>
@@ -134,8 +119,8 @@
   </main>
 
   <footer class="site-footer">
-    <p>顔タイプ・パーソナルカラー判定はAIによる簡易推定です。あくまで目安としてお楽しみください。</p>
-    <p class="tech">顔解析: MediaPipe FaceLandmarker（ブラウザ内処理）</p>
+    <p>顔タイプ・パーソナルカラー判定はAIによる推定です。あくまで目安としてお楽しみください。</p>
+    <p class="tech">診断: Claude（claude-opus-4-7, Vision）／ 試着: ブラウザ内 canvas</p>
   </footer>
 
   <script type="module" src="app.js"></script>
