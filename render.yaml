@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: ai-stylist
+    runtime: node
+    rootDir: stylist/server
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false          # Renderダッシュボードで手動入力
+      - key: PORT
+        value: 10000         # Renderが自動で上書きするが念のため
+    autoDeploy: true
