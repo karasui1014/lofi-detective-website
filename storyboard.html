@@ -103,10 +103,19 @@ header h1{font-size:1.15rem;font-weight:700;letter-spacing:.02em;}
 .drop-zone{
   border:1.5px dashed rgba(124,58,237,.3);border-radius:var(--radius-sm);
   padding:1.4rem 1rem;text-align:center;cursor:pointer;
-  transition:all .25s;position:relative;background:var(--surface2);
+  transition:all .35s;position:relative;background:var(--surface2);
 }
 .drop-zone:hover,.drop-zone.drag-over{
   border-color:var(--accent2);background:rgba(6,182,212,.04);
+}
+.drop-zone.loaded{
+  border-color:rgba(34,197,94,.55);background:rgba(34,197,94,.04);
+  animation:dropSuccessPulse .6s ease-out;
+}
+@keyframes dropSuccessPulse{
+  0%{box-shadow:0 0 0 0 rgba(34,197,94,.5);}
+  60%{box-shadow:0 0 0 10px rgba(34,197,94,0);}
+  100%{box-shadow:none;}
 }
 .drop-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
 .drop-icon{font-size:1.7rem;margin-bottom:.4rem;opacity:.7;}
@@ -260,7 +269,7 @@ label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;
 }
 .gen-btn:hover{transform:translateY(-2px);box-shadow:0 8px 36px rgba(124,58,237,.6);}
 .gen-btn:active{transform:translateY(0);}
-.gen-btn:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:none;}
+.gen-btn:disabled{opacity:.38;cursor:not-allowed;transform:none;box-shadow:none;filter:saturate(.4) brightness(.7);pointer-events:none;}
 
 /* ── Progress ── */
 #progress-area{display:none;text-align:center;padding:2rem 1rem;}
@@ -335,7 +344,7 @@ label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;
   font-family:inherit;font-weight:600;transition:all .15s ease;
 }
 .scenario-regen-btn:hover:not(:disabled){background:rgba(124,58,237,.15);border-color:var(--accent);color:var(--text);}
-.scenario-regen-btn:disabled{opacity:.35;cursor:not-allowed;}
+.scenario-regen-btn:disabled{opacity:.25;cursor:not-allowed;filter:saturate(.3);pointer-events:none;}
 .scenario-text{
   font-size:.78rem;line-height:1.85;color:var(--text-sec);
   font-family:'Inter','Segoe UI',system-ui,-apple-system,sans-serif;
@@ -431,7 +440,7 @@ label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;
   transition:all .2s;text-align:center;
 }
 .regen-btn:hover{background:rgba(124,58,237,.15);border-color:rgba(124,58,237,.6);color:#c4b5fd;}
-.regen-btn:disabled{opacity:.35;cursor:not-allowed;}
+.regen-btn:disabled{opacity:.25;cursor:not-allowed;filter:saturate(.3);pointer-events:none;}
 .img-gen-btn{
   flex:0 0 auto;margin-top:.5rem;padding:.35rem .6rem;
   background:transparent;border:1px solid rgba(251,146,60,.35);
@@ -440,7 +449,7 @@ label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;
   transition:all .2s;text-align:center;white-space:nowrap;
 }
 .img-gen-btn:hover{background:rgba(251,146,60,.15);border-color:rgba(251,146,60,.7);color:#fdba74;}
-.img-gen-btn:disabled{opacity:.35;cursor:not-allowed;}
+.img-gen-btn:disabled{opacity:.25;cursor:not-allowed;filter:saturate(.3);pointer-events:none;}
 .panel-ai-img{width:100%;height:100%;object-fit:cover;border-radius:.4rem;display:block;}
 
 /* ── Bottom bar ── */
@@ -1473,6 +1482,10 @@ function loadAudio(file) {
     startAudioAnalysis(file);
     initStampUI(file);
     updateGenBtn();
+    // Success pulse on drop zone
+    const dz = document.getElementById('drop-zone');
+    dz.classList.add('loaded');
+    dz.addEventListener('animationend', () => {}, { once: true });
   });
   // Feature 5: iOS WAV fallback — use AudioContext if loadedmetadata doesn't fire
   audio.addEventListener('error', async () => {
@@ -1559,8 +1572,17 @@ function formatTime(s) {
 // ─────────────────────────────────────────
 // Improved character figures
 // ─────────────────────────────────────────
-function figBase(cx, cy, s) {
+function figBase(cx, cy, s, expression) {
   const hy = cy - s*2.8;
+  // Mouth shape varies by expression
+  const mouth = expression === 'sad'
+    ? `<path d="M${cx-s*.2} ${hy+s*.62} Q${cx} ${hy+s*.52} ${cx+s*.2} ${hy+s*.62}" fill="none" stroke="currentColor" stroke-width="${s*.07}" opacity=".55"/>`
+    : expression === 'happy'
+    ? `<path d="M${cx-s*.26} ${hy+s*.48} Q${cx} ${hy+s*.74} ${cx+s*.26} ${hy+s*.48}" fill="none" stroke="currentColor" stroke-width="${s*.08}" opacity=".6"/>
+       <path d="M${cx-s*.14} ${hy+s*.74} Q${cx} ${hy+s*.82} ${cx+s*.14} ${hy+s*.74}" fill="none" stroke="currentColor" stroke-width="${s*.05}" opacity=".3"/>`
+    : expression === 'open'
+    ? `<ellipse cx="${cx}" cy="${hy+s*.58}" rx="${s*.16}" ry="${s*.1}" fill="currentColor" opacity=".45"/>`
+    : `<path d="M${cx-s*.2} ${hy+s*.52} Q${cx} ${hy+s*.66} ${cx+s*.2} ${hy+s*.52}" fill="none" stroke="currentColor" stroke-width="${s*.07}" opacity=".5"/>`;
   return `
     <path d="M${cx-s*.755} ${cy-s*2.85} Q${cx} ${cy-s*4.02} ${cx+s*.755} ${cy-s*2.85}" fill="currentColor" fill-opacity=".45" stroke="none"/>
     <path d="M${cx-s*.66} ${cy-s*3.0} Q${cx-s*.35} ${cy-s*3.55} ${cx-s*.08} ${cy-s*3.15}" fill="none" stroke="currentColor" stroke-width="${s*.07}" opacity=".4"/>
@@ -1572,7 +1594,7 @@ function figBase(cx, cy, s) {
     <circle cx="${cx-s*.28}" cy="${hy-s*.05}" r="${s*.13}" fill="currentColor" opacity=".82"/>
     <circle cx="${cx+s*.28}" cy="${hy-s*.05}" r="${s*.13}" fill="currentColor" opacity=".82"/>
     <path d="M${cx+s*.02} ${hy+s*.08} L${cx-s*.07} ${hy+s*.32}" fill="none" stroke="currentColor" stroke-width="${s*.06}" opacity=".42"/>
-    <path d="M${cx-s*.2} ${hy+s*.52} Q${cx} ${hy+s*.66} ${cx+s*.2} ${hy+s*.52}" fill="none" stroke="currentColor" stroke-width="${s*.07}" opacity=".5"/>
+    ${mouth}
     <rect x="${cx-s*.13}" y="${cy-s*1.97}" width="${s*.26}" height="${s*.18}" fill="currentColor" fill-opacity=".38"/>
     <path d="M${cx-s*.54} ${cy-s*1.84} L${cx-s*.42} ${cy+.06} L${cx+s*.42} ${cy+.06} L${cx+s*.54} ${cy-s*1.84}Z" fill="currentColor" fill-opacity=".3" stroke="currentColor" stroke-width="${s*.1}" stroke-linejoin="round"/>
     <path d="M${cx-s*.22} ${cy-s*1.83} L${cx} ${cy-s*1.48} L${cx+s*.22} ${cy-s*1.83}" fill="none" stroke="currentColor" stroke-width="${s*.08}" opacity=".55" stroke-linejoin="round"/>
@@ -1593,19 +1615,26 @@ const POSES = {
     <path d="M${cx-s*.3} ${cy+.06} Q${cx-s*.6} ${cy+s*.62} ${cx-s*.9} ${cy+s*1.2}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
     <path d="M${cx+s*.3} ${cy+.06} Q${cx+s*.7} ${cy+s*.38} ${cx+s*1.1} ${cy+s*.7}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>`,
 
-  dancing: (cx,cy,s) => figBase(cx,cy,s) + `
+  dancing: (cx,cy,s) => figBase(cx,cy,s,'happy') + `
     <path d="M${cx-s*.5} ${cy-s*1.52} Q${cx-s*.95} ${cy-s*2.0} ${cx-s*1.45} ${cy-s*2.35}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
     <path d="M${cx+s*.5} ${cy-s*1.52} Q${cx+s*.95} ${cy-s*2.0} ${cx+s*1.45} ${cy-s*2.35}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
     <path d="M${cx-s*.32} ${cy+.06} Q${cx-s*.72} ${cy+s*.62} ${cx-s*1.1} ${cy+s*1.15}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
-    <path d="M${cx+s*.32} ${cy+.06} Q${cx+s*.46} ${cy+s*.82} ${cx+s*.6} ${cy+s*1.55}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>`,
+    <path d="M${cx+s*.32} ${cy+.06} Q${cx+s*.46} ${cy+s*.82} ${cx+s*.6} ${cy+s*1.55}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
+    <path d="M${cx-s*1.6} ${cy-s*2.6} Q${cx-s*1.3} ${cy-s*3.1} ${cx-s*.8} ${cy-s*2.8}" fill="none" stroke="currentColor" stroke-width="${s*.05}" opacity=".35" stroke-dasharray="2,2"/>
+    <path d="M${cx+s*1.6} ${cy-s*2.6} Q${cx+s*1.3} ${cy-s*3.1} ${cx+s*.8} ${cy-s*2.8}" fill="none" stroke="currentColor" stroke-width="${s*.05}" opacity=".35" stroke-dasharray="2,2"/>
+    <text x="${cx-s*1.65}" y="${cy-s*2.3}" font-size="${s*.55}" fill="currentColor" opacity=".5">✦</text>
+    <text x="${cx+s*1.45}" y="${cy-s*2.0}" font-size="${s*.45}" fill="currentColor" opacity=".4">✦</text>
+    <text x="${cx}" y="${cy-s*3.6}" font-size="${s*.4}" fill="currentColor" opacity=".35">♪</text>`,
 
-  crying: (cx,cy,s) => figBase(cx,cy,s) + `
+  crying: (cx,cy,s) => figBase(cx,cy,s,'sad') + `
     <path d="M${cx-s*.5} ${cy-s*1.52} Q${cx-s*.62} ${cy-s*1.36} ${cx-s*.75} ${cy-s*1.2}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
     <path d="M${cx+s*.5} ${cy-s*1.52} Q${cx+s*.62} ${cy-s*1.36} ${cx+s*.75} ${cy-s*1.2}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
     <path d="M${cx-s*.32} ${cy+.06} Q${cx-s*.63} ${cy+s*.78} ${cx-s*.95} ${cy+s*1.5}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
     <path d="M${cx+s*.32} ${cy+.06} Q${cx+s*.58} ${cy+s*.76} ${cx+s*.85} ${cy+s*1.45}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
-    <line x1="${cx-s*.32}" y1="${cy-s*2.45}" x2="${cx-s*.38}" y2="${cy-s*1.8}" stroke="currentColor" stroke-width="${s*.07}" stroke-dasharray="2.5,2" opacity=".65"/>
-    <line x1="${cx+s*.32}" y1="${cy-s*2.45}" x2="${cx+s*.38}" y2="${cy-s*1.8}" stroke="currentColor" stroke-width="${s*.07}" stroke-dasharray="2.5,2" opacity=".65"/>`,
+    <path d="M${cx-s*.28} ${cy-s*2.75} Q${cx-s*.32} ${cy-s*2.4} ${cx-s*.3} ${cy-s*1.95}" fill="none" stroke="currentColor" stroke-width="${s*.06}" opacity=".7"/>
+    <path d="M${cx+s*.28} ${cy-s*2.75} Q${cx+s*.32} ${cy-s*2.4} ${cx+s*.3} ${cy-s*1.95}" fill="none" stroke="currentColor" stroke-width="${s*.06}" opacity=".7"/>
+    <circle cx="${cx-s*.3}" cy="${cy-s*1.9}" r="${s*.05}" fill="currentColor" opacity=".6"/>
+    <circle cx="${cx+s*.3}" cy="${cy-s*1.9}" r="${s*.05}" fill="currentColor" opacity=".6"/>`,
 
   love: (cx,cy,s) => `
     <path d="M${cx-s*1.755} ${cy-s*2.85} Q${cx-s} ${cy-s*3.82} ${cx-s*.245} ${cy-s*2.85}" fill="currentColor" fill-opacity=".42" stroke="none"/>
@@ -1621,11 +1650,14 @@ const POSES = {
     <path d="M${cx+s*.2} ${cy+.05} Q${cx-s*.02} ${cy+s*.7} ${cx-s*.25} ${cy+s*1.35}" stroke="currentColor" stroke-width="${s*.2}" fill="none" stroke-linecap="round"/>
     <text x="${cx}" y="${cy-s*3.6}" text-anchor="middle" font-size="${s*1.0}" fill="#ff6b9d" opacity=".9">♥</text>`,
 
-  action: (cx,cy,s) => figBase(cx,cy,s) + `
+  action: (cx,cy,s) => figBase(cx,cy,s,'open') + `
     <path d="M${cx-s*1.5} ${cy-s*.85} Q${cx-s*.6} ${cy-s*1.28} ${cx+s*.35} ${cy-s*1.72}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
     <path d="M${cx+s*.35} ${cy-s*1.72} Q${cx+s*.98} ${cy-s*1.98} ${cx+s*1.6} ${cy-s*2.25}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
     <path d="M${cx-s*.32} ${cy+.06} Q${cx-s*.66} ${cy+s*.55} ${cx-s*1.0} ${cy+s*1.05}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
-    <path d="M${cx+s*.32} ${cy+.06} Q${cx+s*.78} ${cy+s*.68} ${cx+s*1.25} ${cy+s*1.3}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>`,
+    <path d="M${cx+s*.32} ${cy+.06} Q${cx+s*.78} ${cy+s*.68} ${cx+s*1.25} ${cy+s*1.3}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
+    <line x1="${cx-s*1.9}" y1="${cy-s*.6}" x2="${cx-s*1.4}" y2="${cy-s*.7}" stroke="currentColor" stroke-width="${s*.05}" opacity=".4"/>
+    <line x1="${cx-s*2.0}" y1="${cy-s*.3}" x2="${cx-s*1.5}" y2="${cy-s*.35}" stroke="currentColor" stroke-width="${s*.04}" opacity=".3"/>
+    <line x1="${cx-s*1.85}" y1="${cy}" x2="${cx-s*1.38}" y2="${cy-s*.02}" stroke="currentColor" stroke-width="${s*.04}" opacity=".25"/>`,
 
   crowd: (cx,cy,s) => {
     const offsets=[-s*2.6,-s*1.0,s*.4,s*1.9,s*3.3];
@@ -2351,10 +2383,34 @@ function audioPromptHints() {
     'fast':'fast tempo, high energy drive', 'very-fast':'extremely fast tempo, frantic intensity' };
   if (bpmJa[f.bpmCategory]) { jaP.push(bpmJa[f.bpmCategory]); enP.push(bpmEn[f.bpmCategory]); }
 
-  // Frequency balance
-  if (f.bassRatio > 0.48)        { jaP.push('重厚な低音・グルーヴ感・地を這う振動'); enP.push('heavy bass, deep groove, subwoofer rumble'); }
-  else if (f.highRatio > 0.38)   { jaP.push('高音が際立つ明るく透明感のある音色'); enP.push('bright treble, crystalline highs, airy texture'); }
-  else if (f.midRatio > 0.52)    { jaP.push('中音域が豊かで温かみのある音像'); enP.push('rich midrange, warm vocal presence'); }
+  // Frequency balance → camera angle & lighting hints
+  if (f.bassRatio > 0.48) {
+    jaP.push('重厚な低音・グルーヴ感・地を這う振動');
+    jaP.push('ローアングル・英雄的な仰角・重い影');
+    enP.push('heavy bass, deep groove, subwoofer rumble');
+    enP.push('low-angle heroic framing, deep cast shadows');
+  } else if (f.highRatio > 0.38) {
+    jaP.push('高音が際立つ明るく透明感のある音色');
+    jaP.push('ハイアングル・開放的なフレーミング・柔らかい拡散光');
+    enP.push('bright treble, crystalline highs, airy texture');
+    enP.push('high-angle open framing, soft diffused light');
+  } else if (f.midRatio > 0.52) {
+    jaP.push('中音域が豊かで温かみのある音像');
+    jaP.push('アイレベル・親密なミディアムショット・暖色の照明');
+    enP.push('rich midrange, warm vocal presence');
+    enP.push('eye-level intimate framing, warm-toned lighting');
+  }
+
+  // Dynamics → depth of field suggestion
+  if (f.dynamicsRatio !== undefined) {
+    if (f.dynamicsRatio > 1.8) {
+      jaP.push('ダイナミックレンジが広い・深い被写界深度・全焦点');
+      enP.push('wide dynamic range, deep depth of field, everything in focus');
+    } else if (f.dynamicsRatio < 1.2) {
+      jaP.push('コンプレッションの効いたサウンド・浅い被写界深度・夢幻的なボケ');
+      enP.push('compressed sound, shallow depth of field, dreamy bokeh');
+    }
+  }
 
   // Overall energy
   if (f.energy !== undefined) {
@@ -2552,10 +2608,14 @@ function renderPanelSVG(panel) {
     }).join('');
   })();
 
-  // ── Vignette for cinematic depth ──
-  const vignetteDef = `<radialGradient id="vg${uid}" cx="50%" cy="48%" r="72%">
-    <stop offset="52%" stop-color="#000" stop-opacity="0"/>
-    <stop offset="100%" stop-color="#000" stop-opacity=".4"/>
+  // ── Vignette — strength varies by shot type ──
+  const vigParams = { ECU:{r:'55%',inner:'45%',op:'.55'}, CU:{r:'62%',inner:'50%',op:'.48'},
+    MS:{r:'72%',inner:'54%',op:'.40'}, '2S':{r:'75%',inner:'56%',op:'.36'},
+    WS:{r:'84%',inner:'60%',op:'.30'}, EWS:{r:'90%',inner:'64%',op:'.22'} };
+  const vp = vigParams[panel.shot] || vigParams.MS;
+  const vignetteDef = `<radialGradient id="vg${uid}" cx="50%" cy="48%" r="${vp.r}">
+    <stop offset="${vp.inner}" stop-color="#000" stop-opacity="0"/>
+    <stop offset="100%" stop-color="#000" stop-opacity="${vp.op}"/>
   </radialGradient>`;
   const vignette = `<rect width="${W}" height="${H}" fill="url(#vg${uid})" pointer-events="none"/>`;
 
