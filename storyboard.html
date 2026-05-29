@@ -1420,9 +1420,9 @@ function seededRand(seed) {
 function analyzeFullLyrics(raw) {
   const text = raw.toLowerCase();
   const counts = {};
-  for (const rule of KEYWORD_MAP) {
-    counts[rule.pose] = 0;
-    for (const k of rule.keys) {
+  for (const rule of LYRIC_SCENE_MAP) {
+    if (counts[rule.pose] === undefined) counts[rule.pose] = 0;
+    for (const k of rule.kw) {
       const matches = text.split(k.toLowerCase()).length - 1;
       counts[rule.pose] += matches;
     }
