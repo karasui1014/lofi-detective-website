@@ -3,7 +3,7 @@
 //   - the local Node dev server (server/server.js)
 // Uses the Gemini REST API via fetch (no SDK required, works in Workers runtime).
 
-export const MODEL_DEFAULT = "gemini-2.0-flash";
+export const MODEL_DEFAULT = "gemini-2.5-flash-lite";
 export const ALLOWED_MEDIA = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 
 export const SYSTEM_PROMPT = `あなたはプロのパーソナルカラーアナリスト兼「顔タイプ診断」アドバイザーです。
