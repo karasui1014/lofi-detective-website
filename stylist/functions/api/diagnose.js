@@ -2,7 +2,6 @@
 // Runs on-demand (no idle server → no sleep). The API key lives in the
 // Cloudflare project's encrypted environment variables, never in the browser.
 
-import Anthropic from "@anthropic-ai/sdk";
 import { runDiagnosis, ALLOWED_MEDIA } from "../../shared/diagnosis.js";
 
 const json = (obj, status = 200) =>
@@ -14,8 +13,6 @@ const json = (obj, status = 200) =>
 export async function onRequestPost(context) {
   const { request, env } = context;
 
-  // Validate the request first, so malformed input gets a 400 regardless of
-  // server-side key state (matches the local Node server's ordering).
   let payload;
   try {
     payload = await request.json();
@@ -31,13 +28,12 @@ export async function onRequestPost(context) {
     return json({ error: "対応していない画像形式です。" }, 400);
   }
 
-  if (!env.ANTHROPIC_API_KEY) {
-    return json({ error: "サーバー側でANTHROPIC_API_KEYが未設定です。" }, 500);
+  if (!env.GEMINI_API_KEY) {
+    return json({ error: "サーバー側でGEMINI_API_KEYが未設定です。" }, 500);
   }
 
   try {
-    const anthropic = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
-    const { result } = await runDiagnosis(anthropic, {
+    const { result } = await runDiagnosis(env.GEMINI_API_KEY, {
       imageBase64,
       mediaType,
       model: env.STYLIST_MODEL,
@@ -47,6 +43,7 @@ export async function onRequestPost(context) {
     const status = err?.status || 500;
     const known = {
       401: "APIキーが無効です。",
+      403: "APIキーの権限が不足しています。",
       429: "リクエストが集中しています。少し待って再試行してください。",
     };
     return json(

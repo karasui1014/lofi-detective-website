@@ -1,12 +1,11 @@
 // Shared diagnosis logic used by BOTH:
 //   - the Cloudflare Pages Function (functions/api/diagnose.js) — production
 //   - the local Node dev server (server/server.js)
-// Keep this file free of Node-only APIs so it runs in the Workers runtime too.
+// Uses the Gemini REST API via fetch (no SDK required, works in Workers runtime).
 
-export const MODEL_DEFAULT = "claude-opus-4-8";
+export const MODEL_DEFAULT = "gemini-2.0-flash";
 export const ALLOWED_MEDIA = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 
-// The stylist rubric. Stable text → marked for prompt caching by the caller.
 export const SYSTEM_PROMPT = `あなたはプロのパーソナルカラーアナリスト兼「顔タイプ診断」アドバイザーです。
 1枚の顔写真から、その人に似合うファッションを提案します。個人を特定したり、年齢・人種・健康状態などセンシティブな属性を推測したりせず、似合うスタイルの観点だけで判断してください。
 
@@ -44,12 +43,10 @@ export const USER_INSTRUCTION =
 
 export const SCHEMA = {
   type: "object",
-  additionalProperties: false,
   properties: {
     faceDetected: { type: "boolean" },
     personalColor: {
       type: "object",
-      additionalProperties: false,
       properties: {
         season: { type: "string", enum: ["spring", "summer", "autumn", "winter"] },
         seasonLabel: { type: "string" },
@@ -62,7 +59,6 @@ export const SCHEMA = {
     },
     faceType: {
       type: "object",
-      additionalProperties: false,
       properties: {
         type: {
           type: "string",
@@ -77,14 +73,12 @@ export const SCHEMA = {
     },
     recommendation: {
       type: "object",
-      additionalProperties: false,
       properties: {
         summary: { type: "string" },
         items: {
           type: "array",
           items: {
             type: "object",
-            additionalProperties: false,
             properties: {
               category: { type: "string" },
               advice: { type: "string" },
@@ -101,36 +95,43 @@ export const SCHEMA = {
   required: ["faceDetected", "personalColor", "faceType", "recommendation"],
 };
 
-export function extractJson(message) {
-  const block = (message.content || []).find((b) => b.type === "text");
-  if (!block) throw new Error("モデルからテキスト応答が得られませんでした。");
-  try {
-    return JSON.parse(block.text);
-  } catch {
-    const s = block.text.indexOf("{");
-    const e = block.text.lastIndexOf("}");
-    if (s !== -1 && e !== -1) return JSON.parse(block.text.slice(s, e + 1));
-    throw new Error("応答のJSON解析に失敗しました。");
-  }
-}
+const GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 
-// Runs one diagnosis. `anthropic` is a constructed @anthropic-ai/sdk client.
-export async function runDiagnosis(anthropic, { imageBase64, mediaType, model }) {
-  const message = await anthropic.messages.create({
-    model: model || MODEL_DEFAULT,
-    max_tokens: 8000,
-    thinking: { type: "adaptive" },
-    system: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
-    output_config: { effort: "medium", format: { type: "json_schema", schema: SCHEMA } },
-    messages: [
-      {
-        role: "user",
-        content: [
-          { type: "image", source: { type: "base64", media_type: mediaType, data: imageBase64 } },
-          { type: "text", text: USER_INSTRUCTION },
-        ],
+// Runs one diagnosis. `apiKey` is the Gemini API key string.
+export async function runDiagnosis(apiKey, { imageBase64, mediaType, model }) {
+  const modelName = model || MODEL_DEFAULT;
+  const url = `${GEMINI_API_BASE}/${modelName}:generateContent?key=${apiKey}`;
+
+  const resp = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+      contents: [
+        {
+          parts: [
+            { inlineData: { mimeType: mediaType, data: imageBase64 } },
+            { text: USER_INSTRUCTION },
+          ],
+        },
+      ],
+      generationConfig: {
+        responseMimeType: "application/json",
+        responseSchema: SCHEMA,
       },
-    ],
+    }),
   });
-  return { result: extractJson(message), usage: message.usage || {} };
+
+  if (!resp.ok) {
+    const errData = await resp.json().catch(() => ({}));
+    const err = new Error(errData?.error?.message || `Gemini API error ${resp.status}`);
+    err.status = resp.status;
+    throw err;
+  }
+
+  const data = await resp.json();
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) throw new Error("モデルからテキスト応答が得られませんでした。");
+
+  return { result: JSON.parse(text), usage: data.usageMetadata || {} };
 }

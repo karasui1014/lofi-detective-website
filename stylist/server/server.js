@@ -8,7 +8,6 @@ import { createServer } from "node:http";
 import { readFile, readFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join, normalize, extname } from "node:path";
-import Anthropic from "@anthropic-ai/sdk";
 import { runDiagnosis, ALLOWED_MEDIA, MODEL_DEFAULT } from "../shared/diagnosis.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -36,15 +35,13 @@ const PUBLIC_DIR = join(ROOT, "public");
 const PORT = process.env.PORT || 3000;
 const MAX_BODY_BYTES = 12 * 1024 * 1024;
 
-let client = null;
-function getClient() {
-  if (!process.env.ANTHROPIC_API_KEY) {
-    const e = new Error("ANTHROPIC_API_KEY が設定されていません。stylist/.env に設定してください。");
+function getApiKey() {
+  if (!process.env.GEMINI_API_KEY) {
+    const e = new Error("GEMINI_API_KEY が設定されていません。stylist/.env に設定してください。");
     e.statusCode = 500;
     throw e;
   }
-  if (!client) client = new Anthropic();
-  return client;
+  return process.env.GEMINI_API_KEY;
 }
 
 // --- HTTP helpers ---------------------------------------------------------
@@ -98,7 +95,7 @@ const server = createServer(async (req, res) => {
   const path = (req.url || "").split("?")[0];
 
   if (req.method === "GET" && path === "/api/health") {
-    return sendJson(res, 200, { ok: true, hasKey: !!process.env.ANTHROPIC_API_KEY });
+    return sendJson(res, 200, { ok: true, hasKey: !!process.env.GEMINI_API_KEY });
   }
 
   if (req.method === "POST" && path === "/api/diagnose") {
@@ -110,12 +107,17 @@ const server = createServer(async (req, res) => {
       if (typeof imageBase64 !== "string" || !imageBase64) return sendJson(res, 400, { error: "画像データがありません。" });
       if (!ALLOWED_MEDIA.has(mediaType)) return sendJson(res, 400, { error: "対応していない画像形式です。" });
 
-      const { result, usage } = await runDiagnosis(getClient(), { imageBase64, mediaType, model: process.env.STYLIST_MODEL });
-      console.log(`[diagnose] in=${usage.input_tokens} out=${usage.output_tokens} cache_read=${usage.cache_read_input_tokens || 0}`);
+      const { result, usage } = await runDiagnosis(getApiKey(), { imageBase64, mediaType, model: process.env.STYLIST_MODEL });
+      console.log(`[diagnose] prompt=${usage.promptTokenCount} output=${usage.candidatesTokenCount} total=${usage.totalTokenCount}`);
       return sendJson(res, 200, result);
     } catch (err) {
       const status = err?.statusCode || err?.status || 500;
-      const known = { 401: "APIキーが無効です。", 429: "リクエストが集中しています。少し待って再試行してください。", 413: err.message };
+      const known = {
+        401: "APIキーが無効です。",
+        403: "APIキーの権限が不足しています。",
+        429: "リクエストが集中しています。少し待って再試行してください。",
+        413: err.message,
+      };
       console.error("[diagnose error]", err?.message || err);
       return sendJson(res, status >= 400 && status < 600 ? status : 500, { error: known[status] || err?.message || "サーバー内部エラー" });
     }
@@ -128,5 +130,5 @@ const server = createServer(async (req, res) => {
 
 server.listen(PORT, () => {
   console.log(`stylist dev server: http://localhost:${PORT}  (model: ${process.env.STYLIST_MODEL || MODEL_DEFAULT})`);
-  if (!process.env.ANTHROPIC_API_KEY) console.warn("⚠ ANTHROPIC_API_KEY 未設定 — /api/diagnose は失敗します（stylist/.env に設定）。");
+  if (!process.env.GEMINI_API_KEY) console.warn("⚠ GEMINI_API_KEY 未設定 — /api/diagnose は失敗します（stylist/.env に設定）。");
 });

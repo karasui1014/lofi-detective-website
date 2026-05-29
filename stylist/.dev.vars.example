@@ -1,4 +1,4 @@
 # Local Cloudflare dev (npm run dev:cf). Copy to ".dev.vars":
 #   cp .dev.vars.example .dev.vars
-ANTHROPIC_API_KEY=sk-ant-xxxxxxxxxxxxxxxxxxxxxxxx
-# STYLIST_MODEL=claude-sonnet-4-6
+GEMINI_API_KEY=AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+# STYLIST_MODEL=gemini-2.0-flash-lite
