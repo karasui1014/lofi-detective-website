@@ -4,15 +4,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MV Storyboard Generator | プロ仕様絵コンテ生成ツール</title>
-<link rel="icon" type="image/svg+xml" href="favicon.svg">
-<link rel="icon" type="image/png" sizes="512x512" href="favicon.png">
-<link rel="shortcut icon" href="favicon.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=2">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png?v=2">
+<link rel="icon" type="image/svg+xml" href="favicon.svg?v=2">
+<link rel="shortcut icon" href="favicon.ico?v=2">
 <link rel="manifest" href="manifest.json">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="絵コンテ生成">
-<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png?v=2">
 <meta name="theme-color" content="#7c3aed">
 <style>
 :root {
@@ -2051,24 +2052,79 @@ function parseUserRequest(text) {
 // ─────────────────────────────────────────
 // Keyword → pose map (lyrics override)
 // ─────────────────────────────────────────
-const KEYWORD_MAP = [
-  { keys:['走','逃','急','run','dash','追','flee'],        pose:'running',   shot:'WS',  bg:'city',      color:'#7ad8ff' },
-  { keys:['踊','ダンス','dance','リズム','beat','振'],      pose:'dancing',   shot:'MS',  bg:'spotlight', color:'#ff9fff' },
-  { keys:['泣','涙','cry','悲','sad','tear','痛','别'],    pose:'crying',    shot:'CU',  bg:'rain',      color:'#7aa8ff' },
-  { keys:['愛','恋','love','一緒','kiss','抱','heart','♥'],pose:'love',      shot:'2S',  bg:'stars',     color:'#ffaacc' },
-  { keys:['叫','怒','fight','戦','力','強','burst','激'],  pose:'action',    shot:'ECU', bg:'city',      color:'#ffb87a' },
-  { keys:['群衆','みんな','crowd','everyone','集','仲間'], pose:'crowd',     shot:'EWS', bg:'city',      color:'#aaffdd' },
-  { keys:['手','届','reach','求','hope','夢','星','願'],   pose:'reaching',  shot:'MS',  bg:'stars',     color:'#c0aaff' },
-  { keys:['座','休','calm','静','夜','moon','月','孤独'],  pose:'sitting',   shot:'MS',  bg:'stars',     color:'#88aaff' },
-  { keys:['空','見上','heaven','fly','上','高','翼'],      pose:'lookingup', shot:'WS',  bg:'stars',     color:'#aaddff' },
-  { keys:['歩','進','旅','journey','walk','道','続'],      pose:'walking',   shot:'WS',  bg:'nature',    color:'#aaff99' },
+const LYRIC_SCENE_MAP = [
+  { kw:['夜','night','月','moon','深夜','midnight','夜中'],          pose:'sitting',   shot:'WS',  bg:'stars',     color:'#4a5a8a', w:1.0 },
+  { kw:['星','star','輝','きらめ','twinkle','銀河','galaxy','宇宙'], pose:'lookingup', shot:'EWS', bg:'stars',     color:'#5a6aaa', w:1.1 },
+  { kw:['雨','rain','濡','しずく','水滴','drizzle','傘'],            pose:'standing',  shot:'CU',  bg:'rain',      color:'#5a6a8a', w:1.1 },
+  { kw:['涙','tears','泣','cry','悲','sad','哀','切な','泣いた'],    pose:'crying',    shot:'CU',  bg:'rain',      color:'#5a6a8a', w:1.3 },
+  { kw:['愛','恋','love','一緒','kiss','抱','heart','♥','想い'],    pose:'love',      shot:'2S',  bg:'stars',     color:'#ffaacc', w:1.2 },
+  { kw:['踊','ダンス','dance','リズム','beat','振','groove'],        pose:'dancing',   shot:'MS',  bg:'spotlight', color:'#ff9fff', w:1.1 },
+  { kw:['走','逃','急','run','dash','追','flee','疾走'],             pose:'running',   shot:'WS',  bg:'city',      color:'#7ad8ff', w:1.0 },
+  { kw:['叫','怒','fight','戦','力','強','burst','激','叫んだ'],     pose:'action',    shot:'ECU', bg:'city',      color:'#ffb87a', w:1.2 },
+  { kw:['空','見上','heaven','fly','上','高','翼','羽ばたく'],       pose:'lookingup', shot:'WS',  bg:'stars',     color:'#aaddff', w:1.0 },
+  { kw:['歩','進','旅','journey','walk','道','続','前へ'],           pose:'walking',   shot:'WS',  bg:'nature',    color:'#aaff99', w:1.0 },
+  { kw:['群衆','みんな','crowd','everyone','集','仲間','友'],        pose:'crowd',     shot:'EWS', bg:'city',      color:'#aaffdd', w:1.0 },
+  { kw:['手','届','reach','求','hope','夢','星','願','手を伸ばす'],  pose:'reaching',  shot:'MS',  bg:'stars',     color:'#c0aaff', w:1.1 },
+  { kw:['座','休','calm','静','孤独','ひとり','alone','佇む'],       pose:'sitting',   shot:'MS',  bg:'stars',     color:'#88aaff', w:1.0 },
+  { kw:['光','輝','shining','bright','閃光','flash','まばゆい'],     pose:'lookingup', shot:'ECU', bg:'spotlight', color:'#fff8aa', w:1.2 },
+  { kw:['海','ocean','波','wave','砂浜','beach','渚','潮'],          pose:'standing',  shot:'WS',  bg:'nature',    color:'#7ad8ff', w:1.1 },
+  { kw:['花','blossom','桜','sakura','春','flower','bloom','咲'],    pose:'walking',   shot:'MS',  bg:'nature',    color:'#ffccee', w:1.1 },
+  { kw:['風','wind','吹','そよ','breeze','流れ','なびく'],           pose:'standing',  shot:'WS',  bg:'nature',    color:'#aaddff', w:1.0 },
+  { kw:['消','fade','gone','消えた','消えて','なくなる','終わり'],   pose:'standing',  shot:'ECU', bg:'fog',       color:'#8899aa', w:1.2 },
+  { kw:['記憶','memory','思い出','remember','過去','昔','懐かし'],   pose:'sitting',   shot:'CU',  bg:'fog',       color:'#aabbcc', w:1.2 },
+  { kw:['夢','dream','幻','illusion','まぼろし','眠','eyes'],        pose:'lookingup', shot:'CU',  bg:'stars',     color:'#cc99ff', w:1.2 },
+  { kw:['街','town','都市','city','ビル','building','路地','通り'],  pose:'walking',   shot:'EWS', bg:'city',      color:'#99bbcc', w:1.0 },
+  { kw:['心','heart','胸','soul','魂','気持ち','感じ','feeling'],    pose:'standing',  shot:'ECU', bg:'spotlight', color:'#ffccaa', w:1.1 },
+  { kw:['声','voice','歌','sing','叫ぶ','言葉','言えない'],          pose:'action',    shot:'MS',  bg:'spotlight', color:'#ffaaaa', w:1.1 },
+  { kw:['終','end','さよなら','goodbye','別れ','last','最後'],       pose:'standing',  shot:'WS',  bg:'fog',       color:'#aabbdd', w:1.3 },
 ];
 
 function detectLyricsOverride(text) {
-  for (const rule of KEYWORD_MAP) {
-    if (rule.keys.some(k => text.includes(k))) return rule;
+  let best = null, bestScore = 0;
+  for (const m of LYRIC_SCENE_MAP) {
+    let hits = 0;
+    for (const k of m.kw) { if (text.includes(k)) hits++; }
+    const score = hits * (m.w || 1);
+    if (score > bestScore) { bestScore = score; best = m; }
   }
-  return null;
+  if (!best) return null;
+  return { keys: best.kw, pose: best.pose, shot: best.shot, bg: best.bg, color: best.color };
+}
+
+// Lyric imagery: poetic descriptions matched to lyric keywords
+const LYRIC_IMAGERY = [
+  { kw:['夜','night','深夜','midnight'],          ja:'夜の静寂と深い藍色の空気感',             en:'quiet night, deep indigo atmosphere' },
+  { kw:['星','star','銀河','galaxy'],             ja:'降り注ぐ星々のきらめき',                 en:'cascading starlight, sparkling stars' },
+  { kw:['雨','rain','しずく','drizzle'],          ja:'雨粒が窓を伝う静かな情景',               en:'raindrops tracing glass, quiet sorrow' },
+  { kw:['涙','tears','泣','cry'],                 ja:'頬を伝う涙のクローズアップ',             en:'tears streaming down cheek, close-up emotion' },
+  { kw:['愛','恋','love','想い'],                 ja:'互いに惹かれ合う温かな光と距離感',       en:'warm light between two figures, tender distance' },
+  { kw:['踊','dance','リズム','beat'],            ja:'音楽と一体化した躍動的なダンスシーン',   en:'dynamic dance, body unified with music' },
+  { kw:['走','run','逃','flee'],                  ja:'疾走感と風の流れ、速いカット',           en:'rushing wind, fast motion, kinetic energy' },
+  { kw:['叫','怒','fight','burst'],               ja:'感情が爆発する瞬間、激しい光と影',       en:'explosion of emotion, dramatic light and shadow' },
+  { kw:['空','fly','翼','heaven'],                ja:'空へ向かう解放感、広大な青空',           en:'soaring freedom, vast open sky, liberation' },
+  { kw:['光','shining','bright','閃光'],          ja:'まばゆい光が差し込む神秘的なシーン',     en:'blinding light rays, mystical atmosphere' },
+  { kw:['海','ocean','波','beach'],               ja:'波打ち際の静寂と広大な海原',             en:'waves at shoreline, vast open ocean' },
+  { kw:['花','blossom','桜','sakura'],            ja:'花びらが舞い散る幻想的な情景',           en:'petals falling, dreamlike floral atmosphere' },
+  { kw:['風','wind','そよ','breeze'],             ja:'風にそよぐ髪と揺れる草木',               en:'hair and leaves swaying in gentle breeze' },
+  { kw:['消','fade','消えた','なくなる'],         ja:'静かに消えていく存在の儚さ',             en:'quietly fading presence, ephemeral and fragile' },
+  { kw:['記憶','memory','思い出','過去'],         ja:'セピア色の回想シーン、滲む記憶',         en:'sepia-toned flashback, blurred memory' },
+  { kw:['夢','dream','幻','眠'],                  ja:'夢と現実の境界が揺らぐ幻想的な映像',     en:'dreamlike haze, boundary between dream and reality' },
+  { kw:['街','city','ビル','路地'],               ja:'都市の夜景と行き交う人々のシルエット',   en:'city skyline at night, silhouettes of passersby' },
+  { kw:['心','胸','soul','feeling'],              ja:'胸に迫る感情のクローズアップ、内面描写', en:'close-up of inner feeling, emotional depth' },
+  { kw:['声','sing','歌','言葉'],                 ja:'声が空間に響き渡る表現豊かなシーン',     en:'voice resonating through space, expressive moment' },
+  { kw:['歩','walk','旅','道'],                   ja:'一歩一歩踏みしめる旅の情景',             en:'one step at a time, journey unfolding' },
+  { kw:['終','さよなら','goodbye','別れ'],        ja:'別れの瞬間、長い余韻と静寂',             en:'moment of farewell, long silence and lingering emotion' },
+];
+
+function extractLyricImagery(text) {
+  const ja = [], en = [];
+  for (const m of LYRIC_IMAGERY) {
+    if (m.kw.some(k => text.includes(k))) {
+      ja.push(m.ja); en.push(m.en);
+      if (ja.length >= 3) break;
+    }
+  }
+  return { ja, en };
 }
 
 // Style-based color palettes
@@ -2265,21 +2321,37 @@ function buildPanel(scene, idx, total, duration, styleKey, lyricsContext) {
   const promptObj   = buildImagePrompt(shot, pose, bg, styleKey, visualType, userReqHints);
   const bgPromptObj = buildBgPrompt(bg, shot, pose, idx, styleKey, visualType, userReqHints);
 
-  // Stamp-driven panels: prepend timestamp + lyrics snippet to prompts for precise AI context
   let finalPromptJa = promptObj.ja, finalPromptEn = promptObj.en;
-  if (lyricsContext?.stampDriven && !scene.isIntro && !scene.isOutro) {
+  let finalBgJa = bgPromptObj.ja, finalBgEn = bgPromptObj.en;
+
+  if (!scene.isIntro && !scene.isOutro) {
+    // ── Lyric-driven imagery: reflect the ACTUAL words of this cut ──
+    const imagery = extractLyricImagery(text);
+    const snippetJa = scene.lines.slice(0, 2).join(' ／ ');
+    const snippetEn = scene.lines.slice(0, 2).join(' / ');
+    const lyricTag   = snippetJa ? `【歌詞】「${snippetJa}」　` : '';
+    const lyricTagEn = snippetEn ? `[lyric line: "${snippetEn}"] ` : '';
+    const imgJa  = imagery.ja.length ? `【情景】${imagery.ja.join('、')}　` : '';
+    const imgEn  = imagery.en.length ? `[scene imagery: ${imagery.en.join(', ')}] ` : '';
+
+    // Timestamp: precise for stamp-driven, approximate otherwise
     const ts = formatTime(t);
     const tsEnd = (scene.stampEnd !== undefined) ? formatTime(scene.stampEnd) : '';
-    const snippet = scene.lines.slice(0, 2).join(' ／ ');
     const timeRange = tsEnd ? `${ts}〜${tsEnd}` : ts;
-    finalPromptJa = `【カットタイム】${timeRange}　【歌詞】${snippet}　${finalPromptJa}`;
-    finalPromptEn = `[cut time: ${timeRange}] [lyrics: ${scene.lines.slice(0,2).join(' / ')}] ${finalPromptEn}`;
+    const timeTag   = `【タイム】${timeRange}　`;
+    const timeTagEn = `[time: ${timeRange}] `;
+
+    finalPromptJa = `${timeTag}${lyricTag}${imgJa}${finalPromptJa}`;
+    finalPromptEn = `${timeTagEn}${lyricTagEn}${imgEn}${finalPromptEn}`;
+    // Background prompt also gets the scene imagery so it stays coherent with lyrics
+    if (imagery.ja.length) finalBgJa = `${imgJa}${finalBgJa}`;
+    if (imagery.en.length) finalBgEn = `${imgEn}${finalBgEn}`;
   }
 
   return { shot, pose, bg, color, idx, time: t, lines: scene.lines, section: scene.section,
            jaDesc,
            prompt: finalPromptJa, promptEn: finalPromptEn,
-           bgPrompt: bgPromptObj.ja, bgPromptEn: bgPromptObj.en,
+           bgPrompt: finalBgJa, bgPromptEn: finalBgEn,
            visualType, styleKey,
            isIntro: !!scene.isIntro, isOutro: !!scene.isOutro,
            stampDriven: !!lyricsContext?.stampDriven,
