@@ -18,7 +18,7 @@
   <header class="site-header">
     <h1>顔タイプ × パーソナルカラー <span>スタイリスト</span></h1>
     <p class="lead">写真を1枚アップロードすると、AI（Claude）が顔タイプ・パーソナルカラーを診断し、似合う服を検索＆試着できます。</p>
-    <p class="privacy">📷 写真は診断のため、あなたが立てたサーバー経由でClaude APIに送信されます（サーバー側に保存はしません）。</p>
+    <p class="privacy">📷 写真は診断のため、サーバー経由でGemini APIに送信されます（サーバー側に保存はしません）。</p>
   </header>
 
   <main>
@@ -81,10 +81,10 @@
       </div>
     </section>
 
-    <!-- STEP 4: try-on overlay -->
+    <!-- STEP 4: style illustration -->
     <section class="card" id="step-tryon" hidden>
-      <h2><span class="step-no">4</span>試着（はめ込み）</h2>
-      <p class="hint">服をドラッグして位置合わせ、スライダーで大きさ調整。色は診断されたパーソナルカラーから選べます。手持ちの透過PNG（服の切り抜き）も重ねられます。</p>
+      <h2><span class="step-no">4</span>スタイルイラスト</h2>
+      <p class="hint">診断されたパーソナルカラーをもとに、ファッションイラストでコーデのイメージを確認できます。</p>
       <div class="tryon-layout">
         <div class="tryon-canvas-wrap">
           <canvas id="tryon-canvas"></canvas>
@@ -98,21 +98,17 @@
               <option value="coat">アウター / コート</option>
             </select>
           </label>
-          <label>大きさ
-            <input type="range" id="garment-scale" min="0.5" max="2.5" step="0.01" value="1">
+          <label>サイズ感
+            <input type="range" id="garment-scale" min="0.5" max="1.4" step="0.01" value="1">
           </label>
-          <label>透明度
+          <label>色の濃さ
             <input type="range" id="garment-opacity" min="0.3" max="1" step="0.01" value="1">
           </label>
           <div class="control-group">
             <span>色（パーソナルカラー）</span>
             <div id="garment-palette" class="palette palette-pick"></div>
           </div>
-          <label class="upload-garment btn btn-ghost">
-            手持ちの服PNGを重ねる
-            <input type="file" id="garment-file" accept="image/png" hidden>
-          </label>
-          <button id="export-btn" class="btn btn-primary" type="button">画像を書き出す</button>
+          <button id="export-btn" class="btn btn-primary" type="button">イラストを保存</button>
         </div>
       </div>
     </section>
@@ -120,7 +116,7 @@
 
   <footer class="site-footer">
     <p>顔タイプ・パーソナルカラー判定はAIによる推定です。あくまで目安としてお楽しみください。</p>
-    <p class="tech">診断: Claude（claude-opus-4-7, Vision）／ 試着: ブラウザ内 canvas</p>
+    <p class="tech">診断: Gemini（Vision）／ イラスト: ブラウザ内 canvas</p>
   </footer>
 
   <script type="module" src="app.js"></script>

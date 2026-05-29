@@ -1,11 +1,10 @@
-// Frontend: uploads a photo, asks the backend (which calls Claude) for a
-// diagnosis, renders it, and offers a client-side try-on overlay.
+// Frontend: uploads a photo, calls the backend for a diagnosis, renders results,
+// and shows a fashion-illustration style card (no photo compositing).
 
 const UNDERTONE_JP = { warm: "イエベ（黄み寄り）", cool: "ブルベ（青み寄り）", neutral: "ニュートラル" };
 const CONF_JP = { high: "確信度 高", medium: "確信度 中", low: "確信度 低" };
 
 const state = { img: null, natW: 0, natH: 0, diagnosis: null };
-
 const $ = (id) => document.getElementById(id);
 
 function setStatus(msg, { error = false, loading = false } = {}) {
@@ -80,7 +79,6 @@ $("reset-btn").addEventListener("click", () => {
   setStatus("");
 });
 
-// Downscale to a JPEG data URL (max long edge) to limit upload size / token cost.
 function toDownscaledJpeg(maxEdge = 1024, quality = 0.9) {
   const scale = Math.min(1, maxEdge / Math.max(state.natW, state.natH));
   const c = document.createElement("canvas");
@@ -91,7 +89,7 @@ function toDownscaledJpeg(maxEdge = 1024, quality = 0.9) {
 }
 
 // ---------------------------------------------------------------------------
-// Analyze via backend (Claude)
+// Analyze via backend
 // ---------------------------------------------------------------------------
 $("analyze-btn").addEventListener("click", analyze);
 
@@ -114,7 +112,7 @@ async function analyze() {
     state.diagnosis = data;
     renderResults(data);
     renderReco(data);
-    initTryon(data);
+    initIllustration(data);
     if (data.faceDetected === false) {
       setStatus("顔をはっきり検出できませんでした。結果は参考程度にご覧ください。", { error: true });
     } else {
@@ -227,7 +225,6 @@ function renderReco(d) {
   if (reco.avoid) { avoid.hidden = false; avoid.textContent = `避けたいもの： ${reco.avoid}`; }
   else avoid.hidden = true;
 
-  // Free search box seeded from the first item's keyword
   const seed = (reco.items && reco.items[0] && reco.items[0].searchKeyword) || (d.personalColor.seasonLabel || "");
   $("search-query").value = seed;
   applyTopSearch(seed);
@@ -243,84 +240,205 @@ function applyTopSearch(q) {
 $("search-query").addEventListener("input", (e) => applyTopSearch(e.target.value));
 
 // ---------------------------------------------------------------------------
-// Try-on (client-side overlay)
+// Style Illustration (fashion croquis with personal-color outfit)
 // ---------------------------------------------------------------------------
-const tryon = {
-  canvas: null, ctx: null, scaleFactor: 1,
-  garment: { type: "tshirt", x: 0, y: 0, scale: 1, opacity: 1, color: "#FF9E7A", baseW: 0 },
-  uploaded: null,
-  dragging: false, dragDX: 0, dragDY: 0,
+const illus = {
+  canvas: null, ctx: null,
+  garment: { type: "tshirt", scale: 1, opacity: 1, color: "#FF9E7A" },
   palette: [],
+  bound: false,
 };
 
-function initTryon(d) {
-  if (!state.img) return;
+function initIllustration(d) {
   $("step-tryon").hidden = false;
   const canvas = $("tryon-canvas");
-  tryon.canvas = canvas;
-  tryon.ctx = canvas.getContext("2d");
-  const maxW = 460;
-  tryon.scaleFactor = Math.min(1, maxW / state.natW);
-  canvas.width = state.natW * tryon.scaleFactor;
-  canvas.height = state.natH * tryon.scaleFactor;
+  illus.canvas = canvas;
+  illus.ctx = canvas.getContext("2d");
+  canvas.width = 300;
+  canvas.height = 480;
 
-  tryon.palette = (d.personalColor && d.personalColor.palette && d.personalColor.palette.length)
+  illus.palette = (d.personalColor && d.personalColor.palette && d.personalColor.palette.length)
     ? d.personalColor.palette
     : ["#FF9E7A", "#FFC15E", "#9BD770", "#7FD8D8", "#B7A7D9"];
-
-  const g = tryon.garment;
-  g.x = canvas.width / 2;
-  g.y = canvas.height * 0.55;
-  g.baseW = canvas.width * 0.62;
-  g.color = tryon.palette[0];
-  tryon.uploaded = null;
+  illus.garment.color = illus.palette[0];
+  illus.garment.scale = 1;
+  illus.garment.opacity = 1;
 
   renderGarmentPalette();
-  drawTryon();
-  bindTryonControls();
+  drawIllustration();
+  bindIllusControls();
 }
 
-function renderGarmentPalette() {
-  const wrap = $("garment-palette");
-  if (!wrap) return;
-  wrap.innerHTML = "";
-  tryon.palette.forEach((hex) => {
-    const d = document.createElement("div");
-    d.className = "swatch" + (hex === tryon.garment.color ? " selected" : "");
-    d.style.background = hex;
-    d.addEventListener("click", () => { tryon.garment.color = hex; renderGarmentPalette(); drawTryon(); });
-    wrap.appendChild(d);
+function hexWithAlpha(hex, alpha) {
+  const n = parseInt(String(hex).replace("#", ""), 16);
+  if (Number.isNaN(n)) return `rgba(200,200,200,${alpha})`;
+  const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+function drawIllustration() {
+  const { ctx, canvas, garment, palette } = illus;
+  const cw = canvas.width, ch = canvas.height;
+  const cx = cw / 2;
+
+  ctx.clearRect(0, 0, cw, ch);
+
+  // Background
+  ctx.fillStyle = "#FAFAF8";
+  ctx.fillRect(0, 0, cw, ch);
+  const bgGrad = ctx.createRadialGradient(cx, ch * 0.45, 0, cx, ch * 0.45, ch * 0.7);
+  bgGrad.addColorStop(0, hexWithAlpha(palette[1] || palette[0], 0.20));
+  bgGrad.addColorStop(1, hexWithAlpha(palette[0], 0.04));
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, cw, ch);
+
+  // Decorative palette dots
+  [
+    { xi: 0.08, yi: 0.07, r: 13, pi: 0 },
+    { xi: 0.90, yi: 0.11, r: 9,  pi: 1 },
+    { xi: 0.12, yi: 0.90, r: 7,  pi: 2 },
+    { xi: 0.87, yi: 0.85, r: 12, pi: 3 },
+    { xi: 0.50, yi: 0.97, r: 5,  pi: 4 },
+  ].forEach(({ xi, yi, r, pi }) => {
+    ctx.beginPath();
+    ctx.arc(cw * xi, ch * yi, r, 0, Math.PI * 2);
+    ctx.fillStyle = hexWithAlpha(palette[pi % palette.length], 0.40);
+    ctx.fill();
   });
-}
 
-function drawTryon() {
-  const { ctx, canvas } = tryon;
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.drawImage(state.img, 0, 0, canvas.width, canvas.height);
-  drawGarment();
-}
+  const figY = ch * 0.04;
+  const figH = ch * 0.90;
 
-function drawGarment() {
-  const { ctx } = tryon;
-  const g = tryon.garment;
+  drawFashionFigure(ctx, cx, figY, figH);
+
   ctx.save();
-  ctx.globalAlpha = g.opacity;
-  const w = g.baseW * g.scale;
-  if (tryon.uploaded) {
-    const ih = (tryon.uploaded.naturalHeight / tryon.uploaded.naturalWidth) * w;
-    ctx.drawImage(tryon.uploaded, g.x - w / 2, g.y, w, ih);
-  } else {
-    drawGarmentShape(ctx, g.type, g.x, g.y, w, g.color);
-  }
+  ctx.globalAlpha = garment.opacity;
+  drawGarmentOnFigure(ctx, garment.type, cx, figY, figH, garment.color, garment.scale);
   ctx.restore();
+}
+
+function drawFashionFigure(ctx, cx, startY, totalH) {
+  const headH = totalH / 9;
+  const headW = headH * 0.65;
+
+  const neckTop = startY + headH * 0.92;
+  const shoulderY = neckTop + headH * 0.28;
+  const sHalf = headW * 1.75;
+  const waistY = startY + headH * 3.8;
+  const wHalf = sHalf * 0.66;
+  const hipY = startY + headH * 4.85;
+  const hHalf = sHalf * 1.06;
+  const ankleY = startY + totalH;
+  const legGap = hHalf * 0.10;
+  const legW = hHalf * 0.23;
+
+  const skin = "#E8D5C4";
+
+  // Body
+  ctx.beginPath();
+  ctx.moveTo(cx - sHalf, shoulderY);
+  ctx.bezierCurveTo(cx - sHalf, shoulderY + headH * 0.2, cx - wHalf, waistY - headH * 0.3, cx - wHalf, waistY);
+  ctx.bezierCurveTo(cx - wHalf, waistY + headH * 0.25, cx - hHalf, hipY - headH * 0.1, cx - hHalf, hipY);
+  ctx.lineTo(cx - legGap - legW, ankleY);
+  ctx.lineTo(cx - legGap, ankleY);
+  ctx.lineTo(cx - legGap, hipY + headH * 0.35);
+  ctx.lineTo(cx + legGap, hipY + headH * 0.35);
+  ctx.lineTo(cx + legGap, ankleY);
+  ctx.lineTo(cx + legGap + legW, ankleY);
+  ctx.lineTo(cx + hHalf, hipY);
+  ctx.bezierCurveTo(cx + hHalf, hipY - headH * 0.1, cx + wHalf, waistY + headH * 0.25, cx + wHalf, waistY);
+  ctx.bezierCurveTo(cx + wHalf, waistY - headH * 0.3, cx + sHalf, shoulderY + headH * 0.2, cx + sHalf, shoulderY);
+  ctx.lineTo(cx + headW * 0.22, neckTop + headH * 0.36);
+  ctx.lineTo(cx - headW * 0.22, neckTop + headH * 0.36);
+  ctx.closePath();
+
+  const bodyGrad = ctx.createLinearGradient(cx - sHalf, shoulderY, cx + sHalf * 0.6, ankleY);
+  bodyGrad.addColorStop(0, skin);
+  bodyGrad.addColorStop(1, shade(skin, -0.10));
+  ctx.fillStyle = bodyGrad;
+  ctx.fill();
+  ctx.strokeStyle = shade(skin, -0.18);
+  ctx.lineWidth = 0.8;
+  ctx.stroke();
+
+  // Arms
+  const armH = (waistY + headH * 0.8 - shoulderY) / 2;
+  const armCY = shoulderY + armH;
+  const armW = headW * 0.20;
+  [-1, 1].forEach((side) => {
+    ctx.beginPath();
+    ctx.ellipse(cx + side * (sHalf + armW * 0.35), armCY, armW, armH, 0, 0, Math.PI * 2);
+    ctx.fillStyle = skin;
+    ctx.fill();
+    ctx.strokeStyle = shade(skin, -0.18);
+    ctx.lineWidth = 0.8;
+    ctx.stroke();
+  });
+
+  // Neck
+  ctx.fillStyle = skin;
+  ctx.beginPath();
+  ctx.rect(cx - headW * 0.17, neckTop, headW * 0.34, headH * 0.38);
+  ctx.fill();
+
+  // Head
+  ctx.beginPath();
+  ctx.ellipse(cx, startY + headH * 0.50, headW * 0.50, headH * 0.52, 0, 0, Math.PI * 2);
+  ctx.fillStyle = skin;
+  ctx.fill();
+  ctx.strokeStyle = shade(skin, -0.18);
+  ctx.lineWidth = 0.8;
+  ctx.stroke();
+
+  // Hair (top)
+  ctx.beginPath();
+  ctx.ellipse(cx, startY + headH * 0.33, headW * 0.52, headH * 0.40, 0, Math.PI, 0);
+  ctx.fillStyle = "#4A3020";
+  ctx.fill();
+  // Hair (sides)
+  [[-0.42, 0.3], [0.42, -0.3]].forEach(([dx, rot]) => {
+    ctx.beginPath();
+    ctx.ellipse(cx + headW * dx, startY + headH * 0.62, headW * 0.13, headH * 0.27, rot, 0, Math.PI * 2);
+    ctx.fillStyle = "#4A3020";
+    ctx.fill();
+  });
+
+  // Eyes
+  [[-0.18], [0.18]].forEach(([dx]) => {
+    ctx.beginPath();
+    ctx.ellipse(cx + headW * dx, startY + headH * 0.55, headW * 0.07, headH * 0.05, 0, 0, Math.PI * 2);
+    ctx.fillStyle = "#2A1A0A";
+    ctx.fill();
+    // Highlight
+    ctx.beginPath();
+    ctx.arc(cx + headW * dx + headW * 0.03, startY + headH * 0.52, headW * 0.02, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(255,255,255,0.7)";
+    ctx.fill();
+  });
+
+  // Mouth
+  ctx.beginPath();
+  ctx.arc(cx, startY + headH * 0.70, headW * 0.13, 0.15, Math.PI - 0.15);
+  ctx.strokeStyle = "#8A5A4A";
+  ctx.lineWidth = 1.2;
+  ctx.stroke();
+}
+
+function drawGarmentOnFigure(ctx, type, cx, figY, figH, color, scale) {
+  const headH = figH / 9;
+  const headW = headH * 0.65;
+  const neckTop = figY + headH * 0.92;
+  const shoulderY = neckTop + headH * 0.28;
+  const fullShoulderW = headW * 1.75 * 2;
+  drawGarmentShape(ctx, type, cx, shoulderY, fullShoulderW * scale, color);
 }
 
 function drawGarmentShape(ctx, type, cx, topY, w, color) {
   const cfg = {
-    tshirt: { h: 1.15, sleeve: 0.28, sleeveLen: 0.30, flare: 0, open: false },
-    knit: { h: 1.30, sleeve: 0.20, sleeveLen: 0.62, flare: 0.02, open: false },
-    dress: { h: 1.95, sleeve: 0.26, sleeveLen: 0.28, flare: 0.35, open: false },
-    coat: { h: 1.75, sleeve: 0.18, sleeveLen: 0.70, flare: 0.10, open: true },
+    tshirt: { h: 1.15, sleeve: 0.28, sleeveLen: 0.30, flare: 0,    open: false },
+    knit:   { h: 1.30, sleeve: 0.20, sleeveLen: 0.62, flare: 0.02, open: false },
+    dress:  { h: 1.95, sleeve: 0.26, sleeveLen: 0.28, flare: 0.35, open: false },
+    coat:   { h: 1.75, sleeve: 0.18, sleeveLen: 0.70, flare: 0.10, open: true  },
   }[type] || { h: 1.15, sleeve: 0.28, sleeveLen: 0.30, flare: 0, open: false };
 
   const h = w * cfg.h;
@@ -357,8 +475,8 @@ function drawGarmentShape(ctx, type, cx, topY, w, color) {
   ctx.save();
   ctx.clip();
   const grad = ctx.createLinearGradient(left, topY, right, bottomY);
-  grad.addColorStop(0, "rgba(255,255,255,0.10)");
-  grad.addColorStop(1, "rgba(0,0,0,0.12)");
+  grad.addColorStop(0, "rgba(255,255,255,0.12)");
+  grad.addColorStop(1, "rgba(0,0,0,0.14)");
   ctx.fillStyle = grad;
   ctx.fillRect(left - sleeveW, topY, w + sleeveW * 2, h);
   ctx.restore();
@@ -382,71 +500,29 @@ function shade(hex, amt) {
   return "#" + [r, g, b].map((v) => Math.round(v).toString(16).padStart(2, "0")).join("");
 }
 
-function garmentBBox() {
-  const g = tryon.garment;
-  const w = g.baseW * g.scale;
-  let h;
-  if (tryon.uploaded) h = (tryon.uploaded.naturalHeight / tryon.uploaded.naturalWidth) * w;
-  else h = w * ({ tshirt: 1.15, knit: 1.30, dress: 1.95, coat: 1.75 }[g.type] || 1.15);
-  return { x: g.x - w / 2, y: g.y, w, h };
+function renderGarmentPalette() {
+  const wrap = $("garment-palette");
+  if (!wrap) return;
+  wrap.innerHTML = "";
+  illus.palette.forEach((hex) => {
+    const el = document.createElement("div");
+    el.className = "swatch" + (hex === illus.garment.color ? " selected" : "");
+    el.style.background = hex;
+    el.addEventListener("click", () => { illus.garment.color = hex; renderGarmentPalette(); drawIllustration(); });
+    wrap.appendChild(el);
+  });
 }
 
-let controlsBound = false;
-function bindTryonControls() {
-  if (controlsBound) return;
-  controlsBound = true;
-  const canvas = tryon.canvas;
-
-  $("garment-select").addEventListener("change", (e) => { tryon.garment.type = e.target.value; tryon.uploaded = null; drawTryon(); });
-  $("garment-scale").addEventListener("input", (e) => { tryon.garment.scale = parseFloat(e.target.value); drawTryon(); });
-  $("garment-opacity").addEventListener("input", (e) => { tryon.garment.opacity = parseFloat(e.target.value); drawTryon(); });
-
-  $("garment-file").addEventListener("change", (e) => {
-    const f = e.target.files && e.target.files[0];
-    if (!f) return;
-    const url = URL.createObjectURL(f);
-    const im = new Image();
-    im.onload = () => { tryon.uploaded = im; drawTryon(); URL.revokeObjectURL(url); };
-    im.src = url;
-  });
-
+function bindIllusControls() {
+  if (illus.bound) return;
+  illus.bound = true;
+  $("garment-select").addEventListener("change", (e) => { illus.garment.type = e.target.value; drawIllustration(); });
+  $("garment-scale").addEventListener("input", (e) => { illus.garment.scale = parseFloat(e.target.value); drawIllustration(); });
+  $("garment-opacity").addEventListener("input", (e) => { illus.garment.opacity = parseFloat(e.target.value); drawIllustration(); });
   $("export-btn").addEventListener("click", () => {
     const link = document.createElement("a");
-    link.download = "tryon.png";
-    link.href = tryon.canvas.toDataURL("image/png");
+    link.download = "style-illustration.png";
+    link.href = illus.canvas.toDataURL("image/png");
     link.click();
   });
-
-  const getPos = (e) => {
-    const rect = canvas.getBoundingClientRect();
-    const px = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
-    const py = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
-    return { x: px * (canvas.width / rect.width), y: py * (canvas.height / rect.height) };
-  };
-  const onDown = (e) => {
-    const p = getPos(e);
-    const b = garmentBBox();
-    if (p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h) {
-      tryon.dragging = true;
-      tryon.dragDX = p.x - tryon.garment.x;
-      tryon.dragDY = p.y - tryon.garment.y;
-      canvas.classList.add("grabbing");
-    }
-  };
-  const onMove = (e) => {
-    if (!tryon.dragging) return;
-    e.preventDefault();
-    const p = getPos(e);
-    tryon.garment.x = p.x - tryon.dragDX;
-    tryon.garment.y = p.y - tryon.dragDY;
-    drawTryon();
-  };
-  const onUp = () => { tryon.dragging = false; canvas.classList.remove("grabbing"); };
-
-  canvas.addEventListener("mousedown", onDown);
-  window.addEventListener("mousemove", onMove);
-  window.addEventListener("mouseup", onUp);
-  canvas.addEventListener("touchstart", onDown, { passive: false });
-  canvas.addEventListener("touchmove", onMove, { passive: false });
-  canvas.addEventListener("touchend", onUp);
 }
