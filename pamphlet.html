@@ -1,0 +1,1065 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>なんばエッセ歯科・小児歯科クリニック パンフレット</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Kosugi+Maru&family=Noto+Sans+JP:wght@400;700;900&display=swap');
+
+  :root {
+    --mint:     #6DD5C8;
+    --mint-lt:  #E8FAF8;
+    --yellow:   #FFE566;
+    --yellow-lt:#FFFBDF;
+    --pink:     #FF8FAB;
+    --pink-lt:  #FFF0F4;
+    --sky:      #8ECFE8;
+    --sky-lt:   #EBF7FD;
+    --green:    #78D98A;
+    --green-lt: #EEFBF0;
+    --peach:    #FFAA77;
+    --peach-lt: #FFF3EB;
+    --navy:     #2B3A67;
+    --text:     #3D3D3D;
+    --white:    #FFFFFF;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Kosugi Maru', 'Noto Sans JP', sans-serif;
+    background: #F5F5F5;
+    color: var(--text);
+  }
+
+  /* ── print layout ── */
+  .page {
+    width: 210mm;
+    min-height: 297mm;
+    background: white;
+    margin: 12mm auto;
+    padding: 14mm 14mm;
+    position: relative;
+    overflow: hidden;
+    page-break-after: always;
+  }
+
+  @media print {
+    body { background: white; }
+    .page { margin: 0; box-shadow: none; }
+    .print-note { display: none; }
+  }
+
+  /* ── decorative helpers ── */
+  .bubble {
+    display: inline-block;
+    background: var(--white);
+    border-radius: 2em;
+    padding: 0.3em 1em;
+    box-shadow: 0 3px 0 rgba(0,0,0,.08);
+  }
+
+  .tag {
+    display: inline-block;
+    border-radius: 100px;
+    padding: 4px 16px;
+    font-size: 0.75em;
+    font-weight: 700;
+    letter-spacing: .05em;
+  }
+
+  .dots-border {
+    border: 3px dashed currentColor;
+    border-radius: 20px;
+  }
+
+  /* ─────────────────────────────────────
+     PAGE 1 — 表紙
+  ───────────────────────────────────── */
+  .p1 {
+    background: linear-gradient(160deg, #B8F0E8 0%, #FFE4EF 55%, #FFE566 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .p1 .stars {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    font-size: 1.4em;
+    padding: 0 6mm;
+    opacity: .6;
+  }
+
+  .p1 .clinic-tag {
+    background: var(--mint);
+    color: white;
+    font-size: 0.82em;
+    font-weight: 700;
+    border-radius: 100px;
+    padding: 5px 20px;
+    letter-spacing: .1em;
+  }
+
+  .p1 .illust-area {
+    width: 140mm;
+    height: 88mm;
+    background: rgba(255,255,255,.55);
+    border-radius: 28px;
+    border: 4px solid rgba(255,255,255,.9);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #aaa;
+    font-size: 0.85em;
+    gap: 6px;
+    position: relative;
+  }
+
+  .p1 .illust-area .tooth-placeholder {
+    font-size: 5em;
+    filter: drop-shadow(0 4px 6px rgba(0,0,0,.1));
+  }
+
+  .p1 .main-title {
+    text-align: center;
+    line-height: 1.25;
+  }
+
+  .p1 .main-title .ruby {
+    font-size: 0.8em;
+    color: #666;
+    letter-spacing: .15em;
+  }
+
+  .p1 .main-title h1 {
+    font-size: 2.1em;
+    color: var(--navy);
+    font-weight: 900;
+    letter-spacing: .05em;
+    text-shadow: 0 2px 0 rgba(255,255,255,.8);
+  }
+
+  .p1 .subtitle {
+    font-size: 1.05em;
+    color: var(--navy);
+    opacity: .75;
+    letter-spacing: .1em;
+  }
+
+  .p1 .tagline-box {
+    background: var(--navy);
+    color: white;
+    border-radius: 16px;
+    padding: 10px 28px;
+    font-size: 0.88em;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-align: center;
+  }
+
+  .p1 .clinic-name-bottom {
+    font-size: 0.78em;
+    color: var(--navy);
+    opacity: .65;
+    letter-spacing: .08em;
+  }
+
+  /* ─────────────────────────────────────
+     PAGE 2 — キャラクター・クリニック紹介
+  ───────────────────────────────────── */
+  .p2 { background: var(--mint-lt); }
+
+  .p2 .wave-top {
+    width: calc(100% + 28mm);
+    margin: -14mm -14mm 0;
+    height: 28mm;
+    background: var(--mint);
+    border-radius: 0 0 60% 60% / 0 0 40px 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.1em;
+    font-weight: 700;
+    letter-spacing: .1em;
+  }
+
+  .p2 .body-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8mm;
+    margin-top: 8mm;
+  }
+
+  .p2 .illust-card {
+    background: white;
+    border-radius: 20px;
+    padding: 6mm;
+    box-shadow: 0 4px 12px rgba(109,213,200,.25);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4mm;
+    grid-column: 1;
+    grid-row: 1 / 3;
+  }
+
+  .p2 .illust-placeholder {
+    width: 100%;
+    height: 72mm;
+    background: linear-gradient(135deg, #C8F5F0, #FFE4EF);
+    border-radius: 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #aaa;
+    font-size: 0.8em;
+    gap: 4px;
+  }
+
+  .p2 .char-name {
+    font-size: 1.3em;
+    font-weight: 900;
+    color: var(--navy);
+  }
+
+  .p2 .char-desc {
+    font-size: 0.8em;
+    color: #666;
+    text-align: center;
+    line-height: 1.6;
+  }
+
+  .p2 .speech-bubble {
+    background: white;
+    border-radius: 20px;
+    padding: 5mm 6mm;
+    box-shadow: 0 4px 12px rgba(109,213,200,.25);
+    position: relative;
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .p2 .speech-bubble::before {
+    content: '';
+    position: absolute;
+    left: -12px;
+    top: 20px;
+    border: 10px solid transparent;
+    border-right-color: white;
+    filter: drop-shadow(-3px 2px 3px rgba(109,213,200,.2));
+  }
+
+  .p2 .speech-bubble p {
+    font-size: 0.88em;
+    line-height: 1.75;
+    color: var(--text);
+  }
+
+  .p2 .features-box {
+    background: white;
+    border-radius: 20px;
+    padding: 5mm 6mm;
+    box-shadow: 0 4px 12px rgba(109,213,200,.25);
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .p2 .features-box h3 {
+    font-size: 0.9em;
+    font-weight: 900;
+    color: var(--mint);
+    margin-bottom: 4mm;
+    letter-spacing: .05em;
+  }
+
+  .feature-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    margin-bottom: 5px;
+    font-size: 0.82em;
+    line-height: 1.55;
+  }
+
+  .feature-item .icon {
+    font-size: 1.1em;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .p2 .page-num { position: absolute; bottom: 8mm; right: 12mm; font-size: 0.75em; color: #bbb; }
+
+  /* ─────────────────────────────────────
+     PAGE 3 — エッセキッズクラブ
+  ───────────────────────────────────── */
+  .p3 { background: var(--yellow-lt); }
+
+  .p3 .header-band {
+    width: calc(100% + 28mm);
+    margin: -14mm -14mm 8mm;
+    background: var(--yellow);
+    padding: 12mm 14mm 8mm;
+    border-radius: 0 0 50% 50% / 0 0 36px 36px;
+  }
+
+  .p3 .header-band h2 {
+    font-size: 1.7em;
+    font-weight: 900;
+    color: var(--navy);
+    letter-spacing: .04em;
+    line-height: 1.2;
+  }
+
+  .p3 .header-band .sub {
+    font-size: 0.85em;
+    color: #555;
+    margin-top: 3px;
+  }
+
+  .p3 .story-text {
+    font-size: 0.88em;
+    line-height: 1.9;
+    color: var(--text);
+    margin-bottom: 6mm;
+  }
+
+  .p3 .grid3 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 5mm;
+    margin-bottom: 6mm;
+  }
+
+  .p3 .card3 {
+    background: white;
+    border-radius: 18px;
+    padding: 5mm 4mm;
+    box-shadow: 0 3px 10px rgba(255,229,102,.35);
+    text-align: center;
+  }
+
+  .p3 .card3 .ci {
+    font-size: 2.4em;
+    margin-bottom: 4px;
+  }
+
+  .p3 .card3 h4 {
+    font-size: 0.8em;
+    font-weight: 900;
+    color: var(--navy);
+    margin-bottom: 4px;
+  }
+
+  .p3 .card3 p {
+    font-size: 0.72em;
+    color: #666;
+    line-height: 1.5;
+  }
+
+  .p3 .kids-illust {
+    width: 100%;
+    height: 50mm;
+    background: linear-gradient(120deg, #FFF9C4, #FFE4EF);
+    border-radius: 18px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #bbb;
+    font-size: 0.8em;
+    gap: 4px;
+    border: 3px dashed #FFE566;
+  }
+
+  .p3 .page-num { position: absolute; bottom: 8mm; right: 12mm; font-size: 0.75em; color: #bbb; }
+
+  /* ─────────────────────────────────────
+     PAGE 4 — むし歯ゼロへの道
+  ───────────────────────────────────── */
+  .p4 { background: var(--green-lt); }
+
+  .p4 .top-section {
+    display: flex;
+    gap: 7mm;
+    margin-bottom: 7mm;
+    align-items: flex-start;
+  }
+
+  .p4 .top-illust {
+    width: 60mm;
+    min-height: 68mm;
+    background: linear-gradient(150deg, #C8F5D8, #E4F8FF);
+    border-radius: 18px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #aaa;
+    font-size: 0.78em;
+    gap: 4px;
+    border: 3px dashed var(--green);
+  }
+
+  .p4 .top-text h2 {
+    font-size: 1.55em;
+    font-weight: 900;
+    color: var(--navy);
+    line-height: 1.25;
+    margin-bottom: 4mm;
+  }
+
+  .p4 .top-text p {
+    font-size: 0.85em;
+    line-height: 1.85;
+    color: var(--text);
+  }
+
+  .p4 .step-title {
+    font-size: 0.82em;
+    font-weight: 700;
+    color: var(--green);
+    letter-spacing: .1em;
+    margin-bottom: 4mm;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .p4 .step-title::before,
+  .p4 .step-title::after {
+    content: '';
+    flex: 1;
+    height: 2px;
+    background: var(--green);
+    opacity: .4;
+    border-radius: 2px;
+  }
+
+  .p4 .steps {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4mm;
+    margin-bottom: 6mm;
+  }
+
+  .p4 .step {
+    background: white;
+    border-radius: 16px;
+    padding: 4mm 3mm;
+    text-align: center;
+    box-shadow: 0 3px 10px rgba(120,217,138,.25);
+    position: relative;
+  }
+
+  .p4 .step .snum {
+    background: var(--green);
+    color: white;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    font-size: 0.75em;
+    font-weight: 900;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  .p4 .step .si {
+    font-size: 2em;
+    margin: 6px 0 4px;
+  }
+
+  .p4 .step h4 {
+    font-size: 0.78em;
+    font-weight: 900;
+    color: var(--navy);
+    margin-bottom: 3px;
+  }
+
+  .p4 .step p {
+    font-size: 0.68em;
+    color: #777;
+    line-height: 1.45;
+  }
+
+  .p4 .highlight-box {
+    background: var(--green);
+    color: white;
+    border-radius: 16px;
+    padding: 5mm 7mm;
+    font-size: 0.85em;
+    line-height: 1.7;
+    font-weight: 700;
+    text-align: center;
+    letter-spacing: .04em;
+  }
+
+  .p4 .page-num { position: absolute; bottom: 8mm; right: 12mm; font-size: 0.75em; color: #bbb; }
+
+  /* ─────────────────────────────────────
+     PAGE 5 — 抜かない矯正
+  ───────────────────────────────────── */
+  .p5 { background: var(--sky-lt); }
+
+  .p5 .header-pill {
+    background: var(--sky);
+    color: white;
+    border-radius: 100px;
+    padding: 6px 22px;
+    font-size: 0.82em;
+    font-weight: 700;
+    letter-spacing: .08em;
+    display: inline-block;
+    margin-bottom: 4mm;
+  }
+
+  .p5 h2 {
+    font-size: 1.7em;
+    font-weight: 900;
+    color: var(--navy);
+    line-height: 1.25;
+    margin-bottom: 5mm;
+  }
+
+  .p5 h2 em {
+    color: var(--sky);
+    font-style: normal;
+  }
+
+  .p5 .split {
+    display: grid;
+    grid-template-columns: 58mm 1fr;
+    gap: 7mm;
+    margin-bottom: 6mm;
+    align-items: start;
+  }
+
+  .p5 .ortho-illust {
+    height: 80mm;
+    background: linear-gradient(140deg, #D4EFFC, #E0FFE8);
+    border-radius: 18px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #aaa;
+    font-size: 0.78em;
+    gap: 4px;
+    border: 3px dashed var(--sky);
+  }
+
+  .p5 .point-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4mm;
+  }
+
+  .p5 .point {
+    background: white;
+    border-radius: 14px;
+    padding: 4mm 5mm;
+    box-shadow: 0 3px 10px rgba(142,207,232,.25);
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+  }
+
+  .p5 .point .badge {
+    background: var(--sky);
+    color: white;
+    border-radius: 8px;
+    font-size: 0.7em;
+    font-weight: 900;
+    padding: 2px 8px;
+    flex-shrink: 0;
+    margin-top: 2px;
+    white-space: nowrap;
+  }
+
+  .p5 .point p {
+    font-size: 0.82em;
+    line-height: 1.6;
+    color: var(--text);
+  }
+
+  .p5 .qa-section {
+    background: white;
+    border-radius: 18px;
+    padding: 5mm 6mm;
+    box-shadow: 0 3px 10px rgba(142,207,232,.2);
+  }
+
+  .p5 .qa-section h4 {
+    font-size: 0.85em;
+    font-weight: 900;
+    color: var(--sky);
+    margin-bottom: 4mm;
+    letter-spacing: .05em;
+  }
+
+  .qa-row {
+    margin-bottom: 4mm;
+  }
+
+  .qa-row .q {
+    font-size: 0.82em;
+    font-weight: 700;
+    color: var(--navy);
+    margin-bottom: 2px;
+  }
+
+  .qa-row .q::before { content: 'Q.  '; color: var(--pink); }
+  .qa-row .a {
+    font-size: 0.8em;
+    color: #555;
+    line-height: 1.6;
+    padding-left: 1.8em;
+  }
+
+  .qa-row .a::before { content: 'A.  '; color: var(--sky); font-weight: 700; }
+
+  .p5 .page-num { position: absolute; bottom: 8mm; right: 12mm; font-size: 0.75em; color: #bbb; }
+
+  /* ─────────────────────────────────────
+     PAGE 6 — 裏表紙
+  ───────────────────────────────────── */
+  .p6 {
+    background: linear-gradient(165deg, #2B3A67 0%, #1A2548 100%);
+    color: white;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+
+  .p6 .top-illust {
+    width: 100%;
+    height: 68mm;
+    background: rgba(255,255,255,.07);
+    border-radius: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255,255,255,.4);
+    font-size: 0.85em;
+    gap: 6px;
+    border: 2px dashed rgba(255,255,255,.2);
+    margin-bottom: 7mm;
+  }
+
+  .p6 .clinic-logo {
+    text-align: center;
+    margin-bottom: 6mm;
+  }
+
+  .p6 .clinic-logo .name-ja {
+    font-size: 1.5em;
+    font-weight: 900;
+    letter-spacing: .08em;
+    line-height: 1.3;
+  }
+
+  .p6 .clinic-logo .name-en {
+    font-size: 0.75em;
+    color: var(--mint);
+    letter-spacing: .15em;
+    margin-top: 3px;
+  }
+
+  .p6 .info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 5mm;
+    margin-bottom: 6mm;
+  }
+
+  .p6 .info-block {
+    background: rgba(255,255,255,.08);
+    border-radius: 14px;
+    padding: 4mm 5mm;
+  }
+
+  .p6 .info-block h4 {
+    font-size: 0.72em;
+    color: var(--mint);
+    font-weight: 700;
+    letter-spacing: .1em;
+    margin-bottom: 4px;
+  }
+
+  .p6 .info-block p {
+    font-size: 0.82em;
+    color: rgba(255,255,255,.85);
+    line-height: 1.65;
+  }
+
+  .p6 .info-block .highlight {
+    color: var(--yellow);
+    font-weight: 700;
+  }
+
+  .p6 .cta-row {
+    display: flex;
+    gap: 4mm;
+    margin-bottom: 4mm;
+  }
+
+  .p6 .cta-btn {
+    flex: 1;
+    background: var(--mint);
+    color: var(--navy);
+    border-radius: 100px;
+    padding: 9px 12px;
+    font-size: 0.85em;
+    font-weight: 900;
+    text-align: center;
+    letter-spacing: .05em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+
+  .p6 .cta-btn.alt {
+    background: var(--yellow);
+  }
+
+  .p6 .footer-tagline {
+    text-align: center;
+    font-size: 0.75em;
+    color: rgba(255,255,255,.4);
+    letter-spacing: .12em;
+  }
+
+  /* ── print note ── */
+  .print-note {
+    text-align: center;
+    padding: 8px;
+    font-size: 0.8em;
+    color: #888;
+    background: #fff;
+    border-top: 1px solid #eee;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+  }
+</style>
+</head>
+<body>
+
+<!-- ======================================================
+     PAGE 1 — 表紙
+====================================================== -->
+<div class="page p1">
+  <div class="stars">⭐ 🦷 ✨ 🌟 🦷 ✨ ⭐</div>
+
+  <div style="text-align:center;">
+    <span class="clinic-tag">大阪・難波 JR難波駅徒歩2分</span>
+  </div>
+
+  <!-- 挿絵エリア -->
+  <div class="illust-area">
+    <div class="tooth-placeholder">🦷</div>
+    <div style="text-align:center;">
+      <strong style="font-size:1.1em;color:#555;">【挿絵 P1】</strong><br>
+      ハピちゃんと子供たちが笑顔で手を振っているシーン<br>
+      <span style="font-size:0.9em;color:#aaa;">（AIプロンプト参照）</span>
+    </div>
+  </div>
+
+  <div class="main-title">
+    <div class="ruby">なんばエッセ歯科・小児歯科クリニック</div>
+    <h1>はじめての<br>歯医者さんへ<br>ようこそ！</h1>
+    <p class="subtitle">ここは、歯っぴ～なみんなの場所</p>
+  </div>
+
+  <div class="tagline-box">
+    きちんと噛める歯 &nbsp;·&nbsp; 抜かない矯正 &nbsp;·&nbsp; 楽しい予防歯科
+  </div>
+
+  <p class="clinic-name-bottom">Namba Esse Dental &amp; Pediatric Clinic</p>
+</div>
+
+
+<!-- ======================================================
+     PAGE 2 — キャラクター・クリニック紹介
+====================================================== -->
+<div class="page p2">
+  <div class="wave-top">🦷 こんにちは！ なんばエッセ歯科です 🦷</div>
+
+  <div class="body-grid">
+
+    <!-- キャラクターカード -->
+    <div class="illust-card">
+      <div class="illust-placeholder">
+        <strong style="color:#555;">【挿絵 P2】</strong><br>
+        ハピちゃん（歯の妖精）の<br>全身イラスト。丸くて白く、<br>目がくりくりしたキャラ。<br>
+        <span style="font-size:0.9em;color:#aaa;">（AIプロンプト参照）</span>
+      </div>
+      <p class="char-name">🦷 ハピちゃん</p>
+      <p class="char-desc">なんばエッセ歯科の<br>マスコットキャラクター。<br>みんなの歯を守る妖精です！</p>
+    </div>
+
+    <!-- ふきだし -->
+    <div class="speech-bubble">
+      <p>
+        <strong>はじめまして！</strong><br>
+        ぼくは「ハピちゃん」。<br>
+        なんばエッセ歯科の仲間だよ。<br><br>
+        ここはね、<strong>歯医者さんが<br>ちょっとこわい…</strong>と思っている<br>
+        子どもも、みーんな笑顔に<br>
+        なれるクリニックなんだ😊<br><br>
+        一緒に楽しく歯のお勉強<br>をしようよ！
+      </p>
+    </div>
+
+    <!-- 特徴リスト -->
+    <div class="features-box">
+      <h3>✨ なんばエッセ歯科の6つの特徴</h3>
+      <div class="feature-item"><span class="icon">🏠</span><span><strong>全室完全個室</strong>でリラックスして治療</span></div>
+      <div class="feature-item"><span class="icon">👶</span><span><strong>0歳〜お年寄りまで</strong>家族みんなで通える</span></div>
+      <div class="feature-item"><span class="icon">💉</span><span><strong>痛みの少ない治療</strong>を最優先</span></div>
+      <div class="feature-item"><span class="icon">👩‍⚕️</span><span><strong>女性ドクター在籍</strong>で安心サポート</span></div>
+      <div class="feature-item"><span class="icon">🍼</span><span><strong>保育士3名常駐</strong>の無料託児ルーム</span></div>
+      <div class="feature-item"><span class="icon">🚉</span><span>JR難波駅から<strong>徒歩2分</strong>のアクセス</span></div>
+    </div>
+
+  </div>
+  <span class="page-num">2</span>
+</div>
+
+
+<!-- ======================================================
+     PAGE 3 — エッセキッズクラブ
+====================================================== -->
+<div class="page p3">
+  <div class="header-band">
+    <h2>⭐ エッセキッズクラブに<br>入ろう！</h2>
+    <p class="sub">0〜12歳のお子さまなら、どなたでもご入会いただけます</p>
+  </div>
+
+  <p class="story-text">
+    「3歳まで虫歯にならなければ、その後もなりにくい」と言われています。<br>
+    だからこそ、なんばエッセ歯科は<strong>赤ちゃんのころから</strong>の歯のケアを大切にしています。<br>
+    エッセキッズクラブは、<strong>歯医者さんを「楽しい場所」</strong>と感じてもらうための会員制プログラムです。
+  </p>
+
+  <div class="grid3">
+    <div class="card3">
+      <div class="ci">🎟️</div>
+      <h4>スタンプカード</h4>
+      <p>来院するたびにスタンプが貯まる！景品と交換できるよ</p>
+    </div>
+    <div class="card3">
+      <div class="ci">📚</div>
+      <h4>歯みがき教室</h4>
+      <p>正しい磨き方を楽しく学べるイベントを開催</p>
+    </div>
+    <div class="card3">
+      <div class="ci">🧸</div>
+      <h4>キッズルーム</h4>
+      <p>待ち時間もおもちゃや絵本で楽しく過ごせる</p>
+    </div>
+    <div class="card3">
+      <div class="ci">🍼</div>
+      <h4>無料託児</h4>
+      <p>保育士が3名！親御さんの治療中もお子さまを安心預かり</p>
+    </div>
+    <div class="card3">
+      <div class="ci">🎂</div>
+      <h4>誕生日カード</h4>
+      <p>お誕生日にハピちゃんからお手紙が届くよ♪</p>
+    </div>
+    <div class="card3">
+      <div class="ci">👨‍👩‍👧</div>
+      <h4>家族みんなで</h4>
+      <p>ご兄弟・ご両親も一緒に通えるファミリー対応</p>
+    </div>
+  </div>
+
+  <!-- 挿絵エリア -->
+  <div class="kids-illust">
+    <strong style="color:#888;">【挿絵 P3】</strong>
+    ハピちゃんと子供たちが歯ブラシを持って楽しそうに並んでいるシーン（AIプロンプト参照）
+  </div>
+
+  <span class="page-num">3</span>
+</div>
+
+
+<!-- ======================================================
+     PAGE 4 — むし歯ゼロへの道
+====================================================== -->
+<div class="page p4">
+
+  <div class="top-section">
+    <div class="top-illust">
+      <strong style="color:#888;">【挿絵 P4】</strong><br>
+      歯ブラシを持ったハピちゃんが<br>
+      笑顔でピースしているイラスト<br>
+      <span style="font-size:0.9em;color:#bbb;">（AIプロンプト参照）</span>
+    </div>
+    <div class="top-text">
+      <h2>🦷 虫歯ゼロへの<br>3ステップ</h2>
+      <p>
+        虫歯は<strong>「なってから治す」ではなく「ならないようにする」</strong>が大事！
+        なんばエッセ歯科では、小さな頃から<strong>予防の習慣</strong>を一緒につくっていきます。<br><br>
+        定期的な検診で、むし歯を早期発見。フッ素でしっかりコーティング。
+        正しい歯みがきで、一生つかえる歯をつくりましょう。
+      </p>
+    </div>
+  </div>
+
+  <div class="step-title">✦ &nbsp; ステップで学ぼう！ &nbsp; ✦</div>
+
+  <div class="steps">
+    <div class="step">
+      <div class="snum">1</div>
+      <div class="si">🔍</div>
+      <h4>定期検診</h4>
+      <p>3ヶ月に1回のチェックで早期発見・早期対処</p>
+    </div>
+    <div class="step">
+      <div class="snum">2</div>
+      <div class="si">🦷</div>
+      <h4>フッ素コーティング</h4>
+      <p>歯の表面を強くする専門的なフッ素塗布</p>
+    </div>
+    <div class="step">
+      <div class="snum">3</div>
+      <div class="si">🪥</div>
+      <h4>ブラッシング指導</h4>
+      <p>お子さまと親御さんが一緒に正しい磨き方をマスター</p>
+    </div>
+  </div>
+
+  <div class="highlight-box">
+    🌟 &nbsp; 3歳まで虫歯ゼロを達成すると、その後も虫歯になりにくい強い歯になります！<br>
+    <span style="font-size:0.88em;font-weight:400;">ハピちゃんと一緒に、0本虫歯を目指そう♪</span>
+  </div>
+
+  <span class="page-num">4</span>
+</div>
+
+
+<!-- ======================================================
+     PAGE 5 — 抜かない矯正
+====================================================== -->
+<div class="page p5">
+  <span class="header-pill">✨ 小児矯正のご案内</span>
+  <h2>できるだけ<em>抜かない</em><br>矯正で、<br>笑顔の歯並びへ。</h2>
+
+  <div class="split">
+    <div class="ortho-illust">
+      <strong style="color:#aaa;">【挿絵 P5】</strong><br>
+      矯正トレーニングルームで<br>ハピちゃんと子供が<br>楽しく練習しているシーン<br>
+      <span style="font-size:0.85em;color:#ccc;">（AIプロンプト参照）</span>
+    </div>
+
+    <div class="point-list">
+      <div class="point">
+        <span class="badge">POINT 1</span>
+        <p><strong>顎の成長を活かす</strong><br>子どもの成長期に顎を誘導することで、自然な歯列を実現。抜歯リスクが低い！</p>
+      </div>
+      <div class="point">
+        <span class="badge">POINT 2</span>
+        <p><strong>専用トレーニングルーム</strong><br>小児専用の嚙み合わせトレーニングルームで、ゲーム感覚で楽しく矯正。</p>
+      </div>
+      <div class="point">
+        <span class="badge">POINT 3</span>
+        <p><strong>丁寧な説明と相談</strong><br>治療方針を親御さんにわかりやすく説明。ご不安は何でもご相談ください。</p>
+      </div>
+      <div class="point">
+        <span class="badge">POINT 4</span>
+        <p><strong>きちんと噛める歯へ</strong><br>見た目の美しさだけでなく「正しく噛む力」を育てる矯正を行います。</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="qa-section">
+    <h4>💬 よくあるご質問</h4>
+    <div class="qa-row">
+      <div class="q">何歳から矯正を始めるといいですか？</div>
+      <div class="a">乳歯と永久歯が混在する6〜8歳頃が始め時と言われます。まずはお気軽にご相談を。</div>
+    </div>
+    <div class="qa-row">
+      <div class="q">矯正は痛いですか？</div>
+      <div class="a">小児矯正は成人矯正より痛みが少なく、お子さまの負担を最小限に配慮しています。</div>
+    </div>
+    <div class="qa-row">
+      <div class="q">矯正中も普通に食事できますか？</div>
+      <div class="a">装置の種類によって異なりますが、基本的な食事は問題ありません。詳しくはご相談ください。</div>
+    </div>
+  </div>
+
+  <span class="page-num">5</span>
+</div>
+
+
+<!-- ======================================================
+     PAGE 6 — 裏表紙
+====================================================== -->
+<div class="page p6">
+
+  <!-- 挿絵エリア -->
+  <div class="top-illust">
+    <strong>【挿絵 P6】</strong><br>
+    ハピちゃんと家族（父・母・子供）が手をつないで<br>クリニックに向かっている温かいシーン<br>
+    （AIプロンプト参照）
+  </div>
+
+  <div class="clinic-logo">
+    <div class="name-ja">なんばエッセ歯科・小児歯科クリニック</div>
+    <div class="name-en">Namba Esse Dental &amp; Pediatric Clinic</div>
+  </div>
+
+  <div class="info-grid">
+    <div class="info-block">
+      <h4>📍 アクセス</h4>
+      <p>大阪市浪速区湊町2丁目2-22<br>アーベインウエスト 1号室<br><span class="highlight">JR難波駅 南口 徒歩2分</span></p>
+    </div>
+    <div class="info-block">
+      <h4>📞 ご予約・お問い合わせ</h4>
+      <p>お電話またはWebサイトから<br>24時間ネット予約受付中<br><span class="highlight">www.ne-dc.com</span></p>
+    </div>
+    <div class="info-block">
+      <h4>🕐 診療時間</h4>
+      <p>月〜土 10:00〜19:00<br>日・祝 10:00〜17:00<br><span class="highlight">✓ 日曜・祝日も診療</span></p>
+    </div>
+    <div class="info-block">
+      <h4>🏥 診療内容</h4>
+      <p>一般歯科 / 小児歯科<br>予防歯科 / 矯正歯科<br>審美歯科 / インプラント</p>
+    </div>
+  </div>
+
+  <div class="cta-row">
+    <div class="cta-btn">📱 ネット予約はこちら</div>
+    <div class="cta-btn alt">📞 お電話でのご予約</div>
+  </div>
+
+  <p class="footer-tagline">きちんと噛める。できる限り抜かない矯正。 — Namba Esse Dental Clinic —</p>
+
+</div>
+
+
+<!-- ── 印刷メモ ── -->
+<div class="print-note">
+  印刷：A4縦 / 6ページ折りたたみパンフレット用 ｜ 各ページの挿絵エリアに AIで生成した画像を配置してください
+</div>
+
+</body>
+</html>
