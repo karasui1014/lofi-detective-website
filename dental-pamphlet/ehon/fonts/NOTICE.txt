@@ -1,0 +1,18 @@
+本フォルダの woff2 は、以下のオープンソース日本語フォントを
+「本パンフレットで使用する文字だけ」にサブセット化して埋め込んだものです。
+いずれも SIL Open Font License 1.1 (OFL-1.1) で配布されています。
+
+1) M PLUS Rounded 1c  (MPLUSRounded1c-Regular/Medium/Bold.woff2)
+   Copyright 2021 The M PLUS Rounded 1c Project Authors
+   https://github.com/coz-m/MPLUS_FONTS
+   License: SIL Open Font License, Version 1.1
+
+2) Mochiy Pop One  (MochiyPopOne-Regular.woff2)
+   Copyright 2020 The Mochiy Pop Project Authors
+   https://github.com/fontdasu/Mochiypop
+   License: SIL Open Font License, Version 1.1
+   ライセンス全文: OFL-MochiyPopOne.txt（同梱）
+
+OFL-1.1 はフォントの埋め込み・再配布を許可しています（フォント単体での
+有償販売は不可、ライセンス表示の保持が必要）。OFL 全文:
+https://openfontlicense.org/

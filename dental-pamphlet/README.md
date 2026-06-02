@@ -2,7 +2,9 @@
 
 歯医者さんの待合に置く**絵本風の小児矯正パンフレット（全6ページ）**の企画・台本です。
 
-- 📖 **メイン**: [`kids-ortho-picturebook.md`](./kids-ortho-picturebook.md)
+- 🎨 **完成データ（NEW）**: [`ehon/`](./ehon/) — A5・全6ページの**印刷用PDF**＋HTML版。
+  挿絵はSVGで自作し、本文・キャラ・レイアウトを完全制御。→ [`ehon/ehon-A5.pdf`](./ehon/ehon-A5.pdf) / [`ehon/README.md`](./ehon/README.md)
+- 📖 **台本（企画）**: [`kids-ortho-picturebook.md`](./kids-ortho-picturebook.md)
   本文コピー／「おうちの方へ」原稿／絵コンテ／**そのまま貼れる画像生成プロンプト**一式。
 
 ## ねらい
