@@ -728,14 +728,12 @@ label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;
     <div class="download-bar" id="download-bar">
       <button class="dl-btn continue-btn" id="continue-btn" onclick="continueGenerate()">＋ 続きを6カット生成</button>
       <button class="dl-btn" onclick="printStoryboard()">🖨 印刷 / PDF保存</button>
-      <button class="dl-btn jpeg-bulk" id="dl-all-btn" onclick="downloadAllJPEG()">💾 全てJPEGで保存</button>
       <div class="dl-range-row">
-        <span class="dl-range-label">JPEG一括保存:</span>
-        <span class="dl-range-label">No.</span>
-        <input class="dl-range-input" id="dl-range-from" type="number" min="1" value="1" placeholder="1">
+        <span class="dl-range-label">📸 JPEG一括保存 No.</span>
+        <input class="dl-range-input" id="dl-range-from" type="number" min="1" value="1">
         <span class="dl-range-label">〜</span>
-        <input class="dl-range-input" id="dl-range-to" type="number" min="1" placeholder="全て">
-        <button class="dl-btn jpeg-bulk" id="dl-range-btn" onclick="downloadRangeJPEG()">💾 JPEG一括保存</button>
+        <input class="dl-range-input" id="dl-range-to" type="number" min="1">
+        <button class="dl-btn jpeg-bulk" id="dl-range-btn" onclick="downloadRangeJPEG()">💾 保存する</button>
       </div>
     </div>
 
@@ -2994,10 +2992,11 @@ function renderStoryboard(panels, duration) {
   document.getElementById('download-bar').classList.add('visible');
   document.getElementById('storyboard-area').scrollIntoView({ behavior:'smooth', block:'start' });
 
-  // Sync range-to with total panel count
-  document.getElementById('dl-range-to').value = panels.length;
-  document.getElementById('dl-range-to').max   = panels.length;
-  document.getElementById('dl-range-from').max = panels.length;
+  // Sync range inputs with total panel count (from=1, to=total)
+  document.getElementById('dl-range-from').value = 1;
+  document.getElementById('dl-range-from').max   = panels.length;
+  document.getElementById('dl-range-to').value   = panels.length;
+  document.getElementById('dl-range-to').max     = panels.length;
 
   // Show continue button only when generated count < requested count
   updateContinueBtn();
@@ -3117,10 +3116,10 @@ async function continueGenerate() {
     allPanels = allPanels.concat(newPanels);
     appendPanels(newPanels, offset);
     document.getElementById('sb-panels-badge').textContent = allPanels.length + ' cuts';
-    const dlTo = document.getElementById('dl-range-to');
-    dlTo.value = allPanels.length;
-    dlTo.max   = allPanels.length;
-    document.getElementById('dl-range-from').max = allPanels.length;
+    document.getElementById('dl-range-from').value = 1;
+    document.getElementById('dl-range-from').max   = allPanels.length;
+    document.getElementById('dl-range-to').value   = allPanels.length;
+    document.getElementById('dl-range-to').max     = allPanels.length;
     updateContinueBtn();
     // Scroll to newly added panels
     const grid = document.getElementById('sb-grid');
@@ -3834,21 +3833,14 @@ function downloadPanelJPEG(btn) {
 // ─────────────────────────────────────────
 // Bulk JPEG range download
 // ─────────────────────────────────────────
-async function downloadAllJPEG() {
-  if (!allPanels.length) return;
-  const btn = document.getElementById('dl-all-btn');
-  btn.disabled = true;
-  await downloadRangeCore(1, allPanels.length, btn, '💾 全てJPEGで保存');
-}
-
 async function downloadRangeJPEG() {
   const total = allPanels.length;
   if (!total) return;
 
   const fromVal = parseInt(document.getElementById('dl-range-from').value);
   const toVal   = parseInt(document.getElementById('dl-range-to').value);
-  const from = isNaN(fromVal) ? 1 : Math.max(1, fromVal);
-  const to   = isNaN(toVal)   ? total : Math.min(total, toVal);
+  const from = isNaN(fromVal) ? 1              : Math.max(1,     fromVal);
+  const to   = isNaN(toVal)   ? total          : Math.min(total, toVal);
 
   if (from > to) {
     showError('保存範囲が正しくありません（開始番号 ≤ 終了番号にしてください）');
@@ -3857,7 +3849,7 @@ async function downloadRangeJPEG() {
 
   const btn = document.getElementById('dl-range-btn');
   btn.disabled = true;
-  await downloadRangeCore(from, to, btn, '💾 JPEG一括保存');
+  await downloadRangeCore(from, to, btn, '💾 保存する');
 }
 
 async function downloadRangeCore(from, to, btn, resetLabel) {
