@@ -1993,20 +1993,26 @@ function buildBgPrompt(bg, shot, pose, idx, styleKey, visualType, userReqHints) 
     default:   'refined cinematic environment, shallow depth of field, soft bokeh background, professional studio or location lighting'
   }[bg] || 'cinematic environment';
   const vtNote = {
-    abstract: '人物なし、純粋な視覚的抽象表現、ジェネラティブアートスタイル、',
-    macro: 'マクロレンズ、F2.8の浅い被写界深度、テクスチャー重視のフォアグラウンド、人物なし、',
-    silhouette: '強い逆光、被写体がシルエット化、リムライトのみ、ドラマティックなコントラスト、',
-    environment: '人物なし、空の風景、環境が物語るシーン、',
-    object: 'シンボリックな小物・プロップのクローズアップ、映画的な物撮りスタイル、人物なし、',
-    bokeh: 'ピントの外れたボケ背景、柔らかい光の円、大気感のある奥行き、人物なし、',
+    character:    '人物あり・アーティスト/主人公を必ず画面に描写すること、人物の表情・衣装・ポーズを丁寧に表現、',
+    silhouette:   '人物あり（シルエット）、強い逆光で被写体をシルエット化、リムライトのみ・顔は見えない、ドラマティックなコントラスト、',
+    'crowd-wide': '人物あり（群衆）・多数の人物が画面を埋めること、コンサート観客の熱量とエネルギー、',
+    crowd:        '人物あり（群衆）・多数の人物が画面を埋めること、コンサート観客の熱量とエネルギー、',
+    abstract:     '人物不要・画面内に人物を一切描かないこと、純粋な視覚的抽象表現、ジェネラティブアートスタイル、',
+    macro:        '人物不要・画面内に人物を一切描かないこと、マクロレンズ、F2.8の浅い被写界深度、テクスチャー重視、',
+    environment:  '人物不要・画面内に人物を一切描かないこと、空の風景、環境が物語るシーン、',
+    object:       '人物不要・画面内に人物を一切描かないこと、シンボリックな小物のクローズアップ、映画的な物撮り、',
+    bokeh:        '人物不要・画面内に人物を一切描かないこと、ピントの外れたボケ背景、柔らかい光の円、大気感のある奥行き、',
   }[visualType] || '';
   const vtNoteEn = {
-    abstract: 'no characters, pure visual abstraction, generative art style, ',
-    macro: 'macro lens, F2.8 shallow depth of field, texture-driven foreground, no characters, ',
-    silhouette: 'strong backlight, silhouetted subject, rim light only, dramatic contrast, ',
-    environment: 'no characters, empty landscape, scene narrated by environment, ',
-    object: 'symbolic prop close-up, cinematic still-life style, no characters, ',
-    bokeh: 'out-of-focus bokeh background, soft circles of light, atmospheric depth, no characters, ',
+    character:    'character must be present in frame, detailed depiction of artist/protagonist, facial expression costume and pose, ',
+    silhouette:   'person present as silhouette, strong backlight, subject fully silhouetted rim light only face not visible, dramatic contrast, ',
+    'crowd-wide': 'many people filling the frame, crowd present, concert audience energy, ',
+    crowd:        'many people filling the frame, crowd present, concert audience energy, ',
+    abstract:     'no people no humans whatsoever in frame, pure visual abstraction, generative art style, ',
+    macro:        'no people no humans whatsoever in frame, macro lens, F2.8 shallow depth of field, texture-driven foreground, ',
+    environment:  'no people no humans whatsoever in frame, empty landscape, scene narrated by environment, ',
+    object:       'no people no humans whatsoever in frame, symbolic prop close-up, cinematic still-life style, ',
+    bokeh:        'no people no humans whatsoever in frame, out-of-focus bokeh background, soft circles of light, atmospheric depth, ',
   }[visualType] || '';
   const styleHint = style.hint.split('。')[0];
   const styleHintEn = {
@@ -2638,24 +2644,24 @@ function buildImagePrompt(shot, pose, bg, styleKey, visualType, userReqHints) {
     rain:'rainy night, moist atmosphere',stars:'starry night sky',abstract:'surreal abstract space',default:'cinematic background'
   };
   const vtPrompt = {
-    character: '',
-    silhouette: '逆光による強烈なシルエット表現、リムライトのみ、背景に浮かぶ人物の輪郭、',
-    abstract: '抽象的なビジュアルアート、人物なし、幾何学形態と光のパターン、',
-    macro: '超マクロ撮影、テクスチャーの細部、被写界深度が浅い、人物なし、',
-    environment: 'アンビエントショット、人物なし、環境が物語る演出、',
-    object: '象徴的な小物・プロップのクローズアップ、映画的な物撮り、人物なし、',
-    bokeh: 'ボケを活かした背景、柔らかな光の粒、大気感のある奥行き表現、人物なし、',
-    'crowd-wide': '広角の群衆ショット、コンサートの観客、エネルギーとうねり、',
+    character: '人物あり・アーティスト/主人公を画面の主体として描写、人物の表情・身体表現・衣装を丁寧に描写すること、',
+    silhouette: '逆光による強烈なシルエット表現・人物あり（シルエット）、リムライトのみで顔は見えない、背景に浮かぶ人物の輪郭、',
+    abstract: '抽象的なビジュアルアート、人物不要・画面内に人物を一切描かないこと、幾何学形態と光のパターン、',
+    macro: '超マクロ撮影、テクスチャーの細部、被写界深度が浅い、人物不要・画面内に人物を一切描かないこと、',
+    environment: 'アンビエントショット、人物不要・画面内に人物を一切描かないこと、環境が物語る演出、',
+    object: '象徴的な小物・プロップのクローズアップ、映画的な物撮り、人物不要・画面内に人物を一切描かないこと、',
+    bokeh: 'ボケを活かした背景、柔らかな光の粒、大気感のある奥行き表現、人物不要・画面内に人物を一切描かないこと、',
+    'crowd-wide': '広角の群衆ショット・人物あり（群衆）、コンサートの観客・多数の人物が画面を埋める、エネルギーとうねり、',
   };
   const vtPromptEn = {
-    character: '',
-    silhouette: 'strong backlit silhouette, rim light only, figure outlined against background, ',
-    abstract: 'abstract visual art, no characters, geometric forms and light patterns, ',
-    macro: 'extreme macro photography, fine textures, shallow depth of field, no characters, ',
-    environment: 'ambient shot, no characters, environment tells the story, ',
-    object: 'symbolic prop close-up, cinematic still life style, no characters, ',
-    bokeh: 'bokeh-rich background, soft circles of light, atmospheric depth, no characters, ',
-    'crowd-wide': 'wide-angle crowd shot, concert audience, energy and surge, ',
+    character: 'person as main subject, detailed depiction of facial expression body language and costume, character must be present in frame, ',
+    silhouette: 'strong backlit silhouette, person present as silhouette only, rim light only face not visible, figure outlined against bright background, ',
+    abstract: 'abstract visual art, no people no humans whatsoever in frame, geometric forms and light patterns only, ',
+    macro: 'extreme macro photography, fine textures, shallow depth of field, no people no humans whatsoever in frame, ',
+    environment: 'ambient shot, no people no humans whatsoever in frame, environment tells the story, ',
+    object: 'symbolic prop close-up, cinematic still life style, no people no humans whatsoever in frame, ',
+    bokeh: 'bokeh-rich background, soft circles of light, atmospheric depth, no people no humans whatsoever in frame, ',
+    'crowd-wide': 'wide-angle crowd shot, many people visible filling the frame, concert audience, energy and surge, ',
   };
   const style = MV_STYLES[styleKey] || MV_STYLES.story;
   const styleHintEn = {
@@ -2671,8 +2677,9 @@ function buildImagePrompt(shot, pose, bg, styleKey, visualType, userReqHints) {
   }[styleKey] || 'cinematic MV';
   const vtPart = vtPrompt[visualType] || '';
   const vtPartEn = vtPromptEn[visualType] || '';
-  const posePart = (visualType === 'character') ? (poseMap[pose] ? `【人物】${poseMap[pose]}　` : '') : '';
-  const posePartEn = (visualType === 'character') ? (poseMapEn[pose] ? `[subject] ${poseMapEn[pose]}, ` : '') : '';
+  const hasPersonVT = ['character','silhouette','crowd','crowd-wide'].includes(visualType);
+  const posePart   = hasPersonVT ? (poseMap[pose]   ? `【人物】${poseMap[pose]}　`        : '') : '';
+  const posePartEn = hasPersonVT ? (poseMapEn[pose] ? `[subject] ${poseMapEn[pose]}, ` : '') : '';
   const shotPart = shotMap[shot] ? `【構図】${shotMap[shot]}　` : '';
   const shotPartEn = shotMapEn[shot] ? `[shot] ${shotMapEn[shot]}, ` : '';
   const bgPart = bgMap[bg] ? `【背景】${bgMap[bg]}　` : '';
