@@ -482,6 +482,27 @@ label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;
 /* ── Feature 2: Panel image upload overlay ── */
 .panel-img-upload{position:absolute;top:.3rem;left:.3rem;background:rgba(0,0,0,.55);border-radius:.3rem;padding:.15rem .3rem;font-size:.75rem;cursor:pointer;z-index:2;}
 .panel-img-upload:hover{background:rgba(124,58,237,.7);}
+
+/* ── DomoAI Panel ── */
+#domo-panel{display:none;margin-top:1.2rem;padding:1.2rem 1.4rem;background:rgba(16,185,129,.05);border:1px solid rgba(16,185,129,.2);border-radius:12px;}
+#domo-panel.visible{display:block;}
+.domo-header{display:flex;align-items:center;gap:.5rem;font-size:.9rem;font-weight:600;color:#6ee7b7;margin-bottom:1rem;}
+.domo-header span{font-size:.7rem;color:#475569;font-weight:400;}
+.domo-row{display:flex;gap:.6rem;margin-bottom:.75rem;align-items:center;flex-wrap:wrap;}
+.domo-key-input{flex:1;min-width:180px;background:rgba(0,0,0,.35);border:1px solid rgba(16,185,129,.3);border-radius:8px;padding:.45rem .8rem;color:#e2e8f0;font-size:.82rem;font-family:monospace;}
+.domo-key-input::placeholder{color:#475569;}
+.domo-select{background:rgba(0,0,0,.35);border:1px solid rgba(16,185,129,.25);border-radius:8px;padding:.38rem .6rem;color:#e2e8f0;font-size:.8rem;}
+.domo-save-btn{background:rgba(16,185,129,.15);color:#6ee7b7;border:1px solid rgba(16,185,129,.35);border-radius:8px;padding:.42rem .9rem;font-size:.8rem;cursor:pointer;transition:background .15s;}
+.domo-save-btn:hover{background:rgba(16,185,129,.28);}
+.domo-run-btn{background:linear-gradient(135deg,#059669,#065f46);color:#fff;border:none;border-radius:8px;padding:.48rem 1.2rem;font-size:.85rem;font-weight:600;cursor:pointer;transition:opacity .2s;}
+.domo-run-btn:hover{opacity:.85;}
+.domo-run-btn:disabled{opacity:.35;cursor:not-allowed;}
+.domo-progress{font-size:.78rem;color:#94a3b8;margin-top:.4rem;min-height:1.3em;line-height:1.5;}
+.domo-video-wrap{margin-top:.55rem;}
+.domo-video-wrap video{width:100%;border-radius:6px;display:block;}
+.domo-dl-badge{display:inline-block;margin-top:.3rem;background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.35);color:#6ee7b7;font-size:.7rem;padding:.15rem .5rem;border-radius:4px;text-decoration:none;}
+.domo-dl-badge:hover{background:rgba(16,185,129,.25);}
+.panel-card.domo-pending .panel-svg-wrap::after{content:'⏳ 生成中...';position:absolute;bottom:.4rem;left:50%;transform:translateX(-50%);font-size:.7rem;color:#6ee7b7;background:rgba(0,0,0,.65);padding:.15rem .5rem;border-radius:4px;pointer-events:none;}
 </style>
 </head>
 <body>
@@ -697,6 +718,35 @@ label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;
     <div class="download-bar" id="download-bar">
       <button class="dl-btn continue-btn" id="continue-btn" onclick="continueGenerate()">＋ 続きを6カット生成</button>
       <button class="dl-btn" onclick="printStoryboard()">🖨 印刷 / PDF保存</button>
+    </div>
+
+    <!-- DomoAI Panel: D×5で表示 -->
+    <div id="domo-panel">
+      <div class="domo-header">🎬 DomoAI 動画生成 <span>（D を5回押すと表示/非表示）</span></div>
+      <div class="domo-row">
+        <input class="domo-key-input" id="domo-api-key" type="password" placeholder="DomoAI APIキーを入力..." autocomplete="off" spellcheck="false">
+        <button class="domo-save-btn" onclick="domoSaveKey()">保存</button>
+      </div>
+      <div class="domo-row">
+        <select class="domo-select" id="domo-model">
+          <option value="t2v-2.4-faster">t2v-2.4-faster（速い）</option>
+          <option value="t2v-2.4-advanced">t2v-2.4-advanced（高品質）</option>
+        </select>
+        <select class="domo-select" id="domo-seconds">
+          <option value="5">5秒</option>
+          <option value="3">3秒</option>
+          <option value="8">8秒</option>
+          <option value="10">10秒</option>
+        </select>
+        <select class="domo-select" id="domo-aspect">
+          <option value="16:9">16:9（横）</option>
+          <option value="9:16">9:16（縦）</option>
+          <option value="1:1">1:1（正方形）</option>
+          <option value="4:3">4:3</option>
+        </select>
+        <button class="domo-run-btn" id="domo-run-btn" onclick="domoRunGeneration()">▶ 動画生成スタート（10カット）</button>
+      </div>
+      <div class="domo-progress" id="domo-progress"></div>
     </div>
   </div>
 
@@ -4021,6 +4071,137 @@ function updateStampCountLabel() {
     // Keep the panel-count field in sync so the user sees stamps drive the cut count
     if (pc) pc.value = stampMarks.length + 1;
   }
+}
+
+// ─────────────────────────────────────────
+// DomoAI Integration (D×5 to unlock)
+// ─────────────────────────────────────────
+(function() {
+  let _buf = 0;
+  document.addEventListener('keydown', e => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    if (e.key === 'd' || e.key === 'D') {
+      _buf++;
+      if (_buf >= 5) {
+        _buf = 0;
+        const panel = document.getElementById('domo-panel');
+        const visible = panel.classList.toggle('visible');
+        if (visible) {
+          const saved = localStorage.getItem('domo_api_key');
+          if (saved) document.getElementById('domo-api-key').value = saved;
+          panel.scrollIntoView({ behavior:'smooth', block:'nearest' });
+        }
+      }
+    } else {
+      _buf = 0;
+    }
+  });
+})();
+
+function domoSaveKey() {
+  const key = document.getElementById('domo-api-key').value.trim();
+  if (!key) { document.getElementById('domo-progress').textContent = '⚠ APIキーを入力してください'; return; }
+  localStorage.setItem('domo_api_key', key);
+  document.getElementById('domo-progress').textContent = '✓ APIキーを保存しました';
+  setTimeout(() => { document.getElementById('domo-progress').textContent = ''; }, 2500);
+}
+
+async function domoSubmitTask(prompt, model, seconds, aspect_ratio, apiKey) {
+  const res = await fetch('https://api.domoai.com/v1/video/text2video', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt, model, seconds: parseInt(seconds), aspect_ratio })
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || err.message || `HTTP ${res.status}`);
+  }
+  const json = await res.json();
+  return json.data.task_id;
+}
+
+async function domoPollTask(taskId, apiKey, maxWait = 180000) {
+  const start = Date.now();
+  while (Date.now() - start < maxWait) {
+    await new Promise(r => setTimeout(r, 6000));
+    const res = await fetch(`https://api.domoai.com/v1/tasks/${taskId}`, {
+      headers: { 'Authorization': `Bearer ${apiKey}` }
+    });
+    if (!res.ok) continue;
+    const json = await res.json();
+    const task = (json.data || json);
+    const status = task.status;
+    if (status === 'completed' || status === 'success' || status === 'finished') {
+      // Try multiple possible output field names
+      const url = task.output_url || task.video_url || task.url
+        || (task.output && (task.output.url || task.output.video_url))
+        || (task.result && (task.result.url || task.result.video_url))
+        || null;
+      return url;
+    }
+    if (status === 'failed' || status === 'error') throw new Error('DomoAI: タスク失敗');
+  }
+  throw new Error('タイムアウト（3分）');
+}
+
+function domoAttachVideo(panelIdx, videoUrl) {
+  const cards = document.getElementById('sb-grid').querySelectorAll('.panel-card');
+  if (!cards[panelIdx]) return;
+  const card = cards[panelIdx];
+  card.classList.remove('domo-pending');
+  let wrap = card.querySelector('.domo-video-wrap');
+  if (!wrap) { wrap = document.createElement('div'); wrap.className = 'domo-video-wrap'; card.appendChild(wrap); }
+  wrap.innerHTML = `<video src="${videoUrl}" controls loop muted playsinline></video>`
+    + `<a class="domo-dl-badge" href="${videoUrl}" target="_blank" download>⬇ 動画をダウンロード</a>`;
+}
+
+async function domoRunGeneration() {
+  const apiKey = localStorage.getItem('domo_api_key') || document.getElementById('domo-api-key').value.trim();
+  if (!apiKey) { document.getElementById('domo-progress').textContent = '⚠ APIキーを入力・保存してください'; return; }
+  if (!allPanels.length) { document.getElementById('domo-progress').textContent = '⚠ 先に絵コンテを生成してください'; return; }
+
+  const model   = document.getElementById('domo-model').value;
+  const seconds = document.getElementById('domo-seconds').value;
+  const aspect  = document.getElementById('domo-aspect').value;
+  const btn  = document.getElementById('domo-run-btn');
+  const prog = document.getElementById('domo-progress');
+  btn.disabled = true;
+
+  const targets = allPanels.slice(0, 10);
+  // Mark panels as pending
+  const cards = document.getElementById('sb-grid').querySelectorAll('.panel-card');
+  targets.forEach((_, i) => { if (cards[i]) cards[i].classList.add('domo-pending'); });
+
+  for (let i = 0; i < targets.length; i++) {
+    const p = targets[i];
+    // Use English prompt, strip Japanese tags, trim to 2000 chars
+    const rawPrompt = (p.promptEn || p.prompt || '').replace(/【[^】]*】/g, '').replace(/\[.*?\]/g, '').trim().slice(0, 2000);
+    const prompt = rawPrompt || `cinematic scene, anime style, cut ${i + 1}`;
+    prog.textContent = `[${i+1}/${targets.length}] カット${i+1}: 送信中...`;
+    try {
+      const taskId = await domoSubmitTask(prompt, model, seconds, aspect, apiKey);
+      prog.textContent = `[${i+1}/${targets.length}] カット${i+1}: 生成中 (ID: ${taskId.slice(0,8)}...)`;
+      const videoUrl = await domoPollTask(taskId, apiKey);
+      if (videoUrl) {
+        domoAttachVideo(i, videoUrl);
+        prog.textContent = `[${i+1}/${targets.length}] カット${i+1}: ✓ 完了`;
+      } else {
+        if (cards[i]) cards[i].classList.remove('domo-pending');
+        prog.textContent = `[${i+1}/${targets.length}] カット${i+1}: ⚠ 動画URLが取得できませんでした`;
+      }
+    } catch(e) {
+      if (cards[i]) cards[i].classList.remove('domo-pending');
+      const isCors = e.message === 'Failed to fetch' || String(e).includes('NetworkError');
+      if (isCors) {
+        prog.innerHTML = `⚠ CORSエラー: ブラウザからの直接API呼び出しがブロックされました。<br>Cloudflare Workerのプロキシ設定が必要です。`;
+        break;
+      }
+      prog.textContent = `[${i+1}/${targets.length}] カット${i+1}: ✗ ${e.message}`;
+      await new Promise(r => setTimeout(r, 1500));
+    }
+  }
+
+  btn.disabled = false;
 }
 
 // Init
