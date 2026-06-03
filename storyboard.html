@@ -389,8 +389,10 @@ label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;
   display:flex;align-items:center;justify-content:center;
   transition:all .18s;opacity:.5;
 }
+.panel-dl-btn.jpeg{right:2.2rem;}
 .sb-panel:hover .panel-dl-btn{opacity:1;}
 .panel-dl-btn:hover{background:rgba(6,182,212,.5);border-color:var(--accent2);color:#fff;transform:scale(1.1);}
+.panel-dl-btn.jpeg:hover{background:rgba(255,107,157,.5);border-color:#ff6b9d;}
 
 .panel-body{padding:.6rem .7rem .75rem;}
 .panel-section{
@@ -2914,7 +2916,7 @@ function buildPanelEl(p, displayNum) {
       <span class="panel-shot">${vtLabel ? vtLabel : shotLabel}</span>
       <span class="panel-time">${p.stampDriven ? '🎬 ' : ''}${formatTime(p.time)}</span>
     </div>
-    <div class="panel-art">${artSVG}<label class="panel-img-upload" title="画像を添付">📎<input type="file" accept="image/*" style="display:none" onchange="attachPanelImage(this)"></label><button class="panel-dl-btn" title="PNGをダウンロード" onclick="downloadPanelPNG(this)">⬇</button></div>
+    <div class="panel-art">${artSVG}<label class="panel-img-upload" title="画像を添付">📎<input type="file" accept="image/*" style="display:none" onchange="attachPanelImage(this)"></label><button class="panel-dl-btn jpeg" title="JPEGをダウンロード" onclick="downloadPanelJPEG(this)">JPG</button><button class="panel-dl-btn" title="PNGをダウンロード" onclick="downloadPanelPNG(this)">⬇</button></div>
     <div class="panel-body">
       ${p.section ? `<div class="panel-section">${p.section.toUpperCase()}</div>` : ''}
       <div class="panel-scene">${(p.jaDesc||p.lines?.join('<br>')||'').replace(/\n/g,'<br>')}</div>
@@ -3764,6 +3766,40 @@ function downloadPanelPNG(btn) {
       document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     }, 'image/png');
+  };
+  img.onerror = () => URL.revokeObjectURL(svgUrl);
+  img.src = svgUrl;
+}
+
+function downloadPanelJPEG(btn) {
+  const panelEl = btn.closest('.sb-panel');
+  const svgEl   = panelEl.querySelector('.panel-art svg');
+  const numEl   = panelEl.querySelector('.panel-num');
+  if (!svgEl) return;
+
+  const filename = `panel-${(numEl?.textContent||'000').trim()}.jpg`;
+  const svgData  = new XMLSerializer().serializeToString(svgEl);
+  const svgBlob  = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+  const svgUrl   = URL.createObjectURL(svgBlob);
+  const img = new Image();
+  img.onload = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 640; canvas.height = 360;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#12122a';
+    ctx.fillRect(0, 0, 640, 360);
+    ctx.drawImage(img, 0, 0, 640, 360);
+    URL.revokeObjectURL(svgUrl);
+    canvas.toBlob(blob => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }, 'image/jpeg', 0.92);
   };
   img.onerror = () => URL.revokeObjectURL(svgUrl);
   img.src = svgUrl;
