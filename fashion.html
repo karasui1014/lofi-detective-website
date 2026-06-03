@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>似合う服 AI診断 | Lofi Detective</title>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=2">
+<link rel="icon" type="image/svg+xml" href="favicon.svg?v=2">
+<link rel="shortcut icon" href="favicon.ico?v=2">
+<meta name="theme-color" content="#7c3aed">
+<style>
+:root {
+  --bg: #08080e;
+  --surface: #0f0f18;
+  --surface2: #14141f;
+  --surface3: #1a1a28;
+  --border: rgba(255,255,255,0.07);
+  --border-hi: rgba(255,255,255,0.13);
+  --accent: #7c3aed;
+  --accent2: #06b6d4;
+  --pink: #ff6b9d;
+  --orange: #fb923c;
+  --accent-glow: rgba(124,58,237,0.35);
+  --text: #f0f0f8;
+  --text-sec: rgba(255,255,255,0.55);
+  --text-muted: rgba(255,255,255,0.32);
+  --radius: 16px;
+  --radius-sm: 10px;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  background:var(--bg);color:var(--text);
+  font-family:'Inter','Segoe UI',system-ui,-apple-system,sans-serif;
+  min-height:100vh;overflow-x:hidden;
+  background-image:
+    radial-gradient(ellipse 80% 40% at 20% 0%,rgba(124,58,237,0.07) 0%,transparent 60%),
+    radial-gradient(ellipse 60% 40% at 80% 100%,rgba(255,107,157,0.04) 0%,transparent 60%);
+}
+.wrap{max-width:860px;margin:0 auto;padding:0 1.2rem 5rem;}
+
+/* ── Header ── */
+header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:1rem 1.4rem;
+  background:rgba(8,8,14,0.85);
+  border-bottom:1px solid var(--border);
+  position:sticky;top:0;z-index:100;
+  backdrop-filter:blur(14px);
+}
+.header-left{display:flex;align-items:center;gap:.9rem;}
+.back-link{
+  color:var(--text-sec);font-size:.8rem;text-decoration:none;
+  display:flex;align-items:center;gap:.3rem;
+  border:1px solid var(--border);border-radius:8px;padding:.35rem .75rem;
+  transition:all .15s;
+}
+.back-link:hover{border-color:var(--border-hi);color:var(--text);}
+.header-title{
+  font-size:1rem;font-weight:700;letter-spacing:.03em;
+  background:linear-gradient(135deg,#ff6b9d,#7c3aed,#06b6d4);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-clip:text;
+}
+.api-wrap{display:flex;align-items:center;gap:.45rem;}
+.api-label{font-size:.68rem;color:var(--text-muted);white-space:nowrap;}
+.api-input{
+  width:200px;background:var(--surface2);border:1px solid var(--border);
+  border-radius:8px;padding:.38rem .75rem;color:var(--text);
+  font-size:.75rem;font-family:monospace;
+}
+.api-input:focus{outline:none;border-color:var(--accent2);}
+.btn-sm{
+  padding:.35rem .8rem;border-radius:8px;font-size:.75rem;cursor:pointer;
+  border:1px solid rgba(6,182,212,.3);background:rgba(6,182,212,.08);
+  color:var(--accent2);transition:all .15s;
+}
+.btn-sm:hover{background:rgba(6,182,212,.18);border-color:var(--accent2);}
+
+/* ── Phase labels ── */
+.phase-row{
+  display:flex;align-items:center;gap:.7rem;
+  padding:1.8rem 0 1rem;
+}
+.phase-badge{
+  font-size:.65rem;font-weight:700;letter-spacing:.08em;
+  padding:.25rem .8rem;border-radius:20px;white-space:nowrap;
+}
+.phase-badge.p1{background:linear-gradient(135deg,var(--accent),#4f46e5);color:#fff;}
+.phase-badge.p2{background:linear-gradient(135deg,var(--pink),var(--orange));color:#fff;}
+.phase-title{font-size:1.15rem;font-weight:700;}
+
+/* ── Cards ── */
+.card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius);padding:1.3rem 1.4rem;margin-bottom:.9rem;
+}
+.card-title{
+  font-size:.78rem;font-weight:600;color:var(--text-sec);
+  letter-spacing:.05em;margin-bottom:1rem;text-transform:uppercase;
+}
+
+/* ── Upload zone ── */
+.upload-zone{
+  border:2px dashed rgba(255,255,255,.12);border-radius:var(--radius-sm);
+  padding:2.2rem 1.5rem;text-align:center;cursor:pointer;
+  transition:all .2s;position:relative;
+}
+.upload-zone:hover,.upload-zone.drag-over{
+  border-color:var(--accent);background:rgba(124,58,237,.06);
+}
+.upload-zone input[type="file"]{
+  position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;
+}
+.upload-icon{font-size:2.2rem;margin-bottom:.5rem;}
+.upload-text{font-size:.88rem;color:var(--text-sec);}
+.upload-sub{font-size:.72rem;color:var(--text-muted);margin-top:.25rem;}
+
+/* ── Preview ── */
+.preview-wrap{display:none;gap:1.2rem;align-items:flex-start;}
+.preview-wrap.show{display:flex;}
+.preview-img{
+  width:160px;height:200px;object-fit:cover;
+  border-radius:10px;border:1px solid var(--border-hi);flex-shrink:0;
+}
+.preview-side{display:flex;flex-direction:column;gap:.55rem;flex:1;}
+.preview-hint{font-size:.8rem;color:var(--text-sec);line-height:1.5;}
+
+/* ── Buttons ── */
+.btn{
+  display:inline-flex;align-items:center;gap:.4rem;
+  padding:.55rem 1.2rem;border-radius:10px;
+  font-size:.83rem;font-weight:600;cursor:pointer;
+  border:none;transition:all .18s;text-decoration:none;
+}
+.btn-primary{
+  background:linear-gradient(135deg,var(--accent),#4f46e5);color:#fff;
+}
+.btn-primary:hover{opacity:.85;transform:translateY(-1px);}
+.btn-primary:disabled{opacity:.35;cursor:not-allowed;transform:none;}
+.btn-pink{background:linear-gradient(135deg,var(--pink),var(--orange));color:#fff;}
+.btn-pink:hover{opacity:.85;transform:translateY(-1px);}
+.btn-pink:disabled{opacity:.35;cursor:not-allowed;transform:none;}
+.btn-ghost{
+  background:transparent;border:1px solid var(--border);color:var(--text-sec);
+}
+.btn-ghost:hover{border-color:var(--border-hi);color:var(--text);}
+.btn-copy{
+  background:rgba(6,182,212,.08);border:1px solid rgba(6,182,212,.25);color:var(--accent2);
+}
+.btn-copy:hover{background:rgba(6,182,212,.18);}
+
+/* ── Loading ── */
+.loading-wrap{display:none;text-align:center;padding:1.8rem;}
+.loading-wrap.show{display:block;}
+.spinner{
+  width:34px;height:34px;margin:0 auto .75rem;
+  border:3px solid var(--border);border-top-color:var(--accent);
+  border-radius:50%;animation:spin .75s linear infinite;
+}
+.spinner.pink{border-top-color:var(--pink);}
+@keyframes spin{to{transform:rotate(360deg);}}
+.loading-text{font-size:.83rem;color:var(--text-sec);}
+
+/* ── Error ── */
+.error-box{
+  display:none;margin-top:.7rem;padding:.7rem 1rem;
+  background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);
+  border-radius:8px;font-size:.78rem;color:#f87171;
+}
+.error-box.show{display:block;}
+
+/* ── Analysis results ── */
+.result-grid{
+  display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;
+}
+@media(max-width:600px){.result-grid{grid-template-columns:1fr;}}
+.result-card{
+  background:var(--surface2);border:1px solid var(--border);
+  border-radius:12px;padding:1.1rem;
+}
+.result-tag{
+  font-size:.62rem;letter-spacing:.07em;text-transform:uppercase;
+  color:var(--text-muted);margin-bottom:.4rem;display:block;
+}
+.result-value{font-size:1.25rem;font-weight:700;margin-bottom:.25rem;}
+.result-conf{font-size:.7rem;color:var(--text-muted);margin-bottom:.5rem;}
+.bar-bg{height:3px;background:var(--border);border-radius:2px;overflow:hidden;}
+.bar-fill{
+  height:100%;border-radius:2px;
+  background:linear-gradient(90deg,var(--accent),var(--accent2));
+  transition:width .7s ease;
+}
+.result-desc{font-size:.77rem;color:var(--text-sec);line-height:1.65;margin-top:.6rem;}
+
+/* Color swatches */
+.swatches-row{display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.6rem;}
+.swatch{
+  width:28px;height:28px;border-radius:50%;
+  border:1.5px solid rgba(255,255,255,.15);cursor:help;
+  transition:transform .12s;flex-shrink:0;
+}
+.swatch:hover{transform:scale(1.18);}
+.swatch.avoid{opacity:.38;filter:grayscale(20%);}
+.swatch-lbl{font-size:.63rem;color:var(--text-muted);margin-top:.35rem;}
+
+/* Season colors */
+.spring{color:#fb923c;}
+.summer{color:#a78bfa;}
+.autumn{color:#d97706;}
+.winter{color:#60a5fa;}
+
+/* Face-type style pills */
+.style-pill{
+  display:inline-block;margin:.2rem .18rem 0 0;
+  padding:.18rem .55rem;border-radius:4px;
+  font-size:.7rem;
+  background:rgba(6,182,212,.1);border:1px solid rgba(6,182,212,.22);
+  color:var(--accent2);
+}
+
+/* ── Preference tags ── */
+.pref-section{margin-bottom:.9rem;}
+.pref-label{font-size:.73rem;color:var(--text-sec);margin-bottom:.45rem;display:block;}
+.tag-group{display:flex;flex-wrap:wrap;gap:.4rem;}
+.tag{
+  padding:.35rem .8rem;border-radius:20px;font-size:.77rem;
+  cursor:pointer;border:1px solid var(--border);
+  color:var(--text-sec);background:transparent;transition:all .14s;
+  user-select:none;
+}
+.tag:hover{border-color:rgba(255,255,255,.25);color:var(--text);}
+.tag.on{
+  background:rgba(124,58,237,.18);border-color:var(--accent);color:#c4b5fd;
+}
+
+/* ── Prompt box ── */
+.prompt-box{
+  background:var(--surface2);border:1px solid var(--border);
+  border-radius:10px;padding:.95rem 1.1rem;
+  font-size:.8rem;line-height:1.75;color:#a3e635;
+  font-family:'SF Mono','Consolas','Courier New',monospace;
+  white-space:pre-wrap;word-break:break-word;min-height:80px;
+}
+.prompt-actions{display:flex;gap:.5rem;margin-top:.7rem;flex-wrap:wrap;}
+.prompt-hint{font-size:.68rem;color:var(--text-muted);margin-top:.6rem;}
+
+/* ── Phase divider ── */
+.phase-divider{
+  border:none;border-top:1px solid var(--border);margin:2rem 0;
+}
+
+/* ── Shopping results ── */
+.item-card{
+  background:var(--surface2);border:1px solid var(--border);
+  border-radius:12px;padding:1rem 1.2rem;margin-bottom:.75rem;
+}
+.item-header{display:flex;align-items:center;gap:.55rem;margin-bottom:.45rem;}
+.item-cat{
+  font-size:.62rem;padding:.15rem .5rem;border-radius:4px;
+  background:rgba(124,58,237,.18);border:1px solid rgba(124,58,237,.28);color:#c4b5fd;
+}
+.item-name{font-size:.9rem;font-weight:600;}
+.item-price{margin-left:auto;font-size:.7rem;color:var(--text-muted);}
+.item-feat{font-size:.74rem;color:var(--text-sec);margin-bottom:.65rem;line-height:1.6;}
+.shop-links{display:flex;flex-wrap:wrap;gap:.38rem;}
+.shop-btn{
+  display:inline-flex;align-items:center;gap:.28rem;
+  padding:.28rem .7rem;border-radius:6px;font-size:.72rem;
+  font-weight:500;text-decoration:none;transition:all .14s;
+}
+.s-zozo{background:rgba(0,200,100,.08);color:#4ade80;border:1px solid rgba(74,222,128,.2);}
+.s-zozo:hover{background:rgba(0,200,100,.2);}
+.s-rakuten{background:rgba(239,68,68,.08);color:#f87171;border:1px solid rgba(248,113,113,.2);}
+.s-rakuten:hover{background:rgba(239,68,68,.2);}
+.s-amazon{background:rgba(251,146,60,.08);color:#fb923c;border:1px solid rgba(251,146,60,.2);}
+.s-amazon:hover{background:rgba(251,146,60,.2);}
+.s-uniqlo{background:rgba(220,38,38,.08);color:#fca5a5;border:1px solid rgba(252,165,165,.2);}
+.s-uniqlo:hover{background:rgba(220,38,38,.2);}
+.s-gu{background:rgba(59,130,246,.08);color:#93c5fd;border:1px solid rgba(147,197,253,.2);}
+.s-gu:hover{background:rgba(59,130,246,.2);}
+.s-mag{background:rgba(168,85,247,.08);color:#c084fc;border:1px solid rgba(192,132,252,.2);}
+.s-mag:hover{background:rgba(168,85,247,.2);}
+.s-wear{background:rgba(16,185,129,.08);color:#6ee7b7;border:1px solid rgba(110,231,183,.2);}
+.s-wear:hover{background:rgba(16,185,129,.2);}
+
+/* ── Model selector ── */
+.model-row{display:flex;align-items:center;gap:.5rem;margin-top:.5rem;}
+.model-select{
+  background:var(--surface2);border:1px solid var(--border);
+  border-radius:7px;padding:.3rem .6rem;color:var(--text-sec);font-size:.73rem;
+}
+.model-select:focus{outline:none;border-color:var(--accent2);}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <a class="back-link" href="index.html">← トップへ</a>
+    <span class="header-title">👗 似合う服 AI診断</span>
+  </div>
+  <div class="api-wrap">
+    <span class="api-label">Anthropic API Key</span>
+    <input class="api-input" id="api-key" type="password" placeholder="sk-ant-..." autocomplete="off" spellcheck="false">
+    <button class="btn-sm" onclick="saveKey()">保存</button>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ══════════════════════════════════════════
+       STEP 1 : 人物診断
+  ══════════════════════════════════════════ -->
+  <div class="phase-row">
+    <span class="phase-badge p1">STEP 1</span>
+    <span class="phase-title">パーソナルカラー・顔タイプ診断</span>
+  </div>
+
+  <!-- Upload -->
+  <div class="card">
+    <div class="card-title">人物写真をアップロード</div>
+    <div class="upload-zone" id="zone1"
+         ondragover="onDrag(event,'1')" ondragleave="offDrag('1')" ondrop="onDrop(event,'1')">
+      <input type="file" id="file1" accept="image/*" onchange="loadFile(event,'1')">
+      <div class="upload-icon">👤</div>
+      <div class="upload-text">写真をドラッグ＆ドロップ</div>
+      <div class="upload-sub">または クリックして選択 (JPG・PNG・WEBP)</div>
+    </div>
+
+    <div class="preview-wrap" id="prev1">
+      <img class="preview-img" id="img1" alt="">
+      <div class="preview-side">
+        <p class="preview-hint">写真が選択されました。<br>診断開始を押してください。</p>
+        <div class="model-row">
+          <span style="font-size:.7rem;color:var(--text-muted);">モデル</span>
+          <select class="model-select" id="model-sel">
+            <option value="claude-opus-4-8">claude-opus-4-8（高精度・推奨）</option>
+            <option value="claude-sonnet-4-6">claude-sonnet-4-6（速い・省コスト）</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" id="analyze-btn" onclick="analyzePhoto()">🔍 診断開始</button>
+        <button class="btn btn-ghost" onclick="resetZone('1')">✕ 写真を変更</button>
+        <div class="error-box" id="err1"></div>
+      </div>
+    </div>
+
+    <div class="loading-wrap" id="load1">
+      <div class="spinner"></div>
+      <div class="loading-text">AIが顔・肌・色を分析中…</div>
+    </div>
+  </div>
+
+  <!-- Analysis results (hidden until done) -->
+  <div id="results-wrap" style="display:none;">
+    <div class="result-grid">
+      <!-- Personal Color -->
+      <div class="result-card">
+        <span class="result-tag">パーソナルカラー</span>
+        <div class="result-value" id="pc-season">—</div>
+        <div class="result-conf" id="pc-conf"></div>
+        <div class="bar-bg"><div class="bar-fill" id="pc-bar" style="width:0"></div></div>
+        <div class="result-desc" id="pc-desc"></div>
+        <div style="margin-top:.8rem;">
+          <div class="swatch-lbl">✨ 似合う色</div>
+          <div class="swatches-row" id="pc-best"></div>
+        </div>
+        <div style="margin-top:.5rem;">
+          <div class="swatch-lbl" style="opacity:.6;">⚠️ 避けたい色</div>
+          <div class="swatches-row" id="pc-avoid"></div>
+        </div>
+      </div>
+      <!-- Face Type -->
+      <div class="result-card">
+        <span class="result-tag">顔タイプ診断</span>
+        <div class="result-value" id="ft-type">—</div>
+        <div class="result-conf" id="ft-conf"></div>
+        <div class="bar-bg"><div class="bar-fill" id="ft-bar" style="width:0"></div></div>
+        <div class="result-desc" id="ft-desc"></div>
+        <div style="margin-top:.8rem;">
+          <div class="swatch-lbl">💡 おすすめスタイル</div>
+          <div id="ft-styles" style="margin-top:.35rem;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Style preferences (hidden until analysis done) -->
+  <div class="card" id="prefs-card" style="display:none;">
+    <div class="card-title">スタイル設定</div>
+
+    <div class="pref-section">
+      <span class="pref-label">ファッションスタイル（複数可）</span>
+      <div class="tag-group">
+        <button class="tag" data-g="style" data-v="casual" onclick="toggleTag(this)">カジュアル</button>
+        <button class="tag" data-g="style" data-v="kirei" onclick="toggleTag(this)">キレイめ</button>
+        <button class="tag" data-g="style" data-v="feminine" onclick="toggleTag(this)">フェミニン</button>
+        <button class="tag" data-g="style" data-v="street" onclick="toggleTag(this)">ストリート</button>
+        <button class="tag" data-g="style" data-v="sporty" onclick="toggleTag(this)">スポーティ</button>
+        <button class="tag" data-g="style" data-v="natural" onclick="toggleTag(this)">ナチュラル</button>
+        <button class="tag" data-g="style" data-v="office" onclick="toggleTag(this)">オフィス</button>
+        <button class="tag" data-g="style" data-v="mode" onclick="toggleTag(this)">モード</button>
+      </div>
+    </div>
+
+    <div class="pref-section">
+      <span class="pref-label">年代</span>
+      <div class="tag-group">
+        <button class="tag" data-g="age" data-v="teens" onclick="toggleTag(this)">10代</button>
+        <button class="tag" data-g="age" data-v="20s" onclick="toggleTag(this)">20代</button>
+        <button class="tag" data-g="age" data-v="30s" onclick="toggleTag(this)">30代</button>
+        <button class="tag" data-g="age" data-v="40s" onclick="toggleTag(this)">40代</button>
+        <button class="tag" data-g="age" data-v="50s" onclick="toggleTag(this)">50代以上</button>
+      </div>
+    </div>
+
+    <div class="pref-section">
+      <span class="pref-label">シーン</span>
+      <div class="tag-group">
+        <button class="tag" data-g="scene" data-v="daily" onclick="toggleTag(this)">デイリー</button>
+        <button class="tag" data-g="scene" data-v="date" onclick="toggleTag(this)">デート</button>
+        <button class="tag" data-g="scene" data-v="work" onclick="toggleTag(this)">仕事・オフィス</button>
+        <button class="tag" data-g="scene" data-v="party" onclick="toggleTag(this)">パーティ</button>
+        <button class="tag" data-g="scene" data-v="outdoor" onclick="toggleTag(this)">アウトドア</button>
+        <button class="tag" data-g="scene" data-v="travel" onclick="toggleTag(this)">旅行</button>
+      </div>
+    </div>
+
+    <div class="pref-section">
+      <span class="pref-label">予算感</span>
+      <div class="tag-group">
+        <button class="tag" data-g="budget" data-v="puchi" onclick="toggleTag(this)">プチプラ（〜5000円）</button>
+        <button class="tag" data-g="budget" data-v="mid" onclick="toggleTag(this)">ミドル（5000〜30000円）</button>
+        <button class="tag" data-g="budget" data-v="high" onclick="toggleTag(this)">ハイブランド（30000円〜）</button>
+      </div>
+    </div>
+
+    <button class="btn btn-primary" onclick="generatePrompt()">✨ DomoAI プロンプトを生成</button>
+  </div>
+
+  <!-- DomoAI prompt output -->
+  <div class="card" id="prompt-card" style="display:none;">
+    <div class="card-title">DomoAI プロンプト</div>
+    <div class="prompt-box" id="prompt-out"></div>
+    <div class="prompt-actions">
+      <button class="btn btn-copy" onclick="copyPrompt()">📋 コピー</button>
+      <a class="btn btn-ghost" href="https://app.domoai.app/" target="_blank" rel="noopener">DomoAI で開く →</a>
+    </div>
+    <p class="prompt-hint">※ DomoAI の「Text to Image / Image to Video」に貼り付けてください。このプロンプトで生成した画像を STEP 2 に使います。</p>
+  </div>
+
+  <hr class="phase-divider">
+
+  <!-- ══════════════════════════════════════════
+       STEP 2 : 服装→購入先検索
+  ══════════════════════════════════════════ -->
+  <div class="phase-row">
+    <span class="phase-badge p2">STEP 2</span>
+    <span class="phase-title">生成した服装から購入先を探す</span>
+  </div>
+
+  <div class="card">
+    <div class="card-title">DomoAI で生成した服装画像をアップロード</div>
+    <div class="upload-zone" id="zone2"
+         ondragover="onDrag(event,'2')" ondragleave="offDrag('2')" ondrop="onDrop(event,'2')">
+      <input type="file" id="file2" accept="image/*" onchange="loadFile(event,'2')">
+      <div class="upload-icon">🛍</div>
+      <div class="upload-text">服装画像をドラッグ＆ドロップ</div>
+      <div class="upload-sub">AIが各アイテムを特定し、日本のオンラインストアで購入先を検索します</div>
+    </div>
+
+    <div class="preview-wrap" id="prev2">
+      <img class="preview-img" id="img2" alt="">
+      <div class="preview-side">
+        <p class="preview-hint">服装画像が選択されました。<br>「購入先を検索」を押してください。</p>
+        <button class="btn btn-pink" id="outfit-btn" onclick="analyzeOutfit()">🔎 購入先を検索</button>
+        <button class="btn btn-ghost" onclick="resetZone('2')">✕ 変更</button>
+        <div class="error-box" id="err2"></div>
+      </div>
+    </div>
+
+    <div class="loading-wrap" id="load2">
+      <div class="spinner pink"></div>
+      <div class="loading-text">服装を解析してアイテムと購入先を検索中…</div>
+    </div>
+  </div>
+
+  <!-- Shopping results -->
+  <div id="shop-wrap" style="display:none;">
+    <div class="card-title" style="padding:.2rem 0 .9rem;">🏪 アイテム別 購入先一覧</div>
+    <div id="shop-list"></div>
+  </div>
+
+</div><!-- /wrap -->
+
+<script>
+/* ── State ── */
+const S = {
+  key: '',
+  img1: null, type1: 'image/jpeg',
+  img2: null, type2: 'image/jpeg',
+  analysis: null,
+  prefs: { style:[], age:[], scene:[], budget:[] }
+};
+
+/* ── Init ── */
+(function(){
+  const k = localStorage.getItem('fashion_ak');
+  if(k){ document.getElementById('api-key').value = k; S.key = k; }
+})();
+
+function saveKey(){
+  const k = document.getElementById('api-key').value.trim();
+  S.key = k;
+  if(k) localStorage.setItem('fashion_ak', k);
+  const b = event.target;
+  b.textContent = '✓ 保存済み';
+  setTimeout(()=> b.textContent = '保存', 1600);
+}
+
+/* ── File / drag ── */
+function onDrag(e,id){ e.preventDefault(); document.getElementById('zone'+id).classList.add('drag-over'); }
+function offDrag(id){ document.getElementById('zone'+id).classList.remove('drag-over'); }
+function onDrop(e,id){ e.preventDefault(); offDrag(id); const f=e.dataTransfer.files[0]; if(f&&f.type.startsWith('image/')) setFile(f,id); }
+function loadFile(e,id){ const f=e.target.files[0]; if(f) setFile(f,id); }
+
+function setFile(file,id){
+  const r = new FileReader();
+  r.onload = ev => {
+    const b64 = ev.target.result.split(',')[1];
+    if(id==='1'){ S.img1=b64; S.type1=file.type||'image/jpeg'; }
+    else         { S.img2=b64; S.type2=file.type||'image/jpeg'; }
+    document.getElementById('img'+id).src = ev.target.result;
+    document.getElementById('zone'+id).style.display='none';
+    document.getElementById('prev'+id).classList.add('show');
+    hideErr(id);
+  };
+  r.readAsDataURL(file);
+}
+
+function resetZone(id){
+  if(id==='1'){ S.img1=null; document.getElementById('file1').value=''; }
+  else        { S.img2=null; document.getElementById('file2').value=''; }
+  document.getElementById('zone'+id).style.display='';
+  document.getElementById('prev'+id).classList.remove('show');
+}
+
+/* ── Claude API ── */
+async function claude(messages, maxTok=1600){
+  const key = S.key || document.getElementById('api-key').value.trim();
+  if(!key) throw new Error('右上の入力欄に Anthropic API キーを入力して「保存」してください。');
+  const model = document.getElementById('model-sel')?.value || 'claude-opus-4-8';
+  const res = await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{
+      'x-api-key': key,
+      'anthropic-version': '2023-06-01',
+      'content-type': 'application/json',
+      'anthropic-dangerous-direct-browser-calls': 'true'
+    },
+    body: JSON.stringify({ model, max_tokens: maxTok, messages })
+  });
+  if(!res.ok){
+    const e = await res.json().catch(()=>({}));
+    throw new Error(e.error?.message || `API エラー (${res.status})`);
+  }
+  return res.json();
+}
+
+/* ── STEP 1: Analyze person photo ── */
+async function analyzePhoto(){
+  if(!S.img1) return;
+  const btn = document.getElementById('analyze-btn');
+  btn.disabled = true;
+  document.getElementById('prev1').classList.remove('show');
+  document.getElementById('load1').classList.add('show');
+  document.getElementById('results-wrap').style.display = 'none';
+  document.getElementById('prefs-card').style.display = 'none';
+  document.getElementById('prompt-card').style.display = 'none';
+  hideErr('1');
+
+  try {
+    const resp = await claude([{
+      role:'user',
+      content:[
+        { type:'image', source:{ type:'base64', media_type:S.type1, data:S.img1 } },
+        { type:'text', text: ANALYSIS_PROMPT }
+      ]
+    }], 1800);
+
+    const raw = resp.content[0].text.trim();
+    let data;
+    try{
+      const m = raw.match(/\{[\s\S]*\}/);
+      data = JSON.parse(m ? m[0] : raw);
+    }catch(_){ throw new Error('診断結果を解析できませんでした。別の写真で試してください。'); }
+
+    S.analysis = data;
+    renderAnalysis(data);
+
+  } catch(e){
+    document.getElementById('prev1').classList.add('show');
+    showErr('1', e.message);
+  } finally {
+    document.getElementById('load1').classList.remove('show');
+    btn.disabled = false;
+  }
+}
+
+const ANALYSIS_PROMPT = `あなたはパーソナルカラーリストかつ顔タイプ診断士のプロです。
+日本の診断基準（パーソナルカラー4シーズン理論 / 顔タイプ診断アカデミー®8タイプ）に基づき、
+この写真の人物を高精度で分析してください。
+
+【パーソナルカラー 4シーズン】
+- Spring（イエベ春）: 黄み肌・明るい茶目・温かみのある髪。コーラル・ピーチ・ゴールド系
+- Summer（ブルベ夏）: ピンク肌・ソフトな目・くすみ髪。ラベンダー・ローズ・スモーキー系
+- Autumn（イエベ秋）: 黄み深め肌・深茶目・深い髪。テラコッタ・オリーブ・マスタード系
+- Winter（ブルベ冬）: 青白い肌・コントラスト高い目・艶髪。ビビッド・モノクロ・深寒色系
+
+【顔タイプ 8分類】(輪郭の直線/曲線・大人/子供顔・縦横比)
+フェミニン/エレガント/ソフトエレガント/クール/クールカジュアル/ナチュラル/フレッシュ/キュート
+
+以下のJSON形式のみで回答してください（前後の文章は不要）:
+{
+  "personalColor": {
+    "season": "Spring",
+    "seasonJP": "イエベ春",
+    "confidence": 85,
+    "skinTone": "黄みがかった明るい肌",
+    "eyeColor": "明るい茶色",
+    "hairColor": "温かみのあるブラウン",
+    "description": "全体的に温かみと明るさがあります。イエローベースの明るい肌が特徴的で、鮮やかで暖かい色が映えます。",
+    "bestColors": ["#FFB347","#FF7F7F","#98D4A3","#FFD580","#FFA07A"],
+    "worstColors": ["#4169E1","#808080","#2E4057"]
+  },
+  "faceType": {
+    "type": "フレッシュ",
+    "confidence": 78,
+    "features": "直線的な輪郭と子供っぽい印象、バランスの取れた顔立ち",
+    "description": "清潔感とフレッシュさが共存するタイプ。シンプルでクリーンなスタイルが得意です。",
+    "recommendedStyles": ["シンプルカジュアル","カジュアルシック","スポーツミックス"]
+  }
+}`;
+
+function renderAnalysis(d){
+  const {personalColor:pc, faceType:ft} = d;
+
+  // season color class
+  const cls = {Spring:'spring',Summer:'summer',Autumn:'autumn',Winter:'winter'}[pc.season]||'';
+  document.getElementById('pc-season').innerHTML = `<span class="${cls}">${pc.seasonJP}</span>`;
+  document.getElementById('pc-conf').textContent = `確度 ${pc.confidence}%　|　${pc.skinTone}`;
+  document.getElementById('pc-bar').style.width = pc.confidence+'%';
+  document.getElementById('pc-desc').textContent = pc.description;
+
+  const bestEl = document.getElementById('pc-best');
+  bestEl.innerHTML = '';
+  (pc.bestColors||[]).forEach(h=>{
+    const s=document.createElement('div');
+    s.className='swatch'; s.style.background=h; s.title=h;
+    bestEl.appendChild(s);
+  });
+
+  const avoidEl = document.getElementById('pc-avoid');
+  avoidEl.innerHTML = '';
+  (pc.worstColors||[]).forEach(h=>{
+    const s=document.createElement('div');
+    s.className='swatch avoid'; s.style.background=h; s.title=h;
+    avoidEl.appendChild(s);
+  });
+
+  document.getElementById('ft-type').textContent = ft.type;
+  document.getElementById('ft-conf').textContent = `確度 ${ft.confidence}%　|　${ft.features}`;
+  document.getElementById('ft-bar').style.width = ft.confidence+'%';
+  document.getElementById('ft-desc').textContent = ft.description;
+
+  const stylesEl = document.getElementById('ft-styles');
+  stylesEl.innerHTML = (ft.recommendedStyles||[]).map(s=>`<span class="style-pill">${s}</span>`).join('');
+
+  document.getElementById('results-wrap').style.display = 'block';
+  document.getElementById('prefs-card').style.display = 'block';
+  document.getElementById('results-wrap').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+/* ── Tags ── */
+function toggleTag(btn){
+  const g = btn.dataset.g, v = btn.dataset.v;
+  btn.classList.toggle('on');
+  if(btn.classList.contains('on')){
+    if(!S.prefs[g].includes(v)) S.prefs[g].push(v);
+  } else {
+    S.prefs[g] = S.prefs[g].filter(x=>x!==v);
+  }
+}
+
+/* ── Generate DomoAI prompt ── */
+function generatePrompt(){
+  if(!S.analysis) return;
+  const {personalColor:pc, faceType:ft} = S.analysis;
+  const {style, age, scene, budget} = S.prefs;
+
+  const styleMap={casual:'casual',kirei:'clean and sophisticated',feminine:'feminine and graceful',
+    street:'streetwear',sporty:'sporty athleisure',natural:'natural and earthy',
+    office:'professional office wear',mode:'avant-garde mode fashion'};
+  const ageMap={teens:'teenage girl',  '20s':'woman in her 20s','30s':'woman in her 30s',
+    '40s':'woman in her 40s','50s':'mature woman'};
+  const sceneMap={daily:'everyday casual outing',date:'romantic date night',
+    work:'professional workplace',party:'evening party or event',
+    outdoor:'outdoor activity',travel:'travel'};
+  const budgetMap={puchi:'affordable fast fashion',mid:'mid-range quality fashion',
+    high:'luxury designer fashion'};
+
+  const colorGuide = {
+    Spring:  'warm coral, peach, golden yellow, warm ivory, salmon',
+    Summer:  'dusty rose, lavender, powder blue, sage green, mauve',
+    Autumn:  'terracotta, olive green, mustard yellow, burnt orange, caramel brown',
+    Winter:  'pure white, vivid red, royal blue, charcoal black, emerald green'
+  }[pc.season] || 'neutral balanced tones';
+
+  const faceStyleGuide = {
+    'フェミニン':     'romantic details, soft ruffles, floral prints, flowy fabrics',
+    'エレガント':     'tailored silhouettes, clean lines, structured cuts, minimal',
+    'ソフトエレガント':'soft tailoring, subtle prints, gentle draping',
+    'クール':         'sharp geometric cuts, monochrome palette, structured pieces',
+    'クールカジュアル':'relaxed structured pieces, denim, clean modern silhouettes',
+    'ナチュラル':     'linen textures, loose effortless silhouettes, natural layering',
+    'フレッシュ':     'clean minimal cuts, simple color-blocking, neat casual',
+    'キュート':       'playful details, soft pastels, rounded shapes, sweet accents'
+  }[ft.type] || 'contemporary balanced style';
+
+  const styleStr  = style.map(s=>styleMap[s]).join(', ') || 'stylish casual';
+  const ageStr    = ageMap[age[0]] || 'young woman';
+  const sceneStr  = sceneMap[scene[0]] || 'everyday casual';
+  const budgetStr = budgetMap[budget[0]] || 'mid-range fashion';
+
+  const prompt =
+`A ${ageStr} wearing a ${styleStr} outfit, styled for ${sceneStr}. ${budgetStr}.
+
+Outfit details: ${faceStyleGuide}. Color palette: ${colorGuide}.
+
+Full body fashion editorial shot. Clean minimalist background, natural studio lighting, sharp focus, 4K high detail. Complete coordinated outfit — top, bottom, shoes, and accessories. Modern Japanese fashion aesthetic. Photorealistic.`;
+
+  document.getElementById('prompt-out').textContent = prompt;
+  document.getElementById('prompt-card').style.display = 'block';
+  document.getElementById('prompt-card').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+function copyPrompt(){
+  const txt = document.getElementById('prompt-out').textContent;
+  navigator.clipboard.writeText(txt).then(()=>{
+    const b = event.target;
+    b.textContent = '✓ コピー済み';
+    setTimeout(()=> b.textContent = '📋 コピー', 1600);
+  });
+}
+
+/* ── STEP 2: Outfit → shopping ── */
+async function analyzeOutfit(){
+  if(!S.img2) return;
+  const btn = document.getElementById('outfit-btn');
+  btn.disabled = true;
+  document.getElementById('prev2').classList.remove('show');
+  document.getElementById('load2').classList.add('show');
+  document.getElementById('shop-wrap').style.display = 'none';
+  hideErr('2');
+
+  try {
+    const resp = await claude([{
+      role:'user',
+      content:[
+        { type:'image', source:{ type:'base64', media_type:S.type2, data:S.img2 } },
+        { type:'text', text: OUTFIT_PROMPT }
+      ]
+    }], 2200);
+
+    const raw = resp.content[0].text.trim();
+    let data;
+    try{
+      const m = raw.match(/\{[\s\S]*\}/);
+      data = JSON.parse(m ? m[0] : raw);
+    }catch(_){ throw new Error('服装の解析に失敗しました。別の画像で試してください。'); }
+
+    renderShop(data.items || []);
+
+  } catch(e){
+    document.getElementById('prev2').classList.add('show');
+    showErr('2', e.message);
+  } finally {
+    document.getElementById('load2').classList.remove('show');
+    btn.disabled = false;
+  }
+}
+
+const OUTFIT_PROMPT = `この服装画像を詳しく分析してください。
+写っている各ファッションアイテムを特定し、日本のオンラインショッピングサイトで
+検索しやすい具体的なクエリを生成してください。
+
+以下のJSON形式のみで回答してください:
+{
+  "items": [
+    {
+      "category": "トップス",
+      "emoji": "👕",
+      "name": "白オーバーサイズシャツ",
+      "searchQueryJP": "白シャツ レディース オーバーサイズ コットン",
+      "priceRange": "2000〜6000円",
+      "features": "クリーンな白地でシンプル。ゆったりとした肩落ちシルエットでリラックス感がある。"
+    }
+  ]
+}
+
+分析カテゴリ（写っているもののみ）:
+- トップス(シャツ・ブラウス・Tシャツ・ニット等)
+- ボトムス(パンツ・スカート等)
+- ワンピース / セットアップ
+- アウター
+- 靴・シューズ
+- バッグ
+- アクセサリー
+
+各アイテムは色・素材感・シルエット・デザイン特徴を具体的に記述してください。`;
+
+const SHOPS = [
+  { name:'ZOZOTOWN', cls:'s-zozo',    url: q=>`https://zozo.jp/search/?p=${enc(q)}&sex=2` },
+  { name:'楽天ファッション', cls:'s-rakuten', url: q=>`https://search.rakuten.co.jp/search/mall/${enc(q)}/?f=1&g=100371` },
+  { name:'Amazon', cls:'s-amazon',   url: q=>`https://www.amazon.co.jp/s?k=${enc(q)}&i=fashion` },
+  { name:'Uniqlo', cls:'s-uniqlo',   url: q=>`https://www.uniqlo.com/jp/ja/search?q=${enc(q)}` },
+  { name:'GU',     cls:'s-gu',       url: q=>`https://www.gu-global.com/jp/ja/search.html?q=${enc(q)}` },
+  { name:'Magaseek',cls:'s-mag',     url: q=>`https://www.magaseek.com/search/index/tp_1?q=${enc(q)}` },
+  { name:'WEAR',   cls:'s-wear',     url: q=>`https://wear.jp/search/?q=${enc(q)}` },
+];
+const enc = encodeURIComponent;
+
+function renderShop(items){
+  const list = document.getElementById('shop-list');
+  list.innerHTML = items.map(it=>`
+    <div class="item-card">
+      <div class="item-header">
+        <span style="font-size:1.2rem;">${it.emoji||'👗'}</span>
+        <span class="item-cat">${it.category}</span>
+        <span class="item-name">${it.name}</span>
+        <span class="item-price">${it.priceRange||''}</span>
+      </div>
+      <div class="item-feat">${it.features||''}</div>
+      <div class="shop-links">
+        ${SHOPS.map(sh=>`<a class="shop-btn ${sh.cls}" href="${sh.url(it.searchQueryJP)}" target="_blank" rel="noopener">${sh.name}</a>`).join('')}
+      </div>
+    </div>
+  `).join('');
+  document.getElementById('shop-wrap').style.display = 'block';
+  document.getElementById('shop-wrap').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+/* ── Utils ── */
+function showErr(id, msg){ const e=document.getElementById('err'+id); e.textContent=msg; e.classList.add('show'); }
+function hideErr(id){ const e=document.getElementById('err'+id); if(e) e.classList.remove('show'); }
+</script>
+</body>
+</html>
