@@ -477,6 +477,9 @@ label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;
 .dl-btn.jpeg-bulk{border-color:rgba(255,107,157,.35);color:#ff6b9d;background:rgba(255,107,157,.07);}
 .dl-btn.jpeg-bulk:hover{background:rgba(255,107,157,.18);border-color:#ff6b9d;color:#fff;}
 .dl-btn.jpeg-bulk:disabled{opacity:.45;cursor:not-allowed;pointer-events:none;}
+.dl-btn.jpeg-merge{border-color:rgba(251,146,60,.35);color:#fb923c;background:rgba(251,146,60,.07);}
+.dl-btn.jpeg-merge:hover{background:rgba(251,146,60,.18);border-color:#fb923c;color:#fff;}
+.dl-btn.jpeg-merge:disabled{opacity:.45;cursor:not-allowed;pointer-events:none;}
 
 /* ── Continue progress ── */
 #continue-progress{display:none;text-align:center;padding:.7rem;font-size:.75rem;color:var(--text-muted);}
@@ -725,11 +728,12 @@ label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;
     </div>
 
     <div class="jpeg-dl-bar" id="jpeg-dl-bar">
-      <span class="dl-range-label">📸 JPEG一括保存 No.</span>
+      <span class="dl-range-label">📸 JPEG保存 No.</span>
       <input class="dl-range-input" id="dl-range-from" type="number" min="1" value="1">
       <span class="dl-range-label">〜</span>
       <input class="dl-range-input" id="dl-range-to" type="number" min="1">
-      <button class="dl-btn jpeg-bulk" id="dl-range-btn" onclick="downloadRangeJPEG()">💾 保存する</button>
+      <button class="dl-btn jpeg-bulk" id="dl-range-btn" onclick="downloadRangeJPEG()">💾 個別保存</button>
+      <button class="dl-btn jpeg-merge" id="dl-merge-btn" onclick="mergeRangeJPEG()">🖼 1枚に合成</button>
     </div>
 
     <div class="sb-grid" id="sb-grid"></div>
@@ -3901,6 +3905,93 @@ async function downloadRangeCore(from, to, btn, resetLabel) {
   btn.disabled = false;
   btn.textContent = `✓ ${count}枚 保存完了`;
   setTimeout(() => { btn.textContent = resetLabel; }, 3000);
+}
+
+// ─────────────────────────────────────────
+// Merge range panels into single JPEG
+// ─────────────────────────────────────────
+async function mergeRangeJPEG() {
+  const total = allPanels.length;
+  if (!total) return;
+
+  const fromVal = parseInt(document.getElementById('dl-range-from').value);
+  const toVal   = parseInt(document.getElementById('dl-range-to').value);
+  const from = isNaN(fromVal) ? 1     : Math.max(1,     fromVal);
+  const to   = isNaN(toVal)   ? total : Math.min(total, toVal);
+
+  if (from > to) { showError('保存範囲が正しくありません'); return; }
+
+  const btn   = document.getElementById('dl-merge-btn');
+  btn.disabled = true;
+
+  const count = to - from + 1;
+  const COLS  = count <= 2 ? count : count <= 6 ? 3 : count <= 12 ? 4 : 5;
+  const ROWS  = Math.ceil(count / COLS);
+  const PW = 320, PH = 180, GAP = 4;
+  const LH = 20; // label height per panel
+
+  const cw = COLS * PW + (COLS - 1) * GAP;
+  const ch = ROWS * (PH + LH) + (ROWS - 1) * GAP;
+
+  const canvas = document.createElement('canvas');
+  canvas.width  = cw;
+  canvas.height = ch;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#08081a';
+  ctx.fillRect(0, 0, cw, ch);
+
+  const domPanels = document.querySelectorAll('.sb-panel');
+
+  for (let i = from - 1; i < to; i++) {
+    const idx = i - (from - 1);
+    btn.textContent = `⏳ ${idx + 1} / ${count}`;
+
+    const panelEl = domPanels[i];
+    if (!panelEl) continue;
+    const svgEl = panelEl.querySelector('.panel-art svg');
+    const numEl = panelEl.querySelector('.panel-num');
+    if (!svgEl) continue;
+
+    const col = idx % COLS;
+    const row = Math.floor(idx / COLS);
+    const x = col * (PW + GAP);
+    const y = row * (PH + LH + GAP);
+
+    await new Promise(resolve => {
+      const svgData = new XMLSerializer().serializeToString(svgEl);
+      const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+      const svgUrl  = URL.createObjectURL(svgBlob);
+      const img = new Image();
+      img.onload = () => {
+        ctx.drawImage(img, x, y, PW, PH);
+        URL.revokeObjectURL(svgUrl);
+        // Panel number label
+        ctx.fillStyle = 'rgba(0,0,0,.75)';
+        ctx.fillRect(x, y + PH, PW, LH);
+        ctx.fillStyle = '#c0d0ff';
+        ctx.font = `bold ${LH * 0.62}px monospace`;
+        ctx.textAlign = 'left';
+        ctx.fillText((numEl?.textContent || String(i + 1).padStart(3, '0')).trim(), x + 6, y + PH + LH * 0.76);
+        resolve();
+      };
+      img.onerror = () => { URL.revokeObjectURL(svgUrl); resolve(); };
+      img.src = svgUrl;
+    });
+  }
+
+  canvas.toBlob(blob => {
+    const url = URL.createObjectURL(blob);
+    const a   = document.createElement('a');
+    a.href     = url;
+    a.download = `storyboard-${String(from).padStart(3,'0')}-${String(to).padStart(3,'0')}.jpg`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    btn.disabled = false;
+    btn.textContent = `✓ 合成完了`;
+    setTimeout(() => { btn.textContent = '🖼 1枚に合成'; }, 3000);
+  }, 'image/jpeg', 0.92);
 }
 
 // ─────────────────────────────────────────
