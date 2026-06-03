@@ -337,8 +337,8 @@ header{
     </div>
   </div>
 
-  <!-- Style preferences — 写真選択後に即表示 -->
-  <div class="card" id="prefs-card" style="display:none;">
+  <!-- Style preferences — 常に表示、写真未選択時はボタンを無効化 -->
+  <div class="card" id="prefs-card">
     <div class="card-title">スタイル設定を選んでください</div>
 
     <div class="pref-section">
@@ -388,7 +388,7 @@ header{
     </div>
 
     <div style="display:flex;align-items:center;gap:.7rem;flex-wrap:wrap;margin-top:.4rem;">
-      <button class="btn btn-primary" id="analyze-btn" onclick="analyzePhoto()">🔍 診断してプロンプトを生成</button>
+      <button class="btn btn-primary" id="analyze-btn" onclick="analyzePhoto()" disabled>🔍 写真を選択してから診断開始</button>
       <div class="model-row" style="margin-top:0;">
         <span style="font-size:.7rem;color:var(--text-muted);">モデル</span>
         <select class="model-select" id="model-sel">
@@ -536,8 +536,11 @@ function setFile(file,id){
     document.getElementById('zone'+id).style.display='none';
     document.getElementById('prev'+id).classList.add('show');
     hideErr(id);
-    // 写真選択直後にスタイル設定を表示
-    if(id==='1') document.getElementById('prefs-card').style.display='block';
+    if(id==='1'){
+      const btn = document.getElementById('analyze-btn');
+      btn.disabled = false;
+      btn.textContent = '🔍 診断してプロンプトを生成';
+    }
   };
   r.readAsDataURL(file);
 }
@@ -545,9 +548,11 @@ function setFile(file,id){
 function resetZone(id){
   if(id==='1'){
     S.img1=null; document.getElementById('file1').value='';
-    document.getElementById('prefs-card').style.display='none';
     document.getElementById('results-wrap').style.display='none';
     document.getElementById('prompt-card').style.display='none';
+    const btn = document.getElementById('analyze-btn');
+    btn.disabled = true;
+    btn.textContent = '🔍 写真を選択してから診断開始';
   } else {
     S.img2=null; document.getElementById('file2').value='';
   }
@@ -582,7 +587,6 @@ async function analyzePhoto(){
   if(!S.img1) return;
   const btn = document.getElementById('analyze-btn');
   btn.disabled = true;
-  document.getElementById('prefs-card').style.display = 'none';
   document.getElementById('load1').classList.add('show');
   document.getElementById('results-wrap').style.display = 'none';
   document.getElementById('prompt-card').style.display = 'none';
@@ -609,7 +613,6 @@ async function analyzePhoto(){
     generatePrompt(); // 分析完了後にプロンプトを自動生成
 
   } catch(e){
-    document.getElementById('prefs-card').style.display = 'block';
     showErr('1', e.message);
   } finally {
     document.getElementById('load1').classList.remove('show');
