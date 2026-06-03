@@ -468,6 +468,14 @@ label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;
 .dl-btn.primary:hover{opacity:.9;box-shadow:0 4px 20px var(--accent-glow);}
 .dl-btn.continue-btn{border-color:rgba(6,182,212,.3);color:var(--accent2);background:rgba(6,182,212,.07);}
 .dl-btn.continue-btn:hover{background:rgba(6,182,212,.15);border-color:var(--accent2);}
+.dl-range-row{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;justify-content:center;width:100%;padding-top:.6rem;border-top:1px solid var(--border);}
+.dl-range-label{font-size:.7rem;color:var(--text-muted);white-space:nowrap;}
+.dl-range-input{width:4.2rem;padding:.35rem .5rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:.72rem;text-align:center;-moz-appearance:textfield;}
+.dl-range-input::-webkit-inner-spin-button,.dl-range-input::-webkit-outer-spin-button{-webkit-appearance:none;}
+.dl-range-input:focus{outline:none;border-color:var(--accent2);}
+.dl-btn.jpeg-bulk{border-color:rgba(255,107,157,.35);color:#ff6b9d;background:rgba(255,107,157,.07);}
+.dl-btn.jpeg-bulk:hover{background:rgba(255,107,157,.18);border-color:#ff6b9d;color:#fff;}
+.dl-btn.jpeg-bulk:disabled{opacity:.45;cursor:not-allowed;pointer-events:none;}
 
 /* ── Continue progress ── */
 #continue-progress{display:none;text-align:center;padding:.7rem;font-size:.75rem;color:var(--text-muted);}
@@ -720,6 +728,14 @@ label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;
     <div class="download-bar" id="download-bar">
       <button class="dl-btn continue-btn" id="continue-btn" onclick="continueGenerate()">＋ 続きを6カット生成</button>
       <button class="dl-btn" onclick="printStoryboard()">🖨 印刷 / PDF保存</button>
+      <div class="dl-range-row">
+        <span class="dl-range-label">JPEG一括保存:</span>
+        <span class="dl-range-label">No.</span>
+        <input class="dl-range-input" id="dl-range-from" type="number" min="1" value="1" placeholder="1">
+        <span class="dl-range-label">〜</span>
+        <input class="dl-range-input" id="dl-range-to" type="number" min="1" placeholder="全て">
+        <button class="dl-btn jpeg-bulk" id="dl-range-btn" onclick="downloadRangeJPEG()">💾 JPEG一括保存</button>
+      </div>
     </div>
 
     <!-- DomoAI Panel: D×5で表示 -->
@@ -2977,6 +2993,11 @@ function renderStoryboard(panels, duration) {
   document.getElementById('download-bar').classList.add('visible');
   document.getElementById('storyboard-area').scrollIntoView({ behavior:'smooth', block:'start' });
 
+  // Sync range-to with total panel count
+  document.getElementById('dl-range-to').value = panels.length;
+  document.getElementById('dl-range-to').max   = panels.length;
+  document.getElementById('dl-range-from').max = panels.length;
+
   // Show continue button only when generated count < requested count
   updateContinueBtn();
 }
@@ -3095,6 +3116,10 @@ async function continueGenerate() {
     allPanels = allPanels.concat(newPanels);
     appendPanels(newPanels, offset);
     document.getElementById('sb-panels-badge').textContent = allPanels.length + ' cuts';
+    const dlTo = document.getElementById('dl-range-to');
+    dlTo.value = allPanels.length;
+    dlTo.max   = allPanels.length;
+    document.getElementById('dl-range-from').max = allPanels.length;
     updateContinueBtn();
     // Scroll to newly added panels
     const grid = document.getElementById('sb-grid');
@@ -3803,6 +3828,73 @@ function downloadPanelJPEG(btn) {
   };
   img.onerror = () => URL.revokeObjectURL(svgUrl);
   img.src = svgUrl;
+}
+
+// ─────────────────────────────────────────
+// Bulk JPEG range download
+// ─────────────────────────────────────────
+async function downloadRangeJPEG() {
+  const total = allPanels.length;
+  if (!total) return;
+
+  const fromVal = parseInt(document.getElementById('dl-range-from').value);
+  const toVal   = parseInt(document.getElementById('dl-range-to').value);
+  const from = isNaN(fromVal) ? 1 : Math.max(1, fromVal);
+  const to   = isNaN(toVal)   ? total : Math.min(total, toVal);
+
+  if (from > to) {
+    showError('保存範囲が正しくありません（開始番号 ≤ 終了番号にしてください）');
+    return;
+  }
+
+  const btn = document.getElementById('dl-range-btn');
+  btn.disabled = true;
+  const count = to - from + 1;
+  const panels = document.querySelectorAll('.sb-panel');
+
+  for (let i = from - 1; i < to; i++) {
+    const done = i - (from - 1) + 1;
+    btn.textContent = `⏳ ${done} / ${count}`;
+    const panelEl = panels[i];
+    if (!panelEl) continue;
+    const svgEl = panelEl.querySelector('.panel-art svg');
+    const numEl = panelEl.querySelector('.panel-num');
+    if (!svgEl) continue;
+
+    await new Promise(resolve => {
+      const filename = `panel-${(numEl?.textContent || String(i+1).padStart(3,'0')).trim()}.jpg`;
+      const svgData  = new XMLSerializer().serializeToString(svgEl);
+      const svgBlob  = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+      const svgUrl   = URL.createObjectURL(svgBlob);
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 640; canvas.height = 360;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#12122a';
+        ctx.fillRect(0, 0, 640, 360);
+        ctx.drawImage(img, 0, 0, 640, 360);
+        URL.revokeObjectURL(svgUrl);
+        canvas.toBlob(blob => {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+          setTimeout(resolve, 350);
+        }, 'image/jpeg', 0.92);
+      };
+      img.onerror = () => { URL.revokeObjectURL(svgUrl); setTimeout(resolve, 100); };
+      img.src = svgUrl;
+    });
+  }
+
+  btn.disabled = false;
+  btn.textContent = `✓ ${count}枚 保存完了`;
+  setTimeout(() => { btn.textContent = '💾 JPEG一括保存'; }, 3000);
 }
 
 // ─────────────────────────────────────────
