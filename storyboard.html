@@ -2204,6 +2204,28 @@ const LYRIC_IMAGERY = [
   { kw:['声','sing','歌','言葉'],                 ja:'声が空間に響き渡る表現豊かなシーン',     en:'voice resonating through space, expressive moment' },
   { kw:['歩','walk','旅','道'],                   ja:'一歩一歩踏みしめる旅の情景',             en:'one step at a time, journey unfolding' },
   { kw:['終','さよなら','goodbye','別れ'],        ja:'別れの瞬間、長い余韻と静寂',             en:'moment of farewell, long silence and lingering emotion' },
+  { kw:['朝','morning','夜明','dawn','日の出'],   ja:'夜明けの淡い光と新しい一日の予感',       en:'pale dawn light, promise of a new day' },
+  { kw:['夕','夕暮','sunset','黄昏','たそがれ'],  ja:'茜色に染まる夕暮れの空とロングシャドウ', en:'crimson sunset sky, long golden shadows' },
+  { kw:['雪','snow','吹雪','winter','冬'],        ja:'静かに降り積もる雪、白い吐息',           en:'silently falling snow, white frozen breath' },
+  { kw:['炎','火','flame','fire','燃え'],         ja:'揺らめく炎と熱を帯びた赤い光',           en:'flickering flames, hot red glow' },
+  { kw:['闇','dark','影','shadow','暗'],          ja:'深い闇に沈む輪郭と一筋の光',             en:'deep darkness, a single shaft of light' },
+  { kw:['鏡','reflect','映','mirror'],            ja:'鏡や水面に映るもう一人の自分',           en:'reflection of another self in mirror or water' },
+  { kw:['手紙','letter','言葉','message','文字'], ja:'綴られた言葉・手紙のクローズアップ',     en:'handwritten letter close-up, intimate words' },
+  { kw:['電車','駅','train','station','ホーム'],  ja:'走り去る電車とプラットホームの別れ',     en:'departing train, farewell on the platform' },
+  { kw:['窓','window','ガラス','glass'],          ja:'窓越しに外を見つめる横顔と反射光',       en:'profile gazing through a window, reflected light' },
+  { kw:['孤独','一人','ひとり','alone','lonely'], ja:'広い空間に佇むたった一人の孤独感',       en:'solitary figure in a vast empty space' },
+  { kw:['希望','未来','future','hope','明日'],    ja:'前を見据える眼差しと差し込む希望の光',   en:'forward-looking gaze, rays of hope breaking through' },
+  { kw:['痛','傷','pain','hurt','苦'],            ja:'抑えきれない痛みと張りつめた表情',       en:'suppressed pain, tense pained expression' },
+  { kw:['自由','解放','free','freedom','羽'],     ja:'束縛から解き放たれる開放的な躍動',       en:'liberated movement, breaking free from constraint' },
+  { kw:['時間','時計','time','clock','刻'],       ja:'流れる時間の象徴・時計や砂のモチーフ',   en:'passage of time, clock or falling sand motif' },
+  { kw:['月','moon','三日月','満月'],             ja:'夜空に浮かぶ月と青白い月光',             en:'moon in the night sky, pale moonlight' },
+  { kw:['手','hand','握','つなぐ','触れ'],        ja:'重なり合う手・触れ合う指先のクローズ',   en:'overlapping hands, fingertips touching, close-up' },
+  { kw:['笑','smile','笑顔','笑い','joy'],        ja:'弾けるような笑顔と暖かな空気感',         en:'radiant smile, warm joyful atmosphere' },
+  { kw:['雲','sky','空模様','cloud'],             ja:'流れる雲と移ろう空の表情',               en:'drifting clouds, shifting expressions of the sky' },
+  { kw:['鼓動','心臓','heart','脈','beat'],       ja:'高鳴る鼓動を視覚化したリズミカルな明滅', en:'visualized heartbeat, rhythmic pulsing light' },
+  { kw:['迷','彷徨','lost','まよ','迷子'],        ja:'行き先を見失い彷徨う不安定な構図',       en:'wandering lost, unstable disoriented framing' },
+  { kw:['静','沈黙','silence','しずか','quiet'],  ja:'物音ひとつない静寂と張りつめた間',       en:'absolute silence, taut motionless stillness' },
+  { kw:['季節','春','夏','秋','spring','summer','autumn'], ja:'移ろう季節の色彩と自然の変化', en:'changing seasonal colors, shifting nature' },
 ];
 
 function extractLyricImagery(text) {
@@ -2431,8 +2453,14 @@ function buildPanel(scene, idx, total, duration, styleKey, lyricsContext) {
     const timeTag   = `【タイム】${timeRange}　`;
     const timeTagEn = `[time: ${timeRange}] `;
 
-    finalPromptJa = `${timeTag}${lyricTag}${imgJa}${finalPromptJa}`;
-    finalPromptEn = `${timeTagEn}${lyricTagEn}${imgEn}${finalPromptEn}`;
+    // ── Overall tone atmosphere (from full-lyrics analysis) ──
+    const toneKey = lyricsContext?.lyricsAnalysis?.tone || 'neutral';
+    const atmo = toneAtmosphere(toneKey);
+    const atmoJa = `${atmo.ja}　`;
+    const atmoEn = `${atmo.en}, `;
+
+    finalPromptJa = `${timeTag}${lyricTag}${imgJa}${atmoJa}${finalPromptJa}`;
+    finalPromptEn = `${timeTagEn}${lyricTagEn}${imgEn}${atmoEn}${finalPromptEn}`;
     // Background prompt also gets the scene imagery so it stays coherent with lyrics
     if (imagery.ja.length) finalBgJa = `${imgJa}${finalBgJa}`;
     if (imagery.en.length) finalBgEn = `${imgEn}${finalBgEn}`;
@@ -2620,6 +2648,25 @@ function styleCineEn(styleKey) {
   return `[lens] ${c.lensEn}, [lighting] ${c.lightEn}, [color grade] ${c.colorEn}, [camera] ${c.camEn}, [mood] ${c.moodEn}, [aspect ratio] ${c.aspectEn}`;
 }
 
+// ─────────────────────────────────────────
+// Universal quality / technical boosters — appended to every image prompt
+// AI画像生成エンジンの精度を底上げする共通の品質タグ
+// ─────────────────────────────────────────
+const TECH_QUALITY_JA = '最高品質・プロのMV撮影クオリティ・緻密なディテール・シネマティックな構図・自然な陰影・フィルムグレイン・8K相当の解像感';
+const TECH_QUALITY_EN = 'masterpiece, best quality, professional music video cinematography, highly detailed, cinematic composition, natural shadows and lighting, subtle film grain, sharp focus, 8K UHD';
+// Negative guidance — what to avoid (helps generators with negative-prompt support)
+const NEG_QUALITY_EN = 'avoid: low quality, blurry, distorted anatomy, extra limbs, watermark, text artifacts, oversaturated, flat lighting, amateur snapshot';
+
+// Tone → atmosphere phrase (driven by overall lyrics analysis)
+function toneAtmosphere(tone) {
+  const map = {
+    bright:      { ja:'【トーン】明るく前向きで開放的な空気感・暖色寄りの希望に満ちた光', en:'[tone] bright, uplifting, open atmosphere, warm hopeful light' },
+    melancholic: { ja:'【トーン】切なく内省的な空気感・寒色寄りの静かな哀愁', en:'[tone] melancholic, introspective mood, cool quiet sorrow' },
+    neutral:     { ja:'【トーン】バランスの取れた感情の中庸・自然な色温度', en:'[tone] balanced emotional neutrality, natural color temperature' },
+  };
+  return map[tone] || map.neutral;
+}
+
 function buildImagePrompt(shot, pose, bg, styleKey, visualType, userReqHints) {
   const shotMap = {'EWS':'超広角ショット','WS':'ワイドショット','MS':'ミディアムショット','2S':'ツーショット','CU':'クローズアップ','ECU':'超クローズアップ'};
   const shotMapEn = {'EWS':'extreme wide shot','WS':'wide shot','MS':'medium shot','2S':'two shot','CU':'close-up','ECU':'extreme close-up'};
@@ -2702,8 +2749,8 @@ function buildImagePrompt(shot, pose, bg, styleKey, visualType, userReqHints) {
   const audio  = audioPromptHints();
   const audioJa = audio.ja ? `　${audio.ja}` : '';
   const audioEn = audio.en ? `, ${audio.en}` : '';
-  const ja = `${shotPart}${posePart}${bgPart}${vtPart}${cineJa}${audioJa}　${styleHint}${extraStyle}${reqJa}`.replace(/\s+/g,' ').trim();
-  const en = `${shotPartEn}${posePartEn}${bgPartEn}${vtPartEn}${cineEn}${audioEn}, ${styleHintEn}${extraStyleEn}${reqEn}`.replace(/\s+/g,' ').trim();
+  const ja = `${shotPart}${posePart}${bgPart}${vtPart}${cineJa}${audioJa}　${styleHint}${extraStyle}${reqJa}　【品質】${TECH_QUALITY_JA}`.replace(/\s+/g,' ').trim();
+  const en = `${shotPartEn}${posePartEn}${bgPartEn}${vtPartEn}${cineEn}${audioEn}, ${styleHintEn}${extraStyleEn}${reqEn}, ${TECH_QUALITY_EN}`.replace(/\s+/g,' ').trim();
   return { ja, en };
 }
 
