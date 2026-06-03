@@ -331,63 +331,15 @@ header{
     <div class="preview-wrap" id="prev1">
       <img class="preview-img" id="img1" alt="">
       <div class="preview-side">
-        <p class="preview-hint">写真が選択されました。<br>診断開始を押してください。</p>
-        <div class="model-row">
-          <span style="font-size:.7rem;color:var(--text-muted);">モデル</span>
-          <select class="model-select" id="model-sel">
-            <option value="claude-opus-4-8">claude-opus-4-8（高精度・推奨）</option>
-            <option value="claude-sonnet-4-6">claude-sonnet-4-6（速い・省コスト）</option>
-          </select>
-        </div>
-        <button class="btn btn-primary" id="analyze-btn" onclick="analyzePhoto()">🔍 診断開始</button>
-        <button class="btn btn-ghost" onclick="resetZone('1')">✕ 写真を変更</button>
-        <div class="error-box" id="err1"></div>
-      </div>
-    </div>
-
-    <div class="loading-wrap" id="load1">
-      <div class="spinner"></div>
-      <div class="loading-text">AIが顔・肌・色を分析中…</div>
-    </div>
-  </div>
-
-  <!-- Analysis results (hidden until done) -->
-  <div id="results-wrap" style="display:none;">
-    <div class="result-grid">
-      <!-- Personal Color -->
-      <div class="result-card">
-        <span class="result-tag">パーソナルカラー</span>
-        <div class="result-value" id="pc-season">—</div>
-        <div class="result-conf" id="pc-conf"></div>
-        <div class="bar-bg"><div class="bar-fill" id="pc-bar" style="width:0"></div></div>
-        <div class="result-desc" id="pc-desc"></div>
-        <div style="margin-top:.8rem;">
-          <div class="swatch-lbl">✨ 似合う色</div>
-          <div class="swatches-row" id="pc-best"></div>
-        </div>
-        <div style="margin-top:.5rem;">
-          <div class="swatch-lbl" style="opacity:.6;">⚠️ 避けたい色</div>
-          <div class="swatches-row" id="pc-avoid"></div>
-        </div>
-      </div>
-      <!-- Face Type -->
-      <div class="result-card">
-        <span class="result-tag">顔タイプ診断</span>
-        <div class="result-value" id="ft-type">—</div>
-        <div class="result-conf" id="ft-conf"></div>
-        <div class="bar-bg"><div class="bar-fill" id="ft-bar" style="width:0"></div></div>
-        <div class="result-desc" id="ft-desc"></div>
-        <div style="margin-top:.8rem;">
-          <div class="swatch-lbl">💡 おすすめスタイル</div>
-          <div id="ft-styles" style="margin-top:.35rem;"></div>
-        </div>
+        <p class="preview-hint">✅ 写真が選択されました。<br>下のスタイル設定を選んで「診断開始」を押してください。</p>
+        <button class="btn btn-ghost" onclick="resetZone('1')" style="margin-top:.3rem;">✕ 写真を変更</button>
       </div>
     </div>
   </div>
 
-  <!-- Style preferences (hidden until analysis done) -->
+  <!-- Style preferences — 写真選択後に即表示 -->
   <div class="card" id="prefs-card" style="display:none;">
-    <div class="card-title">スタイル設定</div>
+    <div class="card-title">スタイル設定を選んでください</div>
 
     <div class="pref-section">
       <span class="pref-label">ファッションスタイル（複数可）</span>
@@ -435,7 +387,57 @@ header{
       </div>
     </div>
 
-    <button class="btn btn-primary" onclick="generatePrompt()">✨ DomoAI プロンプトを生成</button>
+    <div style="display:flex;align-items:center;gap:.7rem;flex-wrap:wrap;margin-top:.4rem;">
+      <button class="btn btn-primary" id="analyze-btn" onclick="analyzePhoto()">🔍 診断してプロンプトを生成</button>
+      <div class="model-row" style="margin-top:0;">
+        <span style="font-size:.7rem;color:var(--text-muted);">モデル</span>
+        <select class="model-select" id="model-sel">
+          <option value="claude-opus-4-8">claude-opus-4-8（高精度・推奨）</option>
+          <option value="claude-sonnet-4-6">claude-sonnet-4-6（速い・省コスト）</option>
+        </select>
+      </div>
+    </div>
+    <div class="error-box" id="err1"></div>
+  </div>
+
+  <!-- Loading -->
+  <div class="loading-wrap" id="load1">
+    <div class="spinner"></div>
+    <div class="loading-text">AIが顔・肌・色・スタイルを分析中…</div>
+  </div>
+
+  <!-- Analysis results (hidden until done) -->
+  <div id="results-wrap" style="display:none;">
+    <div class="result-grid">
+      <!-- Personal Color -->
+      <div class="result-card">
+        <span class="result-tag">パーソナルカラー</span>
+        <div class="result-value" id="pc-season">—</div>
+        <div class="result-conf" id="pc-conf"></div>
+        <div class="bar-bg"><div class="bar-fill" id="pc-bar" style="width:0"></div></div>
+        <div class="result-desc" id="pc-desc"></div>
+        <div style="margin-top:.8rem;">
+          <div class="swatch-lbl">✨ 似合う色</div>
+          <div class="swatches-row" id="pc-best"></div>
+        </div>
+        <div style="margin-top:.5rem;">
+          <div class="swatch-lbl" style="opacity:.6;">⚠️ 避けたい色</div>
+          <div class="swatches-row" id="pc-avoid"></div>
+        </div>
+      </div>
+      <!-- Face Type -->
+      <div class="result-card">
+        <span class="result-tag">顔タイプ診断</span>
+        <div class="result-value" id="ft-type">—</div>
+        <div class="result-conf" id="ft-conf"></div>
+        <div class="bar-bg"><div class="bar-fill" id="ft-bar" style="width:0"></div></div>
+        <div class="result-desc" id="ft-desc"></div>
+        <div style="margin-top:.8rem;">
+          <div class="swatch-lbl">💡 おすすめスタイル</div>
+          <div id="ft-styles" style="margin-top:.35rem;"></div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- DomoAI prompt output -->
@@ -534,13 +536,21 @@ function setFile(file,id){
     document.getElementById('zone'+id).style.display='none';
     document.getElementById('prev'+id).classList.add('show');
     hideErr(id);
+    // 写真選択直後にスタイル設定を表示
+    if(id==='1') document.getElementById('prefs-card').style.display='block';
   };
   r.readAsDataURL(file);
 }
 
 function resetZone(id){
-  if(id==='1'){ S.img1=null; document.getElementById('file1').value=''; }
-  else        { S.img2=null; document.getElementById('file2').value=''; }
+  if(id==='1'){
+    S.img1=null; document.getElementById('file1').value='';
+    document.getElementById('prefs-card').style.display='none';
+    document.getElementById('results-wrap').style.display='none';
+    document.getElementById('prompt-card').style.display='none';
+  } else {
+    S.img2=null; document.getElementById('file2').value='';
+  }
   document.getElementById('zone'+id).style.display='';
   document.getElementById('prev'+id).classList.remove('show');
 }
@@ -572,10 +582,9 @@ async function analyzePhoto(){
   if(!S.img1) return;
   const btn = document.getElementById('analyze-btn');
   btn.disabled = true;
-  document.getElementById('prev1').classList.remove('show');
+  document.getElementById('prefs-card').style.display = 'none';
   document.getElementById('load1').classList.add('show');
   document.getElementById('results-wrap').style.display = 'none';
-  document.getElementById('prefs-card').style.display = 'none';
   document.getElementById('prompt-card').style.display = 'none';
   hideErr('1');
 
@@ -597,9 +606,10 @@ async function analyzePhoto(){
 
     S.analysis = data;
     renderAnalysis(data);
+    generatePrompt(); // 分析完了後にプロンプトを自動生成
 
   } catch(e){
-    document.getElementById('prev1').classList.add('show');
+    document.getElementById('prefs-card').style.display = 'block';
     showErr('1', e.message);
   } finally {
     document.getElementById('load1').classList.remove('show');
@@ -677,7 +687,6 @@ function renderAnalysis(d){
   stylesEl.innerHTML = (ft.recommendedStyles||[]).map(s=>`<span class="style-pill">${s}</span>`).join('');
 
   document.getElementById('results-wrap').style.display = 'block';
-  document.getElementById('prefs-card').style.display = 'block';
   document.getElementById('results-wrap').scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 
