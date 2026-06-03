@@ -96,7 +96,7 @@ async function analyze() {
     const data = await resp.json();
     if (!resp.ok) throw new Error(data.error || `サーバーエラー (HTTP ${resp.status})`);
     state.diagnosis = data;
-    renderResults(data); renderReco(data); initDomoAI(data);
+    renderResults(data); renderReco(data); initDomoAI(data); initExtractSection();
     setStatus(data.faceDetected === false
       ? "顔をはっきり検出できませんでした。結果は参考程度にご覧ください。"
       : "診断が完了しました。",
@@ -316,4 +316,138 @@ function bindDomoControls() {
 function toggleLang() {
   $("lang-en").classList.toggle("active", domo.lang === "en");
   $("lang-ja").classList.toggle("active", domo.lang === "ja");
+}
+
+// ---------------------------------------------------------------------------
+// Step 5: Reverse outfit search from generated image
+// ---------------------------------------------------------------------------
+const extract = { img: null, natW: 0, natH: 0, bound: false };
+
+function setExtractStatus(msg, { error = false, loading = false } = {}) {
+  const el = $("extract-status");
+  el.innerHTML = "";
+  el.classList.toggle("error", error);
+  if (loading) {
+    const sp = document.createElement("span");
+    sp.className = "spinner";
+    el.appendChild(sp);
+  }
+  if (msg) el.appendChild(document.createTextNode(msg));
+}
+
+function loadExtractFile(file) {
+  if (!file.type.startsWith("image/")) {
+    setExtractStatus("画像ファイルを選んでください。", { error: true });
+    return;
+  }
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = () => {
+    extract.img = img; extract.natW = img.naturalWidth; extract.natH = img.naturalHeight;
+    const canvas = $("extract-preview-canvas");
+    const maxW = 520;
+    const scale = Math.min(1, maxW / extract.natW);
+    canvas.width = extract.natW * scale; canvas.height = extract.natH * scale;
+    canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+    $("extract-preview-wrap").hidden = false;
+    setExtractStatus("");
+    URL.revokeObjectURL(url);
+  };
+  img.onerror = () => { setExtractStatus("画像を読み込めませんでした。", { error: true }); URL.revokeObjectURL(url); };
+  img.src = url;
+}
+
+function toExtractJpeg(maxEdge = 1024, quality = 0.9) {
+  const scale = Math.min(1, maxEdge / Math.max(extract.natW, extract.natH));
+  const c = document.createElement("canvas");
+  c.width = Math.round(extract.natW * scale); c.height = Math.round(extract.natH * scale);
+  c.getContext("2d").drawImage(extract.img, 0, 0, c.width, c.height);
+  return c.toDataURL("image/jpeg", quality);
+}
+
+async function analyzeExtract() {
+  if (!extract.img) return;
+  const btn = $("extract-analyze-btn");
+  btn.disabled = true;
+  setExtractStatus("画像から服を識別しています…", { loading: true });
+  try {
+    const dataUrl = toExtractJpeg();
+    const imageBase64 = dataUrl.split(",", 2)[1];
+    const resp = await fetch("/api/extract-outfit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ imageBase64, mediaType: "image/jpeg" }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || `サーバーエラー (HTTP ${resp.status})`);
+    renderExtractedItems(data.items || []);
+    setExtractStatus(`${(data.items || []).length}件のアイテムを抽出しました。`);
+  } catch (e) {
+    console.error(e);
+    setExtractStatus(`抽出に失敗しました: ${e.message}`, { error: true });
+  } finally { btn.disabled = false; }
+}
+
+function renderExtractedItems(items) {
+  const wrap = $("extract-items");
+  wrap.innerHTML = "";
+  if (!items.length) {
+    const p = document.createElement("p");
+    p.className = "result-desc";
+    p.textContent = "アイテムを抽出できませんでした。別の画像で試してください。";
+    wrap.appendChild(p);
+    return;
+  }
+  items.forEach((item) => {
+    const box = document.createElement("div"); box.className = "reco-item";
+    const head = document.createElement("div"); head.className = "reco-item-head";
+    const cat = document.createElement("div"); cat.className = "reco-item-cat";
+    cat.textContent = item.category || "アイテム";
+    head.appendChild(cat); box.appendChild(head);
+
+    const advice = document.createElement("div"); advice.className = "reco-item-advice";
+    const details = [item.color, item.material, item.silhouette].filter(Boolean).join(" / ");
+    advice.textContent = details || "";
+    box.appendChild(advice);
+
+    const btns = document.createElement("div"); btns.className = "search-btns";
+    const links = searchLinks(item.searchKeyword || item.category || "");
+    btns.appendChild(shopButton("楽天", links.rakuten));
+    btns.appendChild(shopButton("Amazon", links.amazon));
+    btns.appendChild(shopButton("Google画像", links.google));
+    box.appendChild(btns);
+
+    wrap.appendChild(box);
+  });
+}
+
+function initExtractSection() {
+  $("step-extract").hidden = false;
+  if (extract.bound) return;
+  extract.bound = true;
+
+  const fi = $("extract-file");
+  const dz = $("extract-dropzone");
+  fi.addEventListener("change", (e) => {
+    const f = e.target.files && e.target.files[0];
+    if (f) loadExtractFile(f);
+  });
+  ["dragenter", "dragover"].forEach((ev) =>
+    dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.add("dragover"); })
+  );
+  ["dragleave", "drop"].forEach((ev) =>
+    dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.remove("dragover"); })
+  );
+  dz.addEventListener("drop", (e) => {
+    const f = e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f) loadExtractFile(f);
+  });
+  $("extract-analyze-btn").addEventListener("click", analyzeExtract);
+  $("extract-reset-btn").addEventListener("click", () => {
+    extract.img = null;
+    $("extract-file").value = "";
+    $("extract-preview-wrap").hidden = true;
+    $("extract-items").innerHTML = "";
+    setExtractStatus("");
+  });
 }

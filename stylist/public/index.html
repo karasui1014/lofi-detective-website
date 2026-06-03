@@ -106,13 +106,33 @@
         </div>
       </div>
 
-      <ol class="domoai-steps">
-        <li>「元の写真をダウンロード」で写真を保存</li>
-        <li>「DomoAIを開く」でログイン → <strong>Image to Image</strong> モードを選択</li>
-        <li>「プロンプトをコピー」して DomoAI に貼り付け</li>
-        <li>ダウンロードした写真をアップロード</li>
-        <li>スタイル（例: Realistic / Studio Ghibli など）を選んで Generate</li>
-      </ol>
+      <ol class="domoai-steps" hidden></ol>
+    </section>
+
+    <!-- STEP 5: reverse search from generated image -->
+    <section class="card" id="step-extract" hidden>
+      <h2><span class="step-no">5</span>生成した画像から服を検索</h2>
+      <p class="hint">DomoAIで生成した画像をアップロードすると、AIが写っている服を識別して、似た商品をネットで検索できます。</p>
+
+      <label id="extract-dropzone" for="extract-file" class="extract-dropzone">
+        <input type="file" id="extract-file" accept="image/*" hidden>
+        <div class="dropzone-inner">
+          <div class="dz-icon">＋</div>
+          <div class="dz-text">クリック、または生成画像をドロップ</div>
+          <div class="dz-sub">JPG / PNG / WEBP</div>
+        </div>
+      </label>
+
+      <div id="extract-preview-wrap" class="preview-wrap" hidden>
+        <canvas id="extract-preview-canvas"></canvas>
+        <div class="preview-actions">
+          <button id="extract-analyze-btn" class="btn btn-primary" type="button">この画像から服を検索する</button>
+          <button id="extract-reset-btn" class="btn btn-ghost" type="button">別の画像にする</button>
+        </div>
+      </div>
+      <p id="extract-status" class="status" role="status" aria-live="polite"></p>
+
+      <div id="extract-items" class="reco-items"></div>
     </section>
   </main>
 

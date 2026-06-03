@@ -95,6 +95,41 @@ export const SCHEMA = {
   required: ["faceDetected", "personalColor", "faceType", "recommendation"],
 };
 
+export const EXTRACT_SYSTEM_PROMPT = `あなたはファッション画像から着用アイテムを抽出するアシスタントです。
+1枚の画像から、写っているファッションアイテム（トップス・ボトムス・ワンピース・アウター・シューズ・バッグ・アクセサリーなど）をできる限り具体的に抽出してください。
+人物の顔・体型・個人特定につながる属性は無視し、衣類のみに注目してください。
+
+各アイテムについて：
+- category: 日本語カテゴリ名（例「トップス」「ボトムス」「ワンピース」「アウター」「シューズ」「バッグ」「アクセサリー」）
+- color: 色の具体的な日本語表現（例「くすみブルー」「ライトベージュ」「マスタード」）
+- material: 推定される素材・テクスチャ（例「リネン」「ニット」「シフォン」「デニム」「コーデュロイ」）
+- silhouette: シルエットやディテール（例「オーバーサイズ」「タイト」「Aライン」「ハイウエスト」「Vネック」）
+- searchKeyword: 楽天やAmazonで検索すると似た商品が見つかる日本語キーワード。色＋素材/質感＋シルエット＋カテゴリの順で並べる。例「くすみブルー リネン オーバーサイズ シャツ」`;
+
+export const EXTRACT_USER_INSTRUCTION =
+  "この画像に写っているファッションアイテムをすべて抽出し、JSONで返してください。";
+
+export const EXTRACT_SCHEMA = {
+  type: "object",
+  properties: {
+    items: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          category: { type: "string" },
+          color: { type: "string" },
+          material: { type: "string" },
+          silhouette: { type: "string" },
+          searchKeyword: { type: "string" },
+        },
+        required: ["category", "color", "searchKeyword"],
+      },
+    },
+  },
+  required: ["items"],
+};
+
 const GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 
 // Runs one diagnosis. `apiKey` is the Gemini API key string.
@@ -133,5 +168,43 @@ export async function runDiagnosis(apiKey, { imageBase64, mediaType, model }) {
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!text) throw new Error("モデルからテキスト応答が得られませんでした。");
 
+  return { result: JSON.parse(text), usage: data.usageMetadata || {} };
+}
+
+// Runs outfit extraction on a (typically AI-generated) fashion image.
+export async function runOutfitExtraction(apiKey, { imageBase64, mediaType, model }) {
+  const modelName = model || MODEL_DEFAULT;
+  const url = `${GEMINI_API_BASE}/${modelName}:generateContent?key=${apiKey}`;
+
+  const resp = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: EXTRACT_SYSTEM_PROMPT }] },
+      contents: [
+        {
+          parts: [
+            { inlineData: { mimeType: mediaType, data: imageBase64 } },
+            { text: EXTRACT_USER_INSTRUCTION },
+          ],
+        },
+      ],
+      generationConfig: {
+        responseMimeType: "application/json",
+        responseSchema: EXTRACT_SCHEMA,
+      },
+    }),
+  });
+
+  if (!resp.ok) {
+    const errData = await resp.json().catch(() => ({}));
+    const err = new Error(errData?.error?.message || `Gemini API error ${resp.status}`);
+    err.status = resp.status;
+    throw err;
+  }
+
+  const data = await resp.json();
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) throw new Error("モデルからテキスト応答が得られませんでした。");
   return { result: JSON.parse(text), usage: data.usageMetadata || {} };
 }

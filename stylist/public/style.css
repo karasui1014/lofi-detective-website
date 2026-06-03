@@ -307,12 +307,18 @@ select { font-family: var(--font); font-size: .9rem; padding: .45rem .6rem; bord
 .prompt-actions { display: flex; align-items: center; gap: .75rem; margin-top: .6rem; }
 .copy-status { font-size: .8rem; color: var(--accent-2); transition: opacity .2s; }
 
-.domoai-steps {
-  margin-top: 1.2rem; padding-left: 1.2rem;
-  color: #57535e; font-size: .9rem; line-height: 1.9;
+.domoai-steps { display: none; }
+
+/* Step 5 extract dropzone */
+.extract-dropzone {
+  display: block; margin-top: 1rem;
+  border: 2px dashed var(--line); border-radius: 12px;
+  padding: 1.5rem; text-align: center; cursor: pointer;
+  background: #faf7f3; transition: border-color .15s, background .15s;
 }
-.domoai-steps li { margin: .15rem 0; }
-.domoai-steps strong { color: var(--accent-2); }
+.extract-dropzone:hover, .extract-dropzone.dragover {
+  border-color: var(--accent-2); background: #f3eefa;
+}
 
 .site-footer { text-align: center; padding: 2rem 1.25rem 3rem; color: var(--muted); font-size: .8rem; }
 .site-footer .tech { margin-top: .4rem; opacity: .7; font-size: .72rem; }

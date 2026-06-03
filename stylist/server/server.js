@@ -8,7 +8,7 @@ import { createServer } from "node:http";
 import { readFile, readFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join, normalize, extname } from "node:path";
-import { runDiagnosis, ALLOWED_MEDIA, MODEL_DEFAULT } from "../shared/diagnosis.js";
+import { runDiagnosis, runOutfitExtraction, ALLOWED_MEDIA, MODEL_DEFAULT } from "../shared/diagnosis.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
@@ -96,6 +96,29 @@ const server = createServer(async (req, res) => {
 
   if (req.method === "GET" && path === "/api/health") {
     return sendJson(res, 200, { ok: true, hasKey: !!process.env.GEMINI_API_KEY });
+  }
+
+  if (req.method === "POST" && path === "/api/extract-outfit") {
+    try {
+      const raw = await readBody(req);
+      let payload;
+      try { payload = JSON.parse(raw); } catch { return sendJson(res, 400, { error: "リクエストの形式が不正です。" }); }
+      const { imageBase64, mediaType } = payload || {};
+      if (typeof imageBase64 !== "string" || !imageBase64) return sendJson(res, 400, { error: "画像データがありません。" });
+      if (!ALLOWED_MEDIA.has(mediaType)) return sendJson(res, 400, { error: "対応していない画像形式です。" });
+
+      const { result, usage } = await runOutfitExtraction(getApiKey(), { imageBase64, mediaType, model: process.env.STYLIST_MODEL });
+      console.log(`[extract] prompt=${usage.promptTokenCount} output=${usage.candidatesTokenCount} total=${usage.totalTokenCount}`);
+      return sendJson(res, 200, result);
+    } catch (err) {
+      const status = err?.statusCode || err?.status || 500;
+      const known = {
+        401: "APIキーが無効です。", 403: "APIキーの権限が不足しています。",
+        429: "リクエストが集中しています。少し待って再試行してください。", 413: err.message,
+      };
+      console.error("[extract error]", err?.message || err);
+      return sendJson(res, status >= 400 && status < 600 ? status : 500, { error: known[status] || err?.message || "サーバー内部エラー" });
+    }
   }
 
   if (req.method === "POST" && path === "/api/diagnose") {
