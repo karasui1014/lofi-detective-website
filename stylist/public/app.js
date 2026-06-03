@@ -63,7 +63,7 @@ function drawPreview() {
 $("reset-btn").addEventListener("click", () => {
   state.img = null; state.diagnosis = null; fileInput.value = "";
   $("preview-wrap").hidden = true;
-  ["step-result", "step-reco", "step-tryon"].forEach((id) => ($(id).hidden = true));
+  ["step-result", "step-tryon", "step-extract"].forEach((id) => { const el = $(id); if (el) el.hidden = true; });
   setStatus("");
 });
 
