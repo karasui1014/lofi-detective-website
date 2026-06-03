@@ -2,3 +2,4 @@ _preview/
 .charset.txt
 __pycache__/
 *.pyc
+fonts/
