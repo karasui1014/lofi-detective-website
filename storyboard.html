@@ -3927,11 +3927,16 @@ async function mergeRangeJPEG() {
   const count = to - from + 1;
   const COLS  = count <= 2 ? count : count <= 6 ? 3 : count <= 12 ? 4 : 5;
   const ROWS  = Math.ceil(count / COLS);
-  const PW = 320, PH = 180, GAP = 4;
-  const LH = 20; // label height per panel
+  const PW = 320, PH = 180, GAP = 8;
+  const LH    = 20;   // panel number bar
+  const SH    = 54;   // scene description area (3 lines)
+  const PRIH  = 72;   // prompt area (4 lines)
+  const BGPH  = 60;   // bg prompt area (3 lines)
+  const PAD   = 6;
+  const CELL_H = PH + LH + SH + PRIH + BGPH + PAD * 2;
 
   const cw = COLS * PW + (COLS - 1) * GAP;
-  const ch = ROWS * (PH + LH) + (ROWS - 1) * GAP;
+  const ch = ROWS * CELL_H + (ROWS - 1) * GAP;
 
   const canvas = document.createElement('canvas');
   canvas.width  = cw;
@@ -3939,6 +3944,25 @@ async function mergeRangeJPEG() {
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = '#08081a';
   ctx.fillRect(0, 0, cw, ch);
+
+  // Helper: wrap text (handles Japanese char-by-char + space-split)
+  function drawWrapped(text, x, y, maxW, lineH, maxLines) {
+    if (!text) return;
+    const lines = [];
+    let line = '';
+    for (const ch of text) {
+      const test = line + ch;
+      if (ctx.measureText(test).width > maxW) {
+        if (line) lines.push(line);
+        line = ch;
+        if (lines.length >= maxLines) break;
+      } else {
+        line = test;
+      }
+    }
+    if (line && lines.length < maxLines) lines.push(line);
+    lines.forEach((l, i) => ctx.fillText(l, x, y + i * lineH));
+  }
 
   const domPanels = document.querySelectorAll('.sb-panel');
 
@@ -3948,15 +3972,19 @@ async function mergeRangeJPEG() {
 
     const panelEl = domPanels[i];
     if (!panelEl) continue;
-    const svgEl = panelEl.querySelector('.panel-art svg');
-    const numEl = panelEl.querySelector('.panel-num');
+    const svgEl    = panelEl.querySelector('.panel-art svg');
+    const numEl    = panelEl.querySelector('.panel-num');
+    const sceneEl  = panelEl.querySelector('.panel-scene');
+    const promptEl = panelEl.querySelector('.panel-prompt');
+    const bgEl     = panelEl.querySelector('.panel-bg-prompt');
     if (!svgEl) continue;
 
     const col = idx % COLS;
     const row = Math.floor(idx / COLS);
     const x = col * (PW + GAP);
-    const y = row * (PH + LH + GAP);
+    const y = row * (CELL_H + GAP);
 
+    // Draw SVG image
     await new Promise(resolve => {
       const svgData = new XMLSerializer().serializeToString(svgEl);
       const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
@@ -3965,18 +3993,49 @@ async function mergeRangeJPEG() {
       img.onload = () => {
         ctx.drawImage(img, x, y, PW, PH);
         URL.revokeObjectURL(svgUrl);
-        // Panel number label
-        ctx.fillStyle = 'rgba(0,0,0,.75)';
-        ctx.fillRect(x, y + PH, PW, LH);
-        ctx.fillStyle = '#c0d0ff';
-        ctx.font = `bold ${LH * 0.62}px monospace`;
-        ctx.textAlign = 'left';
-        ctx.fillText((numEl?.textContent || String(i + 1).padStart(3, '0')).trim(), x + 6, y + PH + LH * 0.76);
         resolve();
       };
       img.onerror = () => { URL.revokeObjectURL(svgUrl); resolve(); };
       img.src = svgUrl;
     });
+
+    // Panel number bar
+    ctx.fillStyle = 'rgba(8,8,30,0.92)';
+    ctx.fillRect(x, y + PH, PW, LH);
+    ctx.fillStyle = '#7dd3fc';
+    ctx.font = `bold 12px monospace`;
+    ctx.textAlign = 'left';
+    ctx.fillText((numEl?.textContent || String(i + 1).padStart(3, '0')).trim(), x + 6, y + PH + 14);
+
+    // Scene description
+    const sceneText = sceneEl?.textContent?.trim() || '';
+    ctx.fillStyle = 'rgba(8,8,26,0.97)';
+    ctx.fillRect(x, y + PH + LH, PW, SH);
+    ctx.fillStyle = 'rgba(255,255,255,.85)';
+    ctx.font = `11px sans-serif`;
+    drawWrapped(sceneText, x + PAD, y + PH + LH + 14, PW - PAD * 2, 17, 3);
+
+    // Prompt label + text
+    const promptText = promptEl?.textContent?.trim() || '';
+    ctx.fillStyle = 'rgba(4,4,20,0.97)';
+    ctx.fillRect(x, y + PH + LH + SH, PW, PRIH);
+    ctx.fillStyle = '#a78bfa';
+    ctx.font = `bold 9px monospace`;
+    ctx.fillText('IMAGE PROMPT', x + PAD, y + PH + LH + SH + 11);
+    ctx.fillStyle = 'rgba(255,255,255,.6)';
+    ctx.font = `9.5px monospace`;
+    drawWrapped(promptText, x + PAD, y + PH + LH + SH + 24, PW - PAD * 2, 14, 4);
+
+    // BG prompt label + text
+    const bgText = bgEl?.textContent?.trim() || '';
+    ctx.fillStyle = 'rgba(2,2,16,0.97)';
+    ctx.fillRect(x, y + PH + LH + SH + PRIH, PW, BGPH + PAD * 2);
+    ctx.fillStyle = '#6ee7b7';
+    ctx.font = `bold 9px monospace`;
+    ctx.fillText('BG DETAIL', x + PAD, y + PH + LH + SH + PRIH + 11);
+    ctx.fillStyle = 'rgba(255,255,255,.5)';
+    ctx.font = `9.5px monospace`;
+    drawWrapped(bgText, x + PAD, y + PH + LH + SH + PRIH + 24, PW - PAD * 2, 14, 3);
   }
 
   canvas.toBlob(blob => {
