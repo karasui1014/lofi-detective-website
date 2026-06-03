@@ -320,5 +320,25 @@ select { font-family: var(--font); font-size: .9rem; padding: .45rem .6rem; bord
   border-color: var(--accent-2); background: #f3eefa;
 }
 
+/* Shop filters */
+.shop-filters {
+  margin: 1.2rem 0 .8rem; padding: .85rem 1rem;
+  background: #faf7f3; border: 1px solid var(--line); border-radius: 12px;
+}
+.filter-row { display: flex; align-items: center; gap: .8rem; flex-wrap: wrap; padding: .3rem 0; }
+.filter-label {
+  font-size: .82rem; color: var(--muted); min-width: 3.5rem; font-weight: 500;
+}
+.filter-btns { display: flex; gap: .4rem; flex-wrap: wrap; }
+.filter-btns button {
+  border: 1px solid var(--line); background: #fff; color: #57535e;
+  padding: .35rem .8rem; border-radius: 999px; font: inherit; font-size: .8rem;
+  cursor: pointer; transition: all .15s;
+}
+.filter-btns button:hover { border-color: var(--accent-2); color: var(--accent-2); }
+.filter-btns button.active {
+  background: var(--accent-2); border-color: var(--accent-2); color: #fff;
+}
+
 .site-footer { text-align: center; padding: 2rem 1.25rem 3rem; color: var(--muted); font-size: .8rem; }
 .site-footer .tech { margin-top: .4rem; opacity: .7; font-size: .72rem; }

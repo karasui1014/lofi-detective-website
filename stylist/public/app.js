@@ -143,13 +143,73 @@ function renderResults(d) {
 // ---------------------------------------------------------------------------
 // Recommendations
 // ---------------------------------------------------------------------------
-function searchLinks(q) {
-  const enc = encodeURIComponent(q);
-  return {
-    rakuten: `https://search.rakuten.co.jp/search/mall/${enc}/`,
-    amazon: `https://www.amazon.co.jp/s?k=${enc}`,
-    google: `https://www.google.com/search?tbm=isch&q=${enc}`,
-  };
+// Shop catalog. Each entry: name, URL builder, age tags, style tags.
+// "all" means matches every age/style filter.
+const SHOPS = [
+  // Universal large platforms
+  { id: "zozo",    name: "ZOZOTOWN", url: (q) => `https://zozo.jp/search/?p_keyv=${encodeURIComponent(q)}`,
+    age: ["all"], style: ["all"] },
+  { id: "mercari", name: "メルカリ",  url: (q) => `https://jp.mercari.com/search?keyword=${encodeURIComponent(q)}`,
+    age: ["all"], style: ["all"] },
+
+  // Fast fashion / casual
+  { id: "uniqlo",  name: "UNIQLO",   url: (q) => `https://www.uniqlo.com/jp/ja/search?q=${encodeURIComponent(q)}`,
+    age: ["20s","30s","40s"], style: ["casual","kireime"] },
+  { id: "gu",      name: "GU",       url: (q) => `https://www.gu-global.com/jp/ja/search/?q=${encodeURIComponent(q)}`,
+    age: ["10s","20s"], style: ["casual","trend"] },
+  { id: "shein",   name: "SHEIN",    url: (q) => `https://jp.shein.com/pdsearch/${encodeURIComponent(q)}/`,
+    age: ["10s","20s"], style: ["trend","casual","feminine"] },
+  { id: "wego",    name: "WEGO",     url: (q) => `https://wego.jp/?_q=${encodeURIComponent(q)}`,
+    age: ["10s"], style: ["casual","trend"] },
+  { id: "grl",     name: "GRL",      url: (q) => `https://www.grail.bz/shop/r/r${encodeURIComponent(q)}/`,
+    age: ["10s","20s"], style: ["trend","feminine"] },
+
+  // Select shop / kireime / 20-30s
+  { id: "beams",   name: "BEAMS",    url: (q) => `https://www.beams.co.jp/search/?keyword=${encodeURIComponent(q)}`,
+    age: ["20s","30s"], style: ["kireime","trend","casual"] },
+  { id: "ua",      name: "UNITED ARROWS", url: (q) => `https://store.united-arrows.co.jp/shop/ua/goods-search?goods_keyword=${encodeURIComponent(q)}`,
+    age: ["20s","30s","40s"], style: ["kireime","otona"] },
+  { id: "nano",    name: "nano・universe", url: (q) => `https://store.nanouniverse.jp/search?q=${encodeURIComponent(q)}`,
+    age: ["20s","30s"], style: ["kireime","trend"] },
+  { id: "tomorrow",name: "TOMORROWLAND", url: (q) => `https://store.tomorrowland.co.jp/shop/?keyword=${encodeURIComponent(q)}`,
+    age: ["30s","40s"], style: ["kireime","otona"] },
+
+  // Feminine / mode
+  { id: "snidel",  name: "SNIDEL",   url: (q) => `https://snidel.com/search.aspx?keyword=${encodeURIComponent(q)}`,
+    age: ["20s","30s"], style: ["feminine","trend"] },
+  { id: "iena",    name: "IENA",     url: (q) => `https://baycrews.jp/search?keyword=${encodeURIComponent(q)}&brand=IENA`,
+    age: ["30s","40s"], style: ["kireime","feminine","otona"] },
+  { id: "plage",   name: "Plage",    url: (q) => `https://baycrews.jp/search?keyword=${encodeURIComponent(q)}&brand=Plage`,
+    age: ["30s","40s"], style: ["kireime","otona"] },
+
+  // Adult / office
+  { id: "theory",  name: "Theory",   url: (q) => `https://www.theory.com/jp/search-results.html?q=${encodeURIComponent(q)}`,
+    age: ["30s","40s"], style: ["otona","kireime"] },
+  { id: "23ku",    name: "23区",     url: (q) => `https://store.world.co.jp/s/brand/23ku/?searchWord=${encodeURIComponent(q)}`,
+    age: ["30s","40s"], style: ["otona","kireime"] },
+  { id: "untitled",name: "UNTITLED", url: (q) => `https://store.world.co.jp/s/brand/untitled/?searchWord=${encodeURIComponent(q)}`,
+    age: ["30s","40s"], style: ["otona","kireime"] },
+
+  // Multi-brand
+  { id: "fw",      name: "ファッションウォーカー", url: (q) => `https://www.fashionwalker.com/web/search/?word=${encodeURIComponent(q)}`,
+    age: ["20s","30s","40s"], style: ["kireime","trend","feminine"] },
+
+  // Always available as fallback
+  { id: "google",  name: "Google画像", url: (q) => `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(q)}`,
+    age: ["all"], style: ["all"] },
+];
+
+const shopFilter = { age: "20s", style: "kireime" };
+
+function selectShops(age, style) {
+  const matches = SHOPS.filter((s) =>
+    (s.age.includes(age) || s.age.includes("all")) &&
+    (s.style.includes(style) || s.style.includes("all"))
+  );
+  // Cap to 6 to avoid clutter; ensure Google always last
+  const noGoogle = matches.filter((s) => s.id !== "google").slice(0, 5);
+  const google = SHOPS.find((s) => s.id === "google");
+  return [...noGoogle, google];
 }
 
 function shopButton(label, href) {
@@ -350,17 +410,24 @@ async function analyzeExtract() {
   } finally { btn.disabled = false; }
 }
 
+// Cached items so filter changes can re-render without re-calling the API.
+let extractedItems = [];
+
 function renderExtractedItems(items) {
+  extractedItems = items || [];
   const wrap = $("extract-items");
   wrap.innerHTML = "";
-  if (!items.length) {
+  if (!extractedItems.length) {
     const p = document.createElement("p");
     p.className = "result-desc";
     p.textContent = "アイテムを抽出できませんでした。別の画像で試してください。";
     wrap.appendChild(p);
+    $("shop-filters").hidden = true;
     return;
   }
-  items.forEach((item) => {
+  $("shop-filters").hidden = false;
+  const shops = selectShops(shopFilter.age, shopFilter.style);
+  extractedItems.forEach((item) => {
     const box = document.createElement("div"); box.className = "reco-item";
     const head = document.createElement("div"); head.className = "reco-item-head";
     const cat = document.createElement("div"); cat.className = "reco-item-cat";
@@ -372,11 +439,9 @@ function renderExtractedItems(items) {
     advice.textContent = details || "";
     box.appendChild(advice);
 
+    const q = item.searchKeyword || item.category || "";
     const btns = document.createElement("div"); btns.className = "search-btns";
-    const links = searchLinks(item.searchKeyword || item.category || "");
-    btns.appendChild(shopButton("楽天", links.rakuten));
-    btns.appendChild(shopButton("Amazon", links.amazon));
-    btns.appendChild(shopButton("Google画像", links.google));
+    shops.forEach((s) => btns.appendChild(shopButton(s.name, s.url(q))));
     box.appendChild(btns);
 
     wrap.appendChild(box);
@@ -410,6 +475,19 @@ function initExtractSection() {
     $("extract-file").value = "";
     $("extract-preview-wrap").hidden = true;
     $("extract-items").innerHTML = "";
+    $("shop-filters").hidden = true;
     setExtractStatus("");
+  });
+
+  // Shop filter buttons (one-of-N per group)
+  document.querySelectorAll(".filter-btns").forEach((group) => {
+    const key = group.dataset.group;
+    group.addEventListener("click", (e) => {
+      const btn = e.target.closest("button[data-v]");
+      if (!btn) return;
+      shopFilter[key] = btn.dataset.v;
+      group.querySelectorAll("button").forEach((b) => b.classList.toggle("active", b === btn));
+      if (extractedItems.length) renderExtractedItems(extractedItems);
+    });
   });
 }

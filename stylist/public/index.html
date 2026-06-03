@@ -116,6 +116,28 @@
       </div>
       <p id="extract-status" class="status" role="status" aria-live="polite"></p>
 
+      <div class="shop-filters" id="shop-filters" hidden>
+        <div class="filter-row">
+          <span class="filter-label">年代</span>
+          <div class="filter-btns" data-group="age">
+            <button type="button" data-v="10s">10代</button>
+            <button type="button" data-v="20s" class="active">20代</button>
+            <button type="button" data-v="30s">30代</button>
+            <button type="button" data-v="40s">40代以上</button>
+          </div>
+        </div>
+        <div class="filter-row">
+          <span class="filter-label">テイスト</span>
+          <div class="filter-btns" data-group="style">
+            <button type="button" data-v="casual">カジュアル</button>
+            <button type="button" data-v="kireime" class="active">きれいめ</button>
+            <button type="button" data-v="trend">トレンド</button>
+            <button type="button" data-v="feminine">フェミニン</button>
+            <button type="button" data-v="otona">大人</button>
+          </div>
+        </div>
+      </div>
+
       <div id="extract-items" class="reco-items"></div>
     </section>
   </main>
