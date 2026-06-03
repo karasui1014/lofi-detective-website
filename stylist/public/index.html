@@ -81,36 +81,38 @@
       </div>
     </section>
 
-    <!-- STEP 4: style illustration -->
+    <!-- STEP 4: DomoAI handoff -->
     <section class="card" id="step-tryon" hidden>
-      <h2><span class="step-no">4</span>スタイルイラスト</h2>
-      <p class="hint">診断されたパーソナルカラーをもとに、ファッションイラストでコーデのイメージを確認できます。</p>
-      <div class="tryon-layout">
-        <div class="tryon-canvas-wrap">
-          <canvas id="tryon-canvas"></canvas>
-        </div>
-        <div class="tryon-controls">
-          <label>アイテム
-            <select id="garment-select">
-              <option value="tshirt">Tシャツ</option>
-              <option value="knit">ニット（長袖）</option>
-              <option value="dress">ワンピース</option>
-              <option value="coat">アウター / コート</option>
-            </select>
-          </label>
-          <label>サイズ感
-            <input type="range" id="garment-scale" min="0.5" max="1.4" step="0.01" value="1">
-          </label>
-          <label>色の濃さ
-            <input type="range" id="garment-opacity" min="0.3" max="1" step="0.01" value="1">
-          </label>
-          <div class="control-group">
-            <span>色（パーソナルカラー）</span>
-            <div id="garment-palette" class="palette palette-pick"></div>
+      <h2><span class="step-no">4</span>DomoAIでAIフォト生成</h2>
+      <p class="hint">あなたの写真と、診断から自動生成したプロンプトを使って、DomoAIで「自分が似合うコーデを着ている画像」を生成できます。</p>
+
+      <div class="domoai-actions">
+        <button id="download-photo-btn" class="btn btn-primary" type="button">元の写真をダウンロード</button>
+        <a id="open-domoai-btn" class="btn btn-shop" href="https://domoai.app/" target="_blank" rel="noopener">DomoAIを開く ↗</a>
+      </div>
+
+      <div class="prompt-block">
+        <div class="prompt-head">
+          <span>プロンプト</span>
+          <div class="lang-toggle">
+            <button id="lang-en" class="lang-btn active" type="button">English</button>
+            <button id="lang-ja" class="lang-btn" type="button">日本語</button>
           </div>
-          <button id="export-btn" class="btn btn-primary" type="button">イラストを保存</button>
+        </div>
+        <textarea id="domoai-prompt" rows="6" spellcheck="false"></textarea>
+        <div class="prompt-actions">
+          <button id="copy-prompt-btn" class="btn btn-ghost" type="button">プロンプトをコピー</button>
+          <span id="copy-status" class="copy-status"></span>
         </div>
       </div>
+
+      <ol class="domoai-steps">
+        <li>「元の写真をダウンロード」で写真を保存</li>
+        <li>「DomoAIを開く」でログイン → <strong>Image to Image</strong> モードを選択</li>
+        <li>「プロンプトをコピー」して DomoAI に貼り付け</li>
+        <li>ダウンロードした写真をアップロード</li>
+        <li>スタイル（例: Realistic / Studio Ghibli など）を選んで Generate</li>
+      </ol>
     </section>
   </main>
 

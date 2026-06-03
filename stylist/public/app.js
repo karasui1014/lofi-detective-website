@@ -96,7 +96,7 @@ async function analyze() {
     const data = await resp.json();
     if (!resp.ok) throw new Error(data.error || `サーバーエラー (HTTP ${resp.status})`);
     state.diagnosis = data;
-    renderResults(data); renderReco(data); initIllustration(data);
+    renderResults(data); renderReco(data); initDomoAI(data);
     setStatus(data.faceDetected === false
       ? "顔をはっきり検出できませんでした。結果は参考程度にご覧ください。"
       : "診断が完了しました。",
@@ -198,410 +198,122 @@ function applyTopSearch(q) {
 $("search-query").addEventListener("input", (e) => applyTopSearch(e.target.value));
 
 // ---------------------------------------------------------------------------
-// Style Illustration
+// DomoAI handoff (Step 4)
 // ---------------------------------------------------------------------------
-const illus = {
-  canvas: null, ctx: null,
-  garment: { type: "tshirt", scale: 1, opacity: 1, color: "#FF9E7A" },
-  palette: [], bound: false,
+const SEASON_EN = {
+  spring: "warm bright spring palette: coral, peach, light yellow, fresh green, ivory, golden undertone",
+  summer: "soft cool summer palette: lavender, dusty rose, sky blue, mauve, muted pastel tones, cool undertone",
+  autumn: "deep warm autumn palette: terracotta, mustard yellow, olive, camel, rich brown, golden undertone",
+  winter: "vivid cool winter palette: royal blue, pure white, magenta, jet black, high contrast, cool undertone",
+};
+const SEASON_JA = {
+  spring: "イエベ春の明るく澄んだ暖色（コーラル、ピーチ、ライトイエロー、若草色）",
+  summer: "ブルベ夏のやわらかく涼やかな寒色（ラベンダー、ローズ、スカイブルー、くすみ色）",
+  autumn: "イエベ秋の深く落ち着いた暖色（テラコッタ、マスタード、カーキ、ブラウン）",
+  winter: "ブルベ冬の鮮やかでコントラストの強い寒色（ロイヤルブルー、純白、黒、マゼンタ）",
+};
+const FACETYPE_EN = {
+  "キュート": "cute youthful aesthetic, soft rounded features, sweet kawaii vibe",
+  "アクティブキュート": "energetic playful sporty cute, bright fresh look",
+  "フレッシュ": "fresh casual clean-cut natural look",
+  "クールカジュアル": "cool casual aesthetic, slightly sharp clean lines",
+  "クール": "cool sharp mannish chic, confident sophisticated",
+  "エレガント": "elegant balanced sophisticated refined feminine",
+  "ソフトエレガント": "soft elegant gentle refined feminine grace",
+  "フェミニン": "feminine sweet womanly graceful romantic",
+};
+const FACETYPE_JA = {
+  "キュート": "キュート系の甘くて可愛らしい雰囲気",
+  "アクティブキュート": "アクティブで元気な可愛らしさ",
+  "フレッシュ": "フレッシュで爽やかカジュアル",
+  "クールカジュアル": "クールカジュアルできれいめ",
+  "クール": "クールでシャープなマニッシュ",
+  "エレガント": "エレガントで洗練された雰囲気",
+  "ソフトエレガント": "ソフトエレガントで上品な雰囲気",
+  "フェミニン": "フェミニンで甘く女性的",
 };
 
-function initIllustration(d) {
+const domo = { lang: "en", diagnosis: null };
+
+function initDomoAI(d) {
   $("step-tryon").hidden = false;
-  const canvas = $("tryon-canvas");
-  illus.canvas = canvas; illus.ctx = canvas.getContext("2d");
-  canvas.width = 300; canvas.height = 480;
-  illus.palette = (d.personalColor && d.personalColor.palette && d.personalColor.palette.length)
-    ? d.personalColor.palette
-    : ["#FF9E7A", "#FFC15E", "#9BD770", "#7FD8D8", "#B7A7D9"];
-  illus.garment.color = illus.palette[0];
-  illus.garment.scale = 1; illus.garment.opacity = 1;
-  renderGarmentPalette(); drawIllustration(); bindIllusControls();
+  domo.diagnosis = d;
+  updatePromptText();
+
+  bindDomoControls();
 }
 
-function hexWithAlpha(hex, alpha) {
-  const n = parseInt(String(hex).replace("#", ""), 16);
-  if (Number.isNaN(n)) return `rgba(200,200,200,${alpha})`;
-  const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
-  return `rgba(${r},${g},${b},${alpha})`;
-}
+function buildPrompt(d, lang) {
+  const season = d.personalColor?.season || "spring";
+  const ft = d.faceType?.type || "ソフトエレガント";
+  const items = (d.recommendation?.items || [])
+    .map((i) => i.searchKeyword || i.category)
+    .filter(Boolean);
 
-// ---------------------------------------------------------------------------
-// Drawing: background + orchestration
-// ---------------------------------------------------------------------------
-function drawIllustration() {
-  const { ctx, canvas, garment, palette } = illus;
-  const cw = canvas.width, ch = canvas.height, cx = cw / 2;
-  ctx.clearRect(0, 0, cw, ch);
-
-  // Background
-  ctx.fillStyle = "#FAF8F5";
-  ctx.fillRect(0, 0, cw, ch);
-  const bgGrad = ctx.createRadialGradient(cx, ch * 0.44, 0, cx, ch * 0.44, ch * 0.72);
-  bgGrad.addColorStop(0, hexWithAlpha(palette[1] || palette[0], 0.22));
-  bgGrad.addColorStop(1, hexWithAlpha(palette[0], 0.04));
-  ctx.fillStyle = bgGrad; ctx.fillRect(0, 0, cw, ch);
-
-  // Floor line
-  const floorY = ch * 0.896;
-  const floorGrad = ctx.createLinearGradient(cx - cw * 0.28, 0, cx + cw * 0.28, 0);
-  floorGrad.addColorStop(0, "rgba(0,0,0,0)");
-  floorGrad.addColorStop(0.5, hexWithAlpha(palette[0], 0.35));
-  floorGrad.addColorStop(1, "rgba(0,0,0,0)");
-  ctx.beginPath();
-  ctx.moveTo(cx - cw * 0.28, floorY); ctx.lineTo(cx + cw * 0.28, floorY);
-  ctx.strokeStyle = floorGrad; ctx.lineWidth = 0.8; ctx.stroke();
-  // Shadow under figure
-  const shadowGrad = ctx.createRadialGradient(cx, floorY, 0, cx, floorY, cw * 0.18);
-  shadowGrad.addColorStop(0, "rgba(0,0,0,0.08)");
-  shadowGrad.addColorStop(1, "rgba(0,0,0,0)");
-  ctx.fillStyle = shadowGrad;
-  ctx.ellipse(cx, floorY, cw * 0.18, ch * 0.012, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Decorative dots
-  [[0.07,0.07,13,0],[0.91,0.10,9,1],[0.10,0.91,7,2],[0.88,0.86,11,3],[0.50,0.97,5,4]].forEach(([xi,yi,r,pi]) => {
-    ctx.beginPath();
-    ctx.arc(cw*xi, ch*yi, r, 0, Math.PI*2);
-    ctx.fillStyle = hexWithAlpha(palette[pi % palette.length], 0.42);
-    ctx.fill();
-  });
-
-  const figY = ch * 0.025, figH = ch * 0.87;
-  const m = figMetrics(cx, figY, figH);
-
-  // 1. Body skin
-  drawFigureBody(ctx, m);
-  // 2. Outfit (with opacity)
-  ctx.save(); ctx.globalAlpha = garment.opacity;
-  drawOutfit(ctx, m, garment);
-  ctx.restore();
-  // 3. Shoes (fully opaque, always on top)
-  drawShoes(ctx, m);
-  // 4. Hair + face (always on top of everything)
-  drawHair(ctx, m);
-  drawFace(ctx, m);
-}
-
-// Pre-computed figure measurements (all derived from headH)
-function figMetrics(cx, startY, totalH) {
-  const headH = totalH / 9.8;
-  const headW = headH * 0.60;
-  const headCy = startY + headH * 0.50;
-  const neckTop = startY + headH * 0.93;
-  const shoulderY = neckTop + headH * 0.27;
-  const sHalf = headW * 1.68;
-  const waistY = startY + headH * 3.85;
-  const wHalf = sHalf * 0.63;
-  const hipY = startY + headH * 4.90;
-  const hHalf = sHalf * 1.04;
-  const ankleY = startY + headH * 8.85;
-  const footY = startY + totalH;
-  const legGap = hHalf * 0.09;
-  const legW = hHalf * 0.22;
-  return { cx, startY, totalH, headH, headW, headCy, neckTop, shoulderY, sHalf, waistY, wHalf, hipY, hHalf, ankleY, footY, legGap, legW };
-}
-
-// ---------------------------------------------------------------------------
-// Drawing: body
-// ---------------------------------------------------------------------------
-function drawFigureBody(ctx, m) {
-  const { cx, headH, headW, headCy, neckTop, shoulderY, sHalf, waistY, wHalf, hipY, hHalf, ankleY, legGap, legW } = m;
-  const skin = "#EDD3B8", skinDk = shade(skin, -0.09);
-
-  // Body silhouette
-  ctx.beginPath();
-  ctx.moveTo(cx - sHalf, shoulderY);
-  ctx.bezierCurveTo(cx - sHalf, shoulderY + headH * 0.18, cx - wHalf, waistY - headH * 0.32, cx - wHalf, waistY);
-  ctx.bezierCurveTo(cx - wHalf, waistY + headH * 0.22, cx - hHalf, hipY - headH * 0.10, cx - hHalf, hipY);
-  ctx.lineTo(cx - legGap - legW, ankleY);
-  ctx.lineTo(cx - legGap, ankleY);
-  ctx.lineTo(cx - legGap, hipY + headH * 0.32);
-  ctx.lineTo(cx + legGap, hipY + headH * 0.32);
-  ctx.lineTo(cx + legGap, ankleY);
-  ctx.lineTo(cx + legGap + legW, ankleY);
-  ctx.lineTo(cx + hHalf, hipY);
-  ctx.bezierCurveTo(cx + hHalf, hipY - headH * 0.10, cx + wHalf, waistY + headH * 0.22, cx + wHalf, waistY);
-  ctx.bezierCurveTo(cx + wHalf, waistY - headH * 0.32, cx + sHalf, shoulderY + headH * 0.18, cx + sHalf, shoulderY);
-  ctx.lineTo(cx + headW * 0.20, neckTop + headH * 0.34);
-  ctx.lineTo(cx - headW * 0.20, neckTop + headH * 0.34);
-  ctx.closePath();
-  const bodyGrad = ctx.createLinearGradient(cx - sHalf, shoulderY, cx + sHalf * 0.4, ankleY);
-  bodyGrad.addColorStop(0, skin); bodyGrad.addColorStop(1, skinDk);
-  ctx.fillStyle = bodyGrad; ctx.fill();
-  ctx.strokeStyle = shade(skin, -0.14); ctx.lineWidth = 0.7; ctx.stroke();
-
-  // Arms (slim ellipses alongside torso)
-  const armCY = shoulderY + (waistY + headH * 0.7 - shoulderY) / 2;
-  const armHalf = (waistY + headH * 0.7 - shoulderY) / 2;
-  const armW = headW * 0.17;
-  [-1, 1].forEach((side) => {
-    ctx.beginPath();
-    ctx.ellipse(cx + side * (sHalf + armW * 0.28), armCY, armW, armHalf, 0, 0, Math.PI * 2);
-    ctx.fillStyle = skin; ctx.fill();
-    ctx.strokeStyle = shade(skin, -0.14); ctx.lineWidth = 0.6; ctx.stroke();
-  });
-
-  // Neck
-  ctx.fillStyle = skin;
-  ctx.beginPath();
-  ctx.rect(cx - headW * 0.16, neckTop, headW * 0.32, headH * 0.34);
-  ctx.fill();
-
-  // Head
-  ctx.beginPath();
-  ctx.ellipse(cx, headCy, headW * 0.50, headH * 0.52, 0, 0, Math.PI * 2);
-  ctx.fillStyle = skin; ctx.fill();
-  ctx.strokeStyle = shade(skin, -0.14); ctx.lineWidth = 0.7; ctx.stroke();
-}
-
-// ---------------------------------------------------------------------------
-// Drawing: hair (bob with bangs)
-// ---------------------------------------------------------------------------
-function drawHair(ctx, m) {
-  const { cx, headCy, headH, headW } = m;
-  const hairColor = "#3A2410", hairHL = "#6A4428";
-  const chinY = headCy + headH * 0.44;
-
-  // Main bob shape
-  ctx.beginPath();
-  ctx.moveTo(cx + headW * 0.50, chinY);
-  ctx.bezierCurveTo(cx + headW * 0.63, headCy + headH * 0.12, cx + headW * 0.58, headCy - headH * 0.38, cx, headCy - headH * 0.54);
-  ctx.bezierCurveTo(cx - headW * 0.58, headCy - headH * 0.38, cx - headW * 0.63, headCy + headH * 0.12, cx - headW * 0.50, chinY);
-  ctx.bezierCurveTo(cx - headW * 0.32, chinY + headH * 0.06, cx + headW * 0.32, chinY + headH * 0.06, cx + headW * 0.50, chinY);
-  ctx.closePath();
-  const hairGrad = ctx.createLinearGradient(cx - headW * 0.5, headCy - headH * 0.5, cx + headW * 0.25, headCy + headH * 0.45);
-  hairGrad.addColorStop(0, hairHL); hairGrad.addColorStop(0.55, hairColor); hairGrad.addColorStop(1, shade(hairColor, -0.18));
-  ctx.fillStyle = hairGrad; ctx.fill();
-
-  // Bangs (covers top of forehead)
-  ctx.beginPath();
-  ctx.moveTo(cx - headW * 0.50, headCy - headH * 0.18);
-  ctx.bezierCurveTo(cx - headW * 0.32, headCy - headH * 0.55, cx + headW * 0.32, headCy - headH * 0.55, cx + headW * 0.50, headCy - headH * 0.18);
-  ctx.bezierCurveTo(cx + headW * 0.22, headCy - headH * 0.13, cx - headW * 0.22, headCy - headH * 0.13, cx - headW * 0.50, headCy - headH * 0.18);
-  ctx.closePath(); ctx.fillStyle = hairColor; ctx.fill();
-
-  // Hair sheen
-  ctx.beginPath();
-  ctx.moveTo(cx - headW * 0.06, headCy - headH * 0.50);
-  ctx.bezierCurveTo(cx - headW * 0.02, headCy - headH * 0.20, cx + headW * 0.16, headCy - headH * 0.05, cx + headW * 0.22, headCy + headH * 0.12);
-  ctx.strokeStyle = "rgba(255,255,255,0.18)"; ctx.lineWidth = 2.2; ctx.lineCap = "round"; ctx.stroke();
-}
-
-// ---------------------------------------------------------------------------
-// Drawing: face
-// ---------------------------------------------------------------------------
-function drawFace(ctx, m) {
-  const { cx, headCy, headH, headW } = m;
-
-  // Eyebrows
-  [[-1, 1], [1, -1]].forEach(([side]) => {
-    const bx = cx + side * headW * 0.21;
-    ctx.beginPath();
-    ctx.moveTo(bx - headW * 0.10, headCy - headH * 0.22);
-    ctx.bezierCurveTo(bx - headW * 0.02, headCy - headH * 0.28, bx + headW * 0.02, headCy - headH * 0.26, bx + headW * 0.10, headCy - headH * 0.21);
-    ctx.strokeStyle = "#3A2410"; ctx.lineWidth = 1.6; ctx.lineCap = "round"; ctx.stroke();
-  });
-
-  // Eyes (almond shaped)
-  [[-0.21], [0.21]].forEach(([dx]) => {
-    const ex = cx + headW * dx, ey = headCy - headH * 0.08;
-    const ew = headW * 0.125, eh = headH * 0.065;
-    // Iris
-    ctx.beginPath();
-    ctx.moveTo(ex - ew, ey);
-    ctx.bezierCurveTo(ex - ew * 0.3, ey - eh * 1.25, ex + ew * 0.3, ey - eh * 1.25, ex + ew, ey);
-    ctx.bezierCurveTo(ex + ew * 0.3, ey + eh * 0.80, ex - ew * 0.3, ey + eh * 0.80, ex - ew, ey);
-    ctx.closePath(); ctx.fillStyle = "#2A1808"; ctx.fill();
-    // Iris colour
-    ctx.beginPath();
-    ctx.moveTo(ex - ew * 0.52, ey);
-    ctx.bezierCurveTo(ex - ew * 0.20, ey - eh * 0.95, ex + ew * 0.20, ey - eh * 0.95, ex + ew * 0.52, ey);
-    ctx.bezierCurveTo(ex + ew * 0.20, ey + eh * 0.62, ex - ew * 0.20, ey + eh * 0.62, ex - ew * 0.52, ey);
-    ctx.closePath(); ctx.fillStyle = "#5C3A25"; ctx.fill();
-    // Highlight
-    ctx.beginPath(); ctx.arc(ex + ew * 0.12, ey - eh * 0.44, headW * 0.026, 0, Math.PI * 2);
-    ctx.fillStyle = "rgba(255,255,255,0.88)"; ctx.fill();
-    // Lash line
-    ctx.beginPath();
-    ctx.moveTo(ex - ew, ey);
-    ctx.bezierCurveTo(ex - ew * 0.3, ey - eh * 1.48, ex + ew * 0.3, ey - eh * 1.48, ex + ew, ey);
-    ctx.strokeStyle = "#1A0A00"; ctx.lineWidth = 1.3; ctx.stroke();
-  });
-
-  // Blush
-  [[-0.33], [0.33]].forEach(([dx]) => {
-    const bx = cx + headW * dx, by = headCy + headH * 0.04;
-    const bg = ctx.createRadialGradient(bx, by, 0, bx, by, headW * 0.17);
-    bg.addColorStop(0, "rgba(240,140,130,0.22)"); bg.addColorStop(1, "rgba(240,140,130,0)");
-    ctx.fillStyle = bg;
-    ctx.beginPath(); ctx.ellipse(bx, by, headW * 0.17, headH * 0.12, 0, 0, Math.PI * 2); ctx.fill();
-  });
-
-  // Nose (subtle)
-  ctx.beginPath();
-  ctx.moveTo(cx - headW * 0.04, headCy + headH * 0.09);
-  ctx.bezierCurveTo(cx - headW * 0.08, headCy + headH * 0.16, cx + headW * 0.08, headCy + headH * 0.16, cx + headW * 0.04, headCy + headH * 0.09);
-  ctx.strokeStyle = "rgba(180,130,100,0.45)"; ctx.lineWidth = 1.0; ctx.stroke();
-
-  // Lips
-  const ly = headCy + headH * 0.27, lw = headW * 0.19;
-  // Upper lip
-  ctx.beginPath();
-  ctx.moveTo(cx - lw, ly);
-  ctx.bezierCurveTo(cx - lw * 0.55, ly - headH * 0.055, cx - lw * 0.08, ly - headH * 0.065, cx, ly - headH * 0.01);
-  ctx.bezierCurveTo(cx + lw * 0.08, ly - headH * 0.065, cx + lw * 0.55, ly - headH * 0.055, cx + lw, ly);
-  ctx.strokeStyle = "#B86868"; ctx.lineWidth = 0.9; ctx.stroke();
-  // Lower lip (fill)
-  ctx.beginPath();
-  ctx.moveTo(cx - lw, ly);
-  ctx.bezierCurveTo(cx - lw * 0.55, ly + headH * 0.062, cx + lw * 0.55, ly + headH * 0.062, cx + lw, ly);
-  ctx.fillStyle = "rgba(195,105,105,0.48)"; ctx.fill();
-  ctx.strokeStyle = "#B86868"; ctx.lineWidth = 0.8; ctx.stroke();
-}
-
-// ---------------------------------------------------------------------------
-// Drawing: outfit (top + pants)
-// ---------------------------------------------------------------------------
-function drawOutfit(ctx, m, garment) {
-  const { cx, shoulderY, sHalf, hipY, hHalf, legGap, legW, ankleY } = m;
-  const topW = sHalf * 2;
-  drawGarmentShape(ctx, garment.type, cx, shoulderY, topW * garment.scale, garment.color);
-
-  if (garment.type !== "dress") {
-    // Slim trousers in a warm greige that pairs with any top
-    const pantsColor = "#BDB3A2";
-    const topW2 = legW * 1.08, botW = legW * 0.78;
-    const pantsTopY = hipY + (ankleY - hipY) * 0.04;
-    [cx - legGap - legW * 0.5, cx + legGap + legW * 0.5].forEach((lcx) => {
-      ctx.beginPath();
-      ctx.moveTo(lcx - topW2 * 0.5, pantsTopY);
-      ctx.lineTo(lcx + topW2 * 0.5, pantsTopY);
-      ctx.lineTo(lcx + botW * 0.5, ankleY);
-      ctx.lineTo(lcx - botW * 0.5, ankleY);
-      ctx.closePath();
-      ctx.fillStyle = pantsColor; ctx.fill();
-      ctx.strokeStyle = shade(pantsColor, -0.11); ctx.lineWidth = 0.6; ctx.stroke();
-    });
-    // Center crease hint
-    ctx.beginPath();
-    ctx.moveTo(cx, hipY + (ankleY - hipY) * 0.06);
-    ctx.lineTo(cx, hipY + (ankleY - hipY) * 0.38);
-    ctx.strokeStyle = shade(pantsColor, -0.07); ctx.lineWidth = 0.5; ctx.stroke();
+  if (lang === "ja") {
+    const itemsJa = items.length ? items.join("、") : "似合うコーデ";
+    return [
+      `この人物が${itemsJa}を着ているファッション雑誌風の全身写真。`,
+      `配色: ${SEASON_JA[season]}。`,
+      `雰囲気: ${FACETYPE_JA[ft]}。`,
+      `スタジオ照明、白背景、雑誌エディトリアル風、高解像度、リアル。`,
+    ].join("\n");
   }
+
+  const itemsEn = items.length ? items.join(", ") : "stylish coordinated outfit";
+  return [
+    `Full body fashion magazine photo of this person wearing ${itemsEn}.`,
+    `Color palette: ${SEASON_EN[season]}.`,
+    `Overall aesthetic: ${FACETYPE_EN[ft]}.`,
+    `Studio lighting, clean white background, editorial style, high resolution, photorealistic.`,
+  ].join("\n");
 }
 
-// ---------------------------------------------------------------------------
-// Drawing: shoes
-// ---------------------------------------------------------------------------
-function drawShoes(ctx, m) {
-  const { cx, legGap, legW, ankleY, footY } = m;
-  const sh = footY - ankleY;
-  const sc = "#252018", scHL = shade(sc, 0.32);
-
-  [
-    { side: -1, ox: -(legGap + legW * 0.5 + legW * 0.28) },
-    { side:  1, ox:  (legGap + legW * 0.5 + legW * 0.28) },
-  ].forEach(({ side, ox }) => {
-    const sx = cx + ox;
-    ctx.beginPath();
-    ctx.ellipse(sx, ankleY + sh * 0.55, legW * 1.05, sh * 0.46, side * 0.06, 0, Math.PI * 2);
-    ctx.fillStyle = sc; ctx.fill();
-    // Toe box highlight
-    ctx.beginPath();
-    ctx.ellipse(sx - side * legW * 0.30, ankleY + sh * 0.38, legW * 0.32, sh * 0.14, side * 0.08, 0, Math.PI * 2);
-    ctx.fillStyle = scHL; ctx.fill();
-  });
+function updatePromptText() {
+  if (!domo.diagnosis) return;
+  $("domoai-prompt").value = buildPrompt(domo.diagnosis, domo.lang);
 }
 
-// ---------------------------------------------------------------------------
-// Drawing: garment shape (unchanged)
-// ---------------------------------------------------------------------------
-function drawGarmentShape(ctx, type, cx, topY, w, color) {
-  const cfg = {
-    tshirt: { h: 1.15, sleeve: 0.28, sleeveLen: 0.30, flare: 0,    open: false },
-    knit:   { h: 1.32, sleeve: 0.20, sleeveLen: 0.62, flare: 0.02, open: false },
-    dress:  { h: 2.00, sleeve: 0.26, sleeveLen: 0.28, flare: 0.38, open: false },
-    coat:   { h: 1.78, sleeve: 0.18, sleeveLen: 0.70, flare: 0.12, open: true  },
-  }[type] || { h: 1.15, sleeve: 0.28, sleeveLen: 0.30, flare: 0, open: false };
+function downloadOriginalPhoto() {
+  if (!state.img) return;
+  const c = document.createElement("canvas");
+  c.width = state.natW; c.height = state.natH;
+  c.getContext("2d").drawImage(state.img, 0, 0);
+  c.toBlob((blob) => {
+    if (!blob) return;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "stylist-photo.jpg"; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }, "image/jpeg", 0.95);
+}
 
-  const h = w * cfg.h;
-  const collar = w * 0.20;
-  const left = cx - w / 2, right = cx + w / 2;
-  const sleeveW = w * cfg.sleeve;
-  const sleeveDrop = h * cfg.sleeveLen;
-  const hemW = w * (0.40 + cfg.flare);
-  const bottomY = topY + h;
-
-  ctx.beginPath();
-  ctx.moveTo(cx - collar, topY);
-  ctx.lineTo(left, topY + h * 0.04);
-  ctx.lineTo(left - sleeveW, topY + h * 0.04 + sleeveDrop * 0.5);
-  ctx.lineTo(left - sleeveW * 0.55, topY + h * 0.04 + sleeveDrop);
-  ctx.lineTo(left + w * 0.10, topY + h * 0.30);
-  ctx.lineTo(cx - hemW, bottomY);
-  ctx.lineTo(cx + hemW, bottomY);
-  ctx.lineTo(right - w * 0.10, topY + h * 0.30);
-  ctx.lineTo(right + sleeveW * 0.55, topY + h * 0.04 + sleeveDrop);
-  ctx.lineTo(right + sleeveW, topY + h * 0.04 + sleeveDrop * 0.5);
-  ctx.lineTo(right, topY + h * 0.04);
-  ctx.lineTo(cx + collar, topY);
-  ctx.quadraticCurveTo(cx, topY + h * 0.11, cx - collar, topY);
-  ctx.closePath();
-
-  ctx.fillStyle = color; ctx.fill();
-  ctx.lineWidth = Math.max(1, w * 0.012);
-  ctx.strokeStyle = shade(color, -0.22); ctx.stroke();
-
-  ctx.save(); ctx.clip();
-  const grad = ctx.createLinearGradient(left, topY, right, bottomY);
-  grad.addColorStop(0, "rgba(255,255,255,0.13)"); grad.addColorStop(1, "rgba(0,0,0,0.13)");
-  ctx.fillStyle = grad; ctx.fillRect(left - sleeveW, topY, w + sleeveW * 2, h);
-  ctx.restore();
-
-  if (cfg.open) {
-    ctx.beginPath();
-    ctx.moveTo(cx, topY + h * 0.10); ctx.lineTo(cx, bottomY);
-    ctx.lineWidth = Math.max(1, w * 0.02);
-    ctx.strokeStyle = shade(color, -0.32); ctx.stroke();
+async function copyPrompt() {
+  const txt = $("domoai-prompt").value;
+  const status = $("copy-status");
+  try {
+    await navigator.clipboard.writeText(txt);
+    status.textContent = "コピーしました ✓";
+  } catch {
+    $("domoai-prompt").select();
+    document.execCommand("copy");
+    status.textContent = "コピーしました ✓";
   }
+  status.style.opacity = "1";
+  setTimeout(() => (status.style.opacity = "0"), 1800);
 }
 
-function shade(hex, amt) {
-  const n = parseInt(String(hex).replace("#", ""), 16);
-  if (Number.isNaN(n)) return "#999999";
-  let r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
-  const cl = (v) => Math.max(0, Math.min(255, v));
-  r = cl(r + r * amt); g = cl(g + g * amt); b = cl(b + b * amt);
-  return "#" + [r, g, b].map((v) => Math.round(v).toString(16).padStart(2, "0")).join("");
+let domoBound = false;
+function bindDomoControls() {
+  if (domoBound) return;
+  domoBound = true;
+  $("download-photo-btn").addEventListener("click", downloadOriginalPhoto);
+  $("copy-prompt-btn").addEventListener("click", copyPrompt);
+  $("lang-en").addEventListener("click", () => { domo.lang = "en"; toggleLang(); updatePromptText(); });
+  $("lang-ja").addEventListener("click", () => { domo.lang = "ja"; toggleLang(); updatePromptText(); });
 }
 
-// ---------------------------------------------------------------------------
-// Illustration controls
-// ---------------------------------------------------------------------------
-function renderGarmentPalette() {
-  const wrap = $("garment-palette");
-  if (!wrap) return;
-  wrap.innerHTML = "";
-  illus.palette.forEach((hex) => {
-    const el = document.createElement("div");
-    el.className = "swatch" + (hex === illus.garment.color ? " selected" : "");
-    el.style.background = hex;
-    el.addEventListener("click", () => { illus.garment.color = hex; renderGarmentPalette(); drawIllustration(); });
-    wrap.appendChild(el);
-  });
-}
-
-function bindIllusControls() {
-  if (illus.bound) return;
-  illus.bound = true;
-  $("garment-select").addEventListener("change", (e) => { illus.garment.type = e.target.value; drawIllustration(); });
-  $("garment-scale").addEventListener("input", (e) => { illus.garment.scale = parseFloat(e.target.value); drawIllustration(); });
-  $("garment-opacity").addEventListener("input", (e) => { illus.garment.opacity = parseFloat(e.target.value); drawIllustration(); });
-  $("export-btn").addEventListener("click", () => {
-    const link = document.createElement("a");
-    link.download = "style-illustration.png";
-    link.href = illus.canvas.toDataURL("image/png");
-    link.click();
-  });
+function toggleLang() {
+  $("lang-en").classList.toggle("active", domo.lang === "en");
+  $("lang-ja").classList.toggle("active", domo.lang === "ja");
 }
