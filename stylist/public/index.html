@@ -65,25 +65,9 @@
       </div>
     </section>
 
-    <!-- STEP 3: recommendations -->
-    <section class="card" id="step-reco" hidden>
-      <h2><span class="step-no">3</span>おすすめコーデ & ネット検索</h2>
-      <p id="reco-summary" class="result-desc"></p>
-      <div id="reco-items" class="reco-items"></div>
-      <p id="reco-avoid" class="avoid-note"></p>
-      <div class="search-row">
-        <input type="text" id="search-query" class="search-input" aria-label="検索キーワード">
-        <div class="search-btns">
-          <a id="btn-rakuten" class="btn btn-shop" target="_blank" rel="noopener">楽天で探す</a>
-          <a id="btn-amazon" class="btn btn-shop" target="_blank" rel="noopener">Amazonで探す</a>
-          <a id="btn-google" class="btn btn-shop" target="_blank" rel="noopener">Google画像で探す</a>
-        </div>
-      </div>
-    </section>
-
-    <!-- STEP 4: DomoAI handoff -->
+    <!-- STEP 3: DomoAI handoff -->
     <section class="card" id="step-tryon" hidden>
-      <h2><span class="step-no">4</span>DomoAIでAIフォト生成</h2>
+      <h2><span class="step-no">3</span>DomoAIでAIフォト生成</h2>
       <p class="hint">あなたの写真と、診断から自動生成したプロンプトを使って、DomoAIで「自分が似合うコーデを着ている画像」を生成できます。</p>
 
       <div class="domoai-actions">
@@ -109,9 +93,9 @@
       <ol class="domoai-steps" hidden></ol>
     </section>
 
-    <!-- STEP 5: reverse search from generated image -->
+    <!-- STEP 4: reverse search from generated image -->
     <section class="card" id="step-extract" hidden>
-      <h2><span class="step-no">5</span>生成した画像から服を検索</h2>
+      <h2><span class="step-no">4</span>生成した画像から服を検索</h2>
       <p class="hint">DomoAIで生成した画像をアップロードすると、AIが写っている服を識別して、似た商品をネットで検索できます。</p>
 
       <label id="extract-dropzone" for="extract-file" class="extract-dropzone">

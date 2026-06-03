@@ -96,7 +96,7 @@ async function analyze() {
     const data = await resp.json();
     if (!resp.ok) throw new Error(data.error || `サーバーエラー (HTTP ${resp.status})`);
     state.diagnosis = data;
-    renderResults(data); renderReco(data); initDomoAI(data); initExtractSection();
+    renderResults(data); initDomoAI(data); initExtractSection();
     setStatus(data.faceDetected === false
       ? "顔をはっきり検出できませんでした。結果は参考程度にご覧ください。"
       : "診断が完了しました。",
@@ -159,46 +159,8 @@ function shopButton(label, href) {
   return a;
 }
 
-function renderReco(d) {
-  $("step-reco").hidden = false;
-  const reco = d.recommendation || {};
-  $("reco-summary").textContent = reco.summary || "";
-  const wrap = $("reco-items");
-  wrap.innerHTML = "";
-  (reco.items || []).forEach((item) => {
-    const box = document.createElement("div"); box.className = "reco-item";
-    const head = document.createElement("div"); head.className = "reco-item-head";
-    const cat = document.createElement("div"); cat.className = "reco-item-cat";
-    cat.textContent = item.category || "アイテム";
-    head.appendChild(cat); box.appendChild(head);
-    const advice = document.createElement("div"); advice.className = "reco-item-advice";
-    advice.textContent = item.advice || "";
-    box.appendChild(advice);
-    const btns = document.createElement("div"); btns.className = "search-btns";
-    const links = searchLinks(item.searchKeyword || item.category || "");
-    btns.appendChild(shopButton("楽天", links.rakuten));
-    btns.appendChild(shopButton("Amazon", links.amazon));
-    btns.appendChild(shopButton("Google画像", links.google));
-    box.appendChild(btns);
-    wrap.appendChild(box);
-  });
-  const avoid = $("reco-avoid");
-  if (reco.avoid) { avoid.hidden = false; avoid.textContent = `避けたいもの： ${reco.avoid}`; }
-  else avoid.hidden = true;
-  const seed = (reco.items && reco.items[0] && reco.items[0].searchKeyword) || (d.personalColor.seasonLabel || "");
-  $("search-query").value = seed;
-  applyTopSearch(seed);
-}
-
-function applyTopSearch(q) {
-  const links = searchLinks(q);
-  $("btn-rakuten").href = links.rakuten; $("btn-amazon").href = links.amazon; $("btn-google").href = links.google;
-}
-
-$("search-query").addEventListener("input", (e) => applyTopSearch(e.target.value));
-
 // ---------------------------------------------------------------------------
-// DomoAI handoff (Step 4)
+// DomoAI handoff (Step 3)
 // ---------------------------------------------------------------------------
 const SEASON_EN = {
   spring: "warm bright spring palette: coral, peach, light yellow, fresh green, ivory, golden undertone",
