@@ -728,6 +728,7 @@ label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;
     <div class="download-bar" id="download-bar">
       <button class="dl-btn continue-btn" id="continue-btn" onclick="continueGenerate()">＋ 続きを6カット生成</button>
       <button class="dl-btn" onclick="printStoryboard()">🖨 印刷 / PDF保存</button>
+      <button class="dl-btn jpeg-bulk" id="dl-all-btn" onclick="downloadAllJPEG()">💾 全てJPEGで保存</button>
       <div class="dl-range-row">
         <span class="dl-range-label">JPEG一括保存:</span>
         <span class="dl-range-label">No.</span>
@@ -3833,6 +3834,13 @@ function downloadPanelJPEG(btn) {
 // ─────────────────────────────────────────
 // Bulk JPEG range download
 // ─────────────────────────────────────────
+async function downloadAllJPEG() {
+  if (!allPanels.length) return;
+  const btn = document.getElementById('dl-all-btn');
+  btn.disabled = true;
+  await downloadRangeCore(1, allPanels.length, btn, '💾 全てJPEGで保存');
+}
+
 async function downloadRangeJPEG() {
   const total = allPanels.length;
   if (!total) return;
@@ -3849,6 +3857,10 @@ async function downloadRangeJPEG() {
 
   const btn = document.getElementById('dl-range-btn');
   btn.disabled = true;
+  await downloadRangeCore(from, to, btn, '💾 JPEG一括保存');
+}
+
+async function downloadRangeCore(from, to, btn, resetLabel) {
   const count = to - from + 1;
   const panels = document.querySelectorAll('.sb-panel');
 
@@ -3894,7 +3906,7 @@ async function downloadRangeJPEG() {
 
   btn.disabled = false;
   btn.textContent = `✓ ${count}枚 保存完了`;
-  setTimeout(() => { btn.textContent = '💾 JPEG一括保存'; }, 3000);
+  setTimeout(() => { btn.textContent = resetLabel; }, 3000);
 }
 
 // ─────────────────────────────────────────
