@@ -728,11 +728,11 @@ label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;
         <button class="domo-save-btn" onclick="domoSaveKey()">保存</button>
       </div>
       <div class="domo-row">
-        <select class="domo-select" id="domo-model">
-          <option value="t2v-2.4-faster">t2v-2.4-faster（速い）</option>
-          <option value="t2v-2.4-advanced">t2v-2.4-advanced（高品質）</option>
+        <select class="domo-select" id="domo-model" onchange="domoUpdateCost()">
+          <option value="t2v-2.4-faster">t2v-2.4-faster（速い・2cr/秒）</option>
+          <option value="t2v-2.4-advanced">t2v-2.4-advanced（高品質・5cr/秒）</option>
         </select>
-        <select class="domo-select" id="domo-seconds">
+        <select class="domo-select" id="domo-seconds" onchange="domoUpdateCost()">
           <option value="5">5秒</option>
           <option value="3">3秒</option>
           <option value="8">8秒</option>
@@ -744,6 +744,17 @@ label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;
           <option value="1:1">1:1（正方形）</option>
           <option value="4:3">4:3</option>
         </select>
+        <select class="domo-select" id="domo-style">
+          <option value="japanese_anime">japanese_anime（アニメ）</option>
+          <option value="realistic">realistic（実写風）</option>
+          <option value="pixel">pixel（ドット絵）</option>
+          <option value="cartoon_game">cartoon_game（カートゥーン）</option>
+          <option value="flat_color_anime">flat_color_anime（フラットアニメ）</option>
+          <option value="90s_style">90s_style（90年代風）</option>
+        </select>
+      </div>
+      <div class="domo-row" style="align-items:center;justify-content:space-between;">
+        <div id="domo-cost" style="font-size:.8rem;color:#6ee7b7;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.2);border-radius:6px;padding:.3rem .7rem;">💳 消費予定: — クレジット</div>
         <button class="domo-run-btn" id="domo-run-btn" onclick="domoRunGeneration()">▶ 動画生成スタート（10カット）</button>
       </div>
       <div class="domo-progress" id="domo-progress"></div>
@@ -4089,6 +4100,7 @@ function updateStampCountLabel() {
         if (visible) {
           const saved = localStorage.getItem('domo_api_key');
           if (saved) document.getElementById('domo-api-key').value = saved;
+          domoUpdateCost();
           panel.scrollIntoView({ behavior:'smooth', block:'nearest' });
         }
       }
@@ -4106,11 +4118,26 @@ function domoSaveKey() {
   setTimeout(() => { document.getElementById('domo-progress').textContent = ''; }, 2500);
 }
 
-async function domoSubmitTask(prompt, model, seconds, aspect_ratio, apiKey) {
+const DOMO_CREDITS_PER_SEC = { 't2v-2.4-faster': 2, 't2v-2.4-advanced': 5 };
+
+function domoUpdateCost() {
+  const model   = document.getElementById('domo-model')?.value || 't2v-2.4-faster';
+  const seconds = parseInt(document.getElementById('domo-seconds')?.value || '5');
+  const cuts    = Math.min(10, allPanels.length || 10);
+  const cr      = (DOMO_CREDITS_PER_SEC[model] || 2) * seconds;
+  const total   = cr * cuts;
+  const usd     = (total * 0.02).toFixed(2);
+  const el = document.getElementById('domo-cost');
+  if (el) el.textContent = `💳 消費予定: ${cr}cr × ${cuts}カット = ${total} クレジット ($${usd})`;
+}
+
+async function domoSubmitTask(prompt, model, seconds, aspect_ratio, apiKey, style) {
+  const body = { prompt, model, seconds: parseInt(seconds), aspect_ratio };
+  if (style) body.style = style;
   const res = await fetch('https://api.domoai.com/v1/video/text2video', {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt, model, seconds: parseInt(seconds), aspect_ratio })
+    body: JSON.stringify(body)
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
@@ -4163,6 +4190,7 @@ async function domoRunGeneration() {
   const model   = document.getElementById('domo-model').value;
   const seconds = document.getElementById('domo-seconds').value;
   const aspect  = document.getElementById('domo-aspect').value;
+  const style   = document.getElementById('domo-style').value;
   const btn  = document.getElementById('domo-run-btn');
   const prog = document.getElementById('domo-progress');
   btn.disabled = true;
@@ -4179,7 +4207,7 @@ async function domoRunGeneration() {
     const prompt = rawPrompt || `cinematic scene, anime style, cut ${i + 1}`;
     prog.textContent = `[${i+1}/${targets.length}] カット${i+1}: 送信中...`;
     try {
-      const taskId = await domoSubmitTask(prompt, model, seconds, aspect, apiKey);
+      const taskId = await domoSubmitTask(prompt, model, seconds, aspect, apiKey, style);
       prog.textContent = `[${i+1}/${targets.length}] カット${i+1}: 生成中 (ID: ${taskId.slice(0,8)}...)`;
       const videoUrl = await domoPollTask(taskId, apiKey);
       if (videoUrl) {
