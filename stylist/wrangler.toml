@@ -1,0 +1,8 @@
+# Cloudflare Pages configuration.
+# nodejs_compat lets the Anthropic SDK run in the Workers runtime.
+# pages_build_output_dir points Pages at the static frontend; Functions in
+# functions/ are auto-routed (functions/api/diagnose.js -> /api/diagnose).
+name = "ai-stylist"
+compatibility_date = "2024-11-01"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = "public"

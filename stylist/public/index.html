@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>顔タイプ × パーソナルカラー スタイリスト（AI診断）</title>
+  <meta name="description" content="写真をアップロードするだけで、AI（Claude）が顔タイプ診断とパーソナルカラー診断を行い、似合う服のおすすめ検索と試着（はめ込み）ができるツール。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Zen+Maru+Gothic:wght@500;700&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <header class="site-header">
+    <h1>顔タイプ × パーソナルカラー <span>スタイリスト</span></h1>
+    <p class="lead">写真を1枚アップロードすると、AI（Claude）が顔タイプ・パーソナルカラーを診断し、似合う服を検索＆試着できます。</p>
+    <p class="privacy">📷 写真は診断のため、サーバー経由でGemini APIに送信されます（サーバー側に保存はしません）。</p>
+  </header>
+
+  <main>
+    <!-- STEP 1: upload -->
+    <section class="card" id="step-upload">
+      <h2><span class="step-no">1</span>写真をアップロード</h2>
+      <p class="hint">正面・明るい場所・前髪で輪郭が隠れていない写真ほど精度が上がります。</p>
+      <!-- Style preferences: always visible before analysis -->
+      <div class="prefs-section" id="prefs-section">
+        <p class="prefs-title">好みのスタイルを選ぶ <span class="prefs-hint">（複数選択OK・後から変更できます）</span></p>
+        <div class="pref-row">
+          <span class="pref-label">テイスト</span>
+          <div class="pref-tags" data-pref="style">
+            <button type="button" class="pref-tag" data-v="casual">カジュアル</button>
+            <button type="button" class="pref-tag active" data-v="kireime">きれいめ</button>
+            <button type="button" class="pref-tag" data-v="feminine">フェミニン</button>
+            <button type="button" class="pref-tag" data-v="natural">ナチュラル</button>
+            <button type="button" class="pref-tag" data-v="trend">トレンド</button>
+            <button type="button" class="pref-tag" data-v="street">ストリート</button>
+          </div>
+        </div>
+        <div class="pref-row">
+          <span class="pref-label">年代</span>
+          <div class="pref-tags" data-pref="age" data-single="true">
+            <button type="button" class="pref-tag" data-v="10s">10代</button>
+            <button type="button" class="pref-tag active" data-v="20s">20代</button>
+            <button type="button" class="pref-tag" data-v="30s">30代</button>
+            <button type="button" class="pref-tag" data-v="40s">40代以上</button>
+          </div>
+        </div>
+        <div class="pref-row">
+          <span class="pref-label">シーン</span>
+          <div class="pref-tags" data-pref="scene">
+            <button type="button" class="pref-tag active" data-v="daily">普段着</button>
+            <button type="button" class="pref-tag" data-v="office">オフィス</button>
+            <button type="button" class="pref-tag" data-v="date">デート</button>
+            <button type="button" class="pref-tag" data-v="outing">お出かけ</button>
+            <button type="button" class="pref-tag" data-v="party">パーティー</button>
+          </div>
+        </div>
+      </div>
+
+      <label id="dropzone" for="file-input">
+        <input type="file" id="file-input" accept="image/*" hidden>
+        <div class="dropzone-inner">
+          <div class="dz-icon">＋</div>
+          <div class="dz-text">クリック、またはここに画像をドロップ</div>
+          <div class="dz-sub">JPG / PNG / WEBP</div>
+        </div>
+      </label>
+      <div id="preview-wrap" class="preview-wrap" hidden>
+        <canvas id="preview-canvas"></canvas>
+        <div class="preview-actions">
+          <button id="analyze-btn" class="btn btn-primary" type="button">この写真でAI診断する</button>
+          <button id="reset-btn" class="btn btn-ghost" type="button">別の写真にする</button>
+        </div>
+      </div>
+      <p id="status" class="status" role="status" aria-live="polite"></p>
+    </section>
+
+    <!-- STEP 2: diagnosis -->
+    <section class="card" id="step-result" hidden>
+      <h2><span class="step-no">2</span>AI診断結果</h2>
+      <p class="hint disclaimer">※ 写真の明るさや角度で結果は変わります。あくまで目安としてお楽しみください。</p>
+      <div class="result-grid">
+        <div class="result-box">
+          <h3>パーソナルカラー</h3>
+          <div id="season-name" class="big-label">—</div>
+          <div id="season-meta" class="meta-line"></div>
+          <div id="season-palette" class="palette"></div>
+          <p id="season-words" class="result-desc"></p>
+        </div>
+        <div class="result-box">
+          <h3>顔タイプ</h3>
+          <div id="facetype-name" class="big-label">—</div>
+          <p id="facetype-axis" class="axis-note"></p>
+          <p id="facetype-words" class="result-desc"></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- STEP 3: DomoAI handoff -->
+    <section class="card" id="step-tryon" hidden>
+      <h2><span class="step-no">3</span>DomoAIでAIフォト生成</h2>
+      <p class="hint">あなたの写真と、診断から自動生成したプロンプトを使って、DomoAIで「自分が似合うコーデを着ている画像」を生成できます。</p>
+
+      <div class="domoai-actions">
+        <button id="download-photo-btn" class="btn btn-primary" type="button">元の写真をダウンロード</button>
+        <a id="open-domoai-btn" class="btn btn-shop" href="https://domoai.app/" target="_blank" rel="noopener">DomoAIを開く ↗</a>
+      </div>
+
+      <div class="prompt-block">
+        <div class="prompt-head">
+          <span>プロンプト</span>
+          <div class="lang-toggle">
+            <button id="lang-en" class="lang-btn active" type="button">English</button>
+            <button id="lang-ja" class="lang-btn" type="button">日本語</button>
+          </div>
+        </div>
+        <textarea id="domoai-prompt" rows="6" spellcheck="false"></textarea>
+        <div class="prompt-actions">
+          <button id="copy-prompt-btn" class="btn btn-ghost" type="button">プロンプトをコピー</button>
+          <span id="copy-status" class="copy-status"></span>
+        </div>
+      </div>
+
+      <ol class="domoai-steps" hidden></ol>
+    </section>
+
+    <!-- STEP 4: reverse search from generated image -->
+    <section class="card" id="step-extract" hidden>
+      <h2><span class="step-no">4</span>生成した画像から服を検索</h2>
+      <p class="hint">DomoAIで生成した画像をアップロードすると、AIが写っている服を識別して、似た商品をネットで検索できます。</p>
+
+      <label id="extract-dropzone" for="extract-file" class="extract-dropzone">
+        <input type="file" id="extract-file" accept="image/*" hidden>
+        <div class="dropzone-inner">
+          <div class="dz-icon">＋</div>
+          <div class="dz-text">クリック、または生成画像をドロップ</div>
+          <div class="dz-sub">JPG / PNG / WEBP</div>
+        </div>
+      </label>
+
+      <div id="extract-preview-wrap" class="preview-wrap" hidden>
+        <canvas id="extract-preview-canvas"></canvas>
+        <div class="preview-actions">
+          <button id="extract-analyze-btn" class="btn btn-primary" type="button">この画像から服を検索する</button>
+          <button id="extract-reset-btn" class="btn btn-ghost" type="button">別の画像にする</button>
+        </div>
+      </div>
+      <p id="extract-status" class="status" role="status" aria-live="polite"></p>
+
+      <div class="shop-filters" id="shop-filters" hidden>
+        <div class="filter-row">
+          <span class="filter-label">年代</span>
+          <div class="filter-btns" data-group="age">
+            <button type="button" data-v="10s">10代</button>
+            <button type="button" data-v="20s" class="active">20代</button>
+            <button type="button" data-v="30s">30代</button>
+            <button type="button" data-v="40s">40代以上</button>
+          </div>
+        </div>
+        <div class="filter-row">
+          <span class="filter-label">テイスト</span>
+          <div class="filter-btns" data-group="style">
+            <button type="button" data-v="casual">カジュアル</button>
+            <button type="button" data-v="kireime" class="active">きれいめ</button>
+            <button type="button" data-v="trend">トレンド</button>
+            <button type="button" data-v="feminine">フェミニン</button>
+            <button type="button" data-v="otona">大人</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="extract-items" class="reco-items"></div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>顔タイプ・パーソナルカラー判定はAIによる推定です。あくまで目安としてお楽しみください。</p>
+    <p class="tech">診断: Gemini（Vision）／ イラスト: ブラウザ内 canvas</p>
+  </footer>
+
+  <script type="module" src="app.js"></script>
+</body>
+
+</html>
