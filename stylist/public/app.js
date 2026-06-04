@@ -4,6 +4,52 @@ const CONF_JP = { high: "確信度 高", medium: "確信度 中", low: "確信�
 const state = { img: null, natW: 0, natH: 0, diagnosis: null };
 const $ = (id) => document.getElementById(id);
 
+// ---------------------------------------------------------------------------
+// User preferences (selected before analysis)
+// ---------------------------------------------------------------------------
+const userPrefs = { style: ["kireime"], age: "20s", scene: ["daily"] };
+
+const STYLE_EN = {
+  casual: "casual everyday style", kireime: "clean sophisticated style",
+  feminine: "feminine romantic style", natural: "natural relaxed style",
+  trend: "trendy fashion-forward style", street: "street fashion urban style",
+};
+const STYLE_JA = {
+  casual: "カジュアルな日常スタイル", kireime: "きれいめで上品なスタイル",
+  feminine: "フェミニンでロマンティックなスタイル", natural: "ナチュラルでリラックスしたスタイル",
+  trend: "トレンド感のあるスタイル", street: "ストリートファッション系スタイル",
+};
+const SCENE_EN = {
+  daily: "everyday casual", office: "office work setting", date: "date outfit",
+  outing: "going out", party: "party event",
+};
+const SCENE_JA = {
+  daily: "普段着・日常シーン", office: "オフィス・仕事シーン", date: "デートシーン",
+  outing: "お出かけシーン", party: "パーティーシーン",
+};
+const AGE_EN = { "10s": "teenage", "20s": "20s", "30s": "30s", "40s": "40s and up" };
+const AGE_JA = { "10s": "10代", "20s": "20代", "30s": "30代", "40s": "40代以上" };
+
+document.querySelectorAll(".pref-tags").forEach((group) => {
+  const isSingle = group.dataset.single === "true";
+  const key = group.dataset.pref;
+  group.addEventListener("click", (e) => {
+    const tag = e.target.closest(".pref-tag");
+    if (!tag) return;
+    const val = tag.dataset.v;
+    if (isSingle) {
+      userPrefs[key] = val;
+      group.querySelectorAll(".pref-tag").forEach((t) => t.classList.toggle("active", t === tag));
+    } else {
+      tag.classList.toggle("active");
+      userPrefs[key] = [...group.querySelectorAll(".pref-tag.active")].map((t) => t.dataset.v);
+    }
+    if (userPrefs.style.length) shopFilter.style = userPrefs.style[0];
+    shopFilter.age = userPrefs.age;
+    if (domo.diagnosis) updatePromptText();
+  });
+});
+
 function setStatus(msg, { error = false, loading = false } = {}) {
   const el = $("status");
   el.innerHTML = "";
@@ -272,23 +318,35 @@ function buildPrompt(d, lang) {
     .map((i) => i.searchKeyword || i.category)
     .filter(Boolean);
 
+  const styleDescs = userPrefs.style.map((s) => lang === "ja" ? STYLE_JA[s] : STYLE_EN[s]).filter(Boolean);
+  const sceneDescs = userPrefs.scene.map((s) => lang === "ja" ? SCENE_JA[s] : SCENE_EN[s]).filter(Boolean);
+  const agePart = lang === "ja" ? AGE_JA[userPrefs.age] : AGE_EN[userPrefs.age];
+
   if (lang === "ja") {
     const itemsJa = items.length ? items.join("、") : "似合うコーデ";
+    const stylePart = styleDescs.length ? `（${styleDescs.join("・")}）` : "";
+    const sceneLine = sceneDescs.length ? `シーン: ${sceneDescs.join("・")}。` : "";
     return [
-      `この人物が${itemsJa}を着ているファッション雑誌風の全身写真。`,
+      `この人物が${itemsJa}${stylePart}を着ているファッション雑誌風の全身写真。`,
+      `年代: ${agePart}向けスタイル。`,
+      sceneLine,
       `配色: ${SEASON_JA[season]}。`,
       `雰囲気: ${FACETYPE_JA[ft]}。`,
       `スタジオ照明、白背景、雑誌エディトリアル風、高解像度、リアル。`,
-    ].join("\n");
+    ].filter(Boolean).join("\n");
   }
 
   const itemsEn = items.length ? items.join(", ") : "stylish coordinated outfit";
+  const stylePart = styleDescs.length ? `, ${styleDescs.join(", ")}` : "";
+  const sceneLine = sceneDescs.length ? `Occasion: ${sceneDescs.join(", ")}.` : "";
   return [
-    `Full body fashion magazine photo of this person wearing ${itemsEn}.`,
+    `Full body fashion magazine photo of this person wearing ${itemsEn}${stylePart}.`,
+    `Target age group: ${agePart}.`,
+    sceneLine,
     `Color palette: ${SEASON_EN[season]}.`,
     `Overall aesthetic: ${FACETYPE_EN[ft]}.`,
     `Studio lighting, clean white background, editorial style, high resolution, photorealistic.`,
-  ].join("\n");
+  ].filter(Boolean).join("\n");
 }
 
 function updatePromptText() {
@@ -450,6 +508,14 @@ function renderExtractedItems(items) {
 
 function initExtractSection() {
   $("step-extract").hidden = false;
+  // Sync shop filters from user prefs
+  shopFilter.age = userPrefs.age;
+  if (userPrefs.style.length) shopFilter.style = userPrefs.style[0];
+  const ageGroup = document.querySelector('.filter-btns[data-group="age"]');
+  if (ageGroup) ageGroup.querySelectorAll("button").forEach((b) => b.classList.toggle("active", b.dataset.v === shopFilter.age));
+  const styleGroup = document.querySelector('.filter-btns[data-group="style"]');
+  if (styleGroup) styleGroup.querySelectorAll("button").forEach((b) => b.classList.toggle("active", b.dataset.v === shopFilter.style));
+
   if (extract.bound) return;
   extract.bound = true;
 

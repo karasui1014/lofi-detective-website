@@ -26,6 +26,41 @@
     <section class="card" id="step-upload">
       <h2><span class="step-no">1</span>写真をアップロード</h2>
       <p class="hint">正面・明るい場所・前髪で輪郭が隠れていない写真ほど精度が上がります。</p>
+      <!-- Style preferences: always visible before analysis -->
+      <div class="prefs-section" id="prefs-section">
+        <p class="prefs-title">好みのスタイルを選ぶ <span class="prefs-hint">（複数選択OK・後から変更できます）</span></p>
+        <div class="pref-row">
+          <span class="pref-label">テイスト</span>
+          <div class="pref-tags" data-pref="style">
+            <button type="button" class="pref-tag" data-v="casual">カジュアル</button>
+            <button type="button" class="pref-tag active" data-v="kireime">きれいめ</button>
+            <button type="button" class="pref-tag" data-v="feminine">フェミニン</button>
+            <button type="button" class="pref-tag" data-v="natural">ナチュラル</button>
+            <button type="button" class="pref-tag" data-v="trend">トレンド</button>
+            <button type="button" class="pref-tag" data-v="street">ストリート</button>
+          </div>
+        </div>
+        <div class="pref-row">
+          <span class="pref-label">年代</span>
+          <div class="pref-tags" data-pref="age" data-single="true">
+            <button type="button" class="pref-tag" data-v="10s">10代</button>
+            <button type="button" class="pref-tag active" data-v="20s">20代</button>
+            <button type="button" class="pref-tag" data-v="30s">30代</button>
+            <button type="button" class="pref-tag" data-v="40s">40代以上</button>
+          </div>
+        </div>
+        <div class="pref-row">
+          <span class="pref-label">シーン</span>
+          <div class="pref-tags" data-pref="scene">
+            <button type="button" class="pref-tag active" data-v="daily">普段着</button>
+            <button type="button" class="pref-tag" data-v="office">オフィス</button>
+            <button type="button" class="pref-tag" data-v="date">デート</button>
+            <button type="button" class="pref-tag" data-v="outing">お出かけ</button>
+            <button type="button" class="pref-tag" data-v="party">パーティー</button>
+          </div>
+        </div>
+      </div>
+
       <label id="dropzone" for="file-input">
         <input type="file" id="file-input" accept="image/*" hidden>
         <div class="dropzone-inner">
