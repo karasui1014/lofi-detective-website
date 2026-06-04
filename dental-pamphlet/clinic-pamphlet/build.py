@@ -1,608 +1,418 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Redesigned clinic pamphlet — A5 trifold (6 panels), print-ready HTML+PDF.
-Addresses: dense text → visual/scannable; training sections show people figures;
-last page replaced with a proper smile/CTA visual.
+Clinic pamphlet redesign — PHOTO-BASED, built on the clinic's own materials.
+A4 portrait, 4 pages, matching the original booklet's faces 1:1 but:
+  1) training sections use the REAL people photos (kids あいうべ faces, chairside)
+  2) text drastically reduced → scannable cards / one-line rows
+  3) the last page's irrelevant chair photo is replaced with the smile photo + CTA
 
-Usage:
-  python build.py            → writes index.html
-  FONT_SRC=/path/to/ttfs python render.py   → PDF + preview PNGs
+Photos are cropped from the user's source snapshots in source-photos/crops/.
+
+  python build.py                       → index.html
+  FONT_SRC=/tmp/fonts_src python render.py   → clinic-pamphlet.pdf + _preview/
 """
 
-import pathlib, textwrap
+import pathlib
 
 HERE = pathlib.Path(__file__).resolve().parent
+PH = "source-photos/crops"   # photo dir (relative to base_url)
 
-# ── colour palette ──────────────────────────────────────────────────────────
-NAVY   = "#1d3a5f"   # deep navy – headers
-TEAL   = "#3aaea0"   # teal accent
-MINT   = "#c8ede8"   # mint bg tints
-GOLD   = "#f5a623"   # highlight / badges
-CREAM  = "#fff8f0"   # warm off-white pages
-CORAL  = "#f07060"   # warning accent / villain
-WHITE  = "#ffffff"
-GRAY   = "#666680"
-LGRAY  = "#f0f2f5"
+# ── palette (matches the clinic's blue + yellow-marker look) ────────────────
+INK   = "#2b3a4a"   # body text
+NAVY  = "#1f4e79"   # headers
+BLUE  = "#5b8fc7"   # accents
+LBLUE = "#dbe8f5"   # soft box bg
+SOFT  = "#eef4fb"   # page tint
+HI    = "#fdf0a0"   # yellow highlighter
+GOLD  = "#e8a33d"   # price / emphasis
+CORAL = "#e8806b"
+WHITE = "#ffffff"
+GRAY  = "#6c7a89"
 
-# ── SVG helpers ─────────────────────────────────────────────────────────────
+# ── small inline SVG icons ──────────────────────────────────────────────────
 
-def g(dx=0, dy=0, sx=1, sy=None, content=""):
-    sy = sy or sx
-    return f'<g transform="translate({dx},{dy}) scale({sx},{sy})">{content}</g>'
+def _svg(body, vb="0 0 48 48", cls="ic"):
+    return (f'<svg class="{cls}" viewBox="{vb}" xmlns="http://www.w3.org/2000/svg">'
+            f'{body}</svg>')
 
-def circle(cx, cy, r, fill, stroke="none", sw=0):
-    s = f' stroke="{stroke}" stroke-width="{sw}"' if stroke != "none" else ""
-    return f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="{fill}"{s}/>'
+def ic_mouth():
+    return _svg(
+        f'<circle cx="24" cy="24" r="22" fill="{CORAL}"/>'
+        f'<ellipse cx="24" cy="27" rx="12" ry="9" fill="#a83b52"/>'
+        f'<ellipse cx="24" cy="29" rx="10" ry="4" fill="#f2a0b0"/>'
+        f'<path d="M14 19 Q24 13 34 19" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round"/>')
 
-def rect(x, y, w, h, fill, rx=0, ry=0, stroke="none", sw=0, opacity=1):
-    s = f' stroke="{stroke}" stroke-width="{sw}"' if stroke != "none" else ""
-    op = f' opacity="{opacity}"' if opacity != 1 else ""
-    return f'<rect x="{x}" y="{y}" width="{w}" height="{h}" fill="{fill}" rx="{rx}" ry="{ry}"{s}{op}/>'
+def ic_nose():
+    return _svg(
+        f'<circle cx="24" cy="24" r="22" fill="{BLUE}"/>'
+        f'<path d="M17 30 Q24 12 31 30" stroke="#fff" stroke-width="3.5" fill="none" stroke-linecap="round"/>'
+        f'<circle cx="19" cy="31" r="3" fill="#fff"/><circle cx="29" cy="31" r="3" fill="#fff"/>')
 
-def path(d, fill="none", stroke="none", sw=2, linecap="round", linejoin="round"):
-    return (f'<path d="{d}" fill="{fill}" stroke="{stroke}" '
-            f'stroke-width="{sw}" stroke-linecap="{linecap}" stroke-linejoin="{linejoin}"/>')
+def ic_tongue():
+    return _svg(
+        f'<circle cx="24" cy="24" r="22" fill="#e98ba6"/>'
+        f'<path d="M16 16 Q24 40 32 16" fill="#d85a7a"/>'
+        f'<path d="M24 22 L24 33" stroke="#fff" stroke-width="2" stroke-linecap="round"/>')
 
-def text_el(x, y, txt, fill="#fff", size=28, weight="bold", anchor="middle", family="Rounded"):
-    fam = "MPLUSRounded1c" if family == "Rounded" else "MochiyPopOne"
-    return (f'<text x="{x}" y="{y}" text-anchor="{anchor}" '
-            f'font-family="{fam}" font-size="{size}" font-weight="{weight}" fill="{fill}">{txt}</text>')
+def ic_posture():
+    return _svg(
+        f'<circle cx="24" cy="24" r="22" fill="{GOLD}"/>'
+        f'<circle cx="24" cy="15" r="5" fill="#fff"/>'
+        f'<path d="M24 20 L24 33 M24 24 L17 29 M24 24 L31 29 M24 33 L19 41 M24 33 L29 41" '
+        f'stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round"/>')
 
-# ── Character: simple person figure ─────────────────────────────────────────
+def ic_swallow():
+    return _svg(
+        f'<circle cx="24" cy="24" r="22" fill="#9b8bd0"/>'
+        f'<path d="M24 13 L24 31" stroke="#fff" stroke-width="3.5" stroke-linecap="round"/>'
+        f'<path d="M16 25 L24 33 L32 25" stroke="#fff" stroke-width="3.5" fill="none" '
+        f'stroke-linecap="round" stroke-linejoin="round"/>')
 
-def person(cx, cy, scale=1.0, skin="#f5c8a0", hair="#4a3020", shirt="#3aaea0",
-           pants="#1d3a5f", expression="smile", action="stand"):
-    """Simple 2D person SVG for training illustrations."""
-    s = scale
-    parts = []
+def ic_root():
+    return _svg(
+        f'<circle cx="24" cy="24" r="22" fill="{NAVY}"/>'
+        f'<path d="M16 16 Q16 10 24 10 Q32 10 32 16 L30 30 Q29 34 27 30 L26 22 '
+        f'Q25 20 24 22 Q23 20 22 22 L21 30 Q19 34 18 30 Z" fill="#fff"/>')
 
-    # shadow
-    parts.append(f'<ellipse cx="{cx}" cy="{cy+55*s}" rx="{22*s}" ry="{5*s}" fill="#00000020"/>')
+def ic_check(color=NAVY):
+    return _svg(
+        f'<circle cx="24" cy="24" r="22" fill="{color}"/>'
+        f'<path d="M14 25 L21 32 L34 17" stroke="#fff" stroke-width="4" fill="none" '
+        f'stroke-linecap="round" stroke-linejoin="round"/>')
 
-    if action == "stand":
-        # legs
-        parts.append(path(f"M{cx-8*s},{cy+30*s} L{cx-10*s},{cy+55*s}", stroke=pants, sw=8*s))
-        parts.append(path(f"M{cx+8*s},{cy+30*s} L{cx+10*s},{cy+55*s}", stroke=pants, sw=8*s))
-        # arms
-        parts.append(path(f"M{cx-13*s},{cy+8*s} L{cx-22*s},{cy+25*s}", stroke=shirt, sw=7*s))
-        parts.append(path(f"M{cx+13*s},{cy+8*s} L{cx+22*s},{cy+25*s}", stroke=shirt, sw=7*s))
-        # body
-        parts.append(path(f"M{cx},{cy+2*s} L{cx},{cy+32*s}", stroke=shirt, sw=14*s, linecap="round"))
+# ── HTML page builders ──────────────────────────────────────────────────────
 
-    elif action == "open_mouth":
-        # legs
-        parts.append(path(f"M{cx-8*s},{cy+30*s} L{cx-10*s},{cy+55*s}", stroke=pants, sw=8*s))
-        parts.append(path(f"M{cx+8*s},{cy+30*s} L{cx+10*s},{cy+55*s}", stroke=pants, sw=8*s))
-        # arms up (あいうべ pose)
-        parts.append(path(f"M{cx-13*s},{cy+8*s} L{cx-28*s},{cy-8*s}", stroke=shirt, sw=7*s))
-        parts.append(path(f"M{cx+13*s},{cy+8*s} L{cx+28*s},{cy-8*s}", stroke=shirt, sw=7*s))
-        parts.append(circle(cx-28*s, cy-10*s, 5*s, skin))
-        parts.append(circle(cx+28*s, cy-10*s, 5*s, skin))
-        parts.append(path(f"M{cx},{cy+2*s} L{cx},{cy+32*s}", stroke=shirt, sw=14*s, linecap="round"))
-
-    elif action == "stretch":
-        # one arm up, leaning
-        parts.append(path(f"M{cx-8*s},{cy+30*s} L{cx-12*s},{cy+55*s}", stroke=pants, sw=8*s))
-        parts.append(path(f"M{cx+8*s},{cy+30*s} L{cx+8*s},{cy+55*s}", stroke=pants, sw=8*s))
-        parts.append(path(f"M{cx-13*s},{cy+8*s} L{cx-20*s},{cy+25*s}", stroke=shirt, sw=7*s))
-        parts.append(path(f"M{cx+13*s},{cy+8*s} L{cx+20*s},{cy-10*s}", stroke=shirt, sw=7*s))
-        parts.append(circle(cx+20*s, cy-12*s, 5*s, skin))
-        parts.append(path(f"M{cx},{cy+2*s} L{cx},{cy+32*s}", stroke=shirt, sw=14*s, linecap="round"))
-
-    elif action == "sit":
-        # seated position (in chair)
-        parts.append(path(f"M{cx-8*s},{cy+15*s} L{cx-8*s},{cy+38*s} L{cx-18*s},{cy+55*s}", stroke=pants, sw=8*s))
-        parts.append(path(f"M{cx+8*s},{cy+15*s} L{cx+8*s},{cy+38*s} L{cx+18*s},{cy+55*s}", stroke=pants, sw=8*s))
-        parts.append(path(f"M{cx-13*s},{cy+5*s} L{cx-24*s},{cy+22*s}", stroke=shirt, sw=7*s))
-        parts.append(path(f"M{cx+13*s},{cy+5*s} L{cx+24*s},{cy+22*s}", stroke=shirt, sw=7*s))
-        parts.append(path(f"M{cx},{cy},{cy+2*s} L{cx},{cy+18*s}", stroke=shirt, sw=14*s, linecap="round"))
-
-    # head
-    parts.append(circle(cx, cy-15*s, 16*s, skin))
-    # hair
-    parts.append(f'<ellipse cx="{cx}" cy="{cy-25*s}" rx="{16*s}" ry="{10*s}" fill="{hair}"/>')
-    parts.append(path(f"M{cx-16*s},{cy-18*s} Q{cx-18*s},{cy-10*s} {cx-14*s},{cy-8*s}", fill=hair))
-    parts.append(path(f"M{cx+16*s},{cy-18*s} Q{cx+18*s},{cy-10*s} {cx+14*s},{cy-8*s}", fill=hair))
-
-    # eyes
-    parts.append(circle(cx-5*s, cy-16*s, 2.5*s, "#2a1a0a"))
-    parts.append(circle(cx+5*s, cy-16*s, 2.5*s, "#2a1a0a"))
-
-    # expression
-    if expression == "smile":
-        parts.append(path(f"M{cx-5*s},{cy-9*s} Q{cx},{cy-5*s} {cx+5*s},{cy-9*s}",
-                          stroke="#2a1a0a", sw=1.5*s))
-    elif expression == "open":
-        parts.append(f'<ellipse cx="{cx}" cy="{cy-8*s}" rx="{5*s}" ry="{6*s}" fill="#c04060"/>')
-        parts.append(path(f"M{cx-4*s},{cy-6*s} L{cx+4*s},{cy-6*s}", stroke="#f08090", sw=1.5*s))
-    elif expression == "thinking":
-        parts.append(path(f"M{cx-4*s},{cy-10*s} L{cx+4*s},{cy-10*s}",
-                          stroke="#2a1a0a", sw=1.5*s))
-        parts.append(f'<text x="{cx+20*s}" y="{cy-25*s}" font-size="{12*s}" fill="{GRAY}">？</text>')
-
-    return "".join(parts)
-
-# ── Tooth character ──────────────────────────────────────────────────────────
-
-def tooth_happy(cx, cy, scale=1.0):
-    s = scale
-    pts = []
-    # tooth body
-    pts.append(path(
-        f"M{cx-14*s},{cy} Q{cx-16*s},{cy-28*s} {cx},{cy-30*s} Q{cx+16*s},{cy-28*s} {cx+14*s},{cy}",
-        fill=WHITE, stroke=TEAL, sw=2*s))
-    # roots
-    pts.append(path(f"M{cx-6*s},{cy} Q{cx-8*s},{cy+14*s} {cx-4*s},{cy+18*s}",
-                    fill="none", stroke="#e0d0c0", sw=3*s))
-    pts.append(path(f"M{cx+6*s},{cy} Q{cx+8*s},{cy+14*s} {cx+4*s},{cy+18*s}",
-                    fill="none", stroke="#e0d0c0", sw=3*s))
-    # face
-    pts.append(circle(cx-5*s, cy-18*s, 2*s, NAVY))
-    pts.append(circle(cx+5*s, cy-18*s, 2*s, NAVY))
-    pts.append(path(f"M{cx-5*s},{cy-12*s} Q{cx},{cy-8*s} {cx+5*s},{cy-12*s}",
-                    stroke=NAVY, sw=1.5*s))
-    # sparkle
-    for dx, dy in [(-18, -28), (18, -26)]:
-        pts.append(f'<text x="{cx+dx*s}" y="{cy+dy*s}" font-size="{12*s}" fill="{GOLD}">✦</text>')
-    return "".join(pts)
-
-def tooth_sad(cx, cy, scale=1.0):
-    s = scale
-    pts = []
-    pts.append(path(
-        f"M{cx-14*s},{cy} Q{cx-16*s},{cy-28*s} {cx},{cy-30*s} Q{cx+16*s},{cy-28*s} {cx+14*s},{cy}",
-        fill="#ffe8e8", stroke=CORAL, sw=2*s))
-    pts.append(path(f"M{cx-6*s},{cy} Q{cx-8*s},{cy+14*s} {cx-4*s},{cy+18*s}",
-                    fill="none", stroke="#e0d0c0", sw=3*s))
-    pts.append(path(f"M{cx+6*s},{cy} Q{cx+8*s},{cy+14*s} {cx+4*s},{cy+18*s}",
-                    fill="none", stroke="#e0d0c0", sw=3*s))
-    pts.append(circle(cx-5*s, cy-18*s, 2*s, GRAY))
-    pts.append(circle(cx+5*s, cy-18*s, 2*s, GRAY))
-    pts.append(path(f"M{cx-5*s},{cy-10*s} Q{cx},{cy-14*s} {cx+5*s},{cy-10*s}",
-                    stroke=GRAY, sw=1.5*s))
-    pts.append(f'<text x="{cx}" y="{cy-35*s}" font-size="{10*s}" fill="{CORAL}" text-anchor="middle">痛い</text>')
-    return "".join(pts)
-
-# ── Icon helpers ─────────────────────────────────────────────────────────────
-
-def icon_mouth(cx, cy, s=1.0, open_=True):
-    """Simple mouth/lip icon."""
-    parts = [circle(cx, cy, 18*s, CORAL, stroke=WHITE, sw=2*s)]
-    if open_:
-        parts.append(f'<ellipse cx="{cx}" cy="{cy+4*s}" rx="{10*s}" ry="{7*s}" fill="#c04060"/>')
-        parts.append(f'<ellipse cx="{cx}" cy="{cy+5*s}" rx="{9*s}" ry="{4*s}" fill="#f08090"/>')
-    else:
-        parts.append(path(f"M{cx-10*s},{cy+4*s} Q{cx},{cy+8*s} {cx+10*s},{cy+4*s}",
-                          stroke=WHITE, sw=2.5*s))
-    return "".join(parts)
-
-def icon_nose(cx, cy, s=1.0):
-    parts = [circle(cx, cy, 18*s, "#a0c8e0", stroke=WHITE, sw=2*s)]
-    parts.append(path(f"M{cx-6*s},{cy+2*s} Q{cx},{cy-8*s} {cx+6*s},{cy+2*s}",
-                      stroke=NAVY, sw=2.5*s, fill="none"))
-    parts.append(circle(cx-8*s, cy+4*s, 3*s, "#8090a0"))
-    parts.append(circle(cx+8*s, cy+4*s, 3*s, "#8090a0"))
-    return "".join(parts)
-
-def icon_tongue(cx, cy, s=1.0):
-    parts = [circle(cx, cy, 18*s, GUM := "#f6aec0", stroke=WHITE, sw=2*s)]
-    parts.append(path(f"M{cx-8*s},{cy-4*s} Q{cx},{cy+14*s} {cx+8*s},{cy-4*s}",
-                      fill="#f08090", stroke=CORAL, sw=1.5*s))
-    return "".join(parts)
-
-def icon_swallow(cx, cy, s=1.0):
-    parts = [circle(cx, cy, 18*s, "#c8a0e0", stroke=WHITE, sw=2*s)]
-    parts.append(path(f"M{cx},{cy-10*s} L{cx},{cy+10*s}", stroke=WHITE, sw=3*s))
-    parts.append(path(f"M{cx-6*s},{cy+4*s} L{cx},{cy+10*s} L{cx+6*s},{cy+4*s}",
-                      stroke=WHITE, sw=2*s))
-    return "".join(parts)
-
-def icon_check(cx, cy, s=1.0, color=TEAL):
-    parts = [circle(cx, cy, 14*s, color)]
-    parts.append(path(f"M{cx-7*s},{cy} L{cx-2*s},{cy+6*s} L{cx+7*s},{cy-6*s}",
-                      stroke=WHITE, sw=2.5*s, fill="none"))
-    return "".join(parts)
-
-def icon_arrow_down(cx, cy, s=1.0):
-    parts = [f'<polygon points="{cx},{cy+10*s} {cx-8*s},{cy-4*s} {cx+8*s},{cy-4*s}" fill="{GOLD}"/>']
-    return "".join(parts)
-
-# ── Step badge ───────────────────────────────────────────────────────────────
-
-def step_badge(cx, cy, num, label, s=1.0):
-    parts = []
-    parts.append(circle(cx, cy, 18*s, NAVY))
-    parts.append(text_el(cx, cy+6*s, str(num), fill=WHITE, size=int(20*s), weight="bold"))
-    parts.append(text_el(cx+24*s, cy+5*s, label, fill=NAVY, size=int(13*s), weight="bold", anchor="start"))
-    return "".join(parts)
-
-# ── Page scenes ─────────────────────────────────────────────────────────────
-
-def scene_cover():
-    """Cover: big headline, smiling tooth, child+parent silhouette."""
-    W, H = 560, 720
-    parts = [
-        # background gradient panels
-        rect(0, 0, W, H, NAVY),
-        rect(0, 0, W, 260, TEAL),
-        # decorative circles
-        f'<circle cx="480" cy="60" r="90" fill="{MINT}" opacity="0.25"/>',
-        f'<circle cx="40" cy="620" r="70" fill="{GOLD}" opacity="0.18"/>',
-        f'<circle cx="520" cy="580" r="50" fill="{TEAL}" opacity="0.15"/>',
-    ]
-
-    # large happy tooth centre-top
-    parts.append(g(dx=280, dy=105, sx=2.4, content=tooth_happy(0, 0, 1.0)))
-
-    # headline
-    parts.append(text_el(280, 300, "12歳までが", fill=GOLD, size=36, weight="bold",
-                          family="Pop"))
-    parts.append(text_el(280, 342, "お口の育てどき", fill=WHITE, size=30, weight="bold",
-                          family="Pop"))
-
-    # sub
-    parts.append(rect(40, 360, 480, 3, GOLD, rx=2))
-    parts.append(text_el(280, 400, "マイオブレース小児矯正のご案内", fill=MINT, size=18))
-
-    # parent + child figures
-    parts.append(person(180, 530, scale=1.0, skin="#f5c8a0", hair="#3a2010",
-                        shirt=NAVY, pants=GRAY, expression="smile", action="stand"))
-    parts.append(person(360, 545, scale=0.78, skin="#f8d8b0", hair="#2a1808",
-                        shirt=TEAL, pants="#5a7090", expression="smile", action="stand"))
-
-    # clinic tag at bottom
-    parts.append(rect(0, 650, W, 70, WHITE, opacity=0.12))
-    parts.append(text_el(280, 680, "［ 医院名 ］", fill=WHITE, size=18))
-    parts.append(text_el(280, 705, "予約・お問い合わせ ［ 電話番号 ］", fill=MINT, size=13))
-
-    return f'<svg viewBox="0 0 {W} {H}" width="{W}" height="{H}" xmlns="http://www.w3.org/2000/svg">' \
-           + "".join(parts) + "</svg>"
+def page_cover():
+    return f"""
+<div class="page cover">
+  <div class="cover-top">
+    <div class="cv-line1">12<span class="cv-sub">歳までで決まる</span></div>
+    <div class="cv-line2">大切なお子様の</div>
+    <div class="cv-line3">お口の状態</div>
+  </div>
+  <div class="cover-photo">
+    <img src="{PH}/c_cover.png" alt="お口の検診">
+  </div>
+  <div class="cover-foot">
+    <div class="cv-tag">マイオブレース小児矯正のご案内</div>
+    <div class="cv-clinic">［ 医院名 ］　／　予約・お問い合わせ ［ 電話番号 ］</div>
+  </div>
+</div>"""
 
 
-def scene_p2():
-    """Page 2: 'なぜ歯ならびが悪くなるの？' — 4 cause icons, minimal text."""
-    W, H = 560, 660
-    parts = [rect(0, 0, W, H, CREAM)]
+def page_why():
+    bubbles = ["前歯が出ている", "お口ポカン", "口呼吸", "いびき",
+               "くちゃくちゃ食べ", "顎が出ている", "発音異常", "悪習癖"]
+    big = {"口呼吸", "顎が出ている"}
+    bub_html = "".join(
+        f'<span class="bub {"big" if b in big else ""}">{b}</span>' for b in bubbles
+    )
+    return f"""
+<div class="page">
+  <div class="hd"><span class="hd-en">CAUSE</span>なぜ歯ならびが悪くなるの？</div>
 
-    # section header bar
-    parts.append(rect(0, 0, W, 64, TEAL))
-    parts.append(text_el(280, 44, "なぜ歯ならびが悪くなるの？", fill=WHITE, size=22,
-                          family="Pop"))
+  <p class="lead">歯ならびが悪くなる原因の <b>95%以上は後天的</b>。毎日の
+  「クセ」が顎の発育を妨げます。<b>早期に整える</b>ことが大切です。</p>
 
-    # 4 cause boxes in 2×2 grid
-    causes = [
-        (icon_mouth(0, 0, 1.0, open_=True), "口呼吸", "口がポカンと\n開いている"),
-        (icon_tongue(0, 0, 1.0), "舌のクセ", "舌が正しい\n位置にない"),
-        (icon_swallow(0, 0, 1.0), "飲み込みグセ", "舌を前に押し\nながら飲む"),
-        (icon_nose(0, 0, 1.0), "鼻づまり", "慢性的な\n鼻詰まり"),
-    ]
+  <div class="why-hero">
+    <img src="{PH}/c_kids3.png" alt="お口のクセ">
+    <div class="why-hero-cap">原因の多くは&nbsp;<b>お口まわりのクセ</b></div>
+  </div>
 
-    positions = [(110, 165), (310, 165), (110, 360), (310, 360)]
-    for (px, py), (icon_svg, title, desc) in zip(positions, causes):
-        # card bg
-        parts.append(rect(px-90, py-70, 180, 170, WHITE, rx=14,
-                          stroke=TEAL, sw=1.5, opacity=1))
-        # icon
-        parts.append(g(dx=px, dy=py-30, sx=1.1, content=icon_svg))
-        parts.append(text_el(px, py+55, title, fill=NAVY, size=16, weight="bold"))
-        for i, line in enumerate(desc.split("\n")):
-            parts.append(text_el(px, py+74+i*17, line, fill=GRAY, size=12, weight="normal"))
+  <div class="cards3">
+    <div class="card">{ic_mouth()}<div class="ct">口呼吸</div>
+      <div class="cd">口がポカンと開く</div></div>
+    <div class="card">{ic_tongue()}<div class="ct">舌のクセ</div>
+      <div class="cd">舌が低い位置にある</div></div>
+    <div class="card">{ic_posture()}<div class="ct">姿勢のくずれ</div>
+      <div class="cd">猫背・気道が狭くなる</div></div>
+  </div>
 
-    # bottom callout
-    parts.append(rect(30, 538, W-60, 100, MINT, rx=12))
-    parts.append(text_el(280, 575, "これらの「クセ」が顎の発育を妨げます", fill=NAVY, size=16, weight="bold"))
-    parts.append(text_el(280, 598, "早期発見・早期アプローチで正しい発育をサポート", fill=GRAY, size=13, weight="normal"))
-    parts.append(text_el(280, 618, "理想は ３〜12歳 の間に開始！", fill=TEAL, size=15, weight="bold"))
+  <div class="why-bottom">
+    <img class="why-posture" src="{PH}/c_posture.png" alt="姿勢">
+    <div class="why-note">
+      <div class="why-note-h">舌・呼吸・姿勢がつながっています</div>
+      口呼吸 → 舌が下がる → 顎が育たない、という悪循環に。
+      <b>鼻呼吸</b>と<b>正しい舌の位置</b>が健やかな成長のカギです。
+    </div>
+  </div>
 
-    return (f'<svg viewBox="0 0 {W} {H}" width="{W}" height="{H}" '
-            f'xmlns="http://www.w3.org/2000/svg">' + "".join(parts) + "</svg>")
+  <div class="worry">
+    <div class="worry-h">お子さんの こんな<b>お悩み</b> ありませんか？</div>
+    <div class="bubbles">{bub_html}</div>
+  </div>
+</div>"""
 
 
-def scene_p3():
-    """Page 3: 3-step treatment flow — large step blocks, minimal text."""
-    W, H = 560, 700
-    parts = [rect(0, 0, W, H, CREAM)]
-
-    parts.append(rect(0, 0, W, 64, NAVY))
-    parts.append(text_el(280, 44, "３ステップの矯正治療", fill=WHITE, size=22, family="Pop"))
-
+def page_steps():
     steps = [
-        ("STEP 1", "マイオブレス", "¥ 286,000〜", TEAL,
-         "筋機能トレーナーで口の筋肉・呼吸を整える"),
-        ("STEP 2", "Ⅰ期治療", "¥ 440,000〜", GOLD,
-         "顎の骨の成長をガイド（6〜12歳目安）"),
-        ("STEP 3", "Ⅱ期治療", "¥ 946,000〜", CORAL,
-         "永久歯が揃ったら最終的な歯列調整"),
+        ("c_train1.png", "STEP 1", "マイオブレス治療", "4〜10歳・0期",
+         "¥286,000", BLUE, "口まわりの筋肉を整え、悪いクセを正すトレーニング。"),
+        ("c_train2.png", "STEP 2", "Ⅰ期治療", "7歳〜・混合歯列期",
+         "¥440,000", GOLD, "顎の成長をガイドしながら、装置で歯ならびを整える。"),
+        ("c_smile.png", "STEP 3", "Ⅱ期治療", "12歳以降・永久歯列期",
+         "¥946,000", CORAL, "永久歯が生え揃ってから、最終的な歯列を仕上げる。"),
     ]
+    rows = ""
+    for img, st, name, age, price, color, desc in steps:
+        rows += f"""
+    <div class="step">
+      <div class="step-ph"><img src="{PH}/{img}" alt="{name}"></div>
+      <div class="step-body">
+        <div class="step-top">
+          <span class="step-badge" style="background:{color}">{st}</span>
+          <span class="step-name">{name}</span>
+          <span class="step-price" style="color:{color};border-color:{color}">{price}<small>（税込）</small></span>
+        </div>
+        <div class="step-age">{age}</div>
+        <div class="step-desc">{desc}</div>
+      </div>
+    </div>"""
 
-    y0 = 90
-    for i, (step_label, name, price, color, desc) in enumerate(steps):
-        y = y0 + i * 188
-        # card
-        parts.append(rect(28, y, W-56, 170, WHITE, rx=16, stroke=color, sw=2))
-        # left color stripe
-        parts.append(rect(28, y, 10, 170, color, rx=8))
-        # step pill
-        parts.append(rect(48, y+18, 86, 28, color, rx=14))
-        parts.append(text_el(91, y+37, step_label, fill=WHITE, size=13, weight="bold"))
-        # name
-        parts.append(text_el(154, y+37, name, fill=NAVY, size=20, weight="bold", anchor="start"))
-        # price badge
-        parts.append(rect(W-140, y+14, 116, 36, color, rx=18, opacity=0.15))
-        parts.append(text_el(W-82, y+38, price, fill=color, size=15, weight="bold"))
-        # desc
-        parts.append(text_el(70, y+80, desc, fill=GRAY, size=14, weight="normal", anchor="start"))
-
-        # small figure doing treatment
-        if i == 0:
-            # child with myobrace device shown as mouth piece
-            fx, fy = W-100, y+110
-            parts.append(person(fx, fy, scale=0.55, skin="#f8d8b0", hair="#3a2010",
-                                shirt=TEAL, pants="#5a7090", expression="open", action="open_mouth"))
-            # device hint
-            parts.append(rect(fx-20, fy-20, 40, 18, TEAL, rx=9, opacity=0.8))
-            parts.append(text_el(fx, fy-10, "装置", fill=WHITE, size=9, weight="bold"))
-        elif i == 1:
-            fx, fy = W-100, y+110
-            parts.append(person(fx, fy, scale=0.55, skin="#f5c8a0", hair="#3a2010",
-                                shirt="#5a7090", pants=NAVY, expression="smile", action="stand"))
-        elif i == 2:
-            fx, fy = W-100, y+110
-            parts.append(person(fx, fy, scale=0.55, skin="#f5c8a0", hair="#3a2010",
-                                shirt=CORAL, pants=NAVY, expression="smile", action="stand"))
-            # wire hint at mouth level (scale=0.55 → mouth ≈ fy-5)
-            parts.append(path(f"M{fx-11},{fy-5} Q{fx},{fy-7} {fx+11},{fy-5}",
-                              stroke=NAVY, sw=2.5, fill="none"))
-
-        # arrow between steps
-        if i < 2:
-            ay = y + 170 + 9
-            parts.append(f'<polygon points="{280},{ay+14} {268},{ay} {292},{ay}" fill="{color}"/>')
-
-    return (f'<svg viewBox="0 0 {W} {H}" width="{W}" height="{H}" '
-            f'xmlns="http://www.w3.org/2000/svg">' + "".join(parts) + "</svg>")
-
-
-def scene_p4():
-    """Page 4: Training — あいうべ exercises with person figures."""
-    W, H = 560, 700
-    parts = [rect(0, 0, W, H, CREAM)]
-
-    parts.append(rect(0, 0, W, 64, TEAL))
-    parts.append(text_el(280, 44, "おうちでできる！あいうべ体操", fill=WHITE, size=20, family="Pop"))
-
-    intro = "毎日続けることで口の筋肉が鍛えられ、自然な鼻呼吸へ。"
-    parts.append(rect(30, 72, W-60, 36, MINT, rx=10))
-    parts.append(text_el(280, 96, intro, fill=NAVY, size=13))
-
-    # 4 poses
-    poses = [
-        ("あ", "大きく口を開く", "open", "open_mouth", "#f5c8a0"),
-        ("い", "口を横に大きく引く", "smile", "stretch", "#f8d8b0"),
-        ("う", "唇を前に突き出す", "thinking", "stand", "#f5c8a0"),
-        ("べ", "舌を真下に伸ばす", "open", "open_mouth", "#fad0a8"),
-    ]
-
-    cols = [100, 260, 420]  # 3-col would crowd — use 2x2
-    positions2 = [(130, 255), (380, 255), (130, 480), (380, 480)]
-
-    for (px, py), (mora, desc, expr, action, skin) in zip(positions2, poses):
-        # card
-        parts.append(rect(px-100, py-140, 200, 235, WHITE, rx=14,
-                          stroke=TEAL, sw=1.5))
-        # mora circle
-        parts.append(circle(px, py-105, 26, TEAL))
-        parts.append(text_el(px, py-95, mora, fill=WHITE, size=28, weight="bold", family="Pop"))
-        # person figure
-        parts.append(person(px, py-10, scale=0.9, skin=skin, hair="#3a2010",
-                            shirt=TEAL, pants=NAVY, expression=expr, action=action))
-        # desc
-        parts.append(text_el(px, py+82, desc, fill=GRAY, size=12, weight="normal"))
-
-    # tip box
-    parts.append(rect(30, 598, W-60, 88, NAVY, rx=12))
-    parts.append(text_el(280, 628, "1日30回 × 続けることが大切！", fill=GOLD, size=16, weight="bold"))
-    parts.append(text_el(280, 652, "診療中にスタッフが正しいやり方を指導します", fill=WHITE, size=13, weight="normal"))
-    parts.append(text_el(280, 672, "まずは無料カウンセリングへ", fill=MINT, size=13, weight="bold"))
-
-    return (f'<svg viewBox="0 0 {W} {H}" width="{W}" height="{H}" '
-            f'xmlns="http://www.w3.org/2000/svg">' + "".join(parts) + "</svg>")
-
-
-def scene_p5():
-    """Page 5: お子さんのサイン — symptoms checklist."""
-    W, H = 560, 680
-    parts = [rect(0, 0, W, H, CREAM)]
-
-    parts.append(rect(0, 0, W, 64, GOLD))
-    parts.append(text_el(280, 44, "こんなサイン、気になりませんか？", fill=WHITE, size=20, family="Pop"))
-
-    # symptom checklist
-    symptoms = [
-        "口がポカンと開いている",
-        "いびきをかく・口で息をする",
-        "歯ならびがデコボコ",
-        "顎が小さい・出っ歯気味",
-        "食べるのが遅い・好き嫌いが多い",
-        "舌が正しい位置にない",
-    ]
-
-    for i, sym in enumerate(symptoms):
-        iy = 95 + i * 82
-        # alternating bg
-        bg = MINT if i % 2 == 0 else WHITE
-        parts.append(rect(28, iy, W-56, 70, bg, rx=12))
-        # check icon space (placeholder X if unchecked)
-        parts.append(f'<circle cx="62" cy="{iy+35}" r="18" fill="{TEAL}" opacity="0.2"/>')
-        parts.append(f'<circle cx="62" cy="{iy+35}" r="18" fill="none" stroke="{TEAL}" stroke-width="2"/>')
-        parts.append(text_el(62, iy+41, "✓", fill=TEAL, size=20, weight="bold"))
-        parts.append(text_el(90, iy+40, sym, fill=NAVY, size=16, weight="bold", anchor="start"))
-
-    # bottom prompt
-    parts.append(rect(28, 594, W-56, 72, NAVY, rx=12))
-    parts.append(text_el(280, 626, "1つでも当てはまったら…", fill=GOLD, size=16, weight="bold"))
-    parts.append(text_el(280, 652, "早めのご相談をおすすめします", fill=WHITE, size=15))
-
-    return (f'<svg viewBox="0 0 {W} {H}" width="{W}" height="{H}" '
-            f'xmlns="http://www.w3.org/2000/svg">' + "".join(parts) + "</svg>")
-
-
-def scene_p6():
-    """Page 6: 治療の流れ + CTA — replaces the inexplicable chair photo."""
-    W, H = 560, 800
-    parts = [rect(0, 0, W, H, CREAM)]
-
-    # top header
-    parts.append(rect(0, 0, W, 58, NAVY))
-    parts.append(text_el(280, 40, "治療の流れ", fill=WHITE, size=22, family="Pop"))
-
-    # 4-step flow — compact layout
-    flow = [
-        (TEAL,  "① 無料相談",        "お口の状態・お悩みをお聞きします"),
-        (GOLD,  "② 精密検査",        "レントゲン・口腔スキャン（約60分）"),
-        (CORAL, "③ 治療計画のご説明", "費用・期間・装置をわかりやすく説明"),
-        (NAVY,  "④ 治療スタート",     "マイオブレスの装着・あいうべ指導"),
-    ]
-
-    y0 = 66
-    step_h = 84
-    gap = 102
-    for i, (color, title, desc) in enumerate(flow):
-        fy = y0 + i * gap
-        parts.append(rect(30, fy, W-60, step_h, WHITE, rx=12, stroke=color, sw=2))
-        parts.append(rect(30, fy, 8, step_h, color, rx=4))
-        parts.append(circle(W-64, fy+step_h//2, 23, color))
-        parts.append(text_el(W-64, fy+step_h//2+7, str(i+1), fill=WHITE, size=20, weight="bold"))
-        parts.append(text_el(58, fy+30, title, fill=NAVY, size=16, weight="bold", anchor="start"))
-        parts.append(text_el(58, fy+56, desc, fill=GRAY, size=13, weight="normal", anchor="start"))
+    flow = [("精密検査", "検査でお口の状態を把握"),
+            ("ご説明", "方針・費用・期間を説明"),
+            ("治療開始", "装置＋トレーニング"),
+            ("保定・メンテ", "後戻りを防いで定期確認")]
+    flow_html = ""
+    for i, (t, d) in enumerate(flow):
+        flow_html += f"""<div class="flow-item"><div class="flow-no">{i+1}</div>
+        <div class="flow-t">{t}</div><div class="flow-d">{d}</div></div>"""
         if i < 3:
-            ay = fy + step_h + 4
-            parts.append(f'<polygon points="{280},{ay+11} {269},{ay} {291},{ay}" fill="{color}"/>')
+            flow_html += '<div class="flow-arrow">▶</div>'
 
-    # CTA section (replaces chair photo with clinic info + smiling teeth)
-    cta_y = y0 + 4 * gap - (gap - step_h) + 14
-    parts.append(rect(0, cta_y, W, H - cta_y, TEAL))
+    return f"""
+<div class="page">
+  <div class="hd"><span class="hd-en">TREATMENT</span>3ステップの矯正治療</div>
+  <div class="steps">{rows}</div>
 
-    # happy teeth row
-    for ti, tx in enumerate([90, 190, 290, 390, 468]):
-        s = 0.50 if ti != 2 else 0.68
-        parts.append(g(dx=tx, dy=cta_y+46, sx=s, content=tooth_happy(0, 0, 1.0)))
+  <div class="train-box">
+    <div class="train-h">トレーニング内容</div>
+    <div class="train-icons">
+      <div class="ti">{ic_tongue()}<span>舌と口</span></div>
+      <div class="ti">{ic_nose()}<span>呼吸</span></div>
+      <div class="ti">{ic_posture()}<span>姿勢</span></div>
+    </div>
+    <div class="train-note">3つの「機能」を正しく使えるようにすると、顎が自然に育ち歯ならびが改善します。</div>
+  </div>
 
-    parts.append(text_el(280, cta_y + 96, "笑顔あふれる未来のために", fill=WHITE, size=18, weight="bold",
-                          family="Pop"))
+  <div class="flow-h">治療の流れ</div>
+  <div class="flow">{flow_html}</div>
+</div>"""
 
-    # clinic info block
-    info_top = cta_y + 108
-    info_h = 168
-    parts.append(rect(36, info_top, W-72, info_h, WHITE, rx=12, opacity=0.92))
-    info_lines = [
-        ("医院名",   "［ クリニック名 ］"),
-        ("住所",     "［ 住所 ］"),
-        ("電話",     "［ 電話番号 ］"),
-        ("受付時間", "月〜土 9:00〜18:00（日・祝休）"),
-        ("初診",     "無料カウンセリング実施中"),
+
+def page_what():
+    rows = [
+        (ic_tongue(), "舌", "正しい位置で上顎を押し広げ、歯列を育てる。"),
+        (ic_nose(), "呼吸", "鼻呼吸が、正しいお顔の発育に欠かせない。"),
+        (ic_mouth(), "口唇", "唇が自然に閉じることで歯ならびが安定。"),
+        (ic_swallow(), "飲み込み", "1日約2000回の嚥下。正しい飲み込みが大切。"),
+        (ic_root(), "根本原因", "クセという“根本原因”からアプローチする。"),
     ]
-    for j, (label, val) in enumerate(info_lines):
-        iy = info_top + 28 + j * 28
-        parts.append(text_el(62, iy, label, fill=TEAL, size=12, weight="bold", anchor="start"))
-        parts.append(text_el(176, iy, val, fill=NAVY, size=13, weight="normal", anchor="start"))
+    row_html = ""
+    for icon, t, d in rows:
+        row_html += f"""<div class="wrow">{icon}
+        <div><span class="wrow-t">{t}</span><span class="wrow-d">{d}</span></div></div>"""
 
-    # legal note
-    note = "※表示価格は税込。治療効果は個人差があります。副作用・リスクはカウンセリング時にご説明します。"
-    parts.append(text_el(280, H-16, note, fill=WHITE, size=9, weight="normal"))
+    return f"""
+<div class="page">
+  <div class="hd"><span class="hd-en">ABOUT</span>マイオブレース治療ってどんな治療？</div>
 
-    return (f'<svg viewBox="0 0 {W} {H}" width="{W}" height="{H}" '
-            f'xmlns="http://www.w3.org/2000/svg">' + "".join(parts) + "</svg>")
+  <p class="lead">乱れた歯ならびは、<b>呼吸・舌・口唇・飲み込み</b>の
+  はたらきが整わないことで起こる“結果”。だから根本から育てます。</p>
+
+  <div class="wrows">{row_html}</div>
+
+  <div class="goal">
+    <div class="goal-h">{ic_check(NAVY)}治療の目標</div>
+    <div class="goal-d">お口の機能を整え、<b>正しい成長</b>へ。
+    噛み合わせ・睡眠・姿勢にも良い変化が期待できます。</div>
+  </div>
+
+  <!-- 旧版の「椅子の写真」を、ゴールが伝わる笑顔の写真＋ご案内に置き換え -->
+  <div class="goal-photo">
+    <img src="{PH}/c_smile.png" alt="きれいな歯ならびの笑顔">
+    <div class="goal-photo-cap">
+      <div class="gp-h">めざすのは、自信あふれる笑顔。</div>
+      <div class="gp-d">鼻呼吸で過ごし、唇は自然に閉じ、舌は正しい位置に。<br>
+      その「正しい機能」が一生の財産になります。</div>
+    </div>
+  </div>
+
+  <div class="cta">
+    <div class="cta-h">まずは無料カウンセリングへ</div>
+    <table class="cta-info">
+      <tr><th>医院名</th><td>［ クリニック名 ］</td></tr>
+      <tr><th>住所</th><td>［ 住所 ］</td></tr>
+      <tr><th>電話</th><td>［ 電話番号 ］</td></tr>
+      <tr><th>受付</th><td>月〜土 9:00〜18:00（日・祝休）</td></tr>
+    </table>
+  </div>
+
+  <div class="legal">※表示価格は税込。別途アクティビティ費等がかかる場合があります。治療効果には個人差があり、
+  副作用・リスクはカウンセリング時にご説明します。</div>
+</div>"""
 
 
 # ── CSS ──────────────────────────────────────────────────────────────────────
 
-CSS = """
-@font-face {
-  font-family: MPLUSRounded1c;
-  src: url(fonts/MPLUSRounded1c-Regular.woff2) format('woff2');
-  font-weight: 400;
-}
-@font-face {
-  font-family: MPLUSRounded1c;
-  src: url(fonts/MPLUSRounded1c-Medium.woff2) format('woff2');
-  font-weight: 500;
-}
-@font-face {
-  font-family: MPLUSRounded1c;
-  src: url(fonts/MPLUSRounded1c-Bold.woff2) format('woff2');
-  font-weight: 700;
-}
-@font-face {
-  font-family: MochiyPopOne;
-  src: url(fonts/MochiyPopOne-Regular.woff2) format('woff2');
-  font-weight: 400 700;
-}
-@page {
-  size: A5 portrait;
-  margin: 0;
-}
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body { background: #e0e0e0; }
-.page {
-  width: 148mm;
-  height: 210mm;
-  overflow: hidden;
-  background: white;
-  print-color-adjust: exact;
-  -webkit-print-color-adjust: exact;
-  page-break-after: always;
-  display: flex;
-  align-items: stretch;
-}
-.page svg {
-  width: 100%;
-  height: 100%;
-}
-@media screen {
-  body { padding: 20px; }
-  .page {
-    margin: 0 auto 24px;
-    box-shadow: 0 4px 24px #0004;
-    border-radius: 4px;
-  }
-}
+CSS = f"""
+@font-face {{ font-family:R; src:url(fonts/MPLUSRounded1c-Regular.woff2) format('woff2'); font-weight:400; }}
+@font-face {{ font-family:R; src:url(fonts/MPLUSRounded1c-Medium.woff2) format('woff2'); font-weight:500; }}
+@font-face {{ font-family:R; src:url(fonts/MPLUSRounded1c-Bold.woff2) format('woff2'); font-weight:700; }}
+@font-face {{ font-family:Pop; src:url(fonts/MochiyPopOne-Regular.woff2) format('woff2'); }}
+
+@page {{ size: A4 portrait; margin: 0; }}
+* {{ margin:0; padding:0; box-sizing:border-box; }}
+body {{ font-family:R, sans-serif; color:{INK}; background:#dde1e6; line-height:1.6; }}
+
+.page {{
+  position:relative; width:210mm; height:297mm; overflow:hidden;
+  background:{WHITE}; padding:12mm 12mm 9mm;
+  print-color-adjust:exact; -webkit-print-color-adjust:exact;
+  page-break-after:always;
+}}
+.ic {{ width:48px; height:48px; flex:0 0 auto; }}
+
+/* headers */
+.hd {{ font-family:Pop; font-size:20pt; color:{NAVY}; padding:6px 0 4px;
+  border-bottom:3px solid {BLUE}; margin-bottom:10px; }}
+.hd-en {{ display:inline-block; font-family:R; font-weight:700; font-size:9pt;
+  color:{WHITE}; background:{BLUE}; padding:2px 9px; border-radius:10px;
+  margin-right:10px; vertical-align:middle; letter-spacing:.08em; }}
+.lead {{ font-size:11pt; background:{SOFT}; border-left:5px solid {BLUE};
+  padding:9px 12px; border-radius:0 8px 8px 0; margin-bottom:12px; }}
+.lead b {{ color:{NAVY}; background:linear-gradient(transparent 55%, {HI} 55%); }}
+
+/* ── cover ── */
+.cover {{ padding:0; }}
+.cover-top {{ padding:14mm 14mm 6mm; text-align:center; }}
+.cv-line1 {{ font-family:Pop; font-size:46pt; color:{NAVY}; line-height:1; }}
+.cv-sub {{ font-size:22pt; }}
+.cv-line2 {{ display:inline-block; font-family:Pop; font-size:21pt; color:{WHITE};
+  background:{BLUE}; padding:3px 22px; border-radius:6px; margin:8px 0; }}
+.cv-line3 {{ font-family:Pop; font-size:48pt; color:{NAVY}; letter-spacing:.06em; }}
+.cover-photo {{ position:absolute; top:120mm; left:0; right:0; bottom:26mm; }}
+.cover-photo img {{ width:100%; height:100%; object-fit:cover; }}
+.cover-foot {{ position:absolute; left:0; right:0; bottom:0; height:26mm;
+  background:{NAVY}; color:{WHITE}; text-align:center;
+  display:flex; flex-direction:column; justify-content:center; }}
+.cv-tag {{ font-size:13pt; font-weight:700; color:{HI}; }}
+.cv-clinic {{ font-size:10pt; margin-top:6px; color:{LBLUE}; }}
+
+/* ── why page ── */
+.why-hero {{ position:relative; border-radius:12px; overflow:hidden; height:46mm; margin-bottom:12px; }}
+.why-hero img {{ width:100%; height:100%; object-fit:cover; object-position:center 35%; }}
+.why-hero-cap {{ position:absolute; left:0; bottom:0; right:0; padding:7px 14px;
+  background:linear-gradient(transparent, #0008); color:{WHITE}; font-size:13pt; }}
+.why-hero-cap b {{ color:{HI}; }}
+
+.cards3 {{ display:flex; gap:10px; margin-bottom:12px; }}
+.card {{ flex:1; background:{WHITE}; border:1.5px solid {LBLUE}; border-radius:12px;
+  padding:12px 8px; text-align:center; box-shadow:0 2px 6px #0001; }}
+.card .ic {{ margin-bottom:6px; }}
+.ct {{ font-weight:700; color:{NAVY}; font-size:12.5pt; }}
+.cd {{ font-size:9.5pt; color:{GRAY}; }}
+
+.why-bottom {{ display:flex; gap:12px; align-items:stretch; margin-bottom:14px; }}
+.why-posture {{ width:62mm; height:38mm; object-fit:cover; border-radius:12px; flex:0 0 auto; }}
+.why-note {{ background:{LBLUE}; border-radius:12px; padding:11px 14px; font-size:10pt; }}
+.why-note-h {{ font-weight:700; color:{NAVY}; font-size:11.5pt; margin-bottom:4px; }}
+.why-note b {{ color:{NAVY}; background:linear-gradient(transparent 55%, {HI} 55%); }}
+
+.worry {{ background:{SOFT}; border-radius:14px; padding:12px 14px; }}
+.worry-h {{ font-family:Pop; font-size:14pt; color:{NAVY}; margin-bottom:8px; }}
+.worry-h b {{ color:{CORAL}; }}
+.bubbles {{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:center; }}
+.bub {{ display:inline-block; background:{BLUE}; color:{WHITE}; border-radius:18px;
+  padding:7px 15px; font-size:10.5pt; font-weight:500; }}
+.bub.big {{ background:{NAVY}; font-size:13pt; font-weight:700; padding:10px 20px; }}
+
+/* ── steps page ── */
+.steps {{ display:flex; flex-direction:column; gap:9px; margin-bottom:12px; }}
+.step {{ display:flex; gap:12px; border:1.5px solid {LBLUE}; border-radius:14px;
+  overflow:hidden; background:{WHITE}; box-shadow:0 2px 6px #0001; }}
+.step-ph {{ width:52mm; flex:0 0 auto; }}
+.step-ph img {{ width:100%; height:100%; object-fit:cover; min-height:30mm; }}
+.step-body {{ padding:10px 14px 10px 0; flex:1; }}
+.step-top {{ display:flex; align-items:center; gap:9px; flex-wrap:wrap; }}
+.step-badge {{ color:{WHITE}; font-weight:700; font-size:9.5pt; padding:3px 10px; border-radius:11px; }}
+.step-name {{ font-family:Pop; font-size:15pt; color:{NAVY}; }}
+.step-price {{ margin-left:auto; font-weight:700; font-size:14pt; border:2px solid;
+  border-radius:8px; padding:1px 9px; }}
+.step-price small {{ font-size:7.5pt; font-weight:400; }}
+.step-age {{ font-size:9pt; color:{GRAY}; margin:3px 0 4px; }}
+.step-desc {{ font-size:10.5pt; }}
+
+.train-box {{ background:{LBLUE}; border-radius:14px; padding:11px 16px; margin-bottom:12px;
+  display:grid; grid-template-columns:auto auto 1fr; align-items:center; gap:14px; }}
+.train-h {{ font-family:Pop; color:{NAVY}; font-size:12.5pt; writing-mode:horizontal-tb; }}
+.train-icons {{ display:flex; gap:16px; }}
+.ti {{ text-align:center; font-size:9.5pt; color:{NAVY}; font-weight:700; }}
+.ti .ic {{ width:42px; height:42px; display:block; margin:0 auto 2px; }}
+.train-note {{ font-size:9.5pt; }}
+
+.flow-h {{ font-family:Pop; color:{WHITE}; background:{NAVY}; display:inline-block;
+  padding:4px 16px; border-radius:8px; font-size:13pt; margin-bottom:10px; }}
+.flow {{ display:flex; align-items:stretch; gap:4px; }}
+.flow-item {{ flex:1; background:{SOFT}; border:1.5px solid {LBLUE}; border-radius:10px;
+  padding:9px 6px; text-align:center; }}
+.flow-no {{ width:26px; height:26px; line-height:26px; border-radius:50%;
+  background:{BLUE}; color:{WHITE}; font-weight:700; margin:0 auto 5px; }}
+.flow-t {{ font-weight:700; color:{NAVY}; font-size:10.5pt; }}
+.flow-d {{ font-size:8.5pt; color:{GRAY}; margin-top:2px; }}
+.flow-arrow {{ display:flex; align-items:center; color:{BLUE}; font-size:11pt; }}
+
+/* ── what page ── */
+.wrows {{ display:flex; flex-direction:column; gap:7px; margin-bottom:13px; }}
+.wrow {{ display:flex; align-items:center; gap:13px; background:{SOFT};
+  border-radius:11px; padding:8px 14px; }}
+.wrow .ic {{ width:38px; height:38px; }}
+.wrow-t {{ display:inline-block; min-width:74px; font-family:Pop; color:{NAVY};
+  font-size:12pt; }}
+.wrow-d {{ font-size:10.5pt; }}
+
+.goal {{ background:{LBLUE}; border-radius:12px; padding:11px 16px; margin-bottom:13px; }}
+.goal-h {{ display:flex; align-items:center; gap:9px; font-family:Pop; color:{NAVY};
+  font-size:13pt; margin-bottom:4px; }}
+.goal-h .ic {{ width:30px; height:30px; }}
+.goal-d b {{ color:{NAVY}; background:linear-gradient(transparent 55%, {HI} 55%); }}
+
+.goal-photo {{ display:flex; gap:14px; align-items:center; background:{NAVY};
+  border-radius:14px; overflow:hidden; margin-bottom:12px; }}
+.goal-photo img {{ width:64mm; height:42mm; object-fit:cover; flex:0 0 auto; }}
+.goal-photo-cap {{ color:{WHITE}; padding:6px 16px 6px 0; }}
+.gp-h {{ font-family:Pop; font-size:14pt; color:{HI}; margin-bottom:5px; }}
+.gp-d {{ font-size:10pt; color:{LBLUE}; line-height:1.7; }}
+
+.cta {{ border:2.5px solid {NAVY}; border-radius:14px; padding:12px 16px; margin-bottom:10px; }}
+.cta-h {{ font-family:Pop; color:{NAVY}; font-size:14pt; text-align:center; margin-bottom:8px; }}
+.cta-info {{ width:100%; border-collapse:collapse; font-size:10.5pt; }}
+.cta-info th {{ text-align:left; color:{BLUE}; font-weight:700; width:24%; padding:3px 0; }}
+.cta-info td {{ padding:3px 0; }}
+
+.legal {{ font-size:8pt; color:{GRAY}; line-height:1.5; }}
+
+@media screen {{
+  body {{ padding:20px; }}
+  .page {{ margin:0 auto 22px; box-shadow:0 6px 26px #0004; }}
+}}
 """
 
-# ── Build ────────────────────────────────────────────────────────────────────
-
-PAGES = [
-    ("表紙", scene_cover()),
-    ("原因", scene_p2()),
-    ("3ステップ", scene_p3()),
-    ("あいうべ体操", scene_p4()),
-    ("サインチェック", scene_p5()),
-    ("治療の流れ・CTA", scene_p6()),
-]
-
+# ── assemble ────────────────────────────────────────────────────────────────
 
 def build_html():
-    page_html = "\n".join(
-        f'  <!-- P{i+1}: {label} -->\n  <div class="page">{svg}</div>'
-        for i, (label, svg) in enumerate(PAGES)
-    )
+    pages = page_cover() + page_why() + page_steps() + page_what()
     return f"""<!DOCTYPE html>
-<html lang="ja">
-<head>
-<meta charset="UTF-8">
+<html lang="ja"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>マイオブレース小児矯正パンフレット — 改訂版</title>
-<style>{CSS}</style>
-</head>
+<title>マイオブレース小児矯正パンフレット（改訂版・写真ベース）</title>
+<style>{CSS}</style></head>
 <body>
-{page_html}
-</body>
-</html>
+{pages}
+</body></html>
 """
 
-
 if __name__ == "__main__":
-    out = HERE / "index.html"
-    out.write_text(build_html(), encoding="utf-8")
-    print("wrote", out, len(build_html()), "bytes")
+    (HERE / "index.html").write_text(build_html(), encoding="utf-8")
+    print("wrote index.html", len(build_html()), "bytes")

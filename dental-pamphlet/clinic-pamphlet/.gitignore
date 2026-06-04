@@ -3,3 +3,5 @@ _preview/
 __pycache__/
 *.pyc
 fonts/
+source-photos/orig*.jpg
+
