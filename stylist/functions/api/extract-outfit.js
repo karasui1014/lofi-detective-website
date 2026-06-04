@@ -4,14 +4,27 @@
 
 import { runOutfitExtraction, ALLOWED_MEDIA } from "../../shared/diagnosis.js";
 
+const MAX_BASE64_LEN = 6_000_000; // ~4.5 MB raw — well within Gemini's 20 MB limit
+const BASE64_RE = /^[A-Za-z0-9+/]+=*$/;
+
+const SEC_HEADERS = {
+  "X-Content-Type-Options": "nosniff",
+  "X-Frame-Options": "DENY",
+  "Cache-Control": "no-store",
+};
+
 const json = (obj, status = 200) =>
   new Response(JSON.stringify(obj), {
     status,
-    headers: { "content-type": "application/json; charset=utf-8" },
+    headers: { "content-type": "application/json; charset=utf-8", ...SEC_HEADERS },
   });
 
 export async function onRequestPost(context) {
   const { request, env } = context;
+
+  if (!request.headers.get("content-type")?.includes("application/json")) {
+    return json({ error: "Content-Type は application/json が必要です。" }, 415);
+  }
 
   let payload;
   try {
@@ -23,6 +36,12 @@ export async function onRequestPost(context) {
   const { imageBase64, mediaType } = payload || {};
   if (typeof imageBase64 !== "string" || !imageBase64) {
     return json({ error: "画像データがありません。" }, 400);
+  }
+  if (imageBase64.length > MAX_BASE64_LEN) {
+    return json({ error: "画像サイズが大きすぎます（上限 約4MB）。" }, 413);
+  }
+  if (!BASE64_RE.test(imageBase64)) {
+    return json({ error: "画像データの形式が不正です。" }, 400);
   }
   if (!ALLOWED_MEDIA.has(mediaType)) {
     return json({ error: "対応していない画像形式です。" }, 400);
