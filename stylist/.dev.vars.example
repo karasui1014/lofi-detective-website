@@ -1,0 +1,4 @@
+# Local Cloudflare dev (npm run dev:cf). Copy to ".dev.vars":
+#   cp .dev.vars.example .dev.vars
+GEMINI_API_KEY=AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+# STYLIST_MODEL=gemini-2.5-flash-lite
