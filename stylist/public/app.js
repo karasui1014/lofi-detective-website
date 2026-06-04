@@ -193,19 +193,21 @@ function renderResults(d) {
 // 常に確実に動く大手プラットフォーム
 const CORE_SHOPS = [
   { id: "zozo",    name: "ZOZOTOWN",
-    url: (q) => `https://zozo.jp/search/?p_keyv=${encodeURIComponent(q)}` },
-  { id: "rakuten", name: "楽天市場",
-    url: (q) => `https://search.rakuten.co.jp/search/mall/${encodeURIComponent(q)}/` },
+    url: (q) => `https://zozo.jp/search/?p_keyv=${encodeURIComponent(q + " レディース")}` },
+  { id: "rakuten", name: "楽天ファッション",
+    url: (q) => `https://search.rakuten.co.jp/search/mall/${encodeURIComponent(q + " レディース")}/216879/` },
   { id: "amazon",  name: "Amazon",
-    url: (q) => `https://www.amazon.co.jp/s?k=${encodeURIComponent(q)}&i=fashion` },
+    url: (q) => `https://www.amazon.co.jp/s?k=${encodeURIComponent(q + " レディース")}&rh=n%3A352484011` },
   { id: "yahoo",   name: "Yahoo!ショッピング",
-    url: (q) => `https://shopping.yahoo.co.jp/search?p=${encodeURIComponent(q)}` },
+    url: (q) => `https://shopping.yahoo.co.jp/search?p=${encodeURIComponent(q + " レディース")}` },
   { id: "uniqlo",  name: "UNIQLO",
     url: (q) => `https://www.uniqlo.com/jp/ja/search?q=${encodeURIComponent(q)}` },
   { id: "mercari", name: "メルカリ",
-    url: (q) => `https://jp.mercari.com/search?keyword=${encodeURIComponent(q)}` },
+    url: (q) => `https://jp.mercari.com/search?keyword=${encodeURIComponent(q + " レディース")}` },
+  { id: "wear",    name: "WEAR",
+    url: (q) => `https://wear.jp/search/coordinate/?q=${encodeURIComponent(q)}` },
   { id: "google",  name: "Google画像",
-    url: (q) => `https://www.google.com/search?q=${encodeURIComponent(q)}&tbm=isch` },
+    url: (q) => `https://www.google.com/search?q=${encodeURIComponent(q + " レディース ファッション")}&tbm=isch` },
 ];
 
 // 年代×テイスト別ブランド候補（ZOZOTOWNで「ブランド名 キーワード」検索）
