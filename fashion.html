@@ -220,18 +220,29 @@ header{
 }
 
 /* ── Preference tags ── */
-.pref-section{margin-bottom:.9rem;}
-.pref-label{font-size:.73rem;color:var(--text-sec);margin-bottom:.45rem;display:block;}
-.tag-group{display:flex;flex-wrap:wrap;gap:.4rem;}
+.pref-section{margin-bottom:1rem;}
+.pref-label{font-size:.75rem;color:var(--text-sec);margin-bottom:.55rem;display:block;font-weight:600;letter-spacing:.03em;}
+.tag-group{display:flex;flex-wrap:wrap;gap:.45rem;}
 .tag{
-  padding:.35rem .8rem;border-radius:20px;font-size:.77rem;
-  cursor:pointer;border:1px solid var(--border);
-  color:var(--text-sec);background:transparent;transition:all .14s;
+  padding:.4rem .95rem;border-radius:20px;font-size:.8rem;
+  cursor:pointer;
+  border:1px solid rgba(255,255,255,0.22);
+  color:rgba(255,255,255,0.8);
+  background:rgba(255,255,255,0.06);
+  transition:all .14s;
   user-select:none;
+  line-height:1.4;
 }
-.tag:hover{border-color:rgba(255,255,255,.25);color:var(--text);}
+.tag:hover{
+  border-color:rgba(255,255,255,.45);
+  color:#fff;
+  background:rgba(255,255,255,0.1);
+}
 .tag.on{
-  background:rgba(124,58,237,.18);border-color:var(--accent);color:#c4b5fd;
+  background:rgba(124,58,237,.3);
+  border-color:#a78bfa;
+  color:#e9d5ff;
+  font-weight:600;
 }
 
 /* ── Prompt box ── */
@@ -338,8 +349,8 @@ header{
   </div>
 
   <!-- Style preferences — 常に表示、写真未選択時はボタンを無効化 -->
-  <div class="card" id="prefs-card">
-    <div class="card-title">スタイル設定を選んでください</div>
+  <div class="card" id="prefs-card" style="border-color:rgba(124,58,237,0.3);">
+    <div class="card-title" style="color:#c4b5fd;font-size:.85rem;">⚙️ スタイル設定（複数選択可）</div>
 
     <div class="pref-section">
       <span class="pref-label">ファッションスタイル（複数可）</span>
