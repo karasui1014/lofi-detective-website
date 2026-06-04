@@ -189,71 +189,136 @@ function renderResults(d) {
 // ---------------------------------------------------------------------------
 // Recommendations
 // ---------------------------------------------------------------------------
-// Shop catalog. Each entry: name, URL builder, age tags, style tags.
-// "all" means matches every age/style filter.
 const SHOPS = [
-  // Universal large platforms
-  { id: "zozo",    name: "ZOZOTOWN", url: (q) => `https://zozo.jp/search/?p_keyv=${encodeURIComponent(q)}`,
+  // ── 全年代共通 ──
+  { id: "zozo",     name: "ZOZOTOWN",
+    url: (q) => `https://zozo.jp/search/?p_keyv=${encodeURIComponent(q)}`,
     age: ["all"], style: ["all"] },
-  { id: "mercari", name: "メルカリ",  url: (q) => `https://jp.mercari.com/search?keyword=${encodeURIComponent(q)}`,
+  { id: "uniqlo",   name: "UNIQLO",
+    url: (q) => `https://www.uniqlo.com/jp/ja/search?q=${encodeURIComponent(q)}`,
+    age: ["all"], style: ["casual","kireime","natural","otona"] },
+  { id: "mercari",  name: "メルカリ",
+    url: (q) => `https://jp.mercari.com/search?keyword=${encodeURIComponent(q)}`,
     age: ["all"], style: ["all"] },
 
-  // Fast fashion / casual
-  { id: "uniqlo",  name: "UNIQLO",   url: (q) => `https://www.uniqlo.com/jp/ja/search?q=${encodeURIComponent(q)}`,
-    age: ["20s","30s","40s"], style: ["casual","kireime"] },
-  { id: "gu",      name: "GU",       url: (q) => `https://www.gu-global.com/jp/ja/search/?q=${encodeURIComponent(q)}`,
-    age: ["10s","20s"], style: ["casual","trend"] },
-  { id: "shein",   name: "SHEIN",    url: (q) => `https://jp.shein.com/pdsearch/${encodeURIComponent(q)}/`,
-    age: ["10s","20s"], style: ["trend","casual","feminine"] },
-  { id: "wego",    name: "WEGO",     url: (q) => `https://wego.jp/?_q=${encodeURIComponent(q)}`,
-    age: ["10s"], style: ["casual","trend"] },
-  { id: "grl",     name: "GRL",      url: (q) => `https://www.grail.bz/shop/r/r${encodeURIComponent(q)}/`,
-    age: ["10s","20s"], style: ["trend","feminine"] },
+  // ── 10代 ──
+  { id: "gu",       name: "GU",
+    url: (q) => `https://www.gu-global.com/jp/ja/search/?q=${encodeURIComponent(q)}`,
+    age: ["10s","20s"], style: ["casual","trend","feminine"] },
+  { id: "wego",     name: "WEGO",
+    url: (q) => `https://wego.jp/?_q=${encodeURIComponent(q)}`,
+    age: ["10s"], style: ["casual","trend","street"] },
+  { id: "spinns",   name: "SPINNS",
+    url: (q) => `https://spinns.com/search?q=${encodeURIComponent(q)}`,
+    age: ["10s"], style: ["casual","trend","street"] },
+  { id: "grl",      name: "GRL",
+    url: (q) => `https://www.grail.bz/shop/r/r${encodeURIComponent(q)}/`,
+    age: ["10s","20s"], style: ["trend","feminine","casual"] },
+  { id: "shein",    name: "SHEIN",
+    url: (q) => `https://jp.shein.com/pdsearch/${encodeURIComponent(q)}/`,
+    age: ["10s","20s"], style: ["trend","casual","feminine","street"] },
+  { id: "kastane",  name: "Kastane",
+    url: (q) => `https://kastane.jp/search?q=${encodeURIComponent(q)}`,
+    age: ["10s","20s"], style: ["casual","natural","feminine"] },
 
-  // Select shop / kireime / 20-30s
-  { id: "beams",   name: "BEAMS",    url: (q) => `https://www.beams.co.jp/search/?keyword=${encodeURIComponent(q)}`,
+  // ── 20代 ──
+  { id: "earth",    name: "earth music&ecology",
+    url: (q) => `https://www.earth-official.com/search?q=${encodeURIComponent(q)}`,
+    age: ["10s","20s","30s"], style: ["casual","natural","feminine"] },
+  { id: "retrogirl",name: "Retro Girl",
+    url: (q) => `https://retrogirl.co.jp/search/?q=${encodeURIComponent(q)}`,
+    age: ["10s","20s"], style: ["casual","feminine","natural"] },
+  { id: "ropepicnic",name: "ROPE PICNIC",
+    url: (q) => `https://www.ropepicnic.com/shop/r/r${encodeURIComponent(q)}/`,
+    age: ["20s","30s"], style: ["casual","kireime","natural"] },
+  { id: "ungrid",   name: "ungrid",
+    url: (q) => `https://ungrid.jp/search?q=${encodeURIComponent(q)}`,
+    age: ["20s"], style: ["trend","kireime","casual"] },
+  { id: "milaowen", name: "Mila Owen",
+    url: (q) => `https://milaowen.jp/search?q=${encodeURIComponent(q)}`,
+    age: ["20s","30s"], style: ["kireime","feminine","trend"] },
+  { id: "jillstuart",name: "JILL STUART",
+    url: (q) => `https://jillstuart.net/search?q=${encodeURIComponent(q)}`,
+    age: ["20s","30s"], style: ["feminine","kireime"] },
+  { id: "beams",    name: "BEAMS",
+    url: (q) => `https://www.beams.co.jp/search/?keyword=${encodeURIComponent(q)}`,
     age: ["20s","30s"], style: ["kireime","trend","casual"] },
-  { id: "ua",      name: "UNITED ARROWS", url: (q) => `https://store.united-arrows.co.jp/shop/ua/goods-search?goods_keyword=${encodeURIComponent(q)}`,
-    age: ["20s","30s","40s"], style: ["kireime","otona"] },
-  { id: "nano",    name: "nano・universe", url: (q) => `https://store.nanouniverse.jp/search?q=${encodeURIComponent(q)}`,
+  { id: "nano",     name: "nano・universe",
+    url: (q) => `https://store.nanouniverse.jp/search?q=${encodeURIComponent(q)}`,
     age: ["20s","30s"], style: ["kireime","trend"] },
-  { id: "tomorrow",name: "TOMORROWLAND", url: (q) => `https://store.tomorrowland.co.jp/shop/?keyword=${encodeURIComponent(q)}`,
-    age: ["30s","40s"], style: ["kireime","otona"] },
+  { id: "snidel",   name: "SNIDEL",
+    url: (q) => `https://snidel.com/search.aspx?keyword=${encodeURIComponent(q)}`,
+    age: ["20s","30s"], style: ["feminine","trend","kireime"] },
 
-  // Feminine / mode
-  { id: "snidel",  name: "SNIDEL",   url: (q) => `https://snidel.com/search.aspx?keyword=${encodeURIComponent(q)}`,
-    age: ["20s","30s"], style: ["feminine","trend"] },
-  { id: "iena",    name: "IENA",     url: (q) => `https://baycrews.jp/search?keyword=${encodeURIComponent(q)}&brand=IENA`,
+  // ── 30代 ──
+  { id: "adam",     name: "Adam et Rope",
+    url: (q) => `https://baycrews.jp/search?keyword=${encodeURIComponent(q)}&brand=Adam%20et%20Rop%C3%A9`,
+    age: ["20s","30s"], style: ["kireime","casual","natural"] },
+  { id: "spick",    name: "Spick and Span",
+    url: (q) => `https://baycrews.jp/search?keyword=${encodeURIComponent(q)}&brand=Spick%20%26%20Span`,
+    age: ["30s","40s"], style: ["kireime","casual","natural"] },
+  { id: "iena",     name: "IENA",
+    url: (q) => `https://baycrews.jp/search?keyword=${encodeURIComponent(q)}&brand=IENA`,
     age: ["30s","40s"], style: ["kireime","feminine","otona"] },
-  { id: "plage",   name: "Plage",    url: (q) => `https://baycrews.jp/search?keyword=${encodeURIComponent(q)}&brand=Plage`,
+  { id: "plage",    name: "Plage",
+    url: (q) => `https://baycrews.jp/search?keyword=${encodeURIComponent(q)}&brand=Plage`,
+    age: ["30s","40s"], style: ["kireime","otona","natural"] },
+  { id: "ua",       name: "UNITED ARROWS",
+    url: (q) => `https://store.united-arrows.co.jp/shop/ua/goods-search?goods_keyword=${encodeURIComponent(q)}`,
+    age: ["20s","30s","40s"], style: ["kireime","otona","casual"] },
+  { id: "tomorrow", name: "TOMORROWLAND",
+    url: (q) => `https://store.tomorrowland.co.jp/shop/?keyword=${encodeURIComponent(q)}`,
     age: ["30s","40s"], style: ["kireime","otona"] },
+  { id: "rope",     name: "ROPE",
+    url: (q) => `https://www.rope.co.jp/shop/r/r${encodeURIComponent(q)}/`,
+    age: ["30s","40s"], style: ["kireime","otona","feminine"] },
 
-  // Adult / office
-  { id: "theory",  name: "Theory",   url: (q) => `https://www.theory.com/jp/search-results.html?q=${encodeURIComponent(q)}`,
+  // ── 40代以上 ──
+  { id: "theory",   name: "Theory",
+    url: (q) => `https://www.theory.com/jp/search-results.html?q=${encodeURIComponent(q)}`,
     age: ["30s","40s"], style: ["otona","kireime"] },
-  { id: "23ku",    name: "23区",     url: (q) => `https://store.world.co.jp/s/brand/23ku/?searchWord=${encodeURIComponent(q)}`,
-    age: ["30s","40s"], style: ["otona","kireime"] },
-  { id: "untitled",name: "UNTITLED", url: (q) => `https://store.world.co.jp/s/brand/untitled/?searchWord=${encodeURIComponent(q)}`,
-    age: ["30s","40s"], style: ["otona","kireime"] },
+  { id: "23ku",     name: "23区",
+    url: (q) => `https://store.world.co.jp/s/brand/23ku/?searchWord=${encodeURIComponent(q)}`,
+    age: ["40s"], style: ["otona","kireime"] },
+  { id: "untitled", name: "UNTITLED",
+    url: (q) => `https://store.world.co.jp/s/brand/untitled/?searchWord=${encodeURIComponent(q)}`,
+    age: ["40s"], style: ["otona","kireime"] },
+  { id: "indivi",   name: "INDIVI",
+    url: (q) => `https://store.world.co.jp/s/brand/indivi/?searchWord=${encodeURIComponent(q)}`,
+    age: ["40s"], style: ["otona","kireime","feminine"] },
+  { id: "efde",     name: "ef-de",
+    url: (q) => `https://store.world.co.jp/s/brand/ef-de/?searchWord=${encodeURIComponent(q)}`,
+    age: ["40s"], style: ["otona","feminine"] },
+  { id: "reflect",  name: "Reflect",
+    url: (q) => `https://store.world.co.jp/s/brand/reflect/?searchWord=${encodeURIComponent(q)}`,
+    age: ["40s"], style: ["otona","kireime"] },
+  { id: "kumikyoku",name: "組曲",
+    url: (q) => `https://store.world.co.jp/s/brand/kumikyoku/?searchWord=${encodeURIComponent(q)}`,
+    age: ["40s"], style: ["otona","feminine","kireime"] },
 
-  // Multi-brand
-  { id: "fw",      name: "ファッションウォーカー", url: (q) => `https://www.fashionwalker.com/web/search/?word=${encodeURIComponent(q)}`,
-    age: ["20s","30s","40s"], style: ["kireime","trend","feminine"] },
+  // ── マルチブランド ──
+  { id: "fw",       name: "ファッションウォーカー",
+    url: (q) => `https://www.fashionwalker.com/web/search/?word=${encodeURIComponent(q)}`,
+    age: ["20s","30s","40s"], style: ["kireime","trend","feminine","otona"] },
 
-  // Always available as fallback
-  { id: "google",  name: "Google画像", url: (q) => `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(q)}`,
+  // ── フォールバック ──
+  { id: "google",   name: "Google画像",
+    url: (q) => `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(q)}`,
     age: ["all"], style: ["all"] },
 ];
 
 const shopFilter = { age: "20s", style: "kireime" };
 
 function selectShops(age, style) {
+  // 40代は "otona" ブランドも自動で含める
+  const effectiveStyles = [style];
+  if (age === "40s" && style !== "otona") effectiveStyles.push("otona");
+
   const matches = SHOPS.filter((s) =>
     (s.age.includes(age) || s.age.includes("all")) &&
-    (s.style.includes(style) || s.style.includes("all"))
+    (s.style.some((st) => effectiveStyles.includes(st)) || s.style.includes("all"))
   );
-  // Cap to 6 to avoid clutter; ensure Google always last
-  const noGoogle = matches.filter((s) => s.id !== "google").slice(0, 5);
+  const noGoogle = matches.filter((s) => s.id !== "google").slice(0, 7);
   const google = SHOPS.find((s) => s.id === "google");
   return [...noGoogle, google];
 }
