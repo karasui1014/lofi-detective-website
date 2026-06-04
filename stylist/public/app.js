@@ -44,7 +44,6 @@ document.querySelectorAll(".pref-tags").forEach((group) => {
       tag.classList.toggle("active");
       userPrefs[key] = [...group.querySelectorAll(".pref-tag.active")].map((t) => t.dataset.v);
     }
-    if (userPrefs.style.length) shopFilter.style = userPrefs.style[0];
     shopFilter.age = userPrefs.age;
     if (domo.diagnosis) updatePromptText();
   });
@@ -241,21 +240,17 @@ const BRAND_HINTS = [
   { name: "組曲",         age: ["40s"],       style: ["otona","feminine","kireime"] },
 ];
 
-const shopFilter = { age: "20s", style: "kireime" };
+const shopFilter = { age: "20s" };
 
-function selectShops(age, style) {
-  const effectiveStyles = [style];
-  if (age === "40s" && style !== "otona") effectiveStyles.push("otona");
-
-  // 年代×テイストに合うブランドを最大3つ選び、ZOZOでのブランド検索リンクを追加
+function selectShops(age) {
+  // 年代に合うブランドを最大3つ選び、ZOZOでのブランド検索リンクを追加
+  // テイストは画像から既に確定しているため絞り込まない
+  const ageForBrand = age === "40s" ? ["40s"] : [age];
   const brandShops = BRAND_HINTS
-    .filter((b) =>
-      b.age.includes(age) &&
-      b.style.some((st) => effectiveStyles.includes(st))
-    )
+    .filter((b) => b.age.some((a) => ageForBrand.includes(a)))
     .slice(0, 3)
     .map((b) => ({
-      name: `${b.name}`,
+      name: b.name,
       url: (q) => `https://zozo.jp/search/?p_keyv=${encodeURIComponent(b.name + " " + q)}`,
     }));
 
@@ -488,7 +483,7 @@ function renderExtractedItems(items) {
     return;
   }
   $("shop-filters").hidden = false;
-  const shops = selectShops(shopFilter.age, shopFilter.style);
+  const shops = selectShops(shopFilter.age);
   extractedItems.forEach((item) => {
     const box = document.createElement("div"); box.className = "reco-item";
     const head = document.createElement("div"); head.className = "reco-item-head";
@@ -512,13 +507,10 @@ function renderExtractedItems(items) {
 
 function initExtractSection() {
   $("step-extract").hidden = false;
-  // Sync shop filters from user prefs
+  // 年代フィルターをユーザー設定と同期
   shopFilter.age = userPrefs.age;
-  if (userPrefs.style.length) shopFilter.style = userPrefs.style[0];
   const ageGroup = document.querySelector('.filter-btns[data-group="age"]');
   if (ageGroup) ageGroup.querySelectorAll("button").forEach((b) => b.classList.toggle("active", b.dataset.v === shopFilter.age));
-  const styleGroup = document.querySelector('.filter-btns[data-group="style"]');
-  if (styleGroup) styleGroup.querySelectorAll("button").forEach((b) => b.classList.toggle("active", b.dataset.v === shopFilter.style));
 
   if (extract.bound) return;
   extract.bound = true;
@@ -549,15 +541,15 @@ function initExtractSection() {
     setExtractStatus("");
   });
 
-  // Shop filter buttons (one-of-N per group)
-  document.querySelectorAll(".filter-btns").forEach((group) => {
-    const key = group.dataset.group;
-    group.addEventListener("click", (e) => {
+  // 年代フィルターボタン
+  const ageFilterGroup = document.querySelector('.filter-btns[data-group="age"]');
+  if (ageFilterGroup) {
+    ageFilterGroup.addEventListener("click", (e) => {
       const btn = e.target.closest("button[data-v]");
       if (!btn) return;
-      shopFilter[key] = btn.dataset.v;
-      group.querySelectorAll("button").forEach((b) => b.classList.toggle("active", b === btn));
+      shopFilter.age = btn.dataset.v;
+      ageFilterGroup.querySelectorAll("button").forEach((b) => b.classList.toggle("active", b === btn));
       if (extractedItems.length) renderExtractedItems(extractedItems);
     });
-  });
+  }
 }
