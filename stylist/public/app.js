@@ -189,12 +189,19 @@ function renderResults(d) {
 // Recommendations
 // ---------------------------------------------------------------------------
 
+// パーソナルカラーシーズンのECサイト向けタグ
+const SEASON_LABEL = { spring: "イエベ春", summer: "ブルベ夏", autumn: "イエベ秋", winter: "ブルベ冬" };
+// 以下のショップはパーソナルカラータグを商品に付けない傾向があるため、シーズン語を付加しない
+const NO_SEASON_SHOPS = new Set(["uniqlo", "wear"]);
+
 // 常に確実に動く大手プラットフォーム
 const CORE_SHOPS = [
   { id: "zozo",    name: "ZOZOTOWN",
     url: (q) => `https://zozo.jp/search/?p_keyv=${encodeURIComponent(q + " レディース")}` },
   { id: "rakuten", name: "楽天ファッション",
     url: (q) => `https://search.rakuten.co.jp/search/mall/${encodeURIComponent(q + " レディース")}/216879/` },
+  { id: "gshop",   name: "Googleショッピング",
+    url: (q) => `https://www.google.com/search?tbm=shop&q=${encodeURIComponent(q + " レディース")}` },
   { id: "amazon",  name: "Amazon",
     url: (q) => `https://www.amazon.co.jp/s?k=${encodeURIComponent(q + " レディース")}&rh=n%3A352484011` },
   { id: "yahoo",   name: "Yahoo!ショッピング",
@@ -205,8 +212,6 @@ const CORE_SHOPS = [
     url: (q) => `https://jp.mercari.com/search?keyword=${encodeURIComponent(q + " レディース")}` },
   { id: "wear",    name: "WEAR",
     url: (q) => `https://wear.jp/search/coordinate/?q=${encodeURIComponent(q)}` },
-  { id: "google",  name: "Google画像",
-    url: (q) => `https://www.google.com/search?q=${encodeURIComponent(q + " レディース ファッション")}&tbm=isch` },
 ];
 
 // 年代×テイスト別ブランド候補（ZOZOTOWNで「ブランド名 キーワード」検索）
@@ -242,6 +247,14 @@ const BRAND_HINTS = [
 
 const shopFilter = { age: "20s" };
 
+// アイテムキーワードにパーソナルカラーシーズンを付加する（ECサイトの商品タイトルに多いため精度向上）
+function enrichKeyword(rawQ, shopId) {
+  if (NO_SEASON_SHOPS.has(shopId)) return rawQ;
+  const season = state.diagnosis?.personalColor?.season;
+  const label = season ? SEASON_LABEL[season] : "";
+  return label ? `${label} ${rawQ}` : rawQ;
+}
+
 function selectShops(age) {
   // 年代に合うブランドを最大3つ選び、ZOZOでのブランド検索リンクを追加
   // テイストは画像から既に確定しているため絞り込まない
@@ -250,6 +263,7 @@ function selectShops(age) {
     .filter((b) => b.age.some((a) => ageForBrand.includes(a)))
     .slice(0, 3)
     .map((b) => ({
+      id: "brand",
       name: b.name,
       url: (q) => `https://zozo.jp/search/?p_keyv=${encodeURIComponent(b.name + " " + q)}`,
     }));
@@ -496,9 +510,12 @@ function renderExtractedItems(items) {
     advice.textContent = details || "";
     box.appendChild(advice);
 
-    const q = item.searchKeyword || item.category || "";
+    const rawQ = item.searchKeyword || item.category || "";
     const btns = document.createElement("div"); btns.className = "search-btns";
-    shops.forEach((s) => btns.appendChild(shopButton(s.name, s.url(q))));
+    shops.forEach((s) => {
+      const q = enrichKeyword(rawQ, s.id || "");
+      btns.appendChild(shopButton(s.name, s.url(q)));
+    });
     box.appendChild(btns);
 
     wrap.appendChild(box);
