@@ -178,6 +178,11 @@ export const EXTRACT_SYSTEM_PROMPT = `あなたはファッション画像から
   良い例: 「くすみブルー リネン オーバーサイズ シャツ」「ミルクティーベージュ ニット タートルネック」「テラコッタ フレア ミモレ丈 スカート」
   悪い例: 「青いシャツ」「スカート」「きれいめ服」（抽象的すぎてヒットしない）
   ポイント: パーソナルカラーや顔タイプのワードは不要。素材感・色の具体名・シルエット名を優先する。
+- searchKeywordShort: 2〜3語のシンプルな検索キーワード。「色 + カテゴリ」のみ。例「くすみブルー シャツ」「テラコッタ スカート」「ベージュ ニット」
+- boundingBox: 画像内でそのアイテムが写っている領域を、画像サイズを 1.0 とした正規化座標で指定。
+  x = 左端の位置（0.0〜1.0）、y = 上端の位置（0.0〜1.0）、w = 幅の割合、h = 高さの割合。
+  例: トップスのみ → {"x":0.1,"y":0.05,"w":0.8,"h":0.45} / ボトムスのみ → {"x":0.1,"y":0.45,"w":0.8,"h":0.5}
+  シューズ → {"x":0.15,"y":0.75,"w":0.7,"h":0.25} / バッグ → 手に持っているか肩にかかっている範囲
 
 【注意事項】
 - 画像全体をスキャンし、見えているアイテムをすべて列挙する（5〜8点が目安）
@@ -201,6 +206,17 @@ export const EXTRACT_SCHEMA = {
           material: { type: "string" },
           silhouette: { type: "string" },
           searchKeyword: { type: "string" },
+          searchKeywordShort: { type: "string" },
+          boundingBox: {
+            type: "object",
+            properties: {
+              x: { type: "number" },
+              y: { type: "number" },
+              w: { type: "number" },
+              h: { type: "number" },
+            },
+            required: ["x", "y", "w", "h"],
+          },
         },
         required: ["category", "color", "searchKeyword"],
       },
