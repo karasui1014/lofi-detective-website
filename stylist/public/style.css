@@ -314,12 +314,83 @@ main {
   border-radius: 12px;
   padding: .9rem 1rem;
   background: #faf7f3;
+  display: flex;
+  gap: .9rem;
+  align-items: flex-start;
 }
 
+.item-thumb {
+  width: 76px;
+  min-width: 76px;
+  height: 104px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  flex-shrink: 0;
+  background: var(--line);
+}
+
+.reco-item-content { flex: 1; min-width: 0; }
+
 .reco-item-head { display: flex; align-items: center; justify-content: space-between; gap: .5rem; flex-wrap: wrap; }
-.reco-item-cat { font-family: var(--font-head); font-size: 1rem; }
-.reco-item-advice { font-size: .86rem; margin: .4rem 0 .6rem; }
-.reco-item .search-btns { display: flex; gap: .5rem; flex-wrap: wrap; }
+.reco-item-cat { font-family: var(--font-head); font-size: 1rem; margin-bottom: .2rem; }
+.reco-item-advice { font-size: .84rem; color: var(--muted); margin-bottom: .3rem; }
+.reco-item-content .search-btns { display: flex; gap: .4rem; flex-wrap: wrap; margin-top: .3rem; }
+
+/* Keyword copy bar */
+.item-keyword-bar {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: .25rem .4rem .25rem .65rem;
+  margin: .35rem 0 .5rem;
+}
+
+.kw-text {
+  flex: 1;
+  font-family: 'SF Mono', Menlo, monospace;
+  font-size: .78rem;
+  color: var(--accent-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.copy-kw-btn {
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: .74rem;
+  color: var(--muted);
+  cursor: pointer;
+  padding: .1rem .45rem;
+  border-radius: 5px;
+  white-space: nowrap;
+  transition: background .12s, color .12s;
+}
+.copy-kw-btn:hover { background: var(--line); color: var(--ink); }
+
+/* Recommended shop button */
+.btn-shop-rec {
+  background: linear-gradient(120deg, #f4efff, #eff4ff);
+  border-color: var(--accent-2);
+  color: var(--accent-2);
+  font-weight: 600;
+}
+.btn-shop-rec:hover {
+  background: var(--accent-2);
+  border-color: var(--accent-2);
+  color: #fff;
+}
+
+@media (max-width: 480px) {
+  .item-thumb { width: 60px; min-width: 60px; height: 84px; }
+}
 
 .avoid-note {
   font-size: .84rem;
