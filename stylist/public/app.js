@@ -182,7 +182,8 @@ function renderResults(d) {
   ftName.textContent = ft.type || "—";
   ftName.appendChild(confTag(ft.confidence));
   $("facetype-axis").textContent = [ft.childAdult, ft.curveStraight].filter(Boolean).join(" / ");
-  $("facetype-words").textContent = ft.reasoning || "";
+  const reasoning = ft.reasoning || "";
+  $("facetype-words").textContent = reasoning.length > 200 ? reasoning.slice(0, 200) + "…" : reasoning;
 }
 
 // ---------------------------------------------------------------------------
@@ -203,7 +204,7 @@ const CORE_SHOPS = [
   { id: "gshop",   name: "Googleショッピング",
     url: (q) => `https://www.google.com/search?tbm=shop&q=${encodeURIComponent(q + " レディース")}` },
   { id: "amazon",  name: "Amazon",
-    url: (q) => `https://www.amazon.co.jp/s?k=${encodeURIComponent(q + " レディース")}&rh=n%3A352484011` },
+    url: (q) => `https://www.amazon.co.jp/s?k=${encodeURIComponent(q + " レディース")}` },
   { id: "yahoo",   name: "Yahoo!ショッピング",
     url: (q) => `https://shopping.yahoo.co.jp/search?p=${encodeURIComponent(q + " レディース")}` },
   { id: "uniqlo",  name: "UNIQLO",
@@ -265,7 +266,7 @@ function selectShops(age) {
     .map((b) => ({
       id: "brand",
       name: b.name,
-      url: (q) => `https://zozo.jp/search/?p_keyv=${encodeURIComponent(b.name + " " + q)}`,
+      url: (q) => `https://zozo.jp/search/?p_keyv=${encodeURIComponent(b.name + " " + q + " レディース")}`,
     }));
 
   return [...CORE_SHOPS, ...brandShops];
@@ -336,7 +337,7 @@ const FACETYPE_JA = {
   "フェミニン": "フェミニンで甘く女性的",
 };
 
-const domo = { lang: "en", diagnosis: null };
+const domo = { lang: "ja", diagnosis: null };
 
 function initDomoAI(d) {
   $("step-tryon").hidden = false;
