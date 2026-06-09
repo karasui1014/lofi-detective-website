@@ -4098,62 +4098,54 @@ function openVideoPromptModal() {
   if (!allPanels.length) return;
   const from = Math.max(1, parseInt(document.getElementById('dl-range-from').value) || 1);
   const toRaw = Math.min(allPanels.length, parseInt(document.getElementById('dl-range-to').value) || allPanels.length);
-  const to = Math.min(toRaw, from + 20 - 1); // max 20 panels (= 19 pairs)
+  const to = Math.min(toRaw, from + 20 - 1);
   if (to - from < 1) { alert('動画プロンプトを生成するには2枚以上のパネルが必要です。'); return; }
 
   const body = document.getElementById('vp-modal-body');
   body.innerHTML = '';
 
-  // Generate one prompt block per consecutive pair
-  console.log('[VP] allPanels.length=', allPanels.length, 'from=', from, 'to=', to, 'sample=', allPanels[from-1]);
+  const HEADER_S = 'display:flex;align-items:center;justify-content:space-between;padding:.55rem 1rem;background:rgba(139,92,246,.12);border-bottom:1px solid rgba(255,255,255,.08);';
+  const LABEL_S  = 'font-size:.72rem;font-weight:700;color:#a78bfa;';
+  const BTNWRAP_S= 'display:flex;gap:.4rem;';
+  const COPYBTN_S= 'padding:.28rem .75rem;border-radius:6px;border:1px solid rgba(139,92,246,.35);background:rgba(139,92,246,.1);color:#c4b5fd;cursor:pointer;font-size:.68rem;font-family:inherit;';
+  const CHATBTN_S= 'padding:.28rem .75rem;border-radius:6px;border:1px solid rgba(6,182,212,.4);background:rgba(6,182,212,.08);color:#67e8f9;cursor:pointer;font-size:.68rem;font-family:inherit;';
+  const BODY_S   = 'display:block;padding:.8rem 1rem;font-size:.73rem;line-height:1.9;color:#d4d4e8;white-space:pre-wrap;word-break:break-word;background:#13131e;border-radius:0 0 12px 12px;';
+  const PAIR_S   = 'border:1px solid rgba(255,255,255,.08);border-radius:12px;overflow:hidden;margin-bottom:.75rem;';
+
   for (let i = from - 1; i < to - 1; i++) {
     const panelA = allPanels[i];
     const panelB = allPanels[i + 1];
     if (!panelA || !panelB) continue;
-    const numA = i + 1;
-    const numB = i + 2;
+    const numA = i + 1, numB = i + 2;
 
     let promptText = '';
-    try {
-      promptText = generateVideoPrompt(panelA, panelB, numA, numB) || '';
-    } catch(e) {
-      console.error('generateVideoPrompt error:', e, panelA, panelB);
-      promptText = `[プロンプト生成エラー: ${e.message}]`;
-    }
+    try { promptText = generateVideoPrompt(panelA, panelB, numA, numB) || ''; }
+    catch(e) { promptText = '[エラー: ' + e.message + ']'; }
 
-    const pairEl = document.createElement('div');
-    pairEl.className = 'vp-pair';
+    const pairEl   = document.createElement('div');   pairEl.style.cssText   = PAIR_S;
+    const headerEl = document.createElement('div');   headerEl.style.cssText = HEADER_S;
+    const labelEl  = document.createElement('span');  labelEl.style.cssText  = LABEL_S;
+    labelEl.textContent = '🎞 カット ' + numA + ' → ' + numB;
 
-    const headerEl = document.createElement('div');
-    headerEl.className = 'vp-pair-header';
-    const labelEl = document.createElement('span');
-    labelEl.className = 'vp-pair-label';
-    labelEl.textContent = `🎞 カット ${numA} → ${numB}`;
-    const btnWrap = document.createElement('span');
-    btnWrap.style.cssText = 'display:flex;gap:.4rem;';
-    const copyBtn = document.createElement('button');
-    copyBtn.className = 'vp-copy-btn';
-    copyBtn.textContent = '⧉ プロンプトをコピー';
+    const btnWrap = document.createElement('span'); btnWrap.style.cssText = BTNWRAP_S;
+    const copyBtn = document.createElement('button'); copyBtn.style.cssText = COPYBTN_S;
+    copyBtn.textContent = '⧉ コピー';
     copyBtn.onclick = function(){ vpCopyPrompt(this); };
-    const chatBtn = document.createElement('button');
-    chatBtn.className = 'vp-copy-btn';
-    chatBtn.style.cssText = 'border-color:rgba(6,182,212,.4);color:var(--accent2);';
-    chatBtn.textContent = '🤖 ChatGPT確認用';
+    const chatBtn = document.createElement('button'); chatBtn.style.cssText = CHATBTN_S;
+    chatBtn.textContent = '🤖 ChatGPT用';
     chatBtn.onclick = function(){ vpCopyChatGPT(this, numA); };
     btnWrap.append(copyBtn, chatBtn);
     headerEl.append(labelEl, btnWrap);
 
-    const bodyEl = document.createElement('div');
-    bodyEl.className = 'vp-pair-body';
-    bodyEl.style.cssText = 'padding:.8rem 1rem;font-size:.74rem;line-height:1.85;color:rgba(255,255,255,0.7);white-space:pre-wrap;word-break:break-word;';
-    bodyEl.textContent = promptText;
+    const pre = document.createElement('pre'); pre.style.cssText = BODY_S;
+    pre.textContent = promptText || '(テキストなし)';
 
-    pairEl.append(headerEl, bodyEl);
+    pairEl.append(headerEl, pre);
     body.appendChild(pairEl);
   }
 
   if (!body.children.length) {
-    body.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:2rem;">プロンプトを生成できませんでした。絵コンテを生成してから再度お試しください。</p>';
+    body.innerHTML = '<p style="color:#888;text-align:center;padding:2rem;">絵コンテを生成してからお試しください。</p>';
   }
 
   document.getElementById('vp-overlay').classList.remove('hidden');
