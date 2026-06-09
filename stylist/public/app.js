@@ -283,22 +283,57 @@ function shopButton(label, href, recommended = false) {
 // UNIQLO / WEAR / Mercari など短いキーワードを好むショップ
 const SHORT_KW_SHOPS = new Set(["uniqlo", "wear", "mercari"]);
 
-// バウンディングボックスからサムネイルを切り抜く
-function cropItemThumbnail(bb) {
-  if (!bb || !extract.img) return null;
-  const { x, y, w, h } = bb;
-  if (!w || !h || w <= 0.02 || h <= 0.02) return null;
-  const imgW = extract.natW;
-  const imgH = extract.natH;
-  const px = Math.max(0, Math.round(x * imgW));
-  const py = Math.max(0, Math.round(y * imgH));
-  const pw = Math.min(imgW - px, Math.round(w * imgW));
-  const ph = Math.min(imgH - py, Math.round(h * imgH));
+// バウンディングボックスからアイテム部分を切り抜いたキャンバスを返す
+// bb が無い/無効なら画像全体を返す
+function cropItemCanvas(bb) {
+  if (!extract.img) return null;
+  let px = 0, py = 0, pw = extract.natW, ph = extract.natH;
+  if (bb && bb.w > 0.02 && bb.h > 0.02) {
+    px = Math.max(0, Math.round(bb.x * extract.natW));
+    py = Math.max(0, Math.round(bb.y * extract.natH));
+    pw = Math.min(extract.natW - px, Math.round(bb.w * extract.natW));
+    ph = Math.min(extract.natH - py, Math.round(bb.h * extract.natH));
+  }
   if (pw < 20 || ph < 20) return null;
   const c = document.createElement("canvas");
   c.width = pw; c.height = ph;
   c.getContext("2d").drawImage(extract.img, px, py, pw, ph, 0, 0, pw, ph);
-  return c.toDataURL("image/jpeg", 0.82);
+  return c;
+}
+
+function cropItemThumbnail(bb) {
+  if (!bb) return null;
+  const c = cropItemCanvas(bb);
+  return c ? c.toDataURL("image/jpeg", 0.82) : null;
+}
+
+// 切り抜き画像をクリップボードにコピーして Google Lens を開く。
+// Lens は貼り付けた画像と「見た目が近い商品」を直接探せるため、
+// キーワード検索より画像に忠実な結果が得られる。
+function lensSearchButton(item) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "btn btn-shop btn-lens";
+  btn.textContent = "📷 この画像で探す（Google Lens）";
+  btn.addEventListener("click", () => {
+    const c = cropItemCanvas(item.boundingBox) || cropItemCanvas(null);
+    if (!c) return;
+    let copied = false;
+    if (navigator.clipboard && window.ClipboardItem) {
+      try {
+        // Safari 対応: ClipboardItem に Promise<Blob> を渡す形式
+        const blobPromise = new Promise((res) => c.toBlob(res, "image/png"));
+        navigator.clipboard.write([new ClipboardItem({ "image/png": blobPromise })]);
+        copied = true;
+      } catch { /* クリップボード不可の環境ではテキストで案内 */ }
+    }
+    window.open("https://lens.google.com/", "_blank", "noopener");
+    btn.textContent = copied
+      ? "画像コピー済 → Lensに貼り付け（⌘V / Ctrl+V）"
+      : "Lensを開きました → 画像を保存して検索";
+    setTimeout(() => (btn.textContent = "📷 この画像で探す（Google Lens）"), 5000);
+  });
+  return btn;
 }
 
 // ---------------------------------------------------------------------------
@@ -544,38 +579,71 @@ function renderExtractedItems(items) {
     cat.textContent = item.category || "アイテム";
     content.appendChild(cat);
 
-    const details = [item.color, item.material, item.silhouette].filter(Boolean).join(" / ");
+    const patternNote = item.pattern && item.pattern !== "無地" ? item.pattern : null;
+    const details = [item.color, patternNote, item.material, item.silhouette].filter(Boolean).join(" / ");
     if (details) {
       const advice = document.createElement("div"); advice.className = "reco-item-advice";
       advice.textContent = details;
       content.appendChild(advice);
     }
 
-    // コピーできるキーワードチップ
-    const rawQ = item.searchKeyword || item.category || "";
+    // キーワード候補（具体的→汎用）。チップで切り替えると全リンクが追従する
+    const variants = (Array.isArray(item.keywordVariants) ? item.keywordVariants : [])
+      .filter((v) => typeof v === "string" && v.trim());
+    const mainQ = item.searchKeyword || item.category || "";
+    if (mainQ && !variants.includes(mainQ)) variants.unshift(mainQ);
+    let activeQ = variants[0] || mainQ;
+
     const kwBar = document.createElement("div"); kwBar.className = "item-keyword-bar";
     const kwText = document.createElement("span"); kwText.className = "kw-text";
-    kwText.textContent = rawQ;
+    kwText.textContent = activeQ;
     const copyBtn = document.createElement("button"); copyBtn.className = "copy-kw-btn";
     copyBtn.textContent = "コピー";
     copyBtn.addEventListener("click", async () => {
-      try { await navigator.clipboard.writeText(rawQ); } catch { /* noop */ }
+      try { await navigator.clipboard.writeText(activeQ); } catch { /* noop */ }
       copyBtn.textContent = "コピー済✓";
       setTimeout(() => (copyBtn.textContent = "コピー"), 1600);
     });
     kwBar.appendChild(kwText); kwBar.appendChild(copyBtn);
     content.appendChild(kwBar);
 
-    // ショップボタン（おすすめは強調表示）
+    const KW_LABELS = ["詳細", "標準", "シンプル"];
+    let chipRow = null;
     const btns = document.createElement("div"); btns.className = "search-btns";
-    shops.forEach((s) => {
-      const baseQ = SHORT_KW_SHOPS.has(s.id)
-        ? (item.searchKeywordShort || rawQ)
-        : rawQ;
-      const q = enrichKeyword(baseQ, s.id || "");
-      const isRec = s.id === "gshop" || s.id === "zozo";
-      btns.appendChild(shopButton(s.name, s.url(q), isRec));
-    });
+
+    function renderShopBtns() {
+      btns.innerHTML = "";
+      btns.appendChild(lensSearchButton(item));
+      shops.forEach((s) => {
+        const baseQ = SHORT_KW_SHOPS.has(s.id)
+          ? (item.searchKeywordShort || activeQ)
+          : activeQ;
+        const q = enrichKeyword(baseQ, s.id || "");
+        const isRec = s.id === "gshop" || s.id === "zozo";
+        btns.appendChild(shopButton(s.name, s.url(q), isRec));
+      });
+    }
+
+    if (variants.length > 1) {
+      chipRow = document.createElement("div"); chipRow.className = "kw-variants";
+      variants.forEach((v, i) => {
+        const chip = document.createElement("button");
+        chip.type = "button";
+        chip.className = "kw-chip" + (i === 0 ? " active" : "");
+        chip.textContent = KW_LABELS[i] || `候補${i + 1}`;
+        chip.title = v;
+        chip.addEventListener("click", () => {
+          activeQ = v;
+          kwText.textContent = v;
+          chipRow.querySelectorAll(".kw-chip").forEach((c2) => c2.classList.toggle("active", c2 === chip));
+          renderShopBtns();
+        });
+        chipRow.appendChild(chip);
+      });
+      content.appendChild(chipRow);
+    }
+
+    renderShopBtns();
     content.appendChild(btns);
 
     box.appendChild(content);
