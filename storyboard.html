@@ -1485,8 +1485,20 @@ class AudioAnalyzer {
       profile.push(e); if (e>peak){peak=e;peakIdx=i;}
     }
     const min=Math.min(...profile), dynamicsRatio=peak/(min+1e-6);
+    // Detect when audio first reaches meaningful energy (intro end)
+    const startThresh = peak * 0.15;
+    let introEndSec = 0;
+    for (let i = 0; i < profile.length; i++) {
+      if (profile[i] >= startThresh) { introEndSec = i; break; }
+    }
+    // Detect when audio last has meaningful energy (outro start)
+    let outroStartSec = profile.length;
+    for (let i = profile.length - 1; i >= 0; i--) {
+      if (profile[i] >= startThresh) { outroStartSec = i + 1; break; }
+    }
     return { energyProfile:profile, peakPosition:windowCount>0?peakIdx/windowCount:0.5, dynamicsRatio,
-      energyCategory: dynamicsRatio>6?'dynamic':dynamicsRatio>3?'moderate':'flat' };
+      energyCategory: dynamicsRatio>6?'dynamic':dynamicsRatio>3?'moderate':'flat',
+      introEndSec, outroStartSec };
   }
   categorizeBPM(bpm) {
     if (bpm<70) return 'very-slow'; if (bpm<90) return 'slow';
@@ -2348,31 +2360,58 @@ function parseLyrics(raw, panelCount, duration, styleKey, stampBoundaries) {
   }
   if (buffer.length) lyricScenes.push({ section: sectionName, lines: buffer });
 
-  // Calculate intro/outro panel counts
-  const introPanelCount = Math.max(2, Math.round(panelCount * 0.08));
-  const outroPanelCount = Math.max(1, Math.round(panelCount * 0.04));
-  const lyricPanelCount = panelCount - introPanelCount - outroPanelCount;
+  // Calculate intro/outro panel counts from actual audio content
+  // audioFeatures is a global; introEndSec=0 means song starts immediately
+  const introEndSec   = audioFeatures?.introEndSec   ?? 0;
+  const outroStartSec = audioFeatures?.outroStartSec ?? duration;
+  const outroDuration = Math.max(0, duration - outroStartSec);
+
+  const introPanelCount = introEndSec < 2
+    ? 0
+    : Math.min(8, Math.max(1, Math.round((introEndSec / duration) * panelCount)));
+  const outroPanelCount = outroDuration < 3
+    ? 0
+    : Math.min(4, Math.max(1, Math.round((outroDuration / duration) * panelCount)));
+  const lyricPanelCount = Math.max(1, panelCount - introPanelCount - outroPanelCount);
+
+  // Timing helpers
+  const lyricStart = introEndSec;
+  const lyricEnd   = outroStartSec;
+  const lyricDur   = Math.max(1, lyricEnd - lyricStart);
 
   // Build intro panels
   const introDescs = style.introDesc;
   const introScenes = Array.from({ length: introPanelCount }, (_, i) => ({
     section: 'INTRO',
     lines: [introDescs[i % introDescs.length]],
+    stampTime: introPanelCount > 0 ? (introEndSec / introPanelCount) * i : 0,
+    stampEnd:  introPanelCount > 0 ? (introEndSec / introPanelCount) * (i + 1) : introEndSec,
     isIntro: true
   }));
 
-  // Trim lyric scenes to fit
-  const trimmedLyric = lyricScenes.slice(0, lyricPanelCount);
-  // If fewer lyric scenes than needed, pad with style-based atmospherics
+  // Trim lyric scenes to fit, assigning audio-accurate timestamps
+  const trimmedLyric = lyricScenes.slice(0, lyricPanelCount).map((s, i) => ({
+    ...s,
+    stampTime: lyricStart + (lyricDur / Math.max(1, lyricPanelCount)) * i,
+    stampEnd:  lyricStart + (lyricDur / Math.max(1, lyricPanelCount)) * (i + 1),
+  }));
+  // Pad if fewer lyric scenes than needed
   while (trimmedLyric.length < lyricPanelCount && lyricScenes.length > 0) {
-    const src = lyricScenes[trimmedLyric.length % lyricScenes.length];
-    trimmedLyric.push({ ...src, section: src.section + ' (reprise)' });
+    const j = trimmedLyric.length;
+    const src = lyricScenes[j % lyricScenes.length];
+    trimmedLyric.push({
+      ...src, section: src.section + ' (reprise)',
+      stampTime: lyricStart + (lyricDur / Math.max(1, lyricPanelCount)) * j,
+      stampEnd:  lyricStart + (lyricDur / Math.max(1, lyricPanelCount)) * (j + 1),
+    });
   }
 
   // Build outro panels
-  const outroScenes = Array.from({ length: outroPanelCount }, () => ({
+  const outroScenes = Array.from({ length: outroPanelCount }, (_, j) => ({
     section: 'OUTRO',
     lines: ['フェードアウト、余韻を残すエンディングショット'],
+    stampTime: outroDuration > 0 ? outroStartSec + (outroDuration / outroPanelCount) * j : outroStartSec,
+    stampEnd:  outroDuration > 0 ? outroStartSec + (outroDuration / outroPanelCount) * (j + 1) : duration,
     isOutro: true
   }));
 
