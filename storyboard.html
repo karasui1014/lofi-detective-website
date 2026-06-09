@@ -4398,6 +4398,8 @@ async function downloadRangeCore(from, to, btn, resetLabel) {
 // ─────────────────────────────────────────
 // Merge range panels into single JPEG
 // ─────────────────────────────────────────
+const MERGE_PAGE_SIZE = 40; // max panels per merged image
+
 async function mergeRangeJPEG() {
   const total = allPanels.length;
   if (!total) return;
@@ -4413,13 +4415,39 @@ async function mergeRangeJPEG() {
   btn.disabled = true;
 
   const count = to - from + 1;
+
+  // Auto-paginate: split into chunks of MERGE_PAGE_SIZE
+  if (count > MERGE_PAGE_SIZE) {
+    const pages = Math.ceil(count / MERGE_PAGE_SIZE);
+    btn.textContent = `⏳ 0 / ${pages} ページ`;
+    for (let p = 0; p < pages; p++) {
+      const chunkFrom = from + p * MERGE_PAGE_SIZE;
+      const chunkTo   = Math.min(to, chunkFrom + MERGE_PAGE_SIZE - 1);
+      btn.textContent = `⏳ ${p + 1} / ${pages} ページ`;
+      await mergeChunk(chunkFrom, chunkTo, `storyboard-${String(chunkFrom).padStart(3,'0')}-${String(chunkTo).padStart(3,'0')}.jpg`);
+      await delay(300);
+    }
+    btn.disabled = false;
+    btn.textContent = `✓ 合成完了(${pages}ファイル)`;
+    setTimeout(() => { btn.textContent = '🖼 1枚合成'; }, 4000);
+    return;
+  }
+
+  await mergeChunk(from, to, `storyboard-${String(from).padStart(3,'0')}-${String(to).padStart(3,'0')}.jpg`, btn);
+  btn.disabled = false;
+  btn.textContent = `✓ 合成完了`;
+  setTimeout(() => { btn.textContent = '🖼 1枚合成'; }, 3000);
+}
+
+async function mergeChunk(from, to, filename, btn) {
+  const count = to - from + 1;
   const COLS  = count <= 2 ? count : count <= 6 ? 3 : count <= 12 ? 4 : 5;
   const ROWS  = Math.ceil(count / COLS);
   const PW = 320, PH = 180, GAP = 8;
-  const LH    = 20;   // panel number bar
-  const SH    = 54;   // scene description area (3 lines)
-  const PRIH  = 72;   // prompt area (4 lines)
-  const BGPH  = 60;   // bg prompt area (3 lines)
+  const LH    = 20;
+  const SH    = 54;
+  const PRIH  = 72;
+  const BGPH  = 60;
   const PAD   = 6;
   const CELL_H = PH + LH + SH + PRIH + BGPH + PAD * 2;
 
@@ -4456,7 +4484,7 @@ async function mergeRangeJPEG() {
 
   for (let i = from - 1; i < to; i++) {
     const idx = i - (from - 1);
-    btn.textContent = `⏳ ${idx + 1} / ${count}`;
+    if (btn) btn.textContent = `⏳ ${idx + 1} / ${count}`;
 
     const panelEl = domPanels[i];
     if (!panelEl) continue;
@@ -4526,19 +4554,20 @@ async function mergeRangeJPEG() {
     drawWrapped(bgText, x + PAD, y + PH + LH + SH + PRIH + 24, PW - PAD * 2, 14, 3);
   }
 
-  canvas.toBlob(blob => {
-    const url = URL.createObjectURL(blob);
-    const a   = document.createElement('a');
-    a.href     = url;
-    a.download = `storyboard-${String(from).padStart(3,'0')}-${String(to).padStart(3,'0')}.jpg`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-    btn.disabled = false;
-    btn.textContent = `✓ 合成完了`;
-    setTimeout(() => { btn.textContent = '🖼 1枚に合成'; }, 3000);
-  }, 'image/jpeg', 0.92);
+  await new Promise(resolve => {
+    canvas.toBlob(blob => {
+      if (!blob) { resolve(); return; }
+      const url = URL.createObjectURL(blob);
+      const a   = document.createElement('a');
+      a.href     = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      resolve();
+    }, 'image/jpeg', 0.92);
+  });
 }
 
 // ─────────────────────────────────────────
