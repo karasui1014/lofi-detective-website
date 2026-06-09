@@ -1541,6 +1541,7 @@ let genSeed = 0; // varies on each generate() click to produce different prompts
 let userRequest = ''; // ユーザーのプロンプト要望（旧：世界観）
 let promptLang = 'ja'; // 'ja' or 'en' — current display language for prompts
 let referenceProfile = null; // { colors:[hex,...], brightness:0-1, source:'video|youtube|none' }
+let lyricsWorldview = null;  // 歌詞から読み取った世界観 — set during generation
 let scenarioSeed = 0; // separate seed for scenario regeneration
 let scenarioHistory = []; // {script, variant} stack of generated scenarios
 let scenarioHistoryIdx = -1; // current position in history
@@ -1580,6 +1581,185 @@ function analyzeFullLyrics(raw) {
   const tone = bright > dark ? 'bright' : dark > bright ? 'melancholic' : 'neutral';
   const energy = active > 3 ? 'high' : active > 0 ? 'mid' : 'low';
   return { ranked, tone, energy, counts };
+}
+
+// ─────────────────────────────────────────
+// 歌詞の世界観解析 — 歌詞を「映像化」するのではなく、
+// 歌詞の背後にある世界そのものを読み取り、MV全体の美学を規定する
+// ─────────────────────────────────────────
+function analyzeLyricsWorldview(raw) {
+  if (!raw || !raw.trim()) return null;
+  const text = raw;
+
+  // ── テーマ検出（重み付きスコアリング）──
+  const THEMES = [
+    { key:'heartbreak', re:/失恋|別れ|さよなら|サヨナラ|goodbye|戻れない|忘れられ|未練|失っ|消えた君|いない/g, w:1.2,
+      ja:'喪失と別れ', en:'loss and parting',
+      world:{ ja:'去っていった存在の残像が世界の隅々に滲む。空席、二つ並んだまま片方だけ冷めたカップ、半分だけ灯る部屋──「不在」そのものが画面の主役になる世界', en:'a world where the afterimage of someone gone bleeds into every corner — empty seats, one cooling cup of two, half-lit rooms; absence itself is the protagonist of every frame' } },
+    { key:'hope', re:/希望|未来|明日|光へ|歩き出|進め|進む|新しい|始まり|夜明け/g, w:1.0,
+      ja:'希望と再出発', en:'hope and new beginnings',
+      world:{ ja:'夜の終わりにかすかな光が差し込み始める世界。長いトンネルの出口、カーテン越しの朝、まだ誰も歩いていない始発前の街──「これから」の気配で満ちた風景', en:'a world at the end of night where faint light begins to break — tunnel exits, morning through curtains, streets before the first train; landscapes saturated with the feeling of what comes next' } },
+    { key:'longing', re:/会いたい|恋し|想い|きみを|君を|あなたを|待って|届け|遠く/g, w:1.1,
+      ja:'切望と距離', en:'longing across distance',
+      world:{ ja:'触れられない距離が常に画面に存在する世界。ガラス越し、ホームの反対側、電話の向こう──二点間の「届かなさ」が構図そのものになる', en:'a world where untouchable distance lives in every composition — through glass, across platforms, on the other end of a call; the unreachable space between two points becomes the framing itself' } },
+    { key:'solitude', re:/孤独|ひとり|一人|独り|さびし|寂し|誰もいない|alone/g, w:1.1,
+      ja:'孤独と内省', en:'solitude and introspection',
+      world:{ ja:'広い空間にひとつだけ置かれた存在。深夜のコンビニの光、巨大な街に対するちっぽけな窓、誰もいない遊園地──スケールの対比で孤独を語る世界', en:'a single presence placed in vast space — late-night convenience store glow, one tiny window against an enormous city, an empty amusement park; a world that speaks solitude through contrasts of scale' } },
+    { key:'rebellion', re:/壊|叫|抗|戦|逆ら|負けない|立ち上が|燃え/g, w:1.0,
+      ja:'反抗と衝動', en:'rebellion and impulse',
+      world:{ ja:'秩序の表面に亀裂が走る世界。割れたガラス、逆走する人混み、スプレーの飛沫、止まった信号を渡る足──ルールの外側にだけ存在する自由を描く', en:'a world where cracks run through the surface of order — shattered glass, one figure moving against the crowd, spray paint mist, feet crossing against the light; freedom that exists only outside the rules' } },
+    { key:'nostalgia', re:/思い出|記憶|あの頃|懐かし|昔|幼い|帰り道|故郷|夏の日/g, w:1.0,
+      ja:'郷愁と記憶', en:'nostalgia and memory',
+      world:{ ja:'現在の風景に過去の光がオーバーラップする世界。色褪せた写真の質感、夕方のチャイム、長い影、8mmフィルムのような粒子──時間の地層が透けて見える映像世界', en:'a world where past light overlaps the present — faded photograph textures, evening chimes, long shadows, 8mm film grain; imagery where the strata of time show through' } },
+    { key:'love', re:/愛|好き|恋|抱きしめ|キス|kiss|ふたり|二人|隣に/g, w:1.0,
+      ja:'愛と親密さ', en:'love and intimacy',
+      world:{ ja:'世界の解像度が「ふたり」の半径数メートルに集中する世界。指先、睫毛、共有されるイヤホン、息が重なる距離──マクロの親密さがすべてを語る', en:'a world where resolution concentrates within a few meters of two people — fingertips, eyelashes, shared earphones, breath-mingling distance; macro intimacy tells everything' } },
+    { key:'dream', re:/夢の中|幻|ファンタジー|不思議|魔法|飛べ|浮かん|溶け/g, w:1.0,
+      ja:'夢と幻想', en:'dreams and fantasy',
+      world:{ ja:'物理法則が感情に従属する世界。重力は悲しみの重さで変わり、空の色は心拍と同期する。現実の景色が一枚ずつ剥がれて、その下の本当の世界が覗く', en:'a world where physics obeys emotion — gravity shifts with the weight of sadness, sky color syncs with heartbeat; reality peels away frame by frame to reveal the true world beneath' } },
+    { key:'transience', re:/儚|消え|散る|終わ|最後|此の世|刹那|泡|花火/g, w:1.0,
+      ja:'儚さと無常', en:'transience and impermanence',
+      world:{ ja:'すべてが「消える直前の一番美しい瞬間」で静止している世界。散る寸前の花、消える直前の花火、溶ける直前の雪──消滅のエネルギーが画面を満たす', en:'a world frozen at the most beautiful moment before vanishing — petals just before falling, fireworks just before fading, snow just before melting; the energy of disappearance fills every frame' } },
+  ];
+  const themeScores = THEMES.map(t => ({ ...t, score: (text.match(t.re) || []).length * t.w })).filter(t => t.score > 0);
+  themeScores.sort((a, b) => b.score - a.score);
+  const mainThemes = themeScores.slice(0, 2);
+
+  // ── 象徴モチーフ検出 ──
+  const MOTIFS = [
+    { re:/雨|rain|しずく|水滴/g,        ja:'雨',   en:'rain',    visJa:'雨粒のマクロ・濡れた路面の反射・窓を流れる滴', visEn:'macro raindrops, wet street reflections, drops streaming down windows' },
+    { re:/光|ひかり|light|輝/g,         ja:'光',   en:'light',   visJa:'差し込む光条・レンズフレア・粒子が舞う逆光', visEn:'light shafts, lens flares, backlit floating dust' },
+    { re:/影|shadow|シルエット/g,       ja:'影',   en:'shadow',  visJa:'長く伸びる影・壁に落ちるシルエット・明暗の境界線', visEn:'long stretching shadows, silhouettes on walls, the borderline of light and dark' },
+    { re:/海|波|うみ|ocean|sea/g,       ja:'海',   en:'sea',     visJa:'寄せては返す波・水平線・砂に残る足跡', visEn:'waves advancing and retreating, the horizon line, footprints in sand' },
+    { re:/空|そら|sky|雲/g,             ja:'空',   en:'sky',     visJa:'流れる雲のタイムラプス・見上げた空・夕暮れのグラデーション', visEn:'timelapse clouds, skies seen from below, dusk gradients' },
+    { re:/花|flower|桜|さくら|花びら/g, ja:'花',   en:'flowers', visJa:'風に散る花びら・一輪だけ咲く花・枯れゆく花束', visEn:'petals scattering in wind, a single blooming flower, a wilting bouquet' },
+    { re:/星|ほし|star|流れ星/g,        ja:'星',   en:'stars',   visJa:'瞬く星空・流星の軌跡・街灯りと星の対比', visEn:'twinkling night skies, meteor trails, starlight against city glow' },
+    { re:/風|かぜ|wind/g,               ja:'風',   en:'wind',    visJa:'髪と布が揺れる・カーテンの膨らみ・舞い上がる紙', visEn:'hair and fabric stirring, curtains swelling, papers lifted into the air' },
+    { re:/鏡|mirror|映る|反射/g,        ja:'鏡',   en:'mirrors', visJa:'鏡像の自分との対峙・割れた鏡・水面に映る別の世界', visEn:'confronting one\'s reflection, broken mirrors, another world mirrored in water' },
+    { re:/夜|よる|night|深夜/g,         ja:'夜',   en:'night',   visJa:'青い闇・点滅する街灯・夜だけ見える本音', visEn:'blue darkness, flickering streetlights, truths visible only at night' },
+    { re:/火|炎|燃え|fire|flame/g,      ja:'炎',   en:'flame',   visJa:'揺れる炎のクローズアップ・火の粉・燃え尽きた後の灰', visEn:'close-ups of wavering flames, sparks, ash after burning out' },
+    { re:/雪|snow|冬|ふゆ/g,            ja:'雪',   en:'snow',    visJa:'音を吸い込む降雪・白い息・足跡のない雪原', visEn:'sound-absorbing snowfall, white breath, untouched snowfields' },
+    { re:/窓|まど|window/g,             ja:'窓',   en:'windows', visJa:'窓越しの世界・結露に描く指文字・内と外の境界', visEn:'the world through glass, finger-drawn letters in condensation, the boundary of inside and outside' },
+    { re:/道|みち|road|歩道|帰り道/g,   ja:'道',   en:'roads',   visJa:'どこまでも続く一本道・分かれ道・歩き続ける足元', visEn:'an endless single road, forking paths, feet that keep walking' },
+    { re:/時計|時間|とき|time|針/g,     ja:'時間', en:'time',    visJa:'止まった時計・逆回転する針・砂時計の砂', visEn:'stopped clocks, hands spinning backward, sand through an hourglass' },
+  ];
+  const motifs = MOTIFS.map(m => ({ ...m, score: (text.match(m.re) || []).length })).filter(m => m.score > 0)
+    .sort((a, b) => b.score - a.score).slice(0, 4);
+
+  // ── 時間帯・季節 ──
+  const timeOfDay =
+    /夜明け|朝焼け|dawn/.test(text) ? { ja:'夜明け', en:'dawn' } :
+    /朝|morning/.test(text)          ? { ja:'朝', en:'morning' } :
+    /夕暮れ|夕焼け|黄昏|sunset|夕日/.test(text) ? { ja:'夕暮れ', en:'dusk' } :
+    /深夜|真夜中|midnight/.test(text) ? { ja:'深夜', en:'midnight' } :
+    /夜|night/.test(text)            ? { ja:'夜', en:'night' } : null;
+  const season =
+    /春|桜|sakura|spring/.test(text) ? { ja:'春', en:'spring' } :
+    /夏|summer|花火|蝉/.test(text)   ? { ja:'夏', en:'summer' } :
+    /秋|紅葉|autumn|fall/.test(text) ? { ja:'秋', en:'autumn' } :
+    /冬|雪|winter/.test(text)        ? { ja:'冬', en:'winter' } : null;
+
+  // ── 感情の弧 — 前半と後半のトーン変化 ──
+  const lines = text.split('\n').filter(l => l.trim());
+  const half = Math.floor(lines.length / 2);
+  const toneOf = seg => {
+    const neg = (seg.match(/悲|泣|涙|辛|苦|痛|失|消|別れ|寂し|孤独|暗/g) || []).length;
+    const pos = (seg.match(/笑|嬉|楽し|幸|愛|光|希望|夢|輝|未来|明日/g) || []).length;
+    return pos - neg;
+  };
+  const firstTone = toneOf(lines.slice(0, half).join('\n'));
+  const lastTone  = toneOf(lines.slice(half).join('\n'));
+  const arc =
+    firstTone < 0 && lastTone > firstTone ? { key:'ascent',  ja:'闇から光へ向かう上昇の弧。映像も暗→明、閉→開、静→動へとグラデーションさせる', en:'an ascending arc from darkness to light — visuals graduate dark to bright, closed to open, still to moving' } :
+    firstTone > 0 && lastTone < firstTone ? { key:'descent', ja:'光が翳りへ沈む下降の弧。冒頭の明るさが少しずつ重さを帯び、最後に静かな真実へ着地する', en:'a descending arc where light sinks into shade — opening brightness gradually gains weight, landing on a quiet truth' } :
+    Math.abs(lastTone - firstTone) <= 1     ? { key:'sustain', ja:'一定の感情を深く掘り続ける持続の弧。変化ではなく「深度」で物語る映像設計にする', en:'a sustained arc that keeps digging into one emotion — the visuals narrate through depth, not change' } :
+    { key:'wave', ja:'感情が往復する波の弧。明と暗が交互に訪れ、その振れ幅自体がこの曲の正体になる', en:'a wave arc where emotion oscillates — light and dark alternate, and the amplitude itself is the song\'s identity' };
+
+  // ── 視点 ──
+  const perspective =
+    /君|きみ|あなた|お前/.test(text) && /僕|俺|私|わたし/.test(text)
+      ? { ja:'「わたし」から「あなた」への語りかけ。カメラは常に誰かの視線を代行する', en:'an address from "I" to "you" — the camera always stands in for someone\'s gaze' }
+    : /僕|俺|私|わたし/.test(text)
+      ? { ja:'一人称の内的独白。カメラは主人公の心拍に同期して呼吸する', en:'first-person inner monologue — the camera breathes in sync with the protagonist\'s heartbeat' }
+      : { ja:'俯瞰の語り部視点。世界そのものが語り手となる客観の映像', en:'an omniscient narrator\'s view — the world itself tells the story' };
+
+  // ── 世界観ステートメントの合成 ──
+  const themeJa = mainThemes.map(t => t.ja).join('と');
+  const themeEn = mainThemes.map(t => t.en).join(' and ');
+  const worldJa = mainThemes.length ? mainThemes[0].world.ja : '感情の機微が風景に投影される静かな世界';
+  const worldEn = mainThemes.length ? mainThemes[0].world.en : 'a quiet world where emotional nuance projects onto landscapes';
+  const subWorldJa = mainThemes.length > 1 ? `その底流に「${mainThemes[1].ja}」が静かに流れている。` : '';
+  const timeJa = [season?.ja, timeOfDay?.ja].filter(Boolean).join('・');
+  const timeEn = [season?.en, timeOfDay?.en].filter(Boolean).join(', ');
+
+  const statementJa = [
+    `この楽曲の核心は「${themeJa || '名づけられない感情'}」。`,
+    `${worldJa}。${subWorldJa}`,
+    timeJa ? `時間設定は${timeJa}を基調とする。` : '',
+    `${perspective.ja}。`,
+    `感情の弧：${arc.ja}。`,
+    motifs.length ? `反復モチーフ：${motifs.map(m => m.ja).join('・')}──歌詞の言葉を直接映すのではなく、これらのモチーフを通して感情を間接的に映像化する。` : '',
+  ].filter(Boolean).join('');
+
+  const statementEn = [
+    `core theme: ${themeEn || 'an unnamed feeling'}`,
+    worldEn,
+    timeEn ? `set in ${timeEn}` : '',
+    perspective.en,
+    `emotional arc: ${arc.en}`,
+    motifs.length ? `recurring motifs: ${motifs.map(m => m.en).join(', ')} — visualize the feeling through these motifs rather than depicting the lyrics literally` : '',
+  ].filter(Boolean).join('; ');
+
+  return { themes: mainThemes, motifs, timeOfDay, season, arc, perspective, statementJa, statementEn };
+}
+
+// 世界観 → プロンプト注入用ヒント（短縮版）
+function worldviewPromptHints() {
+  if (!lyricsWorldview) return { ja:'', en:'' };
+  const w = lyricsWorldview;
+  const jaP = [], enP = [];
+  if (w.themes.length) { jaP.push(`テーマ「${w.themes.map(t=>t.ja).join('と')}」の世界`); enP.push(`world of ${w.themes.map(t=>t.en).join(' and ')}`); }
+  if (w.motifs.length) {
+    const m = w.motifs[0];
+    jaP.push(`モチーフ：${m.ja}（${m.visJa}）`);
+    enP.push(`motif: ${m.en} (${m.visEn})`);
+  }
+  const timeJa = [w.season?.ja, w.timeOfDay?.ja].filter(Boolean).join('・');
+  const timeEn = [w.season?.en, w.timeOfDay?.en].filter(Boolean).join(', ');
+  if (timeJa) { jaP.push(timeJa); enP.push(timeEn); }
+  return {
+    ja: jaP.length ? `【世界観】${jaP.join('、')}` : '',
+    en: enP.length ? `[worldview] ${enP.join(', ')}` : ''
+  };
+}
+
+// 参考動画/YouTube解析 → プロンプト注入用ヒント
+function referencePromptHints() {
+  if (!referenceProfile || !referenceProfile.colors || !referenceProfile.colors.length) return { ja:'', en:'' };
+  const p = referenceProfile;
+
+  // 色相解析 — 暖色/寒色・彩度
+  let warm = 0, cool = 0, satSum = 0;
+  for (const hex of p.colors) {
+    const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+    const max = Math.max(r,g,b), min = Math.min(r,g,b);
+    satSum += max === 0 ? 0 : (max - min) / max;
+    if (r > b + 15) warm++; else if (b > r + 15) cool++;
+  }
+  const avgSat = satSum / p.colors.length;
+  const tempJa = warm > cool ? '暖色基調（オレンジ・赤・琥珀系）' : cool > warm ? '寒色基調（青・ティール・紫系）' : '中間色基調';
+  const tempEn = warm > cool ? 'warm color temperature (orange, red, amber tones)' : cool > warm ? 'cool color temperature (blue, teal, violet tones)' : 'neutral color temperature';
+  const satJa = avgSat > 0.55 ? '高彩度・ビビッドな色彩' : avgSat < 0.25 ? '低彩度・くすんだ淡い色彩' : '中彩度の落ち着いた色彩';
+  const satEn = avgSat > 0.55 ? 'high saturation vivid colors' : avgSat < 0.25 ? 'desaturated muted pale colors' : 'moderately saturated calm colors';
+  const briJa = p.brightness > 0.55 ? '明るいハイキーなトーン' : p.brightness < 0.32 ? '暗いローキーなトーン' : 'バランスの取れた中間トーン';
+  const briEn = p.brightness > 0.55 ? 'bright high-key tone' : p.brightness < 0.32 ? 'dark low-key tone' : 'balanced midtone exposure';
+  const palette = p.colors.slice(0, 5).join(' ');
+
+  return {
+    ja: `【参考映像のルック】カラーパレット ${palette}　${tempJa}・${satJa}・${briJa}。このルックを全カットのカラーグレーディング基準とする`,
+    en: `[reference look] color palette ${palette}, ${tempEn}, ${satEn}, ${briEn}; use this look as the color grading baseline for every shot`,
+    palette, tempJa, tempEn, satJa, satEn, briJa, briEn
+  };
 }
 
 const audioInput = document.getElementById('audio-input');
@@ -2090,8 +2270,16 @@ function buildBgPrompt(bg, shot, pose, idx, styleKey, visualType, userReqHints) 
   const audio  = audioPromptHints();
   const audioJa = audio.ja ? `　${audio.ja}` : '';
   const audioEn = audio.en ? `, ${audio.en}` : '';
-  const ja = `【ショット】${shotFull}　【背景】${bgDesc}　【カメラワーク】${camData.label}（${camData.prompt}）　【ビジュアル指示】${vtNote}${cineJa}${audioJa}　${styleHint}${reqJa}`;
-  const en = `[shot] ${shotFullEn}, [background] ${bgDescEn}, [camera] ${camData.prompt}, [visual] ${vtNoteEn}${cineEn}${audioEn}, ${styleHintEn}${reqEn}`;
+  const wv = worldviewPromptHints();
+  const wvJa = wv.ja ? `${wv.ja}　` : '';
+  const wvEn = wv.en ? `${wv.en}, ` : '';
+  const ref = referencePromptHints();
+  const refJa = ref.ja ? `　${ref.ja}` : '';
+  const refEn = ref.en ? `, ${ref.en}` : '';
+  const reqLeadJa = userReqHints?.extraJa ? `【最優先要望】${userReqHints.extraJa}　` : '';
+  const reqLeadEn = userReqHints?.extraEn ? `[top-priority request] ${userReqHints.extraEn}, ` : '';
+  const ja = `${reqLeadJa}${wvJa}【ショット】${shotFull}　【背景】${bgDesc}　【カメラワーク】${camData.label}（${camData.prompt}）　【ビジュアル指示】${vtNote}${cineJa}${audioJa}${refJa}　${styleHint}`;
+  const en = `${reqLeadEn}${wvEn}[shot] ${shotFullEn}, [background] ${bgDescEn}, [camera] ${camData.prompt}, [visual] ${vtNoteEn}${cineEn}${audioEn}${refEn}, ${styleHintEn}`;
   return { ja, en };
 }
 
@@ -2551,8 +2739,34 @@ function buildPanel(scene, idx, total, duration, styleKey, lyricsContext) {
     const roleJa = `${role.ja}　`;
     const roleEn = `${role.en}, `;
 
-    finalPromptJa = `${timeTag}${emoTagJa}${imgJa}${atmoJa}${roleJa}${finalPromptJa}`;
-    finalPromptEn = `${timeTagEn}${emoTagEn}${imgEn}${atmoEn}${roleEn}${finalPromptEn}`;
+    // ── 世界観モチーフ — 歌詞の言葉を直接映すのではなく、世界観の反復モチーフで間接的に映像化 ──
+    let wvMotifJa = '', wvMotifEn = '';
+    if (lyricsWorldview) {
+      const w = lyricsWorldview;
+      if (w.motifs.length) {
+        const m = w.motifs[idx % w.motifs.length];
+        wvMotifJa = `【世界観モチーフ】${m.ja}──${m.visJa}を画面に織り込む　`;
+        wvMotifEn = `[worldview motif] ${m.en} — weave ${m.visEn} into the frame, `;
+      }
+      // 感情の弧の進行度をライティングに反映
+      const progress = total > 1 ? idx / (total - 1) : 0;
+      if (w.arc.key === 'ascent') {
+        const stage = progress < 0.33 ? { ja:'弧の序盤：闇が深く光は最小限', en:'early arc: deep darkness, minimal light' }
+                    : progress < 0.7  ? { ja:'弧の中盤：光が差し込み始める', en:'mid arc: light begins to break in' }
+                    : { ja:'弧の終盤：光が画面を満たしていく', en:'late arc: light floods the frame' };
+        wvMotifJa += `【感情の弧】${stage.ja}　`;
+        wvMotifEn += `[emotional arc] ${stage.en}, `;
+      } else if (w.arc.key === 'descent') {
+        const stage = progress < 0.33 ? { ja:'弧の序盤：明るく開かれた光', en:'early arc: bright open light' }
+                    : progress < 0.7  ? { ja:'弧の中盤：影が静かに伸び始める', en:'mid arc: shadows quietly lengthen' }
+                    : { ja:'弧の終盤：翳りの中の静かな真実', en:'late arc: a quiet truth within the shade' };
+        wvMotifJa += `【感情の弧】${stage.ja}　`;
+        wvMotifEn += `[emotional arc] ${stage.en}, `;
+      }
+    }
+
+    finalPromptJa = `${timeTag}${wvMotifJa}${emoTagJa}${imgJa}${atmoJa}${roleJa}${finalPromptJa}`;
+    finalPromptEn = `${timeTagEn}${wvMotifEn}${emoTagEn}${imgEn}${atmoEn}${roleEn}${finalPromptEn}`;
     // Background prompt also gets scene imagery for lyric coherence
     if (imagery.ja.length) finalBgJa = `${imgJa}${finalBgJa}`;
     if (imagery.en.length) finalBgEn = `${imgEn}${finalBgEn}`;
@@ -2933,15 +3147,21 @@ function buildImagePrompt(shot, pose, bg, styleKey, visualType, userReqHints) {
     : styleKey === 'liveshow'
     ? ', immersive venue lighting, handheld camera feel, live energy'
     : '';
-  const reqJa = userReqHints?.extraJa ? `　【要望】${userReqHints.extraJa}` : '';
-  const reqEn = userReqHints?.extraEn ? `, [user request] ${userReqHints.extraEn}` : '';
+  const reqLeadJa = userReqHints?.extraJa ? `【最優先要望】${userReqHints.extraJa}　` : '';
+  const reqLeadEn = userReqHints?.extraEn ? `[top-priority request] ${userReqHints.extraEn}, ` : '';
   const cineJa = styleCineJa(styleKey);
   const cineEn = styleCineEn(styleKey);
   const audio  = audioPromptHints();
   const audioJa = audio.ja ? `　${audio.ja}` : '';
   const audioEn = audio.en ? `, ${audio.en}` : '';
-  const ja = `${shotPart}${posePart}${bgPart}${vtPart}${cineJa}${audioJa}　${styleHint}${extraStyle}${reqJa}　【品質】${TECH_QUALITY_JA}`.replace(/\s+/g,' ').trim();
-  const en = `${shotPartEn}${posePartEn}${bgPartEn}${vtPartEn}${cineEn}${audioEn}, ${styleHintEn}${extraStyleEn}${reqEn}, ${TECH_QUALITY_EN}`.replace(/\s+/g,' ').trim();
+  const wv = worldviewPromptHints();
+  const wvJa = wv.ja ? `${wv.ja}　` : '';
+  const wvEn = wv.en ? `${wv.en}, ` : '';
+  const ref = referencePromptHints();
+  const refJa = ref.ja ? `　${ref.ja}` : '';
+  const refEn = ref.en ? `, ${ref.en}` : '';
+  const ja = `${reqLeadJa}${wvJa}${shotPart}${posePart}${bgPart}${vtPart}${cineJa}${audioJa}${refJa}　${styleHint}${extraStyle}　【品質】${TECH_QUALITY_JA}`.replace(/\s+/g,' ').trim();
+  const en = `${reqLeadEn}${wvEn}${shotPartEn}${posePartEn}${bgPartEn}${vtPartEn}${cineEn}${audioEn}${refEn}, ${styleHintEn}${extraStyleEn}, ${TECH_QUALITY_EN}`.replace(/\s+/g,' ').trim();
   return { ja, en };
 }
 
@@ -3300,6 +3520,7 @@ async function generate() {
     setProgress(15, '歌詞全体を解析中...');
     await delay(300);
     const lyricsAnalysis = analyzeFullLyrics(lyrics);
+    lyricsWorldview = analyzeLyricsWorldview(lyrics);
     const userReqHints = genre ? parseUserRequest(genre) : null;
     const lyricsContext = { seed: genSeed, lyricsAnalysis, userReqHints, audioFeatures: audioFeatures || null };
     // If stamps exist, they define the cut count (N stamps → N+1 cuts)
@@ -3409,7 +3630,21 @@ function generateScenario(panels, lyrics, lyricsAnalysis, seed, userRequest) {
   const variant  = ((seed || 0) >>> 0) % 10; // 0-9: 10 fully distinct narrative approaches
 
   // ── ユーザー要望を台本に反映するプレフィックスを構築 ──
-  const reqNote = userRequest ? `【演出要望】${userRequest}\n\n以下のシナリオは上記の要望を最優先の演出方針として設計する。\n\n` : '';
+  const reqNoteBase = userRequest ? `【演出要望】${userRequest}\n\n以下のシナリオは上記の要望を最優先の演出方針として設計する。\n\n` : '';
+
+  // ── 歌詞から読み取った世界観で台本全体をフレーミング ──
+  // 歌詞を「映像化」するのではなく、歌詞の背後にある世界を規定し、その世界の中で物語る
+  const wvNote = lyricsWorldview
+    ? `【この楽曲の世界観】\n${lyricsWorldview.statementJa}\n\nこのMVは歌詞の言葉をそのまま絵にするのではない。上記の世界観の中に観客を立たせ、歌詞が「聴こえてくる場所」を映像で建築する。\n\n`
+    : '';
+
+  // ── 参考映像のルックを台本の視覚方針に反映 ──
+  const refHints = referencePromptHints();
+  const refNote = refHints.ja
+    ? `【参考映像のルック】全編のカラーグレーディングは ${refHints.tempJa}・${refHints.satJa}・${refHints.briJa} を基準とする（パレット：${refHints.palette}）。\n\n`
+    : '';
+
+  const reqNote = reqNoteBase + wvNote + refNote;
 
   // ── Group panels into macro-sections ────────────────────────────────────
   const secGroups = [];
@@ -4397,6 +4632,9 @@ function generateLocationImagePrompt(bgKey, lyricLines, scenarioRaw, panels) {
   if (audioNote) {
     parts.push(`【楽曲の雰囲気】${audioNote}`);
   }
+  if (lyricsWorldview) {
+    parts.push(`【世界観】${lyricsWorldview.statementJa}`);
+  }
   parts.push(`【撮影指示】超広角ワイドショット（EWS）。人物・キャラクターは一切描かないこと。背景・環境のみ。映画的な奥行きと空気感を重視。`);
   parts.push(`【英語プロンプト（背景のみ版）】${bgFull.en}, ${styleHint.en}, no people no humans, environment only, wide establishing shot, cinematic depth of field, atmospheric lighting, ${panelCount > 4 ? 'recurring location for ' + panelCount + ' scenes, ' : ''}high detail background reference image`);
 
@@ -4590,7 +4828,9 @@ function generateVideoPrompt(panelA, panelB, numA, numB) {
   const lightB = bgA !== bgB ? (BG_LIGHT[bgB] || '自然な環境照明') : null;
   const audioLightHint = bassHeavy ? '低音の重厚さを反映した深い影と力強いコントラスト。' : highBright ? '高音の透明感を反映した柔らかい拡散光。' : '';
   const nearPeakLight = nearPeak ? '楽曲のクライマックス付近：光量を上げてドラマチックに。' : '';
-  const lightText = `${lightA}${lightB ? `から${lightB}へ移行。` : '。'}${TONE_LIGHT[tone]||TONE_LIGHT.neutral}${audioLightHint}${nearPeakLight}${hasCharB ? 'エンドフレームの人物には柔らかい照明を当て、顔と衣装を見やすくする。' : ''}`;
+  const refLook = referencePromptHints();
+  const refLightHint = refLook.ja ? `参考映像のルックに準拠：カラーパレット ${refLook.palette}（${refLook.tempJa}・${refLook.satJa}・${refLook.briJa}）でグレーディングする。` : '';
+  const lightText = `${lightA}${lightB ? `から${lightB}へ移行。` : '。'}${TONE_LIGHT[tone]||TONE_LIGHT.neutral}${audioLightHint}${nearPeakLight}${refLightHint}${hasCharB ? 'エンドフレームの人物には柔らかい照明を当て、顔と衣装を見やすくする。' : ''}`;
 
   // ── 音の雰囲気 ────────────────────────────────────────────────────────
   const sectionSound = isChorus ? '楽曲のサビが最高潮。歓声・クラップ・音楽の爆発感。' : isBridge ? '楽曲がブリッジへ。静かで内省的な雰囲気。' : isIntroA ? 'イントロの立ち上がり。期待感の醸成。' : isOutroB ? '楽曲がフェードアウトへ。余韻と静寂への移行。' : '楽曲が展開する。メロディとリズムが情景と呼応する。';
@@ -4620,14 +4860,23 @@ function generateVideoPrompt(panelA, panelB, numA, numB) {
     'モーションブラーや不自然な歪みを避けること。',
   ].filter(Boolean).join('\n');
 
+  // ── 世界観（歌詞の直接映像化ではなく、読み取った世界そのものを規定する）──
+  const wvSection = lyricsWorldview?.statementJa || '';
+
+  // ── 演出要望（ユーザーのキーワード選択・自由記述を最優先方針として明示）──
+  const userReq = (savedState?.genre || '').trim();
+  const reqSection = userReq ? `「${userReq}」──この演出要望をこのクリップの最優先方針とし、世界観・ライティング・カメラのすべてに反映させること。` : '';
+
   return [
     openLine, '',
+    ...(wvSection ? ['世界観：', wvSection, ''] : []),
     '映像全体のコンセプト：', conceptText, '',
     '被写体と表現：', charText, '',
     '時間構成：', timeText, '',
     'カメラ：', camText, '',
     'ライティング：', lightText, '',
     '音の雰囲気：', soundText, '',
+    ...(reqSection ? ['演出要望：', reqSection, ''] : []),
     '重要制約：', constraints,
   ].join('\n');
 }
