@@ -482,6 +482,8 @@ label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;
 .dl-btn.jpeg-merge:disabled{opacity:.45;cursor:not-allowed;pointer-events:none;}
 .dl-btn.video-prompt{border-color:rgba(139,92,246,.35);color:#a78bfa;background:rgba(139,92,246,.07);}
 .dl-btn.video-prompt:hover{background:rgba(139,92,246,.18);border-color:#a78bfa;color:#fff;}
+.dl-btn.loc-prompt{border-color:rgba(16,185,129,.35);color:#34d399;background:rgba(16,185,129,.07);}
+.dl-btn.loc-prompt:hover{background:rgba(16,185,129,.18);border-color:#34d399;color:#fff;}
 
 /* ── Video Prompt Modal ── */
 .vp-overlay{position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:9000;display:flex;align-items:flex-start;justify-content:center;padding:2rem 1rem;overflow-y:auto;}
@@ -754,6 +756,7 @@ label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;
       <button class="dl-btn jpeg-bulk" id="dl-range-btn" onclick="downloadRangeJPEG()">💾 JPEG個別保存</button>
       <button class="dl-btn jpeg-merge" id="dl-merge-btn" onclick="mergeRangeJPEG()">🖼 1枚合成(〜10枚)</button>
       <button class="dl-btn video-prompt" id="dl-vidprompt-btn" onclick="openVideoPromptModal()">🎬 動画プロンプト生成(〜10枚)</button>
+      <button class="dl-btn loc-prompt" id="dl-locprompt-btn" onclick="openLocationModal()">📍 ロケーション画像生成</button>
     </div>
 
     <!-- Video Prompt Modal -->
@@ -764,6 +767,17 @@ label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;
           <button class="vp-close-btn" onclick="closeVideoPromptModal()">✕</button>
         </div>
         <div class="vp-modal-body" id="vp-modal-body"></div>
+      </div>
+    </div>
+
+    <!-- Location Image Prompt Modal -->
+    <div class="vp-overlay hidden" id="loc-overlay" onclick="locOverlayClose(event)">
+      <div class="vp-modal" id="loc-modal">
+        <div class="vp-modal-header">
+          <span class="vp-modal-title">📍 ロケーション画像生成プロンプト</span>
+          <button class="vp-close-btn" onclick="closeLocationModal()">✕</button>
+        </div>
+        <div class="vp-modal-body" id="loc-modal-body"></div>
       </div>
     </div>
 
@@ -4207,6 +4221,178 @@ function vpCopyChatGPT(btn, numA) {
     btn.textContent = '✓ コピー済み';
     btn.classList.add('copied');
     setTimeout(() => { btn.textContent = '🤖 ChatGPT確認用'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+// ─────────────────────────────────────────
+// Location Image Prompt Modal
+// ─────────────────────────────────────────
+function openLocationModal() {
+  if (!allPanels.length) { alert('先に絵コンテを生成してください。'); return; }
+
+  const scenarioRaw = document.getElementById('scenario-text')?.innerText || '';
+
+  // Collect unique bg values and gather representative panels + lyric lines per location
+  const locationMap = {};
+  for (const p of allPanels) {
+    const key = p.bg || 'default';
+    if (!locationMap[key]) locationMap[key] = { panels: [], lines: [] };
+    locationMap[key].panels.push(p);
+    for (const l of (p.lines || [])) {
+      if (l && l.trim() && !locationMap[key].lines.includes(l.trim())) {
+        locationMap[key].lines.push(l.trim());
+      }
+    }
+  }
+
+  const body = document.getElementById('loc-modal-body');
+  body.innerHTML = '';
+
+  const PAIR_S = 'border:1px solid rgba(16,185,129,.18);border-radius:12px;overflow:hidden;margin-bottom:.75rem;';
+  const HEAD_S = 'display:flex;align-items:center;justify-content:space-between;padding:.55rem 1rem;background:rgba(16,185,129,.08);border-bottom:1px solid rgba(16,185,129,.15);';
+  const LABEL_S = 'font-size:.72rem;font-weight:700;color:#34d399;';
+  const BTN_S = 'padding:.28rem .75rem;border-radius:8px;border:1px solid rgba(16,185,129,.35);background:transparent;color:#34d399;font-size:.66rem;cursor:pointer;font-family:inherit;';
+  const TA_S = 'display:block;width:100%;box-sizing:border-box;background:#0a1a14;color:#d4e8df;border:none;resize:vertical;padding:.85rem 1rem;font-size:.74rem;line-height:1.85;font-family:inherit;outline:none;';
+
+  const bgNames = {
+    city:'都市・夜景 (City Night)', nature:'自然・森・野外 (Nature)', spotlight:'ステージ・スポットライト (Stage)',
+    rain:'雨のシーン (Rain)', stars:'星空・夜空 (Starry Sky)', abstract:'抽象・シュール (Abstract)',
+    default:'室内・その他 (Indoor/Other)'
+  };
+
+  let count = 0;
+  for (const [bgKey, data] of Object.entries(locationMap)) {
+    const promptText = generateLocationImagePrompt(bgKey, data.lines, scenarioRaw, data.panels.length);
+    const locName = bgNames[bgKey] || bgKey;
+    const panelNums = data.panels.map(p => p.idx + 1).join(', ');
+    const pairEl = document.createElement('div');
+    pairEl.style.cssText = PAIR_S;
+    pairEl.dataset.locPair = '1';
+
+    const headerEl = document.createElement('div');
+    headerEl.style.cssText = HEAD_S;
+    const labelEl = document.createElement('span');
+    labelEl.style.cssText = LABEL_S;
+    labelEl.textContent = `📍 ${locName}（パネル: ${panelNums}）`;
+    const copyBtn = document.createElement('button');
+    copyBtn.style.cssText = BTN_S;
+    copyBtn.textContent = '📋 コピー';
+    copyBtn.onclick = function() { locCopyPrompt(this); };
+    headerEl.append(labelEl, copyBtn);
+
+    const ta = document.createElement('textarea');
+    ta.readOnly = true;
+    ta.value = promptText || '(テキストなし)';
+    const lines = (promptText || '').split('\n').length;
+    ta.rows = Math.min(Math.max(lines + 1, 8), 30);
+    ta.style.cssText = TA_S;
+
+    pairEl.append(headerEl, ta);
+    body.appendChild(pairEl);
+    count++;
+  }
+
+  if (count === 0) {
+    body.innerHTML = '<p style="color:#94a3b8;font-size:.82rem;padding:1rem;">ロケーション情報が見つかりませんでした。</p>';
+  }
+
+  document.getElementById('loc-overlay').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+
+function generateLocationImagePrompt(bgKey, lyricLines, scenarioRaw, panelCount) {
+  const styleKey = savedState?.styleKey || 'story';
+  const genre = savedState?.genre || '';
+  const artist = savedState?.artist || '';
+
+  // Extract scenario sentences containing location keywords
+  const scenarioLines = scenarioRaw.split(/[\n。！？]/).map(s => s.trim()).filter(s => s.length > 4);
+  const locationKeywords = {
+    city:     /ビル|オフィス|都市|街|路地|地下鉄|駅前|横断歩道|屋上|マンション|アパート|コンビニ|夜景|ネオン|繁華街/,
+    nature:   /森|山|川|海|浜辺|野原|草原|公園|田園|花畑|桜|木|林|丘|湖|滝|渓谷/,
+    spotlight:/ステージ|舞台|ライブ|コンサート|スタジオ|照明|スポットライト|客席|楽屋/,
+    rain:     /雨|傘|水たまり|濡れ|しずく|ざあざあ|雨粒|雨宿り/,
+    stars:    /星|星空|夜空|天の川|月明かり|プラネタリウム|屋上|夜の空/,
+    abstract: /夢|幻|異空間|異次元|宇宙|水中|異世界|鏡|歪み/,
+    default:  /部屋|自室|室内|窓|カフェ|喫茶|図書館|学校|教室|病院|廊下|階段|玄関|キッチン|リビング/,
+  };
+  const kwRe = locationKeywords[bgKey] || null;
+  const relatedScenarioLines = kwRe
+    ? scenarioLines.filter(l => kwRe.test(l)).slice(0, 4)
+    : scenarioLines.slice(0, 3);
+
+  const BG_FULL = {
+    city:      { ja:'都市の夜景・ネオン輝く雨の街', en:'urban night cityscape with neon-lit rain-slicked streets' },
+    nature:    { ja:'自然の風景・木漏れ日と草木の揺らぎ', en:'lush natural landscape with golden sunlight through leaves' },
+    spotlight: { ja:'ステージ・スポットライトと煙が交差するコンサート空間', en:'concert stage with single spotlight cutting through smoke' },
+    rain:      { ja:'雨の情景・暗い濡れた環境とレンズに滲む水滴', en:'rain environment with dark wet surfaces and lens droplets' },
+    stars:     { ja:'星空の夜・天の川が広がる暗い野原または屋上', en:'vast starry night sky with milky way over dark field or rooftop' },
+    abstract:  { ja:'シュールな抽象空間・夢幻的な色彩と非現実的な構造', en:'surreal abstract space with dreamlike color gradients and non-Euclidean forms' },
+    default:   { ja:'洗練されたシネマティックな室内・柔らかな照明と浅い被写界深度', en:'refined cinematic interior with soft lighting and shallow depth of field' },
+  };
+  const bgFull = BG_FULL[bgKey] || BG_FULL.default;
+
+  const STYLE_HINT = {
+    rock:        { ja:'ダークでハードなロックMV調。コントラスト強め・粒子感のある質感', en:'dark hard rock MV aesthetic, high contrast, gritty grain texture' },
+    ballad:      { ja:'バラードMV調。柔らかい自然光・淡い色調・詩的な静けさ', en:'ballad MV style, soft natural light, muted tones, poetic stillness' },
+    emotional:   { ja:'エモーショナルMV調。暖かい逆光・感情的な陰影・映画的な空気感', en:'emotional MV style, warm backlight, expressive shadows, cinematic atmosphere' },
+    mysterious:  { ja:'幻想的・ダークファンタジー調。霧・不思議な光・現実と幻の境界', en:'fantastical dark fantasy style, mist, otherworldly light, boundary of real and dream' },
+    performance: { ja:'パフォーマンスMV調。鮮やかな照明・ダンサブルなエネルギー・舞台感', en:'performance MV style, vibrant stage lighting, danceable energy, theatrical feel' },
+    story:       { ja:'映像的な短編映画調。リアルな質感・自然な光・物語性の高い構図', en:'short film cinematic style, realistic texture, natural light, strong narrative composition' },
+    concept:     { ja:'コンセプトMV調。統一された視覚的美学・繰り返しのモチーフ・洗練されたカラーパレット', en:'concept MV style, unified visual aesthetic, repeating motifs, refined color palette' },
+    liveshow:    { ja:'ライブステージ調。本物の舞台照明・観客のエネルギー・臨場感', en:'live show style, authentic stage lighting, crowd energy, immersive concert feel' },
+    bizarre:     { ja:'シュール・ビザールアート調。ダリ/マグリット風・非現実的構図・奇妙な美しさ', en:'bizarre surreal art style, Dali/Magritte inspired, impossible compositions, uncanny beauty' },
+  };
+  const styleHint = STYLE_HINT[styleKey] || STYLE_HINT.story;
+
+  // Audio-informed atmosphere
+  const af = audioFeatures;
+  let audioNote = '';
+  if (af) {
+    const bpmMap = { 'very-slow':'非常にゆっくりとした静寂の空間感', slow:'静かで内省的な空気', moderate:'自然なテンポ感のある空間', upbeat:'躍動感のある明るい空間', fast:'エネルギッシュで緊張感のある空間', 'very-fast':'激しくスピード感のある空間' };
+    if (af.bpmCategory && bpmMap[af.bpmCategory]) audioNote = bpmMap[af.bpmCategory] + '。';
+    if (af.energyCategory === 'dynamic') audioNote += '強いコントラストとドラマティックな明暗の変化。';
+    else if (af.energyCategory === 'flat') audioNote += '均一で落ち着いた光の安定感。';
+  }
+
+  // Compose the prompt
+  const parts = [];
+  parts.push(`【ロケーション・設定】${bgFull.ja}`);
+  parts.push(`【用途】MV背景・ロケーション参照画像（人物なし、背景のみ）`);
+  parts.push(`【スタイル】${styleHint.ja}${genre ? `　ジャンル：${genre}` : ''}${artist ? `　アーティスト：${artist}` : ''}`);
+  if (relatedScenarioLines.length) {
+    parts.push(`【シナリオ文脈】${relatedScenarioLines.join('　')}`);
+  }
+  if (lyricLines.length) {
+    parts.push(`【このシーンの歌詞・描写】${lyricLines.slice(0, 5).join(' ／ ')}`);
+  }
+  if (audioNote) {
+    parts.push(`【楽曲の雰囲気】${audioNote}`);
+  }
+  parts.push(`【撮影指示】超広角ワイドショット（EWS）。人物・キャラクターは一切描かないこと。背景・環境のみ。映画的な奥行きと空気感を重視。`);
+  parts.push(`【英語プロンプト】${bgFull.en}, ${styleHint.en}, no people no humans, environment only, wide establishing shot, cinematic depth of field, atmospheric lighting, ${panelCount > 4 ? 'recurring location for ' + panelCount + ' scenes, ' : ''}high detail background reference image`);
+
+  return parts.join('\n');
+}
+
+function closeLocationModal() {
+  document.getElementById('loc-overlay').classList.add('hidden');
+  document.body.style.overflow = '';
+}
+
+function locOverlayClose(e) {
+  if (e.target === document.getElementById('loc-overlay')) closeLocationModal();
+}
+
+function locCopyPrompt(btn) {
+  const pair = btn.closest('[data-loc-pair]');
+  const ta = pair ? pair.querySelector('textarea') : null;
+  const text = ta ? ta.value : '';
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = '✓ コピー済み';
+    btn.style.color = '#4ade80';
+    btn.style.borderColor = '#4ade80';
+    setTimeout(() => { btn.textContent = '📋 コピー'; btn.style.color = ''; btn.style.borderColor = ''; }, 2000);
   });
 }
 
