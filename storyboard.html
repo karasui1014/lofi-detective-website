@@ -2436,25 +2436,28 @@ function buildPanel(scene, idx, total, duration, styleKey, lyricsContext) {
   let finalPromptJa = promptObj.ja, finalPromptEn = promptObj.en;
   let finalBgJa = bgPromptObj.ja, finalBgEn = bgPromptObj.en;
 
-  if (!scene.isIntro && !scene.isOutro) {
-    // ── Lyric-driven imagery: reflect the ACTUAL words of this cut ──
-    const imagery = extractLyricImagery(text);
-    const snippetJa = scene.lines.slice(0, 2).join(' ／ ');
-    const snippetEn = scene.lines.slice(0, 2).join(' / ');
-    const lyricTag   = snippetJa ? `【歌詞】「${snippetJa}」　` : '';
-    const lyricTagEn = snippetEn ? `[lyric line: "${snippetEn}"] ` : '';
-    const imgJa  = imagery.ja.length ? `【情景】${imagery.ja.join('、')}　` : '';
-    const imgEn  = imagery.en.length ? `[scene imagery: ${imagery.en.join(', ')}] ` : '';
+  // ── Tone key (needed for both intro/outro and verse sections) ──
+  const toneKey = lyricsContext?.lyricsAnalysis?.tone || 'neutral';
 
-    // Timestamp: precise for stamp-driven, approximate otherwise
+  if (!scene.isIntro && !scene.isOutro) {
+    // ── Timestamp ──
     const ts = formatTime(t);
     const tsEnd = (scene.stampEnd !== undefined) ? formatTime(scene.stampEnd) : '';
     const timeRange = tsEnd ? `${ts}〜${tsEnd}` : ts;
     const timeTag   = `【タイム】${timeRange}　`;
     const timeTagEn = `[time: ${timeRange}] `;
 
-    // ── Overall tone atmosphere (from full-lyrics analysis) ──
-    const toneKey = lyricsContext?.lyricsAnalysis?.tone || 'neutral';
+    // ── Emotion interpretation — visualize feeling BEHIND lyrics, not the words themselves ──
+    const emo = interpretLyricEmotion(scene.lines, toneKey);
+    const emoTagJa = `【感情】${emo.ja}　`;
+    const emoTagEn = `[emotion] ${emo.en}, `;
+
+    // ── Keyword-derived scene imagery (from LYRIC_IMAGERY table) ──
+    const imagery = extractLyricImagery(text);
+    const imgJa  = imagery.ja.length ? `【情景】${imagery.ja.join('、')}　` : '';
+    const imgEn  = imagery.en.length ? `[scene imagery: ${imagery.en.join(', ')}] ` : '';
+
+    // ── Overall tone atmosphere ──
     const atmo = toneAtmosphere(toneKey);
     const atmoJa = `${atmo.ja}　`;
     const atmoEn = `${atmo.en}, `;
@@ -2464,16 +2467,17 @@ function buildPanel(scene, idx, total, duration, styleKey, lyricsContext) {
     const roleJa = `${role.ja}　`;
     const roleEn = `${role.en}, `;
 
-    finalPromptJa = `${timeTag}${lyricTag}${imgJa}${atmoJa}${roleJa}${finalPromptJa}`;
-    finalPromptEn = `${timeTagEn}${lyricTagEn}${imgEn}${atmoEn}${roleEn}${finalPromptEn}`;
-    // Background prompt also gets the scene imagery so it stays coherent with lyrics
+    finalPromptJa = `${timeTag}${emoTagJa}${imgJa}${atmoJa}${roleJa}${finalPromptJa}`;
+    finalPromptEn = `${timeTagEn}${emoTagEn}${imgEn}${atmoEn}${roleEn}${finalPromptEn}`;
+    // Background prompt also gets scene imagery for lyric coherence
     if (imagery.ja.length) finalBgJa = `${imgJa}${finalBgJa}`;
     if (imagery.en.length) finalBgEn = `${imgEn}${finalBgEn}`;
   } else {
-    // Intro/outro also get their narrative role
+    // Intro/outro get their narrative role + tone atmosphere
+    const atmo = toneAtmosphere(toneKey);
     const role = emotionRole(scene.section, !!scene.isIntro, !!scene.isOutro);
-    finalPromptJa = `${role.ja}　${finalPromptJa}`;
-    finalPromptEn = `${role.en}, ${finalPromptEn}`;
+    finalPromptJa = `${role.ja}　${atmo.ja}　${finalPromptJa}`;
+    finalPromptEn = `${role.en}, ${atmo.en}, ${finalPromptEn}`;
   }
 
   return { shot, pose, bg, color, idx, time: t, lines: scene.lines, section: scene.section,
@@ -2704,6 +2708,58 @@ function emotionRole(section, isIntro, isOutro) {
     ja: '【役割】感情を積み重ね物語を前進させる・次のシーンへの感情的な橋渡し',
     en: '[narrative role] build and layer emotion, advance the story, bridge emotionally to the next scene',
   };
+}
+
+// Lyric text → emotional/visual interpretation (never describe lyrics literally)
+function interpretLyricEmotion(lines, tone) {
+  const text = lines.join(' ');
+  const EMOV = [
+    { kw:['愛','好き','恋','君を','あなたを','きみ','誰かを'],
+      ja:'焦がれる想い・届かない距離の切実さ・心が引き寄せられる磁力',
+      en:'yearning desire, desperate distance between hearts, magnetic pull of emotion' },
+    { kw:['別れ','さよなら','離れ','去っ','もう会えない','消えて'],
+      ja:'取り戻せない別離・消えゆく輪郭・空白だけが残る静寂',
+      en:'irreversible farewell, fading silhouette, silence where presence once was' },
+    { kw:['涙','泣','悲し','痛','苦し','傷'],
+      ja:'溢れ出す感情の重力・抑えきれない内側の波・決壊寸前の静けさ',
+      en:'emotional gravity breaking through, inner wave beyond control, stillness at the edge of breaking' },
+    { kw:['夢','希望','願','明日','未来','信じ'],
+      ja:'遠くに揺れる光・手を伸ばす先にある不確かな輝き',
+      en:'distant flickering light, uncertain brightness toward which hands reach out' },
+    { kw:['孤独','一人','ひとり','寂し','独り'],
+      ja:'静寂が形をなした孤独感・世界から切り離された浮遊感',
+      en:'loneliness given physical form, floating sensation of being cut from the world' },
+    { kw:['怒','叫','壊','割','砕'],
+      ja:'爆発寸前の圧縮されたエネルギー・内側から押し広げる衝動',
+      en:'compressed energy at the edge of explosion, force pressing outward from within' },
+    { kw:['走','逃','飛','自由','羽','解放'],
+      ja:'解放へ向かう身体的衝動・重力から抜け出す瞬間の躍動感',
+      en:'physical impulse toward freedom, kinetic burst of escape from gravity' },
+    { kw:['迷','わから','見失','答え','霧'],
+      ja:'方角を失った内側の空間・霧の中で手探りする感覚',
+      en:'inner space without direction, groping through fog for solid ground' },
+    { kw:['記憶','思い出','過去','あの頃','昔','忘れ'],
+      ja:'時間の層が滲んで溶け合う記憶の断層・触れられない過去の温度',
+      en:'memory strata bleeding into each other, untouchable warmth of the past' },
+    { kw:['光','輝','きらめ','まぶし','照'],
+      ja:'感情が光になった瞬間・内側から溢れ出す透明な熱量',
+      en:'moment when emotion becomes light itself, transparent heat pouring outward' },
+    { kw:['静','沈黙','無音','何も','止'],
+      ja:'音を失った世界の密度・沈黙が語る言葉',
+      en:'density of a world stripped of sound, what silence alone articulates' },
+    { kw:['時','時間','瞬間','今','刹那'],
+      ja:'永遠と一瞬が同時に存在する感覚・今この刹那の重さ',
+      en:'eternity and instant coexisting, the unbearable weight of this precise moment' },
+  ];
+  const matches = [];
+  for (const e of EMOV) {
+    for (const k of e.kw) { if (text.includes(k)) { matches.push(e); break; } }
+  }
+  if (!matches.length) {
+    const fb = { bright:{ ja:'前に向かう感情の流れ・希望の予感・光が当たる前の静けさ', en:'emotional current toward the future, premonition of hope, stillness before the light arrives' }, melancholic:{ ja:'胸の奥の名前のつかない痛み・静かに溢れる感情の密度', en:'nameless ache deep within, quietly overflowing density of emotion' }, neutral:{ ja:'感情が形を探している静かな時間・内側で動いている何か', en:'quiet time where emotion seeks form, something shifting within' } };
+    return fb[tone] || fb.neutral;
+  }
+  return { ja: matches.slice(0,2).map(m=>m.ja).join('・'), en: matches.slice(0,2).map(m=>m.en).join(', ') };
 }
 
 function buildImagePrompt(shot, pose, bg, styleKey, visualType, userReqHints) {
@@ -3554,9 +3610,8 @@ function updateScenarioBackBtn() {
 
 function regenerateScenario() {
   if (!savedState) return;
-  // If currently viewing an older scenario, regenerate from the newest seed forward
+  // If currently viewing an older scenario, move forward in history (panels stay current)
   if (scenarioHistoryIdx < scenarioHistory.length - 1) {
-    // Move forward in existing history first
     scenarioHistoryIdx++;
     renderScenario(scenarioHistory[scenarioHistoryIdx]);
     updateScenarioBackBtn();
@@ -3565,9 +3620,46 @@ function regenerateScenario() {
   scenarioSeed = (scenarioSeed + 1) >>> 0;
   const seed = (savedState.seed || 0) + scenarioSeed * 1013;
   const analysis = savedState.lyricsAnalysis || analyzeFullLyrics(savedState.lyrics);
+
+  // Regenerate panel prompts and SVGs with new seed first
+  regenerateAllPanels(seed, analysis);
+
+  // Then regenerate scenario narrative
   const script = generateScenario(allPanels, savedState.lyrics, analysis, seed, savedState.genre || '');
   pushScenarioHistory(script);
   renderScenario(script);
+}
+
+function regenerateAllPanels(seed, lyricsAnalysis) {
+  if (!savedState) return;
+  const { scenes, duration, styleKey, genre } = savedState;
+  const analysis = lyricsAnalysis || savedState.lyricsAnalysis || analyzeFullLyrics(savedState.lyrics);
+  const userReqHints = genre ? parseUserRequest(genre) : null;
+  const stampDriven = allPanels.some(p => p.stampDriven);
+  const lyricsContext = { seed, lyricsAnalysis: analysis, userReqHints, audioFeatures: audioFeatures || null };
+
+  const newPanels = scenes.map((s, i) => {
+    const panelTime = s.stampTime !== undefined ? s.stampTime : (duration / scenes.length) * i;
+    const ctx = { ...lyricsContext, panelTime, stampDriven };
+    return buildPanel(s, i, scenes.length, duration, styleKey, ctx);
+  });
+  diversifyPanels(newPanels, styleKey);
+  allPanels = newPanels;
+
+  // Animate-in the new panels
+  const grid = document.getElementById('sb-grid');
+  grid.innerHTML = '';
+  newPanels.forEach((p, i) => {
+    const el = buildPanelEl(p, i + 1);
+    el.style.animationDelay = (i * 0.025) + 's';
+    grid.appendChild(el);
+  });
+
+  // Sync range inputs
+  const fromEl = document.getElementById('dl-range-from');
+  const toEl   = document.getElementById('dl-range-to');
+  if (fromEl) fromEl.value = 1;
+  if (toEl)   toEl.value   = newPanels.length;
 }
 
 function previousScenario() {
