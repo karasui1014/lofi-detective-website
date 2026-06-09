@@ -752,7 +752,7 @@ label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;
       <span class="dl-range-label">〜</span>
       <input class="dl-range-input" id="dl-range-to" type="number" min="1">
       <button class="dl-btn jpeg-bulk" id="dl-range-btn" onclick="downloadRangeJPEG()">💾 JPEG個別保存</button>
-      <button class="dl-btn jpeg-merge" id="dl-merge-btn" onclick="mergeRangeJPEG()">🖼 1枚合成</button>
+      <button class="dl-btn jpeg-merge" id="dl-merge-btn" onclick="mergeRangeJPEG()">🖼 1枚合成(〜20枚)</button>
       <button class="dl-btn video-prompt" id="dl-vidprompt-btn" onclick="openVideoPromptModal()">🎬 動画プロンプト生成</button>
     </div>
 
@@ -4398,7 +4398,7 @@ async function downloadRangeCore(from, to, btn, resetLabel) {
 // ─────────────────────────────────────────
 // Merge range panels into single JPEG
 // ─────────────────────────────────────────
-const MERGE_PAGE_SIZE = 40; // max panels per merged image
+const MERGE_PAGE_SIZE = 20; // max panels per merged image
 
 async function mergeRangeJPEG() {
   const total = allPanels.length;
@@ -4429,14 +4429,14 @@ async function mergeRangeJPEG() {
     }
     btn.disabled = false;
     btn.textContent = `✓ 合成完了(${pages}ファイル)`;
-    setTimeout(() => { btn.textContent = '🖼 1枚合成'; }, 4000);
+    setTimeout(() => { btn.textContent = '🖼 1枚合成(〜20枚)'; }, 4000);
     return;
   }
 
   await mergeChunk(from, to, `storyboard-${String(from).padStart(3,'0')}-${String(to).padStart(3,'0')}.jpg`, btn);
   btn.disabled = false;
   btn.textContent = `✓ 合成完了`;
-  setTimeout(() => { btn.textContent = '🖼 1枚合成'; }, 3000);
+  setTimeout(() => { btn.textContent = '🖼 1枚合成(〜20枚)'; }, 3000);
 }
 
 async function mergeChunk(from, to, filename, btn) {
