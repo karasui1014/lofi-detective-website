@@ -753,7 +753,7 @@ label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;
       <input class="dl-range-input" id="dl-range-to" type="number" min="1">
       <button class="dl-btn jpeg-bulk" id="dl-range-btn" onclick="downloadRangeJPEG()">💾 JPEG個別保存</button>
       <button class="dl-btn jpeg-merge" id="dl-merge-btn" onclick="mergeRangeJPEG()">🖼 1枚合成(〜20枚)</button>
-      <button class="dl-btn video-prompt" id="dl-vidprompt-btn" onclick="openVideoPromptModal()">🎬 動画プロンプト生成</button>
+      <button class="dl-btn video-prompt" id="dl-vidprompt-btn" onclick="openVideoPromptModal()">🎬 動画プロンプト生成(〜20枚)</button>
     </div>
 
     <!-- Video Prompt Modal -->
@@ -4097,7 +4097,8 @@ function downloadPanelJPEG(btn) {
 function openVideoPromptModal() {
   if (!allPanels.length) return;
   const from = Math.max(1, parseInt(document.getElementById('dl-range-from').value) || 1);
-  const to   = Math.min(allPanels.length, parseInt(document.getElementById('dl-range-to').value) || allPanels.length);
+  const toRaw = Math.min(allPanels.length, parseInt(document.getElementById('dl-range-to').value) || allPanels.length);
+  const to = Math.min(toRaw, from + 20 - 1); // max 20 panels (= 19 pairs)
   if (to - from < 1) { alert('動画プロンプトを生成するには2枚以上のパネルが必要です。'); return; }
 
   const body = document.getElementById('vp-modal-body');
@@ -4144,6 +4145,7 @@ function openVideoPromptModal() {
 
     const bodyEl = document.createElement('div');
     bodyEl.className = 'vp-pair-body';
+    bodyEl.style.cssText = 'padding:.8rem 1rem;font-size:.74rem;line-height:1.85;color:rgba(255,255,255,0.7);white-space:pre-wrap;word-break:break-word;';
     bodyEl.textContent = promptText;
 
     pairEl.append(headerEl, bodyEl);
