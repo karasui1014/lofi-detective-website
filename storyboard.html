@@ -4355,6 +4355,18 @@ function generateLocationImagePrompt(bgKey, lyricLines, scenarioRaw, panelCount)
     else if (af.energyCategory === 'flat') audioNote += '均一で落ち着いた光の安定感。';
   }
 
+  // Location callout points by bg type (for annotated guide version)
+  const LOC_CALLOUTS = {
+    city:      ['①メインエントランス・正面入口', '②ロビー・エレベーターホール', '③撮影ポイント（ネオン反射スポット）', '④屋上・見晴らし台'],
+    nature:    ['①開けた草原・メイン撮影スポット', '②木陰エリア（光と影のコントラスト）', '③水辺・池・川（反射ポイント）', '④丘の頂上・眺望ポイント'],
+    spotlight: ['①メインステージ・センター', '②照明ブース・スポットライト位置', '③楽屋・バックステージ通路', '④客席エリア・フロント'],
+    rain:      ['①濡れた路面・反射ポイント', '②屋根下・雨宿りスポット', '③水たまりクローズアップ位置', '④ガラス窓・水滴撮影ポイント'],
+    stars:     ['①天の川が最もよく見える方角', '②カメラセットアップ推奨位置', '③地平線ライン・開けた視野', '④光害の少ない暗所エリア'],
+    abstract:  ['①メインビジュアルポイント', '②色彩グラデーション中心', '③幾何学構造のフォーカス部分', '④被写体との距離感・空間設定'],
+    default:   ['①メインスペース・広角構図', '②自然光の差し込みポイント（窓際）', '③背景・小道具の配置エリア', '④クローズアップ用テクスチャースポット'],
+  };
+  const callouts = LOC_CALLOUTS[bgKey] || LOC_CALLOUTS.default;
+
   // Compose the prompt
   const parts = [];
   parts.push(`【ロケーション・設定】${bgFull.ja}`);
@@ -4370,7 +4382,32 @@ function generateLocationImagePrompt(bgKey, lyricLines, scenarioRaw, panelCount)
     parts.push(`【楽曲の雰囲気】${audioNote}`);
   }
   parts.push(`【撮影指示】超広角ワイドショット（EWS）。人物・キャラクターは一切描かないこと。背景・環境のみ。映画的な奥行きと空気感を重視。`);
-  parts.push(`【英語プロンプト】${bgFull.en}, ${styleHint.en}, no people no humans, environment only, wide establishing shot, cinematic depth of field, atmospheric lighting, ${panelCount > 4 ? 'recurring location for ' + panelCount + ' scenes, ' : ''}high detail background reference image`);
+  parts.push(`【英語プロンプト（背景のみ版）】${bgFull.en}, ${styleHint.en}, no people no humans, environment only, wide establishing shot, cinematic depth of field, atmospheric lighting, ${panelCount > 4 ? 'recurring location for ' + panelCount + ' scenes, ' : ''}high detail background reference image`);
+
+  // ── 説明書き入りガイド版 ──
+  parts.push('');
+  parts.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  parts.push('【説明書き入りロケーションガイド画像版】');
+  parts.push('上記の背景写真に以下の説明書きを重ねたガイド画像を生成してください。');
+  parts.push('');
+  parts.push('■ レイアウト構成:');
+  parts.push('・メインの背景写真（上部〜中央・横幅いっぱい）に番号付きコールアウトを重ねる');
+  parts.push('・左下にシンプルなフロアマップ／平面略図（簡略化した構造図）を配置');
+  parts.push('・右下または下部に各ポイントの写真サムネイル＋説明テキストを横並びで配置');
+  parts.push('');
+  parts.push('■ 番号付きポイント（画像内に以下の吹き出し・コールアウトを配置）:');
+  for (const c of callouts) {
+    parts.push(`  ${c}`);
+  }
+  parts.push('');
+  parts.push('■ 説明書きのビジュアル要素:');
+  parts.push('・各番号はピンク・水色・緑・オレンジなどカラー別の丸囲み番号（①②③④）');
+  parts.push('・番号から説明テキストへの点線の矢印（ドット矢印）');
+  parts.push('・説明テキストはカラー枠ボックス内に白背景で見やすく');
+  parts.push('・全体のタイトルを画像左上に「ロケーションガイド」として配置');
+  parts.push('');
+  parts.push('■ 英語プロンプト（説明書き入り版）:');
+  parts.push(`facility guide infographic layout, ${bgFull.en}, overhead aerial photo with numbered callout annotations, ①②③④ colored circle markers with dotted arrow lines, explanatory text boxes with color borders (pink/blue/green), small floor plan diagram in bottom left, step thumbnails at bottom, Japanese facility guide style, no people, clean graphic design overlay on photo`);
 
   return parts.join('\n');
 }
