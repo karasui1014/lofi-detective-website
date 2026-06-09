@@ -2368,7 +2368,7 @@ function parseLyrics(raw, panelCount, duration, styleKey, stampBoundaries) {
 
   const introPanelCount = introEndSec < 2
     ? 0
-    : Math.min(8, Math.max(1, Math.round((introEndSec / duration) * panelCount)));
+    : Math.min(8, Math.max(3, Math.round((introEndSec / duration) * panelCount)));
   const outroPanelCount = outroDuration < 3
     ? 0
     : Math.min(4, Math.max(1, Math.round((outroDuration / duration) * panelCount)));
