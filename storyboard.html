@@ -480,6 +480,25 @@ label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;
 .dl-btn.jpeg-merge{border-color:rgba(251,146,60,.35);color:#fb923c;background:rgba(251,146,60,.07);}
 .dl-btn.jpeg-merge:hover{background:rgba(251,146,60,.18);border-color:#fb923c;color:#fff;}
 .dl-btn.jpeg-merge:disabled{opacity:.45;cursor:not-allowed;pointer-events:none;}
+.dl-btn.video-prompt{border-color:rgba(139,92,246,.35);color:#a78bfa;background:rgba(139,92,246,.07);}
+.dl-btn.video-prompt:hover{background:rgba(139,92,246,.18);border-color:#a78bfa;color:#fff;}
+
+/* ── Video Prompt Modal ── */
+.vp-overlay{position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:9000;display:flex;align-items:flex-start;justify-content:center;padding:2rem 1rem;overflow-y:auto;}
+.vp-overlay.hidden{display:none;}
+.vp-modal{background:var(--surface);border:1px solid var(--border-hi);border-radius:var(--radius);width:100%;max-width:780px;box-shadow:0 20px 60px rgba(0,0,0,.6);}
+.vp-modal-header{display:flex;align-items:center;justify-content:space-between;padding:1rem 1.4rem;border-bottom:1px solid var(--border);}
+.vp-modal-title{font-size:.85rem;font-weight:700;color:var(--text);}
+.vp-close-btn{background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:1.2rem;line-height:1;padding:.2rem .5rem;}
+.vp-close-btn:hover{color:var(--text);}
+.vp-modal-body{padding:1.2rem 1.4rem;display:flex;flex-direction:column;gap:1rem;max-height:75vh;overflow-y:auto;}
+.vp-pair{background:var(--surface2);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+.vp-pair-header{display:flex;align-items:center;justify-content:space-between;padding:.55rem 1rem;background:rgba(139,92,246,.08);border-bottom:1px solid var(--border);}
+.vp-pair-label{font-size:.72rem;font-weight:700;color:#a78bfa;}
+.vp-copy-btn{padding:.28rem .75rem;border-radius:8px;border:1px solid rgba(139,92,246,.35);background:transparent;color:#a78bfa;font-size:.66rem;cursor:pointer;font-family:inherit;}
+.vp-copy-btn:hover{background:rgba(139,92,246,.2);color:#fff;}
+.vp-copy-btn.copied{color:#4ade80;border-color:#4ade80;}
+.vp-pair-body{padding:.8rem 1rem;font-size:.74rem;line-height:1.85;color:var(--text-sec);white-space:pre-wrap;}
 
 /* ── Continue progress ── */
 #continue-progress{display:none;text-align:center;padding:.7rem;font-size:.75rem;color:var(--text-muted);}
@@ -728,12 +747,24 @@ label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;
     </div>
 
     <div class="jpeg-dl-bar" id="jpeg-dl-bar">
-      <span class="dl-range-label">📸 JPEG保存 No.</span>
+      <span class="dl-range-label">📸 No.</span>
       <input class="dl-range-input" id="dl-range-from" type="number" min="1" value="1">
       <span class="dl-range-label">〜</span>
       <input class="dl-range-input" id="dl-range-to" type="number" min="1">
-      <button class="dl-btn jpeg-bulk" id="dl-range-btn" onclick="downloadRangeJPEG()">💾 個別保存</button>
-      <button class="dl-btn jpeg-merge" id="dl-merge-btn" onclick="mergeRangeJPEG()">🖼 1枚に合成</button>
+      <button class="dl-btn jpeg-bulk" id="dl-range-btn" onclick="downloadRangeJPEG()">💾 JPEG個別保存</button>
+      <button class="dl-btn jpeg-merge" id="dl-merge-btn" onclick="mergeRangeJPEG()">🖼 1枚合成</button>
+      <button class="dl-btn video-prompt" id="dl-vidprompt-btn" onclick="openVideoPromptModal()">🎬 動画プロンプト生成</button>
+    </div>
+
+    <!-- Video Prompt Modal -->
+    <div class="vp-overlay hidden" id="vp-overlay" onclick="vpOverlayClose(event)">
+      <div class="vp-modal" id="vp-modal">
+        <div class="vp-modal-header">
+          <span class="vp-modal-title">🎬 Seedance 動画生成プロンプト</span>
+          <button class="vp-close-btn" onclick="closeVideoPromptModal()">✕</button>
+        </div>
+        <div class="vp-modal-body" id="vp-modal-body"></div>
+      </div>
     </div>
 
     <div class="sb-grid" id="sb-grid"></div>
@@ -4019,6 +4050,188 @@ function downloadPanelJPEG(btn) {
   };
   img.onerror = () => URL.revokeObjectURL(svgUrl);
   img.src = svgUrl;
+}
+
+// ─────────────────────────────────────────
+// Video Prompt Generator — Seedance 2.0
+// ─────────────────────────────────────────
+function openVideoPromptModal() {
+  if (!allPanels.length) return;
+  const from = Math.max(1, parseInt(document.getElementById('dl-range-from').value) || 1);
+  const to   = Math.min(allPanels.length, parseInt(document.getElementById('dl-range-to').value) || allPanels.length);
+  if (to - from < 1) { alert('動画プロンプトを生成するには2枚以上のパネルが必要です。'); return; }
+
+  const body = document.getElementById('vp-modal-body');
+  body.innerHTML = '';
+
+  // Generate one prompt block per consecutive pair
+  for (let i = from - 1; i < to - 1; i++) {
+    const panelA = allPanels[i];
+    const panelB = allPanels[i + 1];
+    const numA = i + 1;
+    const numB = i + 2;
+
+    const promptText = generateVideoPrompt(panelA, panelB, numA, numB);
+
+    const pairEl = document.createElement('div');
+    pairEl.className = 'vp-pair';
+    pairEl.innerHTML = `
+      <div class="vp-pair-header">
+        <span class="vp-pair-label">🎞 カット ${numA} → ${numB}</span>
+        <button class="vp-copy-btn" onclick="vpCopyPrompt(this)">⧉ コピー</button>
+      </div>
+      <div class="vp-pair-body">${escapeHtml(promptText)}</div>`;
+    body.appendChild(pairEl);
+  }
+
+  document.getElementById('vp-overlay').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeVideoPromptModal() {
+  document.getElementById('vp-overlay').classList.add('hidden');
+  document.body.style.overflow = '';
+}
+
+function vpOverlayClose(e) {
+  if (e.target === document.getElementById('vp-overlay')) closeVideoPromptModal();
+}
+
+function vpCopyPrompt(btn) {
+  const text = btn.closest('.vp-pair').querySelector('.vp-pair-body').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = '✓ コピー済み';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = '⧉ コピー'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+function escapeHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Core prompt generator for one panel pair ──────────────────────────────
+function generateVideoPrompt(panelA, panelB, numA, numB) {
+  const rand = seededRand(((panelA.idx || 0) * 7919 + (panelB.idx || 1) * 53) >>> 0);
+  const pick = arr => arr[Math.floor(rand() * arr.length)];
+
+  const shotA = panelA.shot || 'MS';
+  const shotB = panelB.shot || 'MS';
+  const vtA   = panelA.visualType || 'character';
+  const vtB   = panelB.visualType || 'character';
+  const poseA = panelA.pose || 'standing';
+  const poseB = panelB.pose || 'standing';
+  const bgA   = panelA.bg || 'city';
+  const bgB   = panelB.bg || 'city';
+  const secA  = (panelA.section || '').toLowerCase();
+  const secB  = (panelB.section || '').toLowerCase();
+  const tone  = savedState?.lyricsAnalysis?.tone || 'neutral';
+  const energy = savedState?.lyricsAnalysis?.energy || 'mid';
+
+  // ── Section / energy → pacing ─────────────────────────────────────────
+  const isChorus   = /chorus|サビ|ref/.test(secA) || /chorus|サビ|ref/.test(secB);
+  const isBridge   = /bridge|ブリッジ|cメロ/.test(secA);
+  const isIntroA   = panelA.isIntro;
+  const isOutroB   = panelB.isOutro;
+  const fastEnergy = isChorus || energy === 'high';
+  const slowPace   = isBridge || isOutroB || energy === 'low';
+
+  const pace = fastEnergy ? 'ダイナミックな動きで' : slowPace ? 'ゆったりとした動きで' : '滑らかな動きで';
+
+  // ── Shot size → camera move ──────────────────────────────────────────
+  const SHOT_ORDER = { EWS:0, WS:1, MS:2, '2S':2, CU:3, ECU:4 };
+  const sA = SHOT_ORDER[shotA] ?? 2;
+  const sB = SHOT_ORDER[shotB] ?? 2;
+  const diff = sB - sA;
+
+  const cameraMoveMap = {
+    '-4': ['一気に引いてエクストリームワイドへ・空間の広がりを一挙に開示する','ドラマティックなプルバック、クレーンが高速上昇し全景を晒す'],
+    '-3': ['ドリーバック＆チルトアップ・背景が開けて世界観が広がる','スムーズなプルバックで被写体から広大な背景へ移行'],
+    '-2': ['ゆっくりとしたドリーアウト・周囲の状況が明かされる','プルバックしながら構図が広がり空間が呼吸する'],
+    '-1': ['少し引いて被写体の全体像を見せる','ドリーアウトで被写体と周辺を同時に収める'],
+    '0':  ['水平トラッキング・被写体と並走する','アーク（カメラが被写体を中心に回り込む）','ハンドヘルドで微細な揺れを加え臨場感を演出'],
+    '1':  ['ゆっくりとしたプッシュイン・感情に引き寄せられるように近づく','スムーズなドリーフォワード'],
+    '2':  ['プッシュイン＆ズームイン・感情の高まりとともに寄っていく','ドリーフォワードで細部へ迫る'],
+    '3':  ['クローズアップへの寄り・感情の核心を抉るように接近する','高速プッシュインで被写体の表情に肉迫'],
+    '4':  ['超クローズアップへの急激な寄り・感情の最高密度を映し出す'],
+  };
+  const camKey = String(Math.max(-4, Math.min(4, diff)));
+  const cameraMove = pick(cameraMoveMap[camKey] || cameraMoveMap['0']);
+
+  // ── Visual type → scene layer ────────────────────────────────────────
+  const VT_DESC = {
+    character:   'アーティスト（主人公）がフレームの主体として存在する',
+    silhouette:  '逆光のシルエットとして人物の輪郭が浮かび上がっている',
+    abstract:    '色と形が溶け合う抽象的なビジュアルで感情が表現されている',
+    environment: '広がる景観・空間そのものが感情を宿している',
+    macro:       '細部のテクスチャとマクロな被写界深度',
+    object:      '象徴的な小道具・プロップがフレームを支配する',
+    bokeh:       '幻想的なボケ光が背景に広がっている',
+    'crowd-wide':'観客の群衆・集合的なエネルギーが画面を埋め尽くす',
+  };
+  const sceneDescA = VT_DESC[vtA] || '映像が展開する';
+  const sceneDescB = VT_DESC[vtB] || '映像が続く';
+
+  // ── Character action ────────────────────────────────────────────────
+  const POSE_ACTION = {
+    standing:  '静かに佇んでいる',
+    walking:   'ゆっくりと歩を進める',
+    running:   '走り出し疾走する',
+    sitting:   '座って遠くを見つめている',
+    crying:    '感情が溢れ涙を堪えている',
+    reaching:  '手を伸ばし何かを掴もうとする',
+    lookingup: '空・光を仰ぎ見ている',
+    love:      '誰かを深く想い見つめている',
+    action:    '力強く体を動かしている',
+    dancing:   '音楽に体を委ねて踊っている',
+    crowd:     '群衆とともに動いている',
+  };
+  const actionA = POSE_ACTION[poseA] || '存在している';
+  const actionB = POSE_ACTION[poseB] || '存在している';
+
+  // ── Background transition ────────────────────────────────────────────
+  const sameBg = bgA === bgB;
+  const bgTransition = sameBg ? '' : `背景が${bgA}から${bgB}へと変化する。`;
+
+  // ── Tone → lighting/atmosphere ──────────────────────────────────────
+  const TONE_LIGHT = {
+    bright:     '暖かい光の中・陽光とポジティブなエネルギーを感じる照明',
+    melancholic:'寒色系の静謐な光・感情の重さを反映した陰影',
+    neutral:    '自然な光・バランスの取れたニュートラルな照明',
+  };
+  const lighting = TONE_LIGHT[tone] || TONE_LIGHT.neutral;
+
+  // ── Section-specific direction ───────────────────────────────────────
+  let sectionNote = '';
+  if (isIntroA) sectionNote = '冒頭のカットとして世界観を確立しながら。';
+  else if (isOutroB) sectionNote = '最後のカットに向かい、余韻を残しながら静かに収束させる。';
+  else if (isChorus) sectionNote = 'サビの最高潮として感情を爆発させる臨場感ある映像。';
+  else if (isBridge) sectionNote = 'ブリッジの内省的な静けさを保ちながら。';
+
+  // ── Build final prompt text ──────────────────────────────────────────
+  const circledA = toCircled(numA);
+  const circledB = toCircled(numB);
+
+  const lines = [
+    `${circledA}の画像フレームから始まり${circledB}の画像フレームで終わる。`,
+    '',
+    `【カメラ】${pace}${cameraMove}。`,
+    `【フレームA】${sceneDescA}。主体は${actionA}。`,
+    `【フレームB】${sceneDescB}。主体は${actionB}。`,
+    bgTransition ? `【背景】${bgTransition}` : null,
+    `【ライティング】${lighting}。`,
+    sectionNote ? `【演出意図】${sectionNote}` : null,
+    '',
+    `キャラクター参照画像を使用してください。映像は単なるイラストの連続ではなく、ストーリー・感情・リズムを重視した表現にしてください。`,
+  ].filter(l => l !== null).join('\n');
+
+  return lines;
+}
+
+// ── Convert number to circled numeral (①②…⑳, or fallback) ──────────────
+function toCircled(n) {
+  const map = '①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳';
+  return n >= 1 && n <= 20 ? map[n - 1] : `(${n})`;
 }
 
 // ─────────────────────────────────────────
