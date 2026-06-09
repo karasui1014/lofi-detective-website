@@ -4262,7 +4262,7 @@ function openLocationModal() {
 
   let count = 0;
   for (const [bgKey, data] of Object.entries(locationMap)) {
-    const promptText = generateLocationImagePrompt(bgKey, data.lines, scenarioRaw, data.panels.length);
+    const promptText = generateLocationImagePrompt(bgKey, data.lines, scenarioRaw, data.panels);
     const locName = bgNames[bgKey] || bgKey;
     const panelNums = data.panels.map(p => p.idx + 1).join(', ');
     const pairEl = document.createElement('div');
@@ -4300,12 +4300,13 @@ function openLocationModal() {
   document.body.style.overflow = 'hidden';
 }
 
-function generateLocationImagePrompt(bgKey, lyricLines, scenarioRaw, panelCount) {
+function generateLocationImagePrompt(bgKey, lyricLines, scenarioRaw, panels) {
+  const panelCount = panels.length;
   const styleKey = savedState?.styleKey || 'story';
   const genre = savedState?.genre || '';
   const artist = savedState?.artist || '';
 
-  // Extract scenario sentences containing location keywords
+  // ── Extract scenario sentences relevant to this location ──
   const scenarioLines = scenarioRaw.split(/[\n。！？]/).map(s => s.trim()).filter(s => s.length > 4);
   const locationKeywords = {
     city:     /ビル|オフィス|都市|街|路地|地下鉄|駅前|横断歩道|屋上|マンション|アパート|コンビニ|夜景|ネオン|繁華街/,
@@ -4355,28 +4356,43 @@ function generateLocationImagePrompt(bgKey, lyricLines, scenarioRaw, panelCount)
     else if (af.energyCategory === 'flat') audioNote += '均一で落ち着いた光の安定感。';
   }
 
-  // Location callout points by bg type (for annotated guide version)
-  const LOC_CALLOUTS = {
-    city:      ['①メインエントランス・正面入口', '②ロビー・エレベーターホール', '③撮影ポイント（ネオン反射スポット）', '④屋上・見晴らし台'],
-    nature:    ['①開けた草原・メイン撮影スポット', '②木陰エリア（光と影のコントラスト）', '③水辺・池・川（反射ポイント）', '④丘の頂上・眺望ポイント'],
-    spotlight: ['①メインステージ・センター', '②照明ブース・スポットライト位置', '③楽屋・バックステージ通路', '④客席エリア・フロント'],
-    rain:      ['①濡れた路面・反射ポイント', '②屋根下・雨宿りスポット', '③水たまりクローズアップ位置', '④ガラス窓・水滴撮影ポイント'],
-    stars:     ['①天の川が最もよく見える方角', '②カメラセットアップ推奨位置', '③地平線ライン・開けた視野', '④光害の少ない暗所エリア'],
-    abstract:  ['①メインビジュアルポイント', '②色彩グラデーション中心', '③幾何学構造のフォーカス部分', '④被写体との距離感・空間設定'],
-    default:   ['①メインスペース・広角構図', '②自然光の差し込みポイント（窓際）', '③背景・小道具の配置エリア', '④クローズアップ用テクスチャースポット'],
+  // ── Build callout points from actual panel/scenario content ──
+  const CIRCLE = ['①', '②', '③', '④'];
+  const SECTION_LABEL = {
+    intro:'イントロ', verse:'Aメロ', pre_chorus:'Bメロ', chorus:'サビ',
+    bridge:'ブリッジ', outro:'アウトロ', INTRO:'イントロ', VERSE:'Aメロ',
+    PRE_CHORUS:'Bメロ', CHORUS:'サビ', BRIDGE:'ブリッジ', OUTRO:'アウトロ',
   };
-  const callouts = LOC_CALLOUTS[bgKey] || LOC_CALLOUTS.default;
 
-  // Compose the prompt
+  // Pick up to 4 representative panels (spread evenly across this location's panels)
+  const pickIndices = panelCount <= 4
+    ? panels.map((_, i) => i)
+    : [0, Math.floor(panelCount * 0.33), Math.floor(panelCount * 0.66), panelCount - 1];
+  const pickedPanels = pickIndices.map(i => panels[Math.min(i, panelCount - 1)]);
+
+  const callouts = pickedPanels.map((p, i) => {
+    const num = CIRCLE[i] || `(${i+1})`;
+    const sec = p.isIntro ? 'イントロ' : p.isOutro ? 'アウトロ' : (SECTION_LABEL[p.section] || p.section || '');
+    const ts  = p.time != null ? `${formatTime(p.time)}〜` : '';
+    // Use jaDesc if it looks like a scene description (not just lyrics)
+    let desc = (p.jaDesc || (p.lines || []).join('／')).replace(/【[^】]*】/g, '').trim();
+    if (desc.length > 28) desc = desc.substring(0, 28) + '…';
+    return `${num}${sec ? `【${sec}】` : ''}${ts ? `(${ts}) ` : ''}${desc}`;
+  });
+
+  // Also pull matching scenario lines as scene context (up to 3)
+  const sceneContext = relatedScenarioLines.slice(0, 3);
+
+  // ── Compose prompt ──
   const parts = [];
   parts.push(`【ロケーション・設定】${bgFull.ja}`);
   parts.push(`【用途】MV背景・ロケーション参照画像（人物なし、背景のみ）`);
   parts.push(`【スタイル】${styleHint.ja}${genre ? `　ジャンル：${genre}` : ''}${artist ? `　アーティスト：${artist}` : ''}`);
-  if (relatedScenarioLines.length) {
-    parts.push(`【シナリオ文脈】${relatedScenarioLines.join('　')}`);
+  if (sceneContext.length) {
+    parts.push(`【台本・シナリオの文脈】${sceneContext.join('　')}`);
   }
   if (lyricLines.length) {
-    parts.push(`【このシーンの歌詞・描写】${lyricLines.slice(0, 5).join(' ／ ')}`);
+    parts.push(`【このロケーションで使われる歌詞・描写】${lyricLines.slice(0, 5).join(' ／ ')}`);
   }
   if (audioNote) {
     parts.push(`【楽曲の雰囲気】${audioNote}`);
@@ -4395,19 +4411,29 @@ function generateLocationImagePrompt(bgKey, lyricLines, scenarioRaw, panelCount)
   parts.push('・左下にシンプルなフロアマップ／平面略図（簡略化した構造図）を配置');
   parts.push('・右下または下部に各ポイントの写真サムネイル＋説明テキストを横並びで配置');
   parts.push('');
-  parts.push('■ 番号付きポイント（画像内に以下の吹き出し・コールアウトを配置）:');
+  parts.push('■ このMVで登場するシーンポイント（画像内の吹き出し・コールアウトに配置）:');
   for (const c of callouts) {
     parts.push(`  ${c}`);
+  }
+  if (sceneContext.length) {
+    parts.push('');
+    parts.push('■ 台本から抽出した場面の説明（各ポイントの吹き出しテキストに活用）:');
+    sceneContext.forEach((l, i) => parts.push(`  ${CIRCLE[i] || '・'}${l}`));
   }
   parts.push('');
   parts.push('■ 説明書きのビジュアル要素:');
   parts.push('・各番号はピンク・水色・緑・オレンジなどカラー別の丸囲み番号（①②③④）');
   parts.push('・番号から説明テキストへの点線の矢印（ドット矢印）');
   parts.push('・説明テキストはカラー枠ボックス内に白背景で見やすく');
-  parts.push('・全体のタイトルを画像左上に「ロケーションガイド」として配置');
+  parts.push(`・全体のタイトルを画像左上に「${bgFull.ja.split('・')[0]}　ロケーションガイド」として配置`);
   parts.push('');
   parts.push('■ 英語プロンプト（説明書き入り版）:');
-  parts.push(`facility guide infographic layout, ${bgFull.en}, overhead aerial photo with numbered callout annotations, ①②③④ colored circle markers with dotted arrow lines, explanatory text boxes with color borders (pink/blue/green), small floor plan diagram in bottom left, step thumbnails at bottom, Japanese facility guide style, no people, clean graphic design overlay on photo`);
+  const calloutsEn = pickedPanels.map((p, i) => {
+    const sec = p.isIntro ? 'intro' : p.isOutro ? 'outro' : (p.section || '').toLowerCase();
+    const desc = (p.jaDesc || '').replace(/【[^】]*】/g, '').trim().substring(0, 20);
+    return `${CIRCLE[i]} ${sec ? sec + ': ' : ''}${desc || 'scene ' + (p.idx + 1)}`;
+  }).join(', ');
+  parts.push(`facility guide infographic layout, ${bgFull.en}, photo with numbered callout annotations (${calloutsEn}), ①②③④ colored circle markers with dotted arrow lines pointing to scene locations, explanatory Japanese text boxes with color borders (pink/blue/green/orange), small floor plan diagram in bottom left corner, step-by-step scene thumbnails at bottom row, Japanese MV location guide style, no people, clean graphic design overlay on realistic photo`);
 
   return parts.join('\n');
 }
