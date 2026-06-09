@@ -2686,10 +2686,22 @@ function audioPromptHints() {
     }
   }
 
-  // Overall energy
-  if (f.energy !== undefined) {
-    if (f.energy > 0.68)         { jaP.push('強いエネルギー・圧倒的な迫力'); enP.push('powerful high-intensity energy'); }
-    else if (f.energy < 0.28)    { jaP.push('穏やかで繊細なエネルギー・静寂感'); enP.push('gentle low-energy, delicate stillness'); }
+  // Overall energy — use energyCategory (correct field name)
+  const ecMap = {
+    dynamic:  { ja:'起伏が激しくダイナミックな展開・緊張と解放の繰り返し', en:'highly dynamic, intense tension and release' },
+    moderate: { ja:'適度な抑揚・感情の波が自然に行き来する', en:'moderate dynamics, natural emotional ebb and flow' },
+    flat:     { ja:'均一なエネルギー・持続的な穏やかさ', en:'flat sustained energy, consistent calm presence' },
+  };
+  if (ecMap[f.energyCategory]) {
+    jaP.push(ecMap[f.energyCategory].ja);
+    enP.push(ecMap[f.energyCategory].en);
+  }
+
+  // Peak position
+  if (f.peakPosition !== undefined) {
+    if (f.peakPosition < 0.35)      { jaP.push('楽曲の序盤にクライマックスが訪れる'); enP.push('climax arrives early in the track'); }
+    else if (f.peakPosition > 0.7)  { jaP.push('楽曲の終盤に向けてエネルギーが高まる'); enP.push('energy builds toward the end of the track'); }
+    else                             { jaP.push('楽曲の中盤でエネルギーが頂点に達する'); enP.push('peak energy reached in the middle of the track'); }
   }
 
   return {
@@ -4214,6 +4226,16 @@ function generateVideoPrompt(panelA, panelB, numA, numB) {
   const tB = panelB.time || tA + 5;
   const clipDur = Math.max(tB - tA, 3.0);
 
+  // Audio features for this clip
+  const af = audioFeatures;
+  const bpmCat  = af?.bpmCategory || null;
+  const dynCat  = af?.energyCategory || null;
+  const bassHeavy = af ? af.bassRatio > 0.48 : false;
+  const highBright = af ? af.highRatio > 0.38 : false;
+  const nearPeak   = af?.peakPosition !== undefined
+    ? Math.abs((tA / (savedState?.duration || 240)) - af.peakPosition) < 0.18
+    : false;
+
   const isChorus  = /chorus|サビ|ref/.test(secA+secB);
   const isBridge  = /bridge|ブリッジ|cメロ/.test(secA);
   const isIntroA  = !!panelA.isIntro;
@@ -4317,12 +4339,27 @@ function generateVideoPrompt(panelA, panelB, numA, numB) {
   const TONE_LIGHT = { bright:'全体的に明るく前向きな暖色系。', melancholic:'寒色系の静謐な光・感情の重さを反映した陰影。', neutral:'自然光ベースのバランスの取れた照明。' };
   const lightA = BG_LIGHT[bgA] || '自然な環境照明';
   const lightB = bgA !== bgB ? (BG_LIGHT[bgB] || '自然な環境照明') : null;
-  const lightText = `${lightA}${lightB ? `から${lightB}へ移行。` : '。'}${TONE_LIGHT[tone]||TONE_LIGHT.neutral}${hasCharB ? 'エンドフレームの人物には柔らかい照明を当て、顔と衣装を見やすくする。' : ''}`;
+  const audioLightHint = bassHeavy ? '低音の重厚さを反映した深い影と力強いコントラスト。' : highBright ? '高音の透明感を反映した柔らかい拡散光。' : '';
+  const nearPeakLight = nearPeak ? '楽曲のクライマックス付近：光量を上げてドラマチックに。' : '';
+  const lightText = `${lightA}${lightB ? `から${lightB}へ移行。` : '。'}${TONE_LIGHT[tone]||TONE_LIGHT.neutral}${audioLightHint}${nearPeakLight}${hasCharB ? 'エンドフレームの人物には柔らかい照明を当て、顔と衣装を見やすくする。' : ''}`;
 
   // ── 音の雰囲気 ────────────────────────────────────────────────────────
   const sectionSound = isChorus ? '楽曲のサビが最高潮。歓声・クラップ・音楽の爆発感。' : isBridge ? '楽曲がブリッジへ。静かで内省的な雰囲気。' : isIntroA ? 'イントロの立ち上がり。期待感の醸成。' : isOutroB ? '楽曲がフェードアウトへ。余韻と静寂への移行。' : '楽曲が展開する。メロディとリズムが情景と呼応する。';
   const energySound = { high:'音楽の熱量が高く迫力がある。', mid:'音楽は中程度のエネルギーで流れる。', low:'音楽は静かで繊細。' }[energy] || '';
-  const soundText = `${sectionSound}${energySound}環境音は映像の文脈に自然に混在させる。`;
+  const bpmSound = bpmCat ? ({
+    'very-slow':'BPM低め・非常にゆっくりとした静寂の呼吸。',
+    'slow':'スローテンポ・内省的なリズム。',
+    'moderate':'中程度のテンポ・自然な流れ。',
+    'upbeat':'アップビートなリズム・躍動感。',
+    'fast':'速いテンポ・高エネルギーのビート。',
+    'very-fast':'極めて速いテンポ・激しい疾走感。',
+  }[bpmCat] || '') : '';
+  const dynSound = dynCat ? ({
+    dynamic:'ダイナミックレンジが広く、静と動の対比が際立つ。',
+    moderate:'適度な抑揚のある音の流れ。',
+    flat:'均一なエネルギーで持続する穏やかな音像。',
+  }[dynCat] || '') : '';
+  const soundText = `${sectionSound}${energySound}${bpmSound}${dynSound}環境音は映像の文脈に自然に混在させる。`;
 
   // ── 重要制約 ──────────────────────────────────────────────────────────
   const constraints = [
