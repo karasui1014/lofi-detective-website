@@ -4078,7 +4078,10 @@ function openVideoPromptModal() {
     pairEl.innerHTML = `
       <div class="vp-pair-header">
         <span class="vp-pair-label">🎞 カット ${numA} → ${numB}</span>
-        <button class="vp-copy-btn" onclick="vpCopyPrompt(this)">⧉ コピー</button>
+        <span style="display:flex;gap:.4rem;">
+          <button class="vp-copy-btn" onclick="vpCopyPrompt(this)">⧉ プロンプトをコピー</button>
+          <button class="vp-copy-btn" style="border-color:rgba(6,182,212,.4);color:var(--accent2);" onclick="vpCopyChatGPT(this, ${numA})">🤖 ChatGPT確認用</button>
+        </span>
       </div>
       <div class="vp-pair-body">${escapeHtml(promptText)}</div>`;
     body.appendChild(pairEl);
@@ -4111,121 +4114,169 @@ function escapeHtml(s) {
 }
 
 // ── Core prompt generator for one panel pair ──────────────────────────────
+function vpCopyChatGPT(btn, numA) {
+  const promptText = btn.closest('.vp-pair').querySelector('.vp-pair-body').textContent;
+  const clipDur = (() => {
+    // estimate clip duration from panels
+    const i = numA - 1;
+    const pA = allPanels[i], pB = allPanels[i + 1];
+    if (!pA || !pB) return 10;
+    return Math.max(3, Math.round(pB.time - pA.time));
+  })();
+  const chatGPTText = `下記のプロンプトで生成される${clipDur}秒の動画の絵コンテを画像で生成してください。\nシーンの流れや画角、カメラワークがわかるようにしてください。\n※${toCircled(numA)}の画像をこのチャットに添付してください。\n\n${promptText}`;
+  navigator.clipboard.writeText(chatGPTText).then(() => {
+    btn.textContent = '✓ コピー済み';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = '🤖 ChatGPT確認用'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
 function generateVideoPrompt(panelA, panelB, numA, numB) {
-  const rand = seededRand(((panelA.idx || 0) * 7919 + (panelB.idx || 1) * 53) >>> 0);
+  const rand = seededRand(((panelA.idx||0)*7919 + (panelB.idx||1)*53) >>> 0);
   const pick = arr => arr[Math.floor(rand() * arr.length)];
 
-  const shotA = panelA.shot || 'MS';
-  const shotB = panelB.shot || 'MS';
-  const vtA   = panelA.visualType || 'character';
-  const vtB   = panelB.visualType || 'character';
-  const poseA = panelA.pose || 'standing';
-  const poseB = panelB.pose || 'standing';
-  const bgA   = panelA.bg || 'city';
-  const bgB   = panelB.bg || 'city';
-  const secA  = (panelA.section || '').toLowerCase();
-  const secB  = (panelB.section || '').toLowerCase();
+  const shotA = panelA.shot || 'MS', shotB = panelB.shot || 'MS';
+  const vtA = panelA.visualType || 'character', vtB = panelB.visualType || 'character';
+  const poseA = panelA.pose || 'standing', poseB = panelB.pose || 'standing';
+  const bgA = panelA.bg || 'city', bgB = panelB.bg || 'city';
+  const secA = (panelA.section || '').toLowerCase();
+  const secB = (panelB.section || '').toLowerCase();
   const tone  = savedState?.lyricsAnalysis?.tone || 'neutral';
   const energy = savedState?.lyricsAnalysis?.energy || 'mid';
+  const tA = panelA.time || 0;
+  const tB = panelB.time || tA + 5;
+  const clipDur = Math.max(tB - tA, 3.0);
 
-  // ── Section / energy → pacing ─────────────────────────────────────────
-  const isChorus   = /chorus|サビ|ref/.test(secA) || /chorus|サビ|ref/.test(secB);
-  const isBridge   = /bridge|ブリッジ|cメロ/.test(secA);
-  const isIntroA   = panelA.isIntro;
-  const isOutroB   = panelB.isOutro;
-  const fastEnergy = isChorus || energy === 'high';
-  const slowPace   = isBridge || isOutroB || energy === 'low';
+  const isChorus  = /chorus|サビ|ref/.test(secA+secB);
+  const isBridge  = /bridge|ブリッジ|cメロ/.test(secA);
+  const isIntroA  = !!panelA.isIntro;
+  const isOutroB  = !!panelB.isOutro;
+  const hasCharA  = ['character','silhouette','crowd-wide'].includes(vtA);
+  const hasCharB  = ['character','silhouette','crowd-wide'].includes(vtB);
 
-  const pace = fastEnergy ? 'ダイナミックな動きで' : slowPace ? 'ゆったりとした動きで' : '滑らかな動きで';
-
-  // ── Shot size → camera move ──────────────────────────────────────────
   const SHOT_ORDER = { EWS:0, WS:1, MS:2, '2S':2, CU:3, ECU:4 };
-  const sA = SHOT_ORDER[shotA] ?? 2;
-  const sB = SHOT_ORDER[shotB] ?? 2;
+  const sA = SHOT_ORDER[shotA] ?? 2, sB = SHOT_ORDER[shotB] ?? 2;
   const diff = sB - sA;
-
-  const cameraMoveMap = {
-    '-4': ['一気に引いてエクストリームワイドへ・空間の広がりを一挙に開示する','ドラマティックなプルバック、クレーンが高速上昇し全景を晒す'],
-    '-3': ['ドリーバック＆チルトアップ・背景が開けて世界観が広がる','スムーズなプルバックで被写体から広大な背景へ移行'],
-    '-2': ['ゆっくりとしたドリーアウト・周囲の状況が明かされる','プルバックしながら構図が広がり空間が呼吸する'],
-    '-1': ['少し引いて被写体の全体像を見せる','ドリーアウトで被写体と周辺を同時に収める'],
-    '0':  ['水平トラッキング・被写体と並走する','アーク（カメラが被写体を中心に回り込む）','ハンドヘルドで微細な揺れを加え臨場感を演出'],
-    '1':  ['ゆっくりとしたプッシュイン・感情に引き寄せられるように近づく','スムーズなドリーフォワード'],
-    '2':  ['プッシュイン＆ズームイン・感情の高まりとともに寄っていく','ドリーフォワードで細部へ迫る'],
-    '3':  ['クローズアップへの寄り・感情の核心を抉るように接近する','高速プッシュインで被写体の表情に肉迫'],
-    '4':  ['超クローズアップへの急激な寄り・感情の最高密度を映し出す'],
-  };
   const camKey = String(Math.max(-4, Math.min(4, diff)));
-  const cameraMove = pick(cameraMoveMap[camKey] || cameraMoveMap['0']);
 
-  // ── Visual type → scene layer ────────────────────────────────────────
-  const VT_DESC = {
-    character:   'アーティスト（主人公）がフレームの主体として存在する',
-    silhouette:  '逆光のシルエットとして人物の輪郭が浮かび上がっている',
-    abstract:    '色と形が溶け合う抽象的なビジュアルで感情が表現されている',
-    environment: '広がる景観・空間そのものが感情を宿している',
-    macro:       '細部のテクスチャとマクロな被写界深度',
-    object:      '象徴的な小道具・プロップがフレームを支配する',
-    bokeh:       '幻想的なボケ光が背景に広がっている',
-    'crowd-wide':'観客の群衆・集合的なエネルギーが画面を埋め尽くす',
+  const circledA = toCircled(numA), circledB = toCircled(numB);
+
+  // ── Scene descriptions from panel data ──────────────────────────────
+  const SHOT_LONG = { EWS:'超広角の全景', WS:'広角ワイドショット', MS:'ミディアムショット', '2S':'ツーショット', CU:'クローズアップ', ECU:'超クローズアップ' };
+  const VT_DESC   = { character:'アーティスト（主人公）が画面の主体として存在する', silhouette:'逆光のシルエットとして人物の輪郭が浮かび上がる', abstract:'色と形が溶け合う抽象的なビジュアル', environment:'広がる景観・空間そのものが感情を宿す', macro:'細部のテクスチャとマクロな被写界深度', object:'象徴的な小道具がフレームを支配する', bokeh:'幻想的なボケ光が背景に広がる', 'crowd-wide':'観客の群衆・集合的なエネルギーが画面を埋め尽くす' };
+  const POSE_DESC = { standing:'静かに佇む', walking:'ゆっくりと歩く', running:'疾走する', sitting:'腰を落ち着けて座っている', crying:'感情が溢れ涙を堪える', reaching:'手を伸ばし何かを掴もうとする', lookingup:'上を仰ぎ見る', love:'誰かを深く想い見つめる', action:'力強く体を動かす', dancing:'音楽に体を委ねて踊る', crowd:'群衆とともに動く' };
+  const BG_DESC   = { city:'都市の夜・ネオンと雨', rain:'雨に濡れた街角', stars:'満天の星空の下', sakura:'桜並木', festival:'夏祭り・提灯の灯り', spotlight:'ステージ上のスポットライト', sunset:'夕暮れの地平線', underwater:'水中', forest:'深い森', rooftop:'ビルの屋上', room:'深夜の自室', cafe:'カフェの窓際', station:'駅のホーム', beach:'波打ち際' };
+
+  const sceneA = panelA.jaDesc || panelA.lines?.join('／') || `シーン${numA}`;
+  const sceneB = panelB.jaDesc || panelB.lines?.join('／') || `シーン${numB}`;
+  const descA = `${SHOT_LONG[shotA]||shotA}・${VT_DESC[vtA]||vtA}（${sceneA}）`;
+  const descB = `${SHOT_LONG[shotB]||shotB}・${VT_DESC[vtB]||vtB}（${sceneB}）`;
+  const bgNameA = BG_DESC[bgA] || bgA, bgNameB = BG_DESC[bgB] || bgB;
+
+  // ── Opening line ─────────────────────────────────────────────────────
+  const openLine = `${circledA}の${descA}から始まり、${circledB}の${descB}で終わる。`;
+
+  // ── 映像全体のコンセプト ──────────────────────────────────────────────
+  const CONCEPT_MAP = {
+    '-4': `カメラが被写体から急速に後退し、${bgNameA}の全貌が一挙に開示される。`,
+    '-3': `プルバックしながら世界観が広がり、${bgNameA}から${bgNameB !== bgNameA ? bgNameB : '広大な背景'}へ空気感が変化する。`,
+    '-2': `ゆっくりドリーアウトして周囲の状況が明かされ、感情的文脈が広がる。`,
+    '-1': `少しカメラが引き、被写体と${bgNameA !== bgNameB ? `背景（${bgNameB}）の関係性` : '周辺空間の関係性'}を示す。`,
+    '0':  `同じ距離感を保ちながら${pick(['水平トラッキング','弧を描くアーク','詩的な横断'])}で被写体を追う。`,
+    '1':  `感情に引き寄せられるように${bgNameB !== bgNameA ? bgNameB + 'の舞台へ向け' : ''}ゆっくりと被写体へ近づいていく。`,
+    '2':  `感情の高まりとともに被写体へと押し進む。${bgNameA !== bgNameB ? `${bgNameA}から${bgNameB}へ背景が転換する。` : ''}`,
+    '3':  `被写体の感情の核心へ迫る強いプッシュイン。細部と表情を抉り出す。`,
+    '4':  `究極のクローズアップへ。感情の最高密度を映像で証明する迫力ある接近。`,
   };
-  const sceneDescA = VT_DESC[vtA] || '映像が展開する';
-  const sceneDescB = VT_DESC[vtB] || '映像が続く';
+  const sectionConceptNote = isChorus ? 'サビのクライマックスとして感情を最大値で放出する。' : isBridge ? '転換の静けさの中で内省的な空気を作る。' : isIntroA ? 'この作品世界の入口として視聴者を引き込む。' : isOutroB ? '楽曲の余韻を映像で静かに着地させる。' : '感情を積み重ねながら物語を一歩前進させる。';
+  const conceptText = `${CONCEPT_MAP[camKey] || CONCEPT_MAP['0']}\n${sectionConceptNote}`;
 
-  // ── Character action ────────────────────────────────────────────────
-  const POSE_ACTION = {
-    standing:  '静かに佇んでいる',
-    walking:   'ゆっくりと歩を進める',
-    running:   '走り出し疾走する',
-    sitting:   '座って遠くを見つめている',
-    crying:    '感情が溢れ涙を堪えている',
-    reaching:  '手を伸ばし何かを掴もうとする',
-    lookingup: '空・光を仰ぎ見ている',
-    love:      '誰かを深く想い見つめている',
-    action:    '力強く体を動かしている',
-    dancing:   '音楽に体を委ねて踊っている',
-    crowd:     '群衆とともに動いている',
+  // ── 被写体と表現 ───────────────────────────────────────────────────────
+  let charText = '';
+  if (hasCharA || hasCharB) {
+    const refPanel = hasCharB ? panelB : panelA;
+    const refNum   = hasCharB ? circledB : circledA;
+    const refPose  = hasCharB ? poseB : poseA;
+    const refVt    = hasCharB ? vtB : vtA;
+    const charAction = POSE_DESC[refPose] || '存在する';
+    charText = `${refNum}のキャラクターの外見（髪色・衣装・表情・スタイル）を厳密に維持すること。\n`;
+    charText += `姿勢・動作：${charAction}。${VT_DESC[refVt] || ''}。\n`;
+    charText += `キャラクターは実写化しないこと。アニメ・イラスト調のスタイルを保ちながら、背景はリアルな実写表現でも可。`;
+    if (!hasCharA && hasCharB) charText += `\n映像はまず${circledA}の${VT_DESC[vtA]||vtA}から始まり、徐々に${circledB}のキャラクターがいる世界へ移行する。`;
+  } else {
+    charText = `人物を主体としない映像遷移。\n${VT_DESC[vtA]||vtA}から${VT_DESC[vtB]||vtB}へ、感情とともに映像表現が変化する。`;
+  }
+  charText += `\nキャラクター参照画像を必ず使用すること。`;
+
+  // ── 時間構成 ──────────────────────────────────────────────────────────
+  const fmtSec = s => { const m=Math.floor(s/60), sec=(s%60).toFixed(1); return `${m}:${sec.padStart(4,'0')}`; };
+  const numSegs = clipDur <= 3.5 ? 2 : clipDur <= 7 ? 3 : 4;
+  const segDur  = clipDur / numSegs;
+
+  const timeLines = [];
+  for (let i = 0; i < numSegs; i++) {
+    const tStart = fmtSec(i * segDur), tEnd = fmtSec((i+1) * segDur);
+    let desc = '';
+    if (i === 0) {
+      desc = `${circledA}のフレームで開始。${SHOT_LONG[shotA]||shotA}・${bgNameA}の舞台。${hasCharA ? `主人公が${POSE_DESC[poseA]||'存在する'}。${sceneA ? sceneA + '。' : ''}` : `${VT_DESC[vtA]||vtA}。`}${isIntroA ? '世界観の入口として静かに立ち上がる。' : ''}`;
+    } else if (i === numSegs - 1) {
+      desc = `${circledB}のフレームへ着地。${SHOT_LONG[shotB]||shotB}・${bgNameB}の舞台。${hasCharB ? `主人公が${POSE_DESC[poseB]||'存在する'}。${sceneB ? sceneB + '。' : ''}` : `${VT_DESC[vtB]||vtB}。`}${isOutroB ? 'MVの余韻とともに映像が静かに幕を閉じる。' : ''}`;
+    } else if (i === 1) {
+      const bg_transition = bgA !== bgB ? `「${bgNameA}」から「${bgNameB}」へ背景が転換し始める。` : `「${bgNameA}」の空間を通過しながら。`;
+      desc = `カメラが${CONCEPT_MAP[camKey]?.split('。')[0] || '動き始め'}。${bg_transition}${isChorus ? 'エネルギーが一気に高まり映像のリズムが加速する。' : isBridge ? '静寂の中で内省的な空気が漂い始める。' : '感情が次の段階へ移行する。'}`;
+    } else {
+      desc = `移行が続き${bgA !== bgB ? `「${bgNameB}」が近づいてくる。` : '映像が次のフレームへ向かう。'}${isChorus ? 'クライマックスへの最後の助走。' : '感情の蓄積が頂点へ向かう。'}`;
+    }
+    timeLines.push(`${tStart}〜${tEnd}\n${desc}`);
+  }
+  const timeText = timeLines.join('\n\n');
+
+  // ── カメラ ────────────────────────────────────────────────────────────
+  const CAM_DESC = {
+    '-4': `クレーン高速上昇またはドローン急速プルバック。始点から全景へ一気に後退。${isChorus?'ダイナミックな開放感。':isOutroB?'余韻を持って広がる。':'スケール感を見せる。'}`,
+    '-3': `スムーズなドリーアウト＋チルトアップ。${bgNameA}が画面いっぱいに広がっていく。安定した滑らかな動き。`,
+    '-2': `ゆっくりしたドリーアウト。周囲の空間が開示されるにつれて空気感が変わる。`,
+    '-1': `緩やかなプルバック。被写体を中心に保ちながら空間を少し広げる。`,
+    '0':  `${isChorus?'ハンドヘルドの揺れで熱量を伝える':'安定したトラッキングまたはアーク'}。同じ距離感で被写体を横断。`,
+    '1':  `ゆっくりとしたプッシュイン。感情に引き寄せられるように${isChorus?'徐々に加速しながら':'詩的に'}近づく。`,
+    '2':  `プッシュイン＆ズームイン。${isChorus?'力強く感情の高まりとともに':'滑らかに詩的に'}前進する。`,
+    '3':  `強いプッシュイン。感情の核心へ迫るような接近。${isChorus?'勢いを保ちながら最後は安定。':'最後はゆっくり止まる。'}`,
+    '4':  `超クローズアップへの急速な接近。感情的な最高密度を映し出す。最後は静止。`,
   };
-  const actionA = POSE_ACTION[poseA] || '存在している';
-  const actionB = POSE_ACTION[poseB] || '存在している';
+  const camText = CAM_DESC[camKey] || CAM_DESC['0'];
 
-  // ── Background transition ────────────────────────────────────────────
-  const sameBg = bgA === bgB;
-  const bgTransition = sameBg ? '' : `背景が${bgA}から${bgB}へと変化する。`;
+  // ── ライティング ──────────────────────────────────────────────────────
+  const BG_LIGHT = { city:'都市の夜景照明・ネオンの反射・人工光の混在', rain:'拡散した柔らかい雨光・路面の反射', stars:'夜空と月明かりの自然なアンビエント照明', sakura:'柔らかい昼の自然光・桜の淡いピンクの乱反射', festival:'提灯・屋台の暖かいオレンジ照明', spotlight:'スポットライト中心の強いコントラスト照明', sunset:'ゴールデンアワーの暖かい橙色の逆光と側光', underwater:'水面からの屈折した青い光と揺らぎ', forest:'木漏れ日の自然光・緑に透けた柔らかい光', rooftop:'都市の間接光と空の光', room:'小さな光源が主・周囲は暗め', cafe:'暖かい間接照明・窓からの自然光', station:'蛍光灯系の白い照明と構造物の影', beach:'水面の乱反射と明るい太陽光' };
+  const TONE_LIGHT = { bright:'全体的に明るく前向きな暖色系。', melancholic:'寒色系の静謐な光・感情の重さを反映した陰影。', neutral:'自然光ベースのバランスの取れた照明。' };
+  const lightA = BG_LIGHT[bgA] || '自然な環境照明';
+  const lightB = bgA !== bgB ? (BG_LIGHT[bgB] || '自然な環境照明') : null;
+  const lightText = `${lightA}${lightB ? `から${lightB}へ移行。` : '。'}${TONE_LIGHT[tone]||TONE_LIGHT.neutral}${hasCharB ? 'エンドフレームの人物には柔らかい照明を当て、顔と衣装を見やすくする。' : ''}`;
 
-  // ── Tone → lighting/atmosphere ──────────────────────────────────────
-  const TONE_LIGHT = {
-    bright:     '暖かい光の中・陽光とポジティブなエネルギーを感じる照明',
-    melancholic:'寒色系の静謐な光・感情の重さを反映した陰影',
-    neutral:    '自然な光・バランスの取れたニュートラルな照明',
-  };
-  const lighting = TONE_LIGHT[tone] || TONE_LIGHT.neutral;
+  // ── 音の雰囲気 ────────────────────────────────────────────────────────
+  const sectionSound = isChorus ? '楽曲のサビが最高潮。歓声・クラップ・音楽の爆発感。' : isBridge ? '楽曲がブリッジへ。静かで内省的な雰囲気。' : isIntroA ? 'イントロの立ち上がり。期待感の醸成。' : isOutroB ? '楽曲がフェードアウトへ。余韻と静寂への移行。' : '楽曲が展開する。メロディとリズムが情景と呼応する。';
+  const energySound = { high:'音楽の熱量が高く迫力がある。', mid:'音楽は中程度のエネルギーで流れる。', low:'音楽は静かで繊細。' }[energy] || '';
+  const soundText = `${sectionSound}${energySound}環境音は映像の文脈に自然に混在させる。`;
 
-  // ── Section-specific direction ───────────────────────────────────────
-  let sectionNote = '';
-  if (isIntroA) sectionNote = '冒頭のカットとして世界観を確立しながら。';
-  else if (isOutroB) sectionNote = '最後のカットに向かい、余韻を残しながら静かに収束させる。';
-  else if (isChorus) sectionNote = 'サビの最高潮として感情を爆発させる臨場感ある映像。';
-  else if (isBridge) sectionNote = 'ブリッジの内省的な静けさを保ちながら。';
+  // ── 重要制約 ──────────────────────────────────────────────────────────
+  const constraints = [
+    hasCharB ? `${circledB}のキャラクターの外見（髪色・衣装・表情・スタイル）を厳密に維持すること。` : null,
+    hasCharA || hasCharB ? 'キャラクターのスタイルを実写化しないこと。アニメ・イラスト調のまま維持する。' : null,
+    `映像のスタイル・カラーグレーディングを${circledA}から${circledB}まで一貫させること。`,
+    '余計なキャラクターや意図しないオブジェクトを追加しないこと。',
+    '映像の派手さより物語性・感情・余韻を重視すること。',
+    'モーションブラーや不自然な歪みを避けること。',
+  ].filter(Boolean).join('\n');
 
-  // ── Build final prompt text ──────────────────────────────────────────
-  const circledA = toCircled(numA);
-  const circledB = toCircled(numB);
-
-  const lines = [
-    `${circledA}の画像フレームから始まり${circledB}の画像フレームで終わる。`,
-    '',
-    `【カメラ】${pace}${cameraMove}。`,
-    `【フレームA】${sceneDescA}。主体は${actionA}。`,
-    `【フレームB】${sceneDescB}。主体は${actionB}。`,
-    bgTransition ? `【背景】${bgTransition}` : null,
-    `【ライティング】${lighting}。`,
-    sectionNote ? `【演出意図】${sectionNote}` : null,
-    '',
-    `キャラクター参照画像を使用してください。映像は単なるイラストの連続ではなく、ストーリー・感情・リズムを重視した表現にしてください。`,
-  ].filter(l => l !== null).join('\n');
-
-  return lines;
+  return [
+    openLine, '',
+    '映像全体のコンセプト：', conceptText, '',
+    '被写体と表現：', charText, '',
+    '時間構成：', timeText, '',
+    'カメラ：', camText, '',
+    'ライティング：', lightText, '',
+    '音の雰囲気：', soundText, '',
+    '重要制約：', constraints,
+  ].join('\n');
 }
 
 // ── Convert number to circled numeral (①②…⑳, or fallback) ──────────────
