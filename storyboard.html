@@ -764,7 +764,10 @@ label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;
       <div class="vp-modal" id="vp-modal">
         <div class="vp-modal-header">
           <span class="vp-modal-title">🎬 Seedance 動画生成プロンプト</span>
-          <button class="vp-close-btn" onclick="closeVideoPromptModal()">✕</button>
+          <div style="display:flex;gap:.5rem;align-items:center;">
+            <button id="vp-merge-btn" style="display:none;padding:.3rem .85rem;border-radius:8px;border:1px solid rgba(251,146,60,.45);background:rgba(251,146,60,.1);color:#fb923c;cursor:pointer;font-size:.68rem;font-family:inherit;" onclick="vpScrollToMerged()">📋 まとめてコピー</button>
+            <button class="vp-close-btn" onclick="closeVideoPromptModal()">✕</button>
+          </div>
         </div>
         <div class="vp-modal-body" id="vp-modal-body"></div>
       </div>
@@ -4373,6 +4376,8 @@ function openVideoPromptModal() {
   const BODY_S   = 'display:block;padding:.8rem 1rem;font-size:.73rem;line-height:1.9;color:#d4d4e8;white-space:pre-wrap;word-break:break-word;background:#13131e;border-radius:0 0 12px 12px;';
   const PAIR_S   = 'border:1px solid rgba(255,255,255,.08);border-radius:12px;overflow:hidden;margin-bottom:.75rem;';
 
+  const allPromptTexts = [];
+
   for (let i = from - 1; i < to - 1; i++) {
     const panelA = allPanels[i];
     const panelB = allPanels[i + 1];
@@ -4382,6 +4387,8 @@ function openVideoPromptModal() {
     let promptText = '';
     try { promptText = generateVideoPrompt(panelA, panelB, numA, numB) || ''; }
     catch(e) { promptText = '[エラー: ' + e.message + ']'; }
+
+    allPromptTexts.push({ numA, numB, text: promptText });
 
     const pairEl   = document.createElement('div');   pairEl.style.cssText = PAIR_S; pairEl.dataset.vpPair = '1';
     const headerEl = document.createElement('div');   headerEl.style.cssText = HEADER_S;
@@ -4411,10 +4418,94 @@ function openVideoPromptModal() {
 
   if (!body.children.length) {
     body.innerHTML = '<p style="color:#888;text-align:center;padding:2rem;">絵コンテを生成してからお試しください。</p>';
+    document.getElementById('vp-merge-btn').style.display = 'none';
+  } else {
+    // ── まとめプロンプト ──
+    const mergedText = buildMergedVideoPrompt(allPromptTexts);
+    const mergeEl = document.createElement('div');
+    mergeEl.id = 'vp-merged-block';
+    mergeEl.style.cssText = 'border:2px solid rgba(251,146,60,.4);border-radius:12px;overflow:hidden;margin-top:.5rem;';
+
+    const mHead = document.createElement('div');
+    mHead.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:.6rem 1rem;background:rgba(251,146,60,.12);border-bottom:1px solid rgba(251,146,60,.2);';
+    const mLabel = document.createElement('span');
+    mLabel.style.cssText = 'font-size:.75rem;font-weight:700;color:#fb923c;';
+    mLabel.textContent = '📋 全カットまとめプロンプト（' + allPromptTexts.length + 'クリップ）';
+    const mCopyBtn = document.createElement('button');
+    mCopyBtn.style.cssText = 'padding:.3rem .9rem;border-radius:6px;border:1px solid rgba(251,146,60,.5);background:rgba(251,146,60,.15);color:#fb923c;cursor:pointer;font-size:.68rem;font-family:inherit;';
+    mCopyBtn.textContent = '⧉ まとめてコピー';
+    mCopyBtn.onclick = function(){
+      navigator.clipboard.writeText(mergedText).then(() => {
+        mCopyBtn.textContent = '✓ コピー済み';
+        mCopyBtn.style.color = '#4ade80';
+        mCopyBtn.style.borderColor = '#4ade80';
+        setTimeout(() => { mCopyBtn.textContent = '⧉ まとめてコピー'; mCopyBtn.style.color = ''; mCopyBtn.style.borderColor = ''; }, 2000);
+      });
+    };
+    mHead.append(mLabel, mCopyBtn);
+
+    const mTa = document.createElement('textarea');
+    mTa.readOnly = true;
+    mTa.value = mergedText;
+    const mLines = mergedText.split('\n').length;
+    mTa.rows = Math.min(Math.max(mLines + 1, 12), 40);
+    mTa.style.cssText = 'display:block;width:100%;box-sizing:border-box;background:#110e08;color:#fde8d0;border:none;padding:.9rem 1rem;font-size:.73rem;line-height:1.85;font-family:inherit;resize:vertical;outline:none;';
+
+    mergeEl.append(mHead, mTa);
+    body.appendChild(mergeEl);
+
+    const mergeBtn = document.getElementById('vp-merge-btn');
+    if (mergeBtn) mergeBtn.style.display = '';
   }
 
   document.getElementById('vp-overlay').classList.remove('hidden');
   document.body.style.overflow = 'hidden';
+}
+
+function vpScrollToMerged() {
+  const el = document.getElementById('vp-merged-block');
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  // also trigger copy
+  const btn = el?.querySelector('button');
+  if (btn) btn.click();
+}
+
+function buildMergedVideoPrompt(prompts) {
+  if (!prompts.length) return '';
+  const style = savedState?.styleKey || 'story';
+  const artist = (savedState?.artist || '').trim();
+  const genre  = (savedState?.genre  || '').trim();
+  const dur    = savedState?.duration ? Math.round(savedState.duration) + '秒' : '';
+  const wvStmt = lyricsWorldview?.statementJa || '';
+
+  const lines = [];
+  // ── MV全体のヘッダー ──
+  lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  lines.push(`■ MV全体プロンプト　カット${prompts[0].numA}〜${prompts[prompts.length-1].numB}（${prompts.length}クリップ）`);
+  if (artist) lines.push(`アーティスト：${artist}`);
+  if (genre)  lines.push(`演出要望：${genre}`);
+  if (dur)    lines.push(`楽曲尺：${dur}`);
+  if (wvStmt) { lines.push(''); lines.push('【世界観】'); lines.push(wvStmt); }
+  lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
+  // ── 各クリップ ──
+  for (const p of prompts) {
+    lines.push('');
+    lines.push(`▶ カット ${p.numA} → ${p.numB}`);
+    lines.push('──────────────────────────────────────────');
+    lines.push(p.text);
+  }
+
+  lines.push('');
+  lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  lines.push('【共通制約（全クリップ）】');
+  lines.push(`・全${prompts.length}クリップを通じてカラーグレーディングとビジュアルスタイルを統一すること。`);
+  lines.push('・キャラクターの外見（髪色・衣装・スタイル）は全クリップで一貫させること。');
+  lines.push('・意図しない人物・オブジェクトの追加禁止。');
+  lines.push('・映像の派手さより物語性・感情・余韻を重視すること。');
+  lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
+  return lines.join('\n');
 }
 
 function closeVideoPromptModal() {
