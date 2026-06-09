@@ -3246,7 +3246,7 @@ function renderStoryboard(panels, duration) {
   // Sync range inputs with total panel count (from=1, to=total)
   document.getElementById('dl-range-from').value = 1;
   document.getElementById('dl-range-from').max   = panels.length;
-  document.getElementById('dl-range-to').value   = panels.length;
+  document.getElementById('dl-range-to').value   = Math.min(10, panels.length);
   document.getElementById('dl-range-to').max     = panels.length;
 
   // Show continue button only when generated count < requested count
@@ -3369,7 +3369,7 @@ async function continueGenerate() {
     document.getElementById('sb-panels-badge').textContent = allPanels.length + ' cuts';
     document.getElementById('dl-range-from').value = 1;
     document.getElementById('dl-range-from').max   = allPanels.length;
-    document.getElementById('dl-range-to').value   = allPanels.length;
+    document.getElementById('dl-range-to').value   = Math.min(10, allPanels.length);
     document.getElementById('dl-range-to').max     = allPanels.length;
     updateContinueBtn();
     // Scroll to newly added panels
