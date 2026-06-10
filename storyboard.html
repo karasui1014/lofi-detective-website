@@ -4472,40 +4472,90 @@ function vpScrollToMerged() {
 
 function buildMergedVideoPrompt(prompts) {
   if (!prompts.length) return '';
-  const style = savedState?.styleKey || 'story';
   const artist = (savedState?.artist || '').trim();
   const genre  = (savedState?.genre  || '').trim();
   const dur    = savedState?.duration ? Math.round(savedState.duration) + '秒' : '';
-  const wvStmt = lyricsWorldview?.statementJa || '';
 
-  const lines = [];
-  // ── MV全体のヘッダー ──
-  lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  lines.push(`■ MV全体プロンプト　カット${prompts[0].numA}〜${prompts[prompts.length-1].numB}（${prompts.length}クリップ）`);
-  if (artist) lines.push(`アーティスト：${artist}`);
-  if (genre)  lines.push(`演出要望：${genre}`);
-  if (dur)    lines.push(`楽曲尺：${dur}`);
-  if (wvStmt) { lines.push(''); lines.push('【世界観】'); lines.push(wvStmt); }
-  lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  // ── 世界観テーマ（1文だけ抽出）──
+  const wvShort = (() => {
+    if (!lyricsWorldview) return '';
+    const t = lyricsWorldview.themes?.[0];
+    const arc = lyricsWorldview.arc;
+    const motif = lyricsWorldview.motifs?.[0];
+    const parts = [];
+    if (t) parts.push(`テーマ「${t.ja}」`);
+    if (arc) parts.push(`感情の弧：${arc.ja.split('。')[0]}`);
+    if (motif) parts.push(`反復モチーフ：${motif.ja}`);
+    return parts.join('／');
+  })();
 
-  // ── 各クリップ ──
-  for (const p of prompts) {
-    lines.push('');
-    lines.push(`▶ カット ${p.numA} → ${p.numB}`);
-    lines.push('──────────────────────────────────────────');
-    lines.push(p.text);
-  }
+  // ── 各クリップから必要部分だけ抽出 ──
+  // 抽出するのは: ①冒頭の一文（誰がどこから始まりどこへ）②コンセプト1文 ③カメラ1文
+  const extractClip = (text, numA, numB) => {
+    const sects = {};
+    let cur = null;
+    for (const ln of text.split('\n')) {
+      const h = ln.match(/^(映像全体のコンセプト|カメラ|ライティング|音の雰囲気|被写体と表現)：$/);
+      if (h) { cur = h[1]; sects[cur] = []; continue; }
+      if (cur && ln.trim()) sects[cur].push(ln.trim());
+    }
+    // 冒頭行（最初の非空行）
+    const opening = text.split('\n').find(l => l.trim()) || '';
+    // コンセプト最初の1文（句点or改行まで）
+    const concept = (sects['映像全体のコンセプト']?.[0] || '').split('。')[0];
+    // カメラ最初の1文
+    const camera  = (sects['カメラ']?.[0] || '').split('。')[0];
+    const parts = [`▶ ${numA}→${numB}　${opening}`];
+    if (concept) parts.push(`　└ ${concept}。`);
+    if (camera)  parts.push(`　└ CAM: ${camera}。`);
+    return parts.join('\n');
+  };
 
-  lines.push('');
-  lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  lines.push('【共通制約（全クリップ）】');
-  lines.push(`・全${prompts.length}クリップを通じてカラーグレーディングとビジュアルスタイルを統一すること。`);
-  lines.push('・キャラクターの外見（髪色・衣装・スタイル）は全クリップで一貫させること。');
-  lines.push('・意図しない人物・オブジェクトの追加禁止。');
-  lines.push('・映像の派手さより物語性・感情・余韻を重視すること。');
-  lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  const clipLines = prompts.map(p => extractClip(p.text, p.numA, p.numB));
 
-  return lines.join('\n');
+  // ── 組み立て → 2000字以内に収める ──
+  const LIMIT = 2000;
+  const SEP = '─'.repeat(44);
+
+  const headerParts = [`■ MV全体プロンプト　${prompts[0].numA}→${prompts[prompts.length-1].numB}（${prompts.length}クリップ）`];
+  if (artist) headerParts.push(`アーティスト：${artist}`);
+  if (genre)  headerParts.push(`演出：${genre}`);
+  if (dur)    headerParts.push(`楽曲尺：${dur}`);
+  if (wvShort) headerParts.push(`世界観：${wvShort}`);
+  const header = headerParts.join('　');
+
+  const footer = [
+    SEP,
+    '【共通制約】全クリップでカラーグレーディング・キャラ外見を統一。余計な人物・物体追加禁止。映像の派手さより物語性・感情・余韻を優先。'
+  ].join('\n');
+
+  // まず全クリップ入りで試す
+  let body = clipLines.join('\n');
+  let full = [header, SEP, body, footer].join('\n');
+
+  if (full.length <= LIMIT) return full;
+
+  // オーバーしたら各クリップを冒頭行だけに圧縮
+  const compress = p => {
+    const opening = p.text.split('\n').find(l => l.trim()) || '';
+    return `▶ ${p.numA}→${p.numB}　${opening}`;
+  };
+  body = prompts.map(compress).join('\n');
+  full = [header, SEP, body, footer].join('\n');
+
+  if (full.length <= LIMIT) return full;
+
+  // さらにオーバーしたら世界観を省き、冒頭50字に切る
+  const shortHeader = headerParts.slice(0, 3).join('　');
+  body = prompts.map(p => {
+    const opening = p.text.split('\n').find(l => l.trim()) || '';
+    return `▶ ${p.numA}→${p.numB}　${opening.substring(0, 50)}`;
+  }).join('\n');
+  full = [shortHeader, SEP, body, footer].join('\n');
+
+  // 最終安全トリム
+  if (full.length > LIMIT) full = full.substring(0, LIMIT - 3) + '…';
+  return full;
 }
 
 function closeVideoPromptModal() {
