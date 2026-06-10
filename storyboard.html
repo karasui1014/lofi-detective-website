@@ -3208,120 +3208,164 @@ const SHOT_LABELS = {'EWS':'EXTREME WIDE','WS':'WIDE SHOT','MS':'MED SHOT','2S':
 // ─────────────────────────────────────────
 function renderPanelSVG(panel) {
   const W=320, H=180, cx=W/2, cy=H*0.58, scale=8;
-  const col = brightenColor(panel.color || '#c0c0e0');
-  const bg  = bgSketch(panel.bg, W, H);
+  const bg = bgSketch(panel.bg, W, H);
   const svgVar = panel._svgVariant ?? panel.idx ?? 0;
-  const uid = (panel.idx || 0);
+  const uid = panel.idx || 0;
 
-  // ── Sketch-style guide lines (rule-of-thirds, horizon) ──
-  const guideLine = `
-    <line x1="${W*.33}" y1="0" x2="${W*.33}" y2="${H}" stroke="rgba(255,255,255,.05)" stroke-width=".7" stroke-dasharray="4,6"/>
-    <line x1="${W*.67}" y1="0" x2="${W*.67}" y2="${H}" stroke="rgba(255,255,255,.05)" stroke-width=".7" stroke-dasharray="4,6"/>
-    <line x1="0" y1="${H*.5}" x2="${W}" y2="${H*.5}" stroke="rgba(255,255,255,.04)" stroke-width=".7" stroke-dasharray="4,6"/>`;
+  // Dark india-ink color — used OUTSIDE the invert group
+  const INK = '#1a1005';
 
-  // ── Storyboard corner registration marks ──
-  const T=9, M=5;
-  const corners = `
-    <line x1="${M}" y1="${M}" x2="${M+T}" y2="${M}" stroke="rgba(255,255,255,.35)" stroke-width="1.4" stroke-linecap="square"/>
-    <line x1="${M}" y1="${M}" x2="${M}" y2="${M+T}" stroke="rgba(255,255,255,.35)" stroke-width="1.4" stroke-linecap="square"/>
-    <line x1="${W-M}" y1="${M}" x2="${W-M-T}" y2="${M}" stroke="rgba(255,255,255,.35)" stroke-width="1.4" stroke-linecap="square"/>
-    <line x1="${W-M}" y1="${M}" x2="${W-M}" y2="${M+T}" stroke="rgba(255,255,255,.35)" stroke-width="1.4" stroke-linecap="square"/>
-    <line x1="${M}" y1="${H-M}" x2="${M+T}" y2="${H-M}" stroke="rgba(255,255,255,.35)" stroke-width="1.4" stroke-linecap="square"/>
-    <line x1="${M}" y1="${H-M}" x2="${M}" y2="${H-M-T}" stroke="rgba(255,255,255,.35)" stroke-width="1.4" stroke-linecap="square"/>
-    <line x1="${W-M}" y1="${H-M}" x2="${W-M-T}" y2="${H-M}" stroke="rgba(255,255,255,.35)" stroke-width="1.4" stroke-linecap="square"/>
-    <line x1="${W-M}" y1="${H-M}" x2="${W-M}" y2="${H-M-T}" stroke="rgba(255,255,255,.35)" stroke-width="1.4" stroke-linecap="square"/>`;
-
-  // ── Hatching texture for sketch feel ──
-  const hatchId = `ht${uid}`;
-  const hatchDef = `<pattern id="${hatchId}" x="0" y="0" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(38)">
-    <line x1="0" y1="0" x2="0" y2="7" stroke="rgba(255,255,255,.022)" stroke-width="0.7"/>
-  </pattern>`;
-  const hatch = `<rect width="${W}" height="${H}" fill="url(#${hatchId})"/>`;
-
-  // ── Hand-drawn wobble filter ──
+  // ── Hand-drawn wobble (stronger for sketch feel) ──
   const filterId = `rf${uid}`;
   const roughDef = `<filter id="${filterId}" x="-3%" y="-3%" width="106%" height="106%">
     <feTurbulence type="fractalNoise" baseFrequency="0.055" numOctaves="3" seed="${uid*11+3}" result="n"/>
-    <feDisplacementMap in="SourceGraphic" in2="n" scale="2.2" xChannelSelector="R" yChannelSelector="G"/>
+    <feDisplacementMap in="SourceGraphic" in2="n" scale="3.5" xChannelSelector="R" yChannelSelector="G"/>
   </filter>`;
 
-  // ── Ground shadow + horizon sketch line ──
-  const groundShadow = `<ellipse cx="${cx}" cy="${cy+scale*1.62}" rx="${scale*1.95}" ry="${scale*.42}" fill="${col}" opacity=".15"/>`;
-  const groundLine = `${groundShadow}<line x1="${cx-70}" y1="${cy+scale*1.55}" x2="${cx+70}" y2="${cy+scale*1.55}" stroke="${col}" stroke-width="1.1" opacity=".3" stroke-dasharray="3,5"/>`;
+  // ── Invert+desaturate for bg layer (dark bg → light paper sketch) ──
+  const bgFiltId = `bgf${uid}`;
+  const bgFiltDef = `<filter id="${bgFiltId}" color-interpolation-filters="sRGB" x="0%" y="0%" width="100%" height="100%">
+    <feColorMatrix type="saturate" values="0.12" result="desat"/>
+    <feComponentTransfer in="desat">
+      <feFuncR type="linear" slope="-1.08" intercept="1.04"/>
+      <feFuncG type="linear" slope="-1.06" intercept="1.04"/>
+      <feFuncB type="linear" slope="-1.00" intercept="1.02"/>
+    </feComponentTransfer>
+  </filter>`;
 
-  // ── Atmospheric dust / light motes (depth) ──
+  // ── Pre-inversion hatch (white lines → inverts to faint dark) ──
+  const hatchPreId = `htp${uid}`;
+  const hatchPreDef = `<pattern id="${hatchPreId}" x="0" y="0" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(38)">
+    <line x1="0" y1="0" x2="0" y2="7" stroke="rgba(255,255,255,.022)" stroke-width="0.7"/>
+  </pattern>`;
+
+  // ── Paper hatching (diagonal pencil lines, outside invert) ──
+  const hatchId = `ht${uid}`;
+  const hatchDef = `<pattern id="${hatchId}" x="0" y="0" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(40)">
+    <line x1="0" y1="0" x2="0" y2="5" stroke="rgba(36,22,6,.048)" stroke-width="0.65"/>
+  </pattern>`;
+  const hatch = `<rect width="${W}" height="${H}" fill="url(#${hatchId})"/>`;
+
+  // ── Cross-hatch (opposite angle, adds paper depth) ──
+  const xhatchId = `xh${uid}`;
+  const xhatchDef = `<pattern id="${xhatchId}" x="0" y="0" width="9" height="9" patternUnits="userSpaceOnUse" patternTransform="rotate(-40)">
+    <line x1="0" y1="0" x2="0" y2="9" stroke="rgba(36,22,6,.026)" stroke-width="0.5"/>
+  </pattern>`;
+  const xhatch = `<rect width="${W}" height="${H}" fill="url(#${xhatchId})"/>`;
+
+  // ── Sketch guide lines (rule-of-thirds, faint pencil) ──
+  const guideLine = `
+    <line x1="${W*.33}" y1="0" x2="${W*.33}" y2="${H}" stroke="rgba(50,32,10,.06)" stroke-width=".6" stroke-dasharray="4,6"/>
+    <line x1="${W*.67}" y1="0" x2="${W*.67}" y2="${H}" stroke="rgba(50,32,10,.06)" stroke-width=".6" stroke-dasharray="4,6"/>
+    <line x1="0" y1="${H*.5}" x2="${W}" y2="${H*.5}" stroke="rgba(50,32,10,.05)" stroke-width=".6" stroke-dasharray="4,6"/>`;
+
+  // ── Storyboard corner registration marks (dark ink) ──
+  const T=9, M=5;
+  const corners = `
+    <line x1="${M}" y1="${M}" x2="${M+T}" y2="${M}" stroke="rgba(26,14,3,.72)" stroke-width="1.4" stroke-linecap="square"/>
+    <line x1="${M}" y1="${M}" x2="${M}" y2="${M+T}" stroke="rgba(26,14,3,.72)" stroke-width="1.4" stroke-linecap="square"/>
+    <line x1="${W-M}" y1="${M}" x2="${W-M-T}" y2="${M}" stroke="rgba(26,14,3,.72)" stroke-width="1.4" stroke-linecap="square"/>
+    <line x1="${W-M}" y1="${M}" x2="${W-M}" y2="${M+T}" stroke="rgba(26,14,3,.72)" stroke-width="1.4" stroke-linecap="square"/>
+    <line x1="${M}" y1="${H-M}" x2="${M+T}" y2="${H-M}" stroke="rgba(26,14,3,.72)" stroke-width="1.4" stroke-linecap="square"/>
+    <line x1="${M}" y1="${H-M}" x2="${M}" y2="${H-M-T}" stroke="rgba(26,14,3,.72)" stroke-width="1.4" stroke-linecap="square"/>
+    <line x1="${W-M}" y1="${H-M}" x2="${W-M-T}" y2="${H-M}" stroke="rgba(26,14,3,.72)" stroke-width="1.4" stroke-linecap="square"/>
+    <line x1="${W-M}" y1="${H-M}" x2="${W-M}" y2="${H-M-T}" stroke="rgba(26,14,3,.72)" stroke-width="1.4" stroke-linecap="square"/>`;
+
+  // ── Ground shadow + horizon line (dark ink, outside invert) ──
+  const groundShadow = `<ellipse cx="${cx}" cy="${cy+scale*1.62}" rx="${scale*2.0}" ry="${scale*.32}" fill="rgba(20,10,2,.1)"/>`;
+  const groundLine = `${groundShadow}<line x1="${cx-70}" y1="${cy+scale*1.55}" x2="${cx+70}" y2="${cy+scale*1.55}" stroke="rgba(26,14,3,.28)" stroke-width="1.0" stroke-dasharray="3,5"/>`;
+
+  // ── Atmosphere — light dots inside invert group → dark specks on paper ──
   const atmosphere = (() => {
     const r = seededRand(uid*131 + 7);
-    return Array.from({length:11},() => {
-      const x = r()*W, y = r()*H*.9, rad = .5+r()*2.0, op = (.04+r()*.11).toFixed(3);
-      return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${rad.toFixed(1)}" fill="${col}" opacity="${op}"/>`;
+    return Array.from({length:8},() => {
+      const x=r()*W, y=r()*H*.9, rad=.5+r()*1.8, op=(.07+r()*.16).toFixed(3);
+      return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${rad.toFixed(1)}" fill="rgba(255,248,238,${op})"/>`;
     }).join('');
   })();
 
-  // ── Vignette — strength varies by shot type ──
-  const vigParams = { ECU:{r:'55%',inner:'45%',op:'.55'}, CU:{r:'62%',inner:'50%',op:'.48'},
-    MS:{r:'72%',inner:'54%',op:'.40'}, '2S':{r:'75%',inner:'56%',op:'.36'},
-    WS:{r:'84%',inner:'60%',op:'.30'}, EWS:{r:'90%',inner:'64%',op:'.22'} };
-  const vp = vigParams[panel.shot] || vigParams.MS;
-  const vignetteDef = `<radialGradient id="vg${uid}" cx="50%" cy="48%" r="${vp.r}">
-    <stop offset="${vp.inner}" stop-color="#000" stop-opacity="0"/>
-    <stop offset="100%" stop-color="#000" stop-opacity="${vp.op}"/>
+  // ── Warm parchment vignette (sepia edges) ──
+  const vignetteDef = `<radialGradient id="vg${uid}" cx="50%" cy="48%" r="88%">
+    <stop offset="50%" stop-color="#f7f0e2" stop-opacity="0"/>
+    <stop offset="100%" stop-color="#7a5520" stop-opacity="0.42"/>
   </radialGradient>`;
   const vignette = `<rect width="${W}" height="${H}" fill="url(#vg${uid})" pointer-events="none"/>`;
 
-  const overlay = panel.isIntro ? `<rect width="${W}" height="${H}" fill="rgba(0,212,255,.04)"/>` :
-                  panel.isOutro ? `<rect width="${W}" height="${H}" fill="rgba(255,107,157,.04)"/>` : '';
+  const overlay = panel.isIntro
+    ? `<rect width="${W}" height="${H}" fill="rgba(0,60,140,.025)"/>`
+    : panel.isOutro ? `<rect width="${W}" height="${H}" fill="rgba(140,30,30,.025)"/>` : '';
 
-  let defs = hatchDef + roughDef + vignetteDef;
+  let defs = roughDef + bgFiltDef + hatchPreDef + hatchDef + xhatchDef + vignetteDef;
   let innerSVG = '';
   const vt = panel.visualType || 'character';
+
+  // Convenience: invert-wrapped bg group with atmosphere and pre-hatch
+  const bgGroup = `<g filter="url(#${bgFiltId})">${bg}<rect width="${W}" height="${H}" fill="url(#${hatchPreId})"/>${atmosphere}</g>`;
 
   if (vt === 'character' || vt === 'crowd') {
     const poseKey = (vt === 'crowd' || panel.pose === 'crowd') ? 'crowd'
                   : (panel.pose in POSES ? panel.pose : 'standing');
     const figSVG = POSES[poseKey](cx, cy, scale);
-    const motionLines = motionSketch(panel.pose, cx, cy, scale, col);
-    innerSVG = `${bg}${hatch}${atmosphere}${groundLine}
-      <g filter="url(#${filterId})" color="${col}" opacity=".95" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    const motionLines = motionSketch(panel.pose, cx, cy, scale, INK);
+    innerSVG = `${bgGroup}${guideLine}${groundLine}
+      <g filter="url(#${filterId})" color="${INK}" opacity=".94" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
         ${figSVG}
-      </g>
-      ${motionLines}`;
+      </g>${motionLines}`;
 
   } else if (vt === 'silhouette') {
-    defs += silhouetteDefs(uid, col);
-    const sil = silhouetteSVG(cx, cy, scale, uid, col);
-    innerSVG = `${bg}${hatch}${atmosphere}${groundLine}
+    defs += silhouetteDefs(uid, INK);
+    const sil = silhouetteSVG(cx, cy, scale, uid, INK);
+    innerSVG = `${bgGroup}${guideLine}${groundLine}
       <g filter="url(#${filterId})">${sil}</g>`;
 
   } else if (vt === 'abstract') {
-    innerSVG = abstractSVG(W, H, col, svgVar);
+    innerSVG = `<g filter="url(#${bgFiltId})">
+      <rect width="${W}" height="${H}" fill="#0c0c1e"/>
+      ${abstractSVG(W, H, '#a0988a', svgVar)}
+    </g>`;
 
   } else if (vt === 'macro') {
-    innerSVG = `<rect width="${W}" height="${H}" fill="rgba(12,12,30,.55)"/>${hatch}${macroSVG(W, H, col, svgVar)}`;
+    innerSVG = `<g filter="url(#${bgFiltId})">
+      <rect width="${W}" height="${H}" fill="rgba(10,10,24,.92)"/>
+      <rect width="${W}" height="${H}" fill="url(#${hatchPreId})"/>
+      ${macroSVG(W, H, '#b0a898', svgVar)}
+    </g>`;
 
   } else if (vt === 'object') {
-    innerSVG = `${bgSketch(panel.bg, W, H)}${hatch}<rect width="${W}" height="${H}" fill="rgba(12,12,30,.38)"/>${objectSVG(W, H, col, panel.styleKey || selectedStyle, svgVar)}`;
+    innerSVG = `<g filter="url(#${bgFiltId})">
+      ${bgSketch(panel.bg, W, H)}
+      <rect width="${W}" height="${H}" fill="url(#${hatchPreId})"/>
+      <rect width="${W}" height="${H}" fill="rgba(10,10,24,.38)"/>
+      ${objectSVG(W, H, '#b0a890', panel.styleKey || selectedStyle, svgVar)}
+    </g>`;
 
   } else if (vt === 'bokeh') {
-    innerSVG = `<rect width="${W}" height="${H}" fill="rgba(8,8,22,.8)"/>${hatch}${bokehSVG(W, H, col, svgVar)}`;
+    innerSVG = `<g filter="url(#${bgFiltId})">
+      <rect width="${W}" height="${H}" fill="rgba(6,6,20,.88)"/>
+      <rect width="${W}" height="${H}" fill="url(#${hatchPreId})"/>
+      ${bokehSVG(W, H, '#b0a880', svgVar)}
+    </g>`;
 
   } else if (vt === 'environment') {
-    innerSVG = `${environmentOnlySVG(panel.bg, W, H, col)}${hatch}`;
+    innerSVG = `<g filter="url(#${bgFiltId})">
+      ${environmentOnlySVG(panel.bg, W, H, '#a09880')}
+      <rect width="${W}" height="${H}" fill="url(#${hatchPreId})"/>
+    </g>${guideLine}`;
 
   } else if (vt === 'crowd-wide') {
-    innerSVG = `${bg}${hatch}
-      <g filter="url(#${filterId})">${crowdOnlySVG(W, H, col)}</g>`;
+    innerSVG = `${bgGroup}${guideLine}
+      <g filter="url(#${filterId})">${crowdOnlySVG(W, H, INK)}</g>`;
 
   } else {
     const figSVG = POSES['standing'](cx, cy, scale);
-    innerSVG = `${bg}${hatch}
-      <g filter="url(#${filterId})" color="${col}" opacity=".95" stroke-width="1.6">${figSVG}</g>`;
+    innerSVG = `${bgGroup}${guideLine}${groundLine}
+      <g filter="url(#${filterId})" color="${INK}" opacity=".94" stroke-width="1.75">${figSVG}</g>`;
   }
 
   return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
     <defs>${defs}</defs>
-    <rect width="${W}" height="${H}" fill="#0e0e22"/>
-    ${overlay}${guideLine}${innerSVG}${vignette}${corners}
+    <rect width="${W}" height="${H}" fill="#f7f0e2"/>
+    ${overlay}${innerSVG}${hatch}${xhatch}${vignette}${corners}
   </svg>`;
 }
 
