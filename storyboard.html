@@ -762,24 +762,37 @@ label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;
     <!-- Video Prompt Modal -->
     <div class="vp-overlay hidden" id="vp-overlay" onclick="vpOverlayClose(event)">
       <div class="vp-modal" id="vp-modal">
-        <div class="vp-modal-header" style="flex-wrap:wrap;gap:.4rem 0;">
+        <div class="vp-modal-header" style="flex-wrap:wrap;gap:.35rem 0;">
           <span class="vp-modal-title">🎬 Seedance 動画生成プロンプト</span>
           <div style="display:flex;gap:.4rem;align-items:center;flex-wrap:wrap;margin-left:auto;">
-            <span style="font-size:.67rem;color:#94a3b8;">✂ カット割</span>
-            <select id="vp-cut-mode" style="padding:.28rem .6rem;border-radius:6px;border:1px solid rgba(255,255,255,.18);background:#1a1a2e;color:#e2e8f0;font-size:.68rem;font-family:inherit;cursor:pointer;" onchange="vpCutModeChange()">
-              <option value="auto">自動</option>
-              <option value="one">ワンカット</option>
-              <option value="interval">間隔指定</option>
-            </select>
-            <span id="vp-interval-row" style="display:none;align-items:center;gap:.35rem;padding:.22rem .65rem .22rem .5rem;border-radius:8px;border:1.5px solid rgba(251,191,36,.5);background:rgba(251,191,36,.08);">
-              <span style="font-size:.67rem;color:#fbbf24;font-weight:600;">⏱</span>
-              <input id="vp-cut-interval" type="number" min="0.5" max="30" step="0.5" placeholder="例：2"
-                style="width:3.8rem;padding:.22rem .4rem;border-radius:5px;border:1px solid rgba(251,191,36,.4);background:#1a1a2e;color:#fde68a;font-size:.73rem;font-weight:700;text-align:center;font-family:inherit;">
-              <span style="font-size:.67rem;color:#fbbf24;font-weight:600;">秒ごとにカット</span>
-            </span>
+            <!-- カット割モード切替 -->
+            <div style="display:flex;border-radius:8px;overflow:hidden;border:1px solid rgba(255,255,255,.14);">
+              <button class="vp-cmode-btn" data-mode="auto"     onclick="vpSetCutMode('auto')"     style="padding:.3rem .65rem;font-size:.67rem;font-family:inherit;border:none;cursor:pointer;background:rgba(139,92,246,.25);color:#c4b5fd;font-weight:700;" title="自動カット割">自動</button>
+              <button class="vp-cmode-btn" data-mode="one"      onclick="vpSetCutMode('one')"      style="padding:.3rem .65rem;font-size:.67rem;font-family:inherit;border:none;border-left:1px solid rgba(255,255,255,.1);cursor:pointer;background:#1a1a2e;color:#94a3b8;" title="カット割なし・ノーカット">✦ワンカット</button>
+              <button class="vp-cmode-btn" data-mode="interval" onclick="vpSetCutMode('interval')" style="padding:.3rem .65rem;font-size:.67rem;font-family:inherit;border:none;border-left:1px solid rgba(255,255,255,.1);cursor:pointer;background:#1a1a2e;color:#94a3b8;" title="N秒ごとにカット">✂ 間隔指定</button>
+            </div>
             <button onclick="vpRegenerate()" style="padding:.28rem .75rem;border-radius:6px;border:1px solid rgba(139,92,246,.35);background:rgba(139,92,246,.12);color:#c4b5fd;cursor:pointer;font-size:.67rem;font-family:inherit;">⟳ 適用</button>
             <button id="vp-merge-btn" style="display:none;padding:.28rem .75rem;border-radius:8px;border:1px solid rgba(251,146,60,.45);background:rgba(251,146,60,.1);color:#fb923c;cursor:pointer;font-size:.67rem;font-family:inherit;" onclick="vpScrollToMerged()">📋 まとめてコピー</button>
             <button class="vp-close-btn" onclick="closeVideoPromptModal()">✕</button>
+          </div>
+          <!-- 間隔指定サブバー（間隔指定モード時のみ表示） -->
+          <div id="vp-interval-row" style="display:none;width:100%;margin-top:.3rem;padding:.45rem .6rem;border-radius:8px;border:1.5px solid rgba(251,191,36,.4);background:rgba(251,191,36,.06);align-items:center;gap:.4rem;flex-wrap:wrap;">
+            <span style="font-size:.68rem;color:#fbbf24;font-weight:600;">⏱ カット間隔</span>
+            <div style="display:flex;gap:.3rem;flex-wrap:wrap;" id="vp-preset-btns">
+              <button class="vp-preset" data-val="1"    onclick="vpPickPreset(1)"    style="padding:.28rem .6rem;border-radius:6px;border:1.5px solid rgba(251,191,36,.3);background:#1a1a2e;color:#fde68a;font-size:.7rem;font-weight:600;font-family:inherit;cursor:pointer;">1秒</button>
+              <button class="vp-preset" data-val="2"    onclick="vpPickPreset(2)"    style="padding:.28rem .6rem;border-radius:6px;border:1.5px solid rgba(251,191,36,.3);background:#1a1a2e;color:#fde68a;font-size:.7rem;font-weight:600;font-family:inherit;cursor:pointer;">2秒</button>
+              <button class="vp-preset" data-val="3"    onclick="vpPickPreset(3)"    style="padding:.28rem .6rem;border-radius:6px;border:1.5px solid rgba(251,191,36,.3);background:#1a1a2e;color:#fde68a;font-size:.7rem;font-weight:600;font-family:inherit;cursor:pointer;">3秒</button>
+              <button class="vp-preset" data-val="4"    onclick="vpPickPreset(4)"    style="padding:.28rem .6rem;border-radius:6px;border:1.5px solid rgba(251,191,36,.3);background:#1a1a2e;color:#fde68a;font-size:.7rem;font-weight:600;font-family:inherit;cursor:pointer;">4秒</button>
+              <button class="vp-preset" data-val="5"    onclick="vpPickPreset(5)"    style="padding:.28rem .6rem;border-radius:6px;border:1.5px solid rgba(251,191,36,.3);background:#1a1a2e;color:#fde68a;font-size:.7rem;font-weight:600;font-family:inherit;cursor:pointer;">5秒</button>
+              <button class="vp-preset" data-val="8"    onclick="vpPickPreset(8)"    style="padding:.28rem .6rem;border-radius:6px;border:1.5px solid rgba(251,191,36,.3);background:#1a1a2e;color:#fde68a;font-size:.7rem;font-weight:600;font-family:inherit;cursor:pointer;">8秒</button>
+            </div>
+            <span style="font-size:.67rem;color:#a8a89a;">または</span>
+            <div style="display:flex;align-items:center;gap:.3rem;">
+              <input id="vp-cut-interval" type="number" min="0.5" max="60" step="0.5" placeholder="秒を入力"
+                style="width:5rem;padding:.26rem .45rem;border-radius:6px;border:1.5px solid rgba(251,191,36,.4);background:#1a1a2e;color:#fde68a;font-size:.72rem;font-weight:700;text-align:center;font-family:inherit;"
+                oninput="vpSyncCustom(this.value)">
+              <span style="font-size:.68rem;color:#fbbf24;font-weight:600;">秒ごとにカット</span>
+            </div>
           </div>
         </div>
         <div class="vp-modal-body" id="vp-modal-body"></div>
@@ -4373,21 +4386,55 @@ function downloadPanelJPEG(btn) {
 // ─────────────────────────────────────────
 let _vpFrom = 1, _vpTo = 2;
 
+let _vpCutMode = 'auto'; // 'auto' | 'one' | 'interval'
+
 function vpGetCutInterval() {
-  const mode = document.getElementById('vp-cut-mode')?.value || 'auto';
-  if (mode === 'one') return 'one';
-  if (mode === 'interval') {
+  if (_vpCutMode === 'one') return 'one';
+  if (_vpCutMode === 'interval') {
     const v = parseFloat(document.getElementById('vp-cut-interval')?.value);
     return (!isNaN(v) && v >= 0.5) ? v : null;
   }
-  return null; // auto
+  return null;
 }
 
-function vpCutModeChange() {
-  const mode = document.getElementById('vp-cut-mode')?.value || 'auto';
+function vpSetCutMode(mode) {
+  _vpCutMode = mode;
+  // ボタンのハイライト更新
+  document.querySelectorAll('.vp-cmode-btn').forEach(btn => {
+    const active = btn.dataset.mode === mode;
+    btn.style.background = active ? 'rgba(139,92,246,.4)'  : '#1a1a2e';
+    btn.style.color       = active ? '#e2e8f0'              : '#94a3b8';
+    btn.style.fontWeight  = active ? '700'                  : '400';
+  });
+  // 間隔指定サブバー表示切替
   const row = document.getElementById('vp-interval-row');
   if (row) row.style.display = mode === 'interval' ? 'flex' : 'none';
 }
+
+function vpPickPreset(val) {
+  const inp = document.getElementById('vp-cut-interval');
+  if (inp) inp.value = val;
+  // プリセットボタンのハイライト
+  document.querySelectorAll('.vp-preset').forEach(btn => {
+    const active = Number(btn.dataset.val) === val;
+    btn.style.background   = active ? 'rgba(251,191,36,.25)' : '#1a1a2e';
+    btn.style.borderColor  = active ? 'rgba(251,191,36,.8)'  : 'rgba(251,191,36,.3)';
+    btn.style.color        = active ? '#fffbeb'              : '#fde68a';
+  });
+}
+
+function vpSyncCustom(val) {
+  // カスタム入力時はプリセットのハイライトを外す
+  const num = parseFloat(val);
+  document.querySelectorAll('.vp-preset').forEach(btn => {
+    const match = !isNaN(num) && Number(btn.dataset.val) === num;
+    btn.style.background  = match ? 'rgba(251,191,36,.25)' : '#1a1a2e';
+    btn.style.borderColor = match ? 'rgba(251,191,36,.8)'  : 'rgba(251,191,36,.3)';
+    btn.style.color       = match ? '#fffbeb'              : '#fde68a';
+  });
+}
+
+function vpCutModeChange() { /* replaced by vpSetCutMode */ }
 
 function vpRegenerate() {
   vpFillModal(_vpFrom, _vpTo);
@@ -4400,6 +4447,7 @@ function openVideoPromptModal() {
   const to = Math.min(toRaw, from + 10 - 1);
   if (to - from < 1) { alert('動画プロンプトを生成するには2枚以上のパネルが必要です。'); return; }
   _vpFrom = from; _vpTo = to;
+  vpSetCutMode(_vpCutMode); // ボタンUI初期化
   document.getElementById('vp-overlay').classList.remove('hidden');
   document.body.style.overflow = 'hidden';
   vpFillModal(from, to);
