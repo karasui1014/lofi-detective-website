@@ -756,6 +756,9 @@ label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;
       <button class="dl-btn jpeg-bulk" id="dl-range-btn" onclick="downloadRangeJPEG()">💾 JPEG個別保存</button>
       <button class="dl-btn jpeg-merge" id="dl-merge-btn" onclick="mergeRangeJPEG()">🖼 1枚合成(〜10枚)</button>
       <button class="dl-btn video-prompt" id="dl-vidprompt-btn" onclick="openVideoPromptModal()">🎬 動画プロンプト生成(〜10枚)</button>
+      <span class="dl-range-label" style="margin-left:.3rem;">✂ カット間隔</span>
+      <input class="dl-range-input" id="cut-interval" type="number" min="1" max="30" step="0.5" placeholder="秒" title="カット変更の間隔（秒）。空欄=自動">
+      <span class="dl-range-label">秒ごと</span>
       <button class="dl-btn loc-prompt" id="dl-locprompt-btn" onclick="openLocationModal()">📍 ロケーション画像生成</button>
     </div>
 
@@ -4364,6 +4367,8 @@ function openVideoPromptModal() {
   const toRaw = Math.min(allPanels.length, parseInt(document.getElementById('dl-range-to').value) || allPanels.length);
   const to = Math.min(toRaw, from + 10 - 1);
   if (to - from < 1) { alert('動画プロンプトを生成するには2枚以上のパネルが必要です。'); return; }
+  const cutIntervalRaw = parseFloat(document.getElementById('cut-interval').value);
+  const cutInterval = (!isNaN(cutIntervalRaw) && cutIntervalRaw >= 0.5) ? cutIntervalRaw : null;
 
   const body = document.getElementById('vp-modal-body');
   body.innerHTML = '';
@@ -4385,10 +4390,10 @@ function openVideoPromptModal() {
     const numA = i + 1, numB = i + 2;
 
     let promptText = '';
-    try { promptText = generateVideoPrompt(panelA, panelB, numA, numB) || ''; }
+    try { promptText = generateVideoPrompt(panelA, panelB, numA, numB, cutInterval) || ''; }
     catch(e) { promptText = '[エラー: ' + e.message + ']'; }
 
-    allPromptTexts.push({ numA, numB, text: promptText });
+    allPromptTexts.push({ numA, numB, text: promptText, cutInterval });
 
     const pairEl   = document.createElement('div');   pairEl.style.cssText = PAIR_S; pairEl.dataset.vpPair = '1';
     const headerEl = document.createElement('div');   headerEl.style.cssText = HEADER_S;
@@ -4521,6 +4526,8 @@ function buildMergedVideoPrompt(prompts) {
   if (artist) headerParts.push(`アーティスト：${artist}`);
   if (genre)  headerParts.push(`演出：${genre}`);
   if (dur)    headerParts.push(`楽曲尺：${dur}`);
+  const ci = prompts[0]?.cutInterval;
+  if (ci)     headerParts.push(`カット割：${ci}秒間隔`);
   if (wvShort) headerParts.push(`世界観：${wvShort}`);
   const header = headerParts.join('　');
 
@@ -4838,7 +4845,7 @@ function locCopyPrompt(btn) {
   });
 }
 
-function generateVideoPrompt(panelA, panelB, numA, numB) {
+function generateVideoPrompt(panelA, panelB, numA, numB, cutInterval) {
   const rand = seededRand(((panelA.idx||0)*7919 + (panelB.idx||1)*53) >>> 0);
   const pick = arr => arr[Math.floor(rand() * arr.length)];
 
@@ -4927,26 +4934,86 @@ function generateVideoPrompt(panelA, panelB, numA, numB) {
 
   // ── 時間構成 ──────────────────────────────────────────────────────────
   const fmtSec = s => { const m=Math.floor(s/60), sec=(s%60).toFixed(1); return `${m}:${sec.padStart(4,'0')}`; };
-  const numSegs = clipDur <= 3.5 ? 2 : clipDur <= 7 ? 3 : 4;
-  const segDur  = clipDur / numSegs;
 
-  const timeLines = [];
-  for (let i = 0; i < numSegs; i++) {
-    const tStart = fmtSec(i * segDur), tEnd = fmtSec((i+1) * segDur);
-    let desc = '';
-    if (i === 0) {
-      desc = `${circledA}のフレームで開始。${SHOT_LONG[shotA]||shotA}・${bgNameA}の舞台。${hasCharA ? `主人公が${POSE_DESC[poseA]||'存在する'}。${sceneA ? sceneA + '。' : ''}` : `${VT_DESC[vtA]||vtA}。`}${isIntroA ? '世界観の入口として静かに立ち上がる。' : ''}`;
-    } else if (i === numSegs - 1) {
-      desc = `${circledB}のフレームへ着地。${SHOT_LONG[shotB]||shotB}・${bgNameB}の舞台。${hasCharB ? `主人公が${POSE_DESC[poseB]||'存在する'}。${sceneB ? sceneB + '。' : ''}` : `${VT_DESC[vtB]||vtB}。`}${isOutroB ? 'MVの余韻とともに映像が静かに幕を閉じる。' : ''}`;
-    } else if (i === 1) {
-      const bg_transition = bgA !== bgB ? `「${bgNameA}」から「${bgNameB}」へ背景が転換し始める。` : `「${bgNameA}」の空間を通過しながら。`;
-      desc = `カメラが${CONCEPT_MAP[camKey]?.split('。')[0] || '動き始め'}。${bg_transition}${isChorus ? 'エネルギーが一気に高まり映像のリズムが加速する。' : isBridge ? '静寂の中で内省的な空気が漂い始める。' : '感情が次の段階へ移行する。'}`;
-    } else {
-      desc = `移行が続き${bgA !== bgB ? `「${bgNameB}」が近づいてくる。` : '映像が次のフレームへ向かう。'}${isChorus ? 'クライマックスへの最後の助走。' : '感情の蓄積が頂点へ向かう。'}`;
+  // ── カット間隔が指定されている場合: N秒ごとの細かいカット割を生成 ──
+  const hasCutInterval = cutInterval && cutInterval >= 0.5;
+  let timeText = '';
+
+  if (hasCutInterval) {
+    // 各カット枠のパネルをラウンドロビンで割り当て
+    const totalCuts = Math.ceil(clipDur / cutInterval);
+    const shotPool = [
+      { shot: shotA, vt: vtA, pose: poseA, bg: bgA, bgName: bgNameA, char: hasCharA, scene: sceneA, circ: circledA },
+      { shot: shotB, vt: vtB, pose: poseB, bg: bgB, bgName: bgNameB, char: hasCharB, scene: sceneB, circ: circledB },
+    ];
+    // ショット種類のパターン — 頭・末以外は中間ショットをバリエーション
+    const MID_SHOTS = [
+      { shotKey: 'CU',  desc: 'クローズアップ・感情の細部' },
+      { shotKey: 'WS',  desc: 'ワイドへ引いて状況を見せる' },
+      { shotKey: 'ECU', desc: '超クローズアップ・表情の核心' },
+      { shotKey: 'MS',  desc: 'ミディアムショット・人物と背景の関係' },
+      { shotKey: 'EWS', desc: '超広角で世界観ごと包む' },
+    ];
+
+    const cutLines = [];
+    for (let i = 0; i < totalCuts; i++) {
+      const t0 = i * cutInterval;
+      const t1 = Math.min((i + 1) * cutInterval, clipDur);
+      const ts  = fmtSec(t0), te = fmtSec(t1);
+      const progress = totalCuts > 1 ? i / (totalCuts - 1) : 0;
+      let desc = '';
+
+      if (i === 0) {
+        // 最初: パネルAのフレームで開幕
+        const s = shotPool[0];
+        desc = `【開幕】${circledA}：${SHOT_LONG[s.shot]||s.shot}・${s.bgName}。${s.char ? `主人公が${POSE_DESC[s.pose]||'存在する'}。` : `${VT_DESC[s.vt]||s.vt}。`}`;
+      } else if (i === totalCuts - 1) {
+        // 最後: パネルBのフレームへ着地
+        const s = shotPool[1];
+        desc = `【着地】${circledB}：${SHOT_LONG[s.shot]||s.shot}・${s.bgName}。${s.char ? `主人公が${POSE_DESC[s.pose]||'存在する'}。` : `${VT_DESC[s.vt]||s.vt}。`}`;
+      } else {
+        // 中間: 進行度に応じてショットをバリエーション
+        const midIdx = (i - 1) % MID_SHOTS.length;
+        const mid = MID_SHOTS[midIdx];
+        const base = shotPool[progress < 0.5 ? 0 : 1];
+        const transNote = bgA !== bgB && progress > 0.4 && progress < 0.7
+          ? `${bgNameA}→${bgNameB}の転換。`
+          : isChorus ? `サビの高揚感。` : isBridge ? `ブリッジの静寂。` : '';
+        desc = `${mid.desc}（${mid.shotKey}）。${transNote}${base.char ? `${base.circ}の人物ディテールを強調。` : `${VT_DESC[base.vt]||base.vt}。`}`;
+      }
+      cutLines.push(`${ts}〜${te}　${desc}`);
     }
-    timeLines.push(`${tStart}〜${tEnd}\n${desc}`);
+
+    // カット割サマリーヘッダー
+    const rhythmNote = isChorus
+      ? `サビ区間：${cutInterval}秒ごとの高速カット割。ビートに完全同期させること。`
+      : isBridge
+      ? `ブリッジ区間：${cutInterval}秒ごとのカット割。静寂の中に緊張を保つ。`
+      : `${cutInterval}秒ごとにカットを切る。映像のリズムを楽曲のビートと同期させること。`;
+    timeText = `【カット割：${cutInterval}秒間隔・計${totalCuts}カット】\n${rhythmNote}\n\n${cutLines.join('\n')}`;
+
+  } else {
+    // カット間隔なし: 従来の自動セグメント
+    const numSegs = clipDur <= 3.5 ? 2 : clipDur <= 7 ? 3 : 4;
+    const segDur  = clipDur / numSegs;
+    const timeLines = [];
+    for (let i = 0; i < numSegs; i++) {
+      const tStart = fmtSec(i * segDur), tEnd = fmtSec((i+1) * segDur);
+      let desc = '';
+      if (i === 0) {
+        desc = `${circledA}のフレームで開始。${SHOT_LONG[shotA]||shotA}・${bgNameA}の舞台。${hasCharA ? `主人公が${POSE_DESC[poseA]||'存在する'}。${sceneA ? sceneA + '。' : ''}` : `${VT_DESC[vtA]||vtA}。`}${isIntroA ? '世界観の入口として静かに立ち上がる。' : ''}`;
+      } else if (i === numSegs - 1) {
+        desc = `${circledB}のフレームへ着地。${SHOT_LONG[shotB]||shotB}・${bgNameB}の舞台。${hasCharB ? `主人公が${POSE_DESC[poseB]||'存在する'}。${sceneB ? sceneB + '。' : ''}` : `${VT_DESC[vtB]||vtB}。`}${isOutroB ? 'MVの余韻とともに映像が静かに幕を閉じる。' : ''}`;
+      } else if (i === 1) {
+        const bg_transition = bgA !== bgB ? `「${bgNameA}」から「${bgNameB}」へ背景が転換し始める。` : `「${bgNameA}」の空間を通過しながら。`;
+        desc = `カメラが${CONCEPT_MAP[camKey]?.split('。')[0] || '動き始め'}。${bg_transition}${isChorus ? 'エネルギーが一気に高まり映像のリズムが加速する。' : isBridge ? '静寂の中で内省的な空気が漂い始める。' : '感情が次の段階へ移行する。'}`;
+      } else {
+        desc = `移行が続き${bgA !== bgB ? `「${bgNameB}」が近づいてくる。` : '映像が次のフレームへ向かう。'}${isChorus ? 'クライマックスへの最後の助走。' : '感情の蓄積が頂点へ向かう。'}`;
+      }
+      timeLines.push(`${tStart}〜${tEnd}\n${desc}`);
+    }
+    timeText = timeLines.join('\n\n');
   }
-  const timeText = timeLines.join('\n\n');
 
   // ── カメラ ────────────────────────────────────────────────────────────
   const CAM_DESC = {
@@ -4960,7 +5027,11 @@ function generateVideoPrompt(panelA, panelB, numA, numB) {
     '3':  `強いプッシュイン。感情の核心へ迫るような接近。${isChorus?'勢いを保ちながら最後は安定。':'最後はゆっくり止まる。'}`,
     '4':  `超クローズアップへの急速な接近。感情的な最高密度を映し出す。最後は静止。`,
   };
-  const camText = CAM_DESC[camKey] || CAM_DESC['0'];
+  const camBaseText = CAM_DESC[camKey] || CAM_DESC['0'];
+  const camCutNote = hasCutInterval
+    ? ` ／ カット割${cutInterval}秒：各カット内では${cutInterval <= 1.5 ? 'カメラを固定またはわずかなシェイクのみ（動きすぎない）' : cutInterval <= 3 ? 'ショット内で小さなプッシュまたはパン（大きく動かさない）' : 'カット内で一つのカメラムーブを完結させる'}こと。`
+    : '';
+  const camText = camBaseText + camCutNote;
 
   // ── ライティング ──────────────────────────────────────────────────────
   const BG_LIGHT = { city:'都市の夜景照明・ネオンの反射・人工光の混在', rain:'拡散した柔らかい雨光・路面の反射', stars:'夜空と月明かりの自然なアンビエント照明', sakura:'柔らかい昼の自然光・桜の淡いピンクの乱反射', festival:'提灯・屋台の暖かいオレンジ照明', spotlight:'スポットライト中心の強いコントラスト照明', sunset:'ゴールデンアワーの暖かい橙色の逆光と側光', underwater:'水面からの屈折した青い光と揺らぎ', forest:'木漏れ日の自然光・緑に透けた柔らかい光', rooftop:'都市の間接光と空の光', room:'小さな光源が主・周囲は暗め', cafe:'暖かい間接照明・窓からの自然光', station:'蛍光灯系の白い照明と構造物の影', beach:'水面の乱反射と明るい太陽光' };
