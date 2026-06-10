@@ -756,19 +756,26 @@ label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;
       <button class="dl-btn jpeg-bulk" id="dl-range-btn" onclick="downloadRangeJPEG()">💾 JPEG個別保存</button>
       <button class="dl-btn jpeg-merge" id="dl-merge-btn" onclick="mergeRangeJPEG()">🖼 1枚合成(〜10枚)</button>
       <button class="dl-btn video-prompt" id="dl-vidprompt-btn" onclick="openVideoPromptModal()">🎬 動画プロンプト生成(〜10枚)</button>
-      <span class="dl-range-label" style="margin-left:.3rem;">✂ カット間隔</span>
-      <input class="dl-range-input" id="cut-interval" type="number" min="1" max="30" step="0.5" placeholder="秒" title="カット変更の間隔（秒）。空欄=自動">
-      <span class="dl-range-label">秒ごと</span>
       <button class="dl-btn loc-prompt" id="dl-locprompt-btn" onclick="openLocationModal()">📍 ロケーション画像生成</button>
     </div>
 
     <!-- Video Prompt Modal -->
     <div class="vp-overlay hidden" id="vp-overlay" onclick="vpOverlayClose(event)">
       <div class="vp-modal" id="vp-modal">
-        <div class="vp-modal-header">
+        <div class="vp-modal-header" style="flex-wrap:wrap;gap:.4rem 0;">
           <span class="vp-modal-title">🎬 Seedance 動画生成プロンプト</span>
-          <div style="display:flex;gap:.5rem;align-items:center;">
-            <button id="vp-merge-btn" style="display:none;padding:.3rem .85rem;border-radius:8px;border:1px solid rgba(251,146,60,.45);background:rgba(251,146,60,.1);color:#fb923c;cursor:pointer;font-size:.68rem;font-family:inherit;" onclick="vpScrollToMerged()">📋 まとめてコピー</button>
+          <div style="display:flex;gap:.4rem;align-items:center;flex-wrap:wrap;margin-left:auto;">
+            <span style="font-size:.67rem;color:#94a3b8;">✂ カット</span>
+            <select id="vp-cut-mode" style="padding:.26rem .5rem;border-radius:6px;border:1px solid rgba(255,255,255,.15);background:#1a1a2e;color:#e2e8f0;font-size:.67rem;font-family:inherit;cursor:pointer;" onchange="vpCutModeChange()">
+              <option value="auto">自動</option>
+              <option value="one">ワンカット</option>
+              <option value="interval">間隔指定</option>
+            </select>
+            <input id="vp-cut-interval" type="number" min="0.5" max="30" step="0.5" placeholder="秒" title="カット間隔（秒）"
+              style="display:none;width:4.2rem;padding:.26rem .45rem;border-radius:6px;border:1px solid rgba(255,255,255,.15);background:#1a1a2e;color:#e2e8f0;font-size:.67rem;text-align:center;font-family:inherit;">
+            <span id="vp-cut-sec-label" style="display:none;font-size:.67rem;color:#94a3b8;">秒ごと</span>
+            <button onclick="vpRegenerate()" style="padding:.28rem .75rem;border-radius:6px;border:1px solid rgba(139,92,246,.35);background:rgba(139,92,246,.12);color:#c4b5fd;cursor:pointer;font-size:.67rem;font-family:inherit;">⟳ 適用</button>
+            <button id="vp-merge-btn" style="display:none;padding:.28rem .75rem;border-radius:8px;border:1px solid rgba(251,146,60,.45);background:rgba(251,146,60,.1);color:#fb923c;cursor:pointer;font-size:.67rem;font-family:inherit;" onclick="vpScrollToMerged()">📋 まとめてコピー</button>
             <button class="vp-close-btn" onclick="closeVideoPromptModal()">✕</button>
           </div>
         </div>
@@ -4361,14 +4368,44 @@ function downloadPanelJPEG(btn) {
 // ─────────────────────────────────────────
 // Video Prompt Generator — Seedance 2.0
 // ─────────────────────────────────────────
+let _vpFrom = 1, _vpTo = 2;
+
+function vpGetCutInterval() {
+  const mode = document.getElementById('vp-cut-mode')?.value || 'auto';
+  if (mode === 'one') return 'one';
+  if (mode === 'interval') {
+    const v = parseFloat(document.getElementById('vp-cut-interval')?.value);
+    return (!isNaN(v) && v >= 0.5) ? v : null;
+  }
+  return null; // auto
+}
+
+function vpCutModeChange() {
+  const mode = document.getElementById('vp-cut-mode')?.value || 'auto';
+  const inp = document.getElementById('vp-cut-interval');
+  const lbl = document.getElementById('vp-cut-sec-label');
+  if (inp) inp.style.display = mode === 'interval' ? '' : 'none';
+  if (lbl) lbl.style.display = mode === 'interval' ? '' : 'none';
+}
+
+function vpRegenerate() {
+  vpFillModal(_vpFrom, _vpTo);
+}
+
 function openVideoPromptModal() {
   if (!allPanels.length) return;
   const from = Math.max(1, parseInt(document.getElementById('dl-range-from').value) || 1);
   const toRaw = Math.min(allPanels.length, parseInt(document.getElementById('dl-range-to').value) || allPanels.length);
   const to = Math.min(toRaw, from + 10 - 1);
   if (to - from < 1) { alert('動画プロンプトを生成するには2枚以上のパネルが必要です。'); return; }
-  const cutIntervalRaw = parseFloat(document.getElementById('cut-interval').value);
-  const cutInterval = (!isNaN(cutIntervalRaw) && cutIntervalRaw >= 0.5) ? cutIntervalRaw : null;
+  _vpFrom = from; _vpTo = to;
+  document.getElementById('vp-overlay').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+  vpFillModal(from, to);
+}
+
+function vpFillModal(from, to) {
+  const cutInterval = vpGetCutInterval();
 
   const body = document.getElementById('vp-modal-body');
   body.innerHTML = '';
@@ -4435,7 +4472,8 @@ function openVideoPromptModal() {
     mHead.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:.6rem 1rem;background:rgba(251,146,60,.12);border-bottom:1px solid rgba(251,146,60,.2);';
     const mLabel = document.createElement('span');
     mLabel.style.cssText = 'font-size:.75rem;font-weight:700;color:#fb923c;';
-    mLabel.textContent = '📋 全カットまとめプロンプト（' + allPromptTexts.length + 'クリップ）';
+    const cutModeLabel = cutInterval === 'one' ? '・ワンカット' : (typeof cutInterval === 'number' ? `・${cutInterval}秒カット割` : '');
+    mLabel.textContent = `📋 全カットまとめプロンプト（${allPromptTexts.length}クリップ${cutModeLabel}）`;
     const mCopyBtn = document.createElement('button');
     mCopyBtn.style.cssText = 'padding:.3rem .9rem;border-radius:6px;border:1px solid rgba(251,146,60,.5);background:rgba(251,146,60,.15);color:#fb923c;cursor:pointer;font-size:.68rem;font-family:inherit;';
     mCopyBtn.textContent = '⧉ まとめてコピー';
@@ -4462,9 +4500,6 @@ function openVideoPromptModal() {
     const mergeBtn = document.getElementById('vp-merge-btn');
     if (mergeBtn) mergeBtn.style.display = '';
   }
-
-  document.getElementById('vp-overlay').classList.remove('hidden');
-  document.body.style.overflow = 'hidden';
 }
 
 function vpScrollToMerged() {
@@ -4859,7 +4894,12 @@ function generateVideoPrompt(panelA, panelB, numA, numB, cutInterval) {
   const energy = savedState?.lyricsAnalysis?.energy || 'mid';
   const tA = panelA.time || 0;
   const tB = panelB.time || tA + 5;
-  const clipDur = Math.max(tB - tA, 3.0);
+  const isOneCut = cutInterval === 'one';
+  const rawClipDur = Math.max(tB - tA, 3.0);
+  // When interval mode: ensure enough duration for ≥4 cuts
+  const clipDur = (typeof cutInterval === 'number' && cutInterval >= 0.5)
+    ? Math.max(rawClipDur, cutInterval * 4)
+    : rawClipDur;
 
   // Audio features for this clip
   const af = audioFeatures;
@@ -4936,10 +4976,17 @@ function generateVideoPrompt(panelA, panelB, numA, numB, cutInterval) {
   const fmtSec = s => { const m=Math.floor(s/60), sec=(s%60).toFixed(1); return `${m}:${sec.padStart(4,'0')}`; };
 
   // ── カット間隔が指定されている場合: N秒ごとの細かいカット割を生成 ──
-  const hasCutInterval = cutInterval && cutInterval >= 0.5;
+  const hasCutInterval = typeof cutInterval === 'number' && cutInterval >= 0.5;
   let timeText = '';
 
-  if (hasCutInterval) {
+  if (isOneCut) {
+    // ワンカット: カット割なし・ノーカット連続映像
+    const durNote = rawClipDur >= 3 ? `${rawClipDur.toFixed(1)}秒のノーカット連続映像。` : '連続映像。';
+    const transDesc = bgA !== bgB
+      ? `「${bgNameA}」から「${bgNameB}」へシームレスに空間が変化する。`
+      : `「${bgNameA}」の空間が変化なく持続する。`;
+    timeText = `【ワンカット】カット割なし・${durNote}\n${transDesc}\n${circledA}のフレームで開始し、編集なしでそのまま${circledB}のフレームへ自然移行する。\nカメラは${CONCEPT_MAP[camKey]||'ゆっくりと動き'}、カット点ゼロで映像全体が一筆書きのように流れること。`;
+  } else if (hasCutInterval) {
     // 各カット枠のパネルをラウンドロビンで割り当て
     const totalCuts = Math.ceil(clipDur / cutInterval);
     const shotPool = [
