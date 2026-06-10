@@ -765,15 +765,18 @@ label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;
         <div class="vp-modal-header" style="flex-wrap:wrap;gap:.4rem 0;">
           <span class="vp-modal-title">🎬 Seedance 動画生成プロンプト</span>
           <div style="display:flex;gap:.4rem;align-items:center;flex-wrap:wrap;margin-left:auto;">
-            <span style="font-size:.67rem;color:#94a3b8;">✂ カット</span>
-            <select id="vp-cut-mode" style="padding:.26rem .5rem;border-radius:6px;border:1px solid rgba(255,255,255,.15);background:#1a1a2e;color:#e2e8f0;font-size:.67rem;font-family:inherit;cursor:pointer;" onchange="vpCutModeChange()">
+            <span style="font-size:.67rem;color:#94a3b8;">✂ カット割</span>
+            <select id="vp-cut-mode" style="padding:.28rem .6rem;border-radius:6px;border:1px solid rgba(255,255,255,.18);background:#1a1a2e;color:#e2e8f0;font-size:.68rem;font-family:inherit;cursor:pointer;" onchange="vpCutModeChange()">
               <option value="auto">自動</option>
               <option value="one">ワンカット</option>
               <option value="interval">間隔指定</option>
             </select>
-            <input id="vp-cut-interval" type="number" min="0.5" max="30" step="0.5" placeholder="秒" title="カット間隔（秒）"
-              style="display:none;width:4.2rem;padding:.26rem .45rem;border-radius:6px;border:1px solid rgba(255,255,255,.15);background:#1a1a2e;color:#e2e8f0;font-size:.67rem;text-align:center;font-family:inherit;">
-            <span id="vp-cut-sec-label" style="display:none;font-size:.67rem;color:#94a3b8;">秒ごと</span>
+            <span id="vp-interval-row" style="display:none;align-items:center;gap:.35rem;padding:.22rem .65rem .22rem .5rem;border-radius:8px;border:1.5px solid rgba(251,191,36,.5);background:rgba(251,191,36,.08);">
+              <span style="font-size:.67rem;color:#fbbf24;font-weight:600;">⏱</span>
+              <input id="vp-cut-interval" type="number" min="0.5" max="30" step="0.5" placeholder="例：2"
+                style="width:3.8rem;padding:.22rem .4rem;border-radius:5px;border:1px solid rgba(251,191,36,.4);background:#1a1a2e;color:#fde68a;font-size:.73rem;font-weight:700;text-align:center;font-family:inherit;">
+              <span style="font-size:.67rem;color:#fbbf24;font-weight:600;">秒ごとにカット</span>
+            </span>
             <button onclick="vpRegenerate()" style="padding:.28rem .75rem;border-radius:6px;border:1px solid rgba(139,92,246,.35);background:rgba(139,92,246,.12);color:#c4b5fd;cursor:pointer;font-size:.67rem;font-family:inherit;">⟳ 適用</button>
             <button id="vp-merge-btn" style="display:none;padding:.28rem .75rem;border-radius:8px;border:1px solid rgba(251,146,60,.45);background:rgba(251,146,60,.1);color:#fb923c;cursor:pointer;font-size:.67rem;font-family:inherit;" onclick="vpScrollToMerged()">📋 まとめてコピー</button>
             <button class="vp-close-btn" onclick="closeVideoPromptModal()">✕</button>
@@ -4382,10 +4385,8 @@ function vpGetCutInterval() {
 
 function vpCutModeChange() {
   const mode = document.getElementById('vp-cut-mode')?.value || 'auto';
-  const inp = document.getElementById('vp-cut-interval');
-  const lbl = document.getElementById('vp-cut-sec-label');
-  if (inp) inp.style.display = mode === 'interval' ? '' : 'none';
-  if (lbl) lbl.style.display = mode === 'interval' ? '' : 'none';
+  const row = document.getElementById('vp-interval-row');
+  if (row) row.style.display = mode === 'interval' ? 'flex' : 'none';
 }
 
 function vpRegenerate() {
