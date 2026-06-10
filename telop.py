@@ -36,7 +36,7 @@ def extract_audio(video_path: Path) -> Path:
 def transcribe(audio_path: Path) -> list[dict]:
     print("  音声を聞き取り中...")
     result = subprocess.run(
-        ['whisper', str(audio_path), '--model', 'small',
+        [sys.executable, '-m', 'whisper', str(audio_path), '--model', 'small',
          '--language', 'ja', '--output_format', 'json',
          '--output_dir', str(audio_path.parent)],
         capture_output=True, text=True
