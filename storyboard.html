@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://img.youtube.com; media-src 'self' blob: https:; connect-src 'self' https://api.domoai.com; object-src 'none'; base-uri 'self'; form-action 'self'">
 <title>MV Storyboard Generator | プロ仕様絵コンテ生成ツール</title>
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=2">
 <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png?v=2">
@@ -850,6 +851,7 @@ label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;
       <div class="domo-row">
         <input class="domo-key-input" id="domo-api-key" type="password" placeholder="DomoAI APIキーを入力..." autocomplete="off" spellcheck="false">
         <button class="domo-save-btn" onclick="domoSaveKey()">保存</button>
+        <button class="domo-save-btn" onclick="domoClearKey()" title="保存済みのAPIキーをこの端末から削除" style="border-color:rgba(244,63,94,.4);color:#fda4af;">削除</button>
       </div>
       <div class="domo-row">
         <select class="domo-select" id="domo-model" onchange="domoUpdateCost()">
@@ -3620,7 +3622,7 @@ function songPositionHtml(p) {
   const clr = _STL_CLR[sec] || (p.isIntro ? '#06b6d4' : p.isOutro ? '#f43f5e' : '#94a3b8');
   const lyricLines = (p.lines || []).filter(l => l && !/^\[/.test(l));
   const lyricsHtml = lyricLines.length
-    ? `<div class="stl-lyrics">${lyricLines.slice(0, 3).join('　／　').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>`
+    ? `<div class="stl-lyrics">${escapeHtml(lyricLines.slice(0, 3).join('　／　'))}</div>`
     : '';
   const totalStr = totalDur > 0 ? ` / ${formatTime(totalDur)}` : '';
   return `<div class="song-timeline-strip">
@@ -3660,11 +3662,11 @@ function buildPanelEl(p, displayNum) {
     <div class="panel-art">${artSVG}<label class="panel-img-upload" title="画像を添付">📎<input type="file" accept="image/*" style="display:none" onchange="attachPanelImage(this)"></label><button class="panel-dl-btn jpeg" title="JPEGをダウンロード" onclick="downloadPanelJPEG(this)">JPG</button><button class="panel-dl-btn" title="PNGをダウンロード" onclick="downloadPanelPNG(this)">⬇</button></div>
     <div class="panel-body">
       ${songPositionHtml(p)}
-      <div class="panel-scene">${(p.jaDesc||p.lines?.join('<br>')||'').replace(/\n/g,'<br>')}</div>
+      <div class="panel-scene">${escapeHtml(p.jaDesc||p.lines?.join('\n')||'').replace(/\n/g,'<br>')}</div>
       <div class="panel-prompt-label">絵コンテプロンプト<button class="copy-inline-btn" onclick="copyPanelPrompt(this,'.panel-prompt')" title="このプロンプトをコピー">⧉ コピー</button></div>
-      <div class="panel-prompt" data-ja="${escapeAttr(promptJa)}" data-en="${escapeAttr(promptEn)}">${isEn ? promptEn : promptJa}</div>
+      <div class="panel-prompt" data-ja="${escapeAttr(promptJa)}" data-en="${escapeAttr(promptEn)}">${escapeHtml(isEn ? promptEn : promptJa)}</div>
       <div class="panel-bg-label">背景プロンプト<button class="copy-inline-btn bg" onclick="copyPanelPrompt(this,'.panel-bg-prompt')" title="背景プロンプトをコピー">⧉ コピー</button></div>
-      <div class="panel-bg-prompt" data-ja="${escapeAttr(bgJa)}" data-en="${escapeAttr(bgEn)}">${isEn ? bgEn : bgJa}</div>
+      <div class="panel-bg-prompt" data-ja="${escapeAttr(bgJa)}" data-en="${escapeAttr(bgEn)}">${escapeHtml(isEn ? bgEn : bgJa)}</div>
       <label style="display:flex;align-items:center;gap:.4rem;margin-top:.4rem;font-size:.68rem;color:var(--text-muted);cursor:pointer;">
         <input type="checkbox" class="panel-check" style="width:1rem;height:1rem;accent-color:var(--accent2);cursor:pointer;"> 完了チェック
       </label>
@@ -3677,6 +3679,11 @@ function buildPanelEl(p, displayNum) {
 
 function escapeAttr(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// Escape user-derived text (lyrics, descriptions) before innerHTML insertion
+function escapeHtml(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
 function appendPanels(panels, startOffset) {
@@ -4178,7 +4185,7 @@ function generateScenario(panels, lyrics, lyricsAnalysis, seed, userRequest) {
 function renderScenario(script) {
   const el = document.getElementById('scenario-text');
   if (!el) return;
-  el.innerHTML = script.replace(/\n/g, '<br>');
+  el.innerHTML = escapeHtml(script).replace(/\n/g, '<br>');
 }
 
 function pushScenarioHistory(script) {
@@ -5939,7 +5946,7 @@ function updateStampCountLabel() {
         const panel = document.getElementById('domo-panel');
         const visible = panel.classList.toggle('visible');
         if (visible) {
-          const saved = localStorage.getItem('domo_api_key');
+          const saved = safeStore('get', 'domo_api_key');
           if (saved) document.getElementById('domo-api-key').value = saved;
           domoUpdateCost();
           panel.scrollIntoView({ behavior:'smooth', block:'nearest' });
@@ -5951,11 +5958,28 @@ function updateStampCountLabel() {
   });
 })();
 
+// localStorage can throw in private browsing / blocked-storage environments
+function safeStore(action, key, val) {
+  try {
+    if (action === 'get') return localStorage.getItem(key);
+    if (action === 'set') localStorage.setItem(key, val);
+    if (action === 'remove') localStorage.removeItem(key);
+  } catch(e) { return null; }
+  return null;
+}
+
 function domoSaveKey() {
   const key = document.getElementById('domo-api-key').value.trim();
   if (!key) { document.getElementById('domo-progress').textContent = '⚠ APIキーを入力してください'; return; }
-  localStorage.setItem('domo_api_key', key);
+  safeStore('set', 'domo_api_key', key);
   document.getElementById('domo-progress').textContent = '✓ APIキーを保存しました';
+  setTimeout(() => { document.getElementById('domo-progress').textContent = ''; }, 2500);
+}
+
+function domoClearKey() {
+  safeStore('remove', 'domo_api_key');
+  document.getElementById('domo-api-key').value = '';
+  document.getElementById('domo-progress').textContent = '✓ APIキーを削除しました';
   setTimeout(() => { document.getElementById('domo-progress').textContent = ''; }, 2500);
 }
 
@@ -6019,12 +6043,25 @@ function domoAttachVideo(panelIdx, videoUrl) {
   card.classList.remove('domo-pending');
   let wrap = card.querySelector('.domo-video-wrap');
   if (!wrap) { wrap = document.createElement('div'); wrap.className = 'domo-video-wrap'; card.appendChild(wrap); }
-  wrap.innerHTML = `<video src="${videoUrl}" controls loop muted playsinline></video>`
-    + `<a class="domo-dl-badge" href="${videoUrl}" target="_blank" download>⬇ 動画をダウンロード</a>`;
+  // Only accept http(s) URLs from the API response (blocks javascript:/data: schemes)
+  if (!/^https?:\/\//i.test(String(videoUrl))) return;
+  wrap.textContent = '';
+  const video = document.createElement('video');
+  video.src = videoUrl;
+  video.controls = true; video.loop = true; video.muted = true;
+  video.setAttribute('playsinline', '');
+  const dl = document.createElement('a');
+  dl.className = 'domo-dl-badge';
+  dl.href = videoUrl;
+  dl.target = '_blank';
+  dl.rel = 'noopener';
+  dl.setAttribute('download', '');
+  dl.textContent = '⬇ 動画をダウンロード';
+  wrap.append(video, dl);
 }
 
 async function domoRunGeneration() {
-  const apiKey = localStorage.getItem('domo_api_key') || document.getElementById('domo-api-key').value.trim();
+  const apiKey = safeStore('get', 'domo_api_key') || document.getElementById('domo-api-key').value.trim();
   if (!apiKey) { document.getElementById('domo-progress').textContent = '⚠ APIキーを入力・保存してください'; return; }
   if (!allPanels.length) { document.getElementById('domo-progress').textContent = '⚠ 先に絵コンテを生成してください'; return; }
 
