@@ -400,6 +400,33 @@ label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;
   color:var(--accent2);background:rgba(6,182,212,.1);border-radius:3px;
   padding:.1rem .4rem;margin-bottom:.4rem;text-transform:uppercase;
 }
+/* Song position strip */
+.song-timeline-strip{
+  margin-bottom:.55rem;padding:.38rem .45rem .32rem;
+  background:rgba(255,255,255,.04);border-radius:6px;
+  border:1px solid rgba(255,255,255,.08);
+}
+.stl-track{
+  position:relative;height:4px;background:rgba(255,255,255,.1);
+  border-radius:2px;margin-bottom:.32rem;overflow:visible;
+}
+.stl-fill{
+  position:absolute;left:0;top:0;bottom:0;
+  background:rgba(255,255,255,.15);border-radius:2px;
+}
+.stl-pip{
+  position:absolute;top:50%;transform:translate(-50%,-50%);
+  width:8px;height:8px;border-radius:50%;
+  border:1.5px solid rgba(255,255,255,.9);box-shadow:0 0 5px rgba(0,0,0,.6);
+}
+.stl-meta{display:flex;justify-content:space-between;align-items:center;margin-bottom:.22rem;}
+.stl-section{font-size:.58rem;font-weight:700;letter-spacing:.07em;}
+.stl-time{font-size:.57rem;color:var(--text-muted);font-variant-numeric:tabular-nums;}
+.stl-lyrics{
+  font-size:.63rem;color:rgba(255,255,255,.5);font-style:italic;line-height:1.45;
+  border-left:2px solid rgba(255,255,255,.12);padding-left:.38rem;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+}
 .panel-scene{font-size:.82rem;line-height:1.6;margin-bottom:.5rem;color:rgba(255,255,255,.88);}
 .panel-prompt-label{
   font-size:.56rem;font-weight:700;letter-spacing:.1em;color:rgba(124,58,237,.8);
@@ -3574,6 +3601,42 @@ function repairJSON(raw) {
 // ─────────────────────────────────────────
 
 // ─────────────────────────────────────────
+// Song position indicator for panel cards
+// ─────────────────────────────────────────
+const _STL_JA = {
+  intro:'イントロ', verse:'Aメロ', pre_chorus:'Bメロ', chorus:'サビ',
+  bridge:'ブリッジ', outro:'アウトロ',
+};
+const _STL_CLR = {
+  intro:'#06b6d4', verse:'#60a5fa', pre_chorus:'#a78bfa', chorus:'#f59e0b',
+  bridge:'#34d399', outro:'#f43f5e',
+};
+function songPositionHtml(p) {
+  const totalDur = savedState?.duration || 0;
+  const t = p.time || 0;
+  const pct = totalDur > 0 ? Math.min(99.5, (t / totalDur) * 100) : 0;
+  const sec = (p.section || '').toLowerCase();
+  const sectionJa = _STL_JA[sec] || (p.isIntro ? 'イントロ' : p.isOutro ? 'アウトロ' : (p.section || '').toUpperCase() || '—');
+  const clr = _STL_CLR[sec] || (p.isIntro ? '#06b6d4' : p.isOutro ? '#f43f5e' : '#94a3b8');
+  const lyricLines = (p.lines || []).filter(l => l && !/^\[/.test(l));
+  const lyricsHtml = lyricLines.length
+    ? `<div class="stl-lyrics">${lyricLines.slice(0, 3).join('　／　').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>`
+    : '';
+  const totalStr = totalDur > 0 ? ` / ${formatTime(totalDur)}` : '';
+  return `<div class="song-timeline-strip">
+    <div class="stl-track" title="${formatTime(t)}${totalStr}">
+      <div class="stl-fill" style="width:${pct.toFixed(1)}%"></div>
+      <div class="stl-pip" style="left:${pct.toFixed(1)}%;background:${clr}"></div>
+    </div>
+    <div class="stl-meta">
+      <span class="stl-section" style="color:${clr}">◆ ${sectionJa}</span>
+      <span class="stl-time">${formatTime(t)}${totalStr}</span>
+    </div>
+    ${lyricsHtml}
+  </div>`;
+}
+
+// ─────────────────────────────────────────
 // Build panel DOM element
 // ─────────────────────────────────────────
 function buildPanelEl(p, displayNum) {
@@ -3596,7 +3659,7 @@ function buildPanelEl(p, displayNum) {
     </div>
     <div class="panel-art">${artSVG}<label class="panel-img-upload" title="画像を添付">📎<input type="file" accept="image/*" style="display:none" onchange="attachPanelImage(this)"></label><button class="panel-dl-btn jpeg" title="JPEGをダウンロード" onclick="downloadPanelJPEG(this)">JPG</button><button class="panel-dl-btn" title="PNGをダウンロード" onclick="downloadPanelPNG(this)">⬇</button></div>
     <div class="panel-body">
-      ${p.section ? `<div class="panel-section">${p.section.toUpperCase()}</div>` : ''}
+      ${songPositionHtml(p)}
       <div class="panel-scene">${(p.jaDesc||p.lines?.join('<br>')||'').replace(/\n/g,'<br>')}</div>
       <div class="panel-prompt-label">絵コンテプロンプト<button class="copy-inline-btn" onclick="copyPanelPrompt(this,'.panel-prompt')" title="このプロンプトをコピー">⧉ コピー</button></div>
       <div class="panel-prompt" data-ja="${escapeAttr(promptJa)}" data-en="${escapeAttr(promptEn)}">${isEn ? promptEn : promptJa}</div>
@@ -5605,6 +5668,10 @@ printStyle.textContent = `
   .panel-art svg rect{fill:#fff!important}
   .panel-prompt,.panel-bg-prompt{background:#eee!important;color:#333!important}
   .panel-section{color:#666!important}
+  .song-timeline-strip{background:#f0f0f0!important;border-color:#ccc!important}
+  .stl-track{background:#ddd!important}
+  .stl-fill{background:#bbb!important}
+  .stl-lyrics{color:#555!important;border-color:#ccc!important}
 }`;
 document.head.appendChild(printStyle);
 
