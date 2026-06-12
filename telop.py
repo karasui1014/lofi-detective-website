@@ -67,11 +67,20 @@ def summarize_segments(segments: list[dict]) -> list[dict]:
         print("  anthropicパッケージが必要です: pip3 install anthropic")
         sys.exit(1)
 
+    config_path = Path.home() / 'Desktop' / '字幕制作ツール' / '.apikey'
     api_key = os.environ.get('ANTHROPIC_API_KEY')
+
+    if not api_key and config_path.exists():
+        api_key = config_path.read_text().strip()
+
     if not api_key:
-        print("  ANTHROPIC_API_KEYが設定されていません")
-        print("  export ANTHROPIC_API_KEY=sk-ant-... をターミナルで実行してください")
-        sys.exit(1)
+        print("\n  APIキーを入力してください（sk-ant-api03- で始まる文字列）")
+        api_key = input("  APIキー: ").strip()
+        if not api_key:
+            print("  キーが入力されませんでした")
+            sys.exit(1)
+        config_path.write_text(api_key)
+        print(f"  キーを保存しました → {config_path}\n")
 
     client = anthropic.Anthropic(api_key=api_key)
     result = []
