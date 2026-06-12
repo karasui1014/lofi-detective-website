@@ -1147,9 +1147,9 @@ function bokehSVG(W, H, color, idx) {
   }).join('');
 }
 
-function environmentOnlySVG(bg, W, H, color) {
+function environmentOnlySVG(bg, W, H, color, v) {
   // Larger, more detailed background with no character
-  const base = bgSketch(bg, W, H);
+  const base = bgSketch(bg, W, H, v);
   // Add foreground ground elements
   const fg = `<line x1="0" y1="${H*.88}" x2="${W}" y2="${H*.88}" stroke="${color}" stroke-width=".6" opacity=".15"/>`;
   return base + fg;
@@ -2060,7 +2060,21 @@ const POSES = {
 // ─────────────────────────────────────────
 // Background scene sketches — improved
 // ─────────────────────────────────────────
-function bgSketch(type, w, h) {
+function bgSketch(type, w, h, v) {
+  const content = bgSketchContent(type, w, h, v || 0);
+  // Variant wrapper: mirror + pan + overscan → 10 composition variations per bg type
+  const vv = ((v || 0) % 10 + 10) % 10;
+  const flip = vv % 2 === 1;
+  const panX = ((Math.floor(vv / 2) % 5) - 2) * w * 0.05;
+  const oc = 1.14; // overscan so pan never reveals empty edges
+  const t = [];
+  if (flip) t.push(`translate(${w} 0) scale(-1 1)`);
+  t.push(`translate(${panX.toFixed(1)} 0)`);
+  t.push(`translate(${(w/2*(1-oc)).toFixed(1)} ${(h*.7*(1-oc)).toFixed(1)}) scale(${oc})`);
+  return `<g transform="${t.join(' ')}">${content}</g>`;
+}
+
+function bgSketchContent(type, w, h, v) {
   switch(type) {
     case 'city': return `
       <rect x="0" y="0" width="${w}" height="${h*.72}" fill="rgba(5,7,20,.95)"/>
@@ -2078,7 +2092,7 @@ function bgSketch(type, w, h) {
         const col2=i%3===0?'rgba(255,230,110,.5)':i%3===1?'rgba(160,210,255,.4)':'rgba(255,200,80,.38)';
         const bi=i%3;
         const bx=w*(bldX[bi]+bldW[bi]*.12+Math.floor(i/3)*(bldW[bi]*.28));
-        const by=h*(.22+Math.floor(i%5)*.1);
+        const by=h*(.22+((i+v)%5)*.1);
         return `<rect x="${bx.toFixed(0)}" y="${by.toFixed(0)}" width="4" height="3" fill="${col2}" rx=".5"/>`;
       }).join('')}
       <rect x="0" y="${h*.72}" width="${w}" height="${h*.28}" fill="rgba(3,3,14,.97)"/>
@@ -2121,8 +2135,8 @@ function bgSketch(type, w, h) {
     case 'rain': return `
       <rect x="0" y="0" width="${w}" height="${h}" fill="rgba(0,14,36,.6)"/>
       ${Array.from({length:48},(_,i)=>{
-        const x=w*(i/48+Math.sin(i*.55)*.018);
-        const y=h*(Math.cos(i*.52)*.38+.04);
+        const x=w*(i/48+Math.sin(i*.55+v)*.018);
+        const y=h*(Math.cos(i*.52+v*.8)*.38+.04);
         const len=h*(0.22+Math.abs(Math.sin(i*.35))*.18);
         return `<line x1="${x.toFixed(1)}" y1="${y.toFixed(1)}" x2="${(x-len*.14).toFixed(1)}" y2="${(y+len).toFixed(1)}" stroke="rgba(140,200,255,.26)" stroke-width="${(.8+Math.sin(i)*.35).toFixed(2)}" stroke-linecap="round"/>`;
       }).join('')}
@@ -2135,7 +2149,7 @@ function bgSketch(type, w, h) {
       <rect x="0" y="0" width="${w}" height="${h*.74}" fill="rgba(3,3,20,.6)"/>
       <ellipse cx="${w*.62}" cy="${h*.32}" rx="${w*.55}" ry="${h*.13}" fill="none" stroke="rgba(120,120,255,.06)" stroke-width=".6" stroke-dasharray="5,8" transform="rotate(-22 ${(w*.62).toFixed(0)} ${(h*.32).toFixed(0)})"/>
       ${Array.from({length:38},(_,i)=>{
-        const x=w*(Math.sin(i*2.1+.7)*.48+.5), y=h*(Math.cos(i*1.7+.5)*.34+.27);
+        const x=w*(Math.sin(i*2.1+.7+v)*.48+.5), y=h*(Math.cos(i*1.7+.5+v*.6)*.34+.27);
         const r=.5+Math.abs(Math.sin(i*.9))*.9;
         const op=.1+Math.abs(Math.sin(i*.7))*.32;
         return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r.toFixed(1)}" fill="rgba(255,255,255,${op.toFixed(2)})"/>`;
@@ -3207,13 +3221,39 @@ const SHOT_LABELS = {'EWS':'EXTREME WIDE','WS':'WIDE SHOT','MS':'MED SHOT','2S':
 // SVG panel render — dispatches by visualType
 // ─────────────────────────────────────────
 function renderPanelSVG(panel) {
-  const W=320, H=180, cx=W/2, cy=H*0.58, scale=8;
-  const bg = bgSketch(panel.bg, W, H);
+  const W=320, H=180;
   const svgVar = panel._svgVariant ?? panel.idx ?? 0;
   const uid = panel.idx || 0;
+  const shot = panel.shot || 'MS';
+
+  // ── Shot-driven camera framing: figure scale / position / bg zoom / dof blur ──
+  const SHOT_CAM = {
+    EWS: { fs:4.2, cyf:.66, zoom:1.00, blur:0   },
+    WS:  { fs:6.0, cyf:.62, zoom:1.00, blur:0   },
+    MS:  { fs:8.0, cyf:.58, zoom:1.07, blur:.45 },
+    '2S':{ fs:7.5, cyf:.58, zoom:1.05, blur:.4  },
+    CU:  { fs:16,  cyf:.68, zoom:1.20, blur:1.3 },
+    ECU: { fs:30,  cyf:.89, zoom:1.40, blur:2.4 },
+  };
+  const camFrame = SHOT_CAM[shot] || SHOT_CAM.MS;
+  const cx = W/2, cy = H*camFrame.cyf, scale = camFrame.fs;
+
+  const bgRaw = bgSketch(panel.bg, W, H, svgVar);
+  // bg zoom around frame center for CU/ECU compression feel
+  const z = camFrame.zoom;
+  const bg = z !== 1
+    ? `<g transform="translate(${(W/2*(1-z)).toFixed(1)} ${(H*.55*(1-z)).toFixed(1)}) scale(${z})">${bgRaw}</g>`
+    : bgRaw;
 
   // Dark india-ink color — used OUTSIDE the invert group
   const INK = '#1a1005';
+
+  // ── Depth-of-field blur for close shots ──
+  const dofId = `dof${uid}`;
+  const dofDef = camFrame.blur > 0
+    ? `<filter id="${dofId}" x="-5%" y="-5%" width="110%" height="110%"><feGaussianBlur stdDeviation="${camFrame.blur}"/></filter>`
+    : '';
+  const dofWrap = inner => camFrame.blur > 0 ? `<g filter="url(#${dofId})">${inner}</g>` : inner;
 
   // ── Hand-drawn wobble (stronger for sketch feel) ──
   const filterId = `rf${uid}`;
@@ -3295,12 +3335,12 @@ function renderPanelSVG(panel) {
     ? `<rect width="${W}" height="${H}" fill="rgba(0,60,140,.025)"/>`
     : panel.isOutro ? `<rect width="${W}" height="${H}" fill="rgba(140,30,30,.025)"/>` : '';
 
-  let defs = roughDef + bgFiltDef + hatchPreDef + hatchDef + xhatchDef + vignetteDef;
+  let defs = roughDef + bgFiltDef + hatchPreDef + hatchDef + xhatchDef + vignetteDef + dofDef;
   let innerSVG = '';
   const vt = panel.visualType || 'character';
 
-  // Convenience: invert-wrapped bg group with atmosphere and pre-hatch
-  const bgGroup = `<g filter="url(#${bgFiltId})">${bg}<rect width="${W}" height="${H}" fill="url(#${hatchPreId})"/>${atmosphere}</g>`;
+  // Convenience: invert-wrapped bg group with atmosphere and pre-hatch (+dof blur for close shots)
+  const bgGroup = dofWrap(`<g filter="url(#${bgFiltId})">${bg}<rect width="${W}" height="${H}" fill="url(#${hatchPreId})"/>${atmosphere}</g>`);
 
   if (vt === 'character' || vt === 'crowd') {
     const poseKey = (vt === 'crowd' || panel.pose === 'crowd') ? 'crowd'
@@ -3333,7 +3373,7 @@ function renderPanelSVG(panel) {
 
   } else if (vt === 'object') {
     innerSVG = `<g filter="url(#${bgFiltId})">
-      ${bgSketch(panel.bg, W, H)}
+      ${bgSketch(panel.bg, W, H, svgVar)}
       <rect width="${W}" height="${H}" fill="url(#${hatchPreId})"/>
       <rect width="${W}" height="${H}" fill="rgba(10,10,24,.38)"/>
       ${objectSVG(W, H, '#b0a890', panel.styleKey || selectedStyle, svgVar)}
@@ -3348,7 +3388,7 @@ function renderPanelSVG(panel) {
 
   } else if (vt === 'environment') {
     innerSVG = `<g filter="url(#${bgFiltId})">
-      ${environmentOnlySVG(panel.bg, W, H, '#a09880')}
+      ${environmentOnlySVG(panel.bg, W, H, '#a09880', svgVar)}
       <rect width="${W}" height="${H}" fill="url(#${hatchPreId})"/>
     </g>${guideLine}`;
 
@@ -3362,11 +3402,90 @@ function renderPanelSVG(panel) {
       <g filter="url(#${filterId})" color="${INK}" opacity=".94" stroke-width="1.75">${figSVG}</g>`;
   }
 
+  // ── Camera-move annotation arrows (real storyboard language) ──
+  const styleKeyP = panel.styleKey || selectedStyle;
+  let camIdx;
+  if (styleKeyP === 'liveshow')      camIdx = LIVE_CAM_POOL[uid % LIVE_CAM_POOL.length];
+  else if (styleKeyP === 'bizarre')  camIdx = BIZARRE_CAM_POOL[uid % BIZARRE_CAM_POOL.length];
+  else                               camIdx = uid % CAMERA_MOVES_DATA.length;
+  const camAnno = cameraArrowSketch(camIdx, W, H);
+
+  // ── In-frame scene memo (pencil handwriting, survives JPEG export) ──
+  const memoSrc = (panel.jaDesc || (panel.lines || []).join('　')).replace(/\s+/g, ' ').trim();
+  const memoL1 = escapeAttr(memoSrc.substring(0, 15));
+  const memoL2 = escapeAttr(memoSrc.substring(15, 29) + (memoSrc.length > 29 ? '…' : ''));
+  const memo = memoSrc ? `<g transform="rotate(-1 18 ${H-22})" font-family="'Yu Gothic','Hiragino Sans',sans-serif" fill="rgba(26,14,3,.6)">
+    <text x="18" y="${memoL2 ? H-22 : H-14}" font-size="8.5">${memoL1}</text>
+    ${memoL2 ? `<text x="18" y="${H-11}" font-size="8.5">${memoL2}</text>` : ''}
+  </g>` : '';
+
   return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
     <defs>${defs}</defs>
     <rect width="${W}" height="${H}" fill="#f7f0e2"/>
-    ${overlay}${innerSVG}${hatch}${xhatch}${vignette}${corners}
+    ${overlay}${innerSVG}${hatch}${xhatch}${vignette}${corners}${camAnno}${memo}
   </svg>`;
+}
+
+// ─────────────────────────────────────────
+// Camera-move arrows — hand-drawn storyboard annotations
+// ─────────────────────────────────────────
+function cameraArrowSketch(camIdx, W, H) {
+  const ink = 'rgba(26,14,3,.55)';
+  const A = `stroke="${ink}" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"`;
+  const cam = CAMERA_MOVES_DATA[camIdx];
+  if (!cam) return '';
+  const label = cam.label.split('（')[0];
+  const tag = `<text x="${W-14}" y="${H-10}" text-anchor="end" font-size="8" font-style="italic" font-family="'Yu Gothic','Hiragino Sans',sans-serif" fill="${ink}">${label}</text>`;
+  // Arrowhead helper: tip at (x,y), direction (dx,dy) unit-ish
+  const head = (x,y,dx,dy) => `<path d="M${(x-dx*7-dy*4).toFixed(1)} ${(y-dy*7+dx*4).toFixed(1)} L${x} ${y} L${(x-dx*7+dy*4).toFixed(1)} ${(y-dy*7-dx*4).toFixed(1)}" ${A}/>`;
+  let g = '';
+
+  switch (camIdx) {
+    case 1: case 13: { // dolly in / dolly zoom — corner arrows pointing inward
+      const c = [[28,30,1,.7],[W-28,30,-1,.7],[28,H-38,1,-.7],[W-28,H-38,-1,-.7]];
+      g = c.map(([x,y,dx,dy]) => `<line x1="${x}" y1="${y}" x2="${x+dx*16}" y2="${y+dy*11}" ${A}/>${head(x+dx*16,y+dy*11,dx*.82,dy*.57)}`).join('');
+      break;
+    }
+    case 2: { // dolly out — corner arrows pointing outward
+      const c = [[44,41,-1,-.7],[W-44,41,1,-.7],[44,H-49,-1,.7],[W-44,H-49,1,.7]];
+      g = c.map(([x,y,dx,dy]) => `<line x1="${x}" y1="${y}" x2="${x+dx*16}" y2="${y+dy*11}" ${A}/>${head(x+dx*16,y+dy*11,dx*.82,dy*.57)}`).join('');
+      break;
+    }
+    case 3: // pan L→R
+      g = `<line x1="${W*.3}" y1="22" x2="${W*.68}" y2="22" ${A} stroke-dasharray="6,4"/>${head(W*.68,22,1,0)}`;
+      break;
+    case 4: // pan R→L
+      g = `<line x1="${W*.7}" y1="22" x2="${W*.32}" y2="22" ${A} stroke-dasharray="6,4"/>${head(W*.32,22,-1,0)}`;
+      break;
+    case 15: // whip pan — triple speed lines
+      g = [0,7,14].map(o => `<line x1="${W*.25+o}" y1="${18+o*.6}" x2="${W*.62+o}" y2="${18+o*.6}" ${A}/>`).join('') + head(W*.62+14,18+8.4,1,0);
+      break;
+    case 5: case 8: // tilt up / crane up
+      g = `<line x1="${W-24}" y1="${H*.62}" x2="${W-24}" y2="${H*.25}" ${A} stroke-dasharray="6,4"/>${head(W-24,H*.25,0,-1)}`;
+      break;
+    case 6: case 9: // tilt down / crane down
+      g = `<line x1="${W-24}" y1="${H*.28}" x2="${W-24}" y2="${H*.65}" ${A} stroke-dasharray="6,4"/>${head(W-24,H*.65,0,1)}`;
+      break;
+    case 10: { // orbit — dashed ellipse around center with arrowhead
+      g = `<ellipse cx="${W/2}" cy="${H*.6}" rx="${W*.3}" ry="${H*.16}" ${A} stroke-dasharray="7,5"/>${head(W/2+W*.3,H*.6,0,-1)}`;
+      break;
+    }
+    case 11: case 17: // tracking / follow
+      g = `<line x1="${W*.18}" y1="${H*.78}" x2="${W*.58}" y2="${H*.78}" ${A} stroke-dasharray="6,4"/>${head(W*.58,H*.78,1,0)}`;
+      break;
+    case 7: { // handheld — wavy mark top-left
+      g = `<path d="M22 24 q5 -5 10 0 q5 5 10 0 q5 -5 10 0" ${A}/>`;
+      break;
+    }
+    case 12: { // rack focus — two bracket pairs
+      g = `<path d="M${W*.3} ${H*.4} l-7 0 l0 22 l7 0" ${A}/><path d="M${W*.36} ${H*.4} l7 0 l0 22 l-7 0" ${A} opacity=".5"/>
+           <path d="M${W*.62} ${H*.5} l-7 0 l0 22 l7 0" ${A} opacity=".5"/><path d="M${W*.68} ${H*.5} l7 0 l0 22 l-7 0" ${A}/>`;
+      break;
+    }
+    default:
+      g = '';
+  }
+  return `<g>${g}${tag}</g>`;
 }
 
 // Motion / action sketch lines for dynamic poses
