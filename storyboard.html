@@ -4815,21 +4815,21 @@ function buildMergedVideoPrompt(prompts) {
   // 抽出するのは: ①冒頭の一文（誰がどこから始まりどこへ）②コンセプト1文 ③カメラ1文
   const extractClip = (text, numA, numB) => {
     const sects = {};
-    let cur = null;
     for (const ln of text.split('\n')) {
-      const h = ln.match(/^(映像全体のコンセプト|カメラ|ライティング|音の雰囲気|被写体と表現)：$/);
-      if (h) { cur = h[1]; sects[cur] = []; continue; }
-      if (cur && ln.trim()) sects[cur].push(ln.trim());
+      const h = ln.match(/^(コンセプト|被写体|動き|カメラ|レンズ|ライティング)：(.+)$/);
+      if (h) sects[h[1]] = h[2].trim();
     }
     // 冒頭行（最初の非空行）
     const opening = text.split('\n').find(l => l.trim()) || '';
-    // コンセプト最初の1文（句点or改行まで）
-    const concept = (sects['映像全体のコンセプト']?.[0] || '').split('。')[0];
-    // カメラ最初の1文
-    const camera  = (sects['カメラ']?.[0] || '').split('。')[0];
+    // コンセプト最初の1文（句点まで）
+    const concept = (sects['コンセプト'] || '').split('。')[0];
+    // カメラは「序盤：〜。終盤：〜。」のビート全体を保持（1文だけ切ると複合ムーブが壊れる）
+    const camera  = (sects['カメラ'] || '').replace(/ カメラの移動は.*$/, '').trim();
+    const lens    = (sects['レンズ'] || '').split('。')[0];
     const parts = [`▶ ${numA}→${numB}　${opening}`];
     if (concept) parts.push(`　└ ${concept}。`);
-    if (camera)  parts.push(`　└ CAM: ${camera}。`);
+    if (camera)  parts.push(`　└ CAM: ${camera}`);
+    if (lens)    parts.push(`　└ LENS: ${lens}。`);
     return parts.join('\n');
   };
 
@@ -4850,7 +4850,7 @@ function buildMergedVideoPrompt(prompts) {
 
   const footer = [
     SEP,
-    '【共通制約】全クリップでカラーグレーディング・キャラ外見を統一。余計な人物・物体追加禁止。映像の派手さより物語性・感情・余韻を優先。'
+    '【共通制約】全クリップでカラーグレーディング・キャラ外見を統一。画面に登場するのは指定した被写体のみ。1カット1ムーブ・カメラと被写体の動きは独立。映像の派手さより物語性・感情・余韻を優先。'
   ].join('\n');
 
   // まず全クリップ入りで試す
@@ -5230,17 +5230,18 @@ function generateVideoPrompt(panelA, panelB, numA, numB, cutInterval) {
   const sectionNote = isChorus ? 'サビ：最大放出。' : isBridge ? 'ブリッジ：内省。' : isIntroA ? '導入：世界観を立ち上げる。' : isOutroB ? 'アウトロ：余韻で締める。' : '';
   const conceptText = `${CONCEPT_MAP[camKey] || CONCEPT_MAP['0']}${sectionNote ? ' ' + sectionNote : ''}`;
 
-  // ── 被写体と表現 ───────────────────────────────────────────────────────
+  // ── 被写体と表現（外見と動作を別クローズに分離 — 公式ガイドの構造原則）──
   let charText = '';
+  let moveText = '';
   if (hasCharA || hasCharB) {
-    const refPanel = hasCharB ? panelB : panelA;
     const refNum   = hasCharB ? circledB : circledA;
     const refPose  = hasCharB ? poseB : poseA;
-    const refVt    = hasCharB ? vtB : vtA;
-    charText = `${refNum}の外見・衣装・スタイル厳守。${POSE_DESC[refPose]||'存在'}。アニメ調維持（実写化禁止）。参照画像を使用。`;
+    charText = `${refNum}の外見・衣装・スタイル厳守。一貫した2Dアニメスタイルで描写。参照画像を使用。`;
     if (!hasCharA && hasCharB) charText += ` ${VT_DESC[vtA]||vtA}→${VT_DESC[vtB]||vtB}。`;
+    moveText = `${POSE_DESC[refPose]||'静かに存在する'}。動作はこの1つに限定し、自然な速度で。`;
   } else {
-    charText = `人物なし。${VT_DESC[vtA]||vtA}→${VT_DESC[vtB]||vtB}。`;
+    charText = `無人の環境ショット。${VT_DESC[vtA]||vtA}→${VT_DESC[vtB]||vtB}。`;
+    moveText = bgA !== bgB ? '環境の自然な動き（光・風・粒子）のみ。' : '光や大気の繊細な揺らぎのみ。';
   }
 
   // ── 時間構成 ──────────────────────────────────────────────────────────
@@ -5310,30 +5311,46 @@ function generateVideoPrompt(panelA, panelB, numA, numB, cutInterval) {
   }
 
   // ── カメラ ────────────────────────────────────────────────────────────
+  // 複合ムーブは「序盤→終盤」のビート分割で記述（Seedance/Kling公式ガイド推奨。
+  // 同時複合指示はワープの原因になるため、1カット1ムーブ原則を明示する）
   const CAM_DESC = {
-    '-4': `クレーン急速上昇またはドローンプルバック。`,
-    '-3': `スムーズなドリーアウト＋チルトアップ。`,
-    '-2': `ゆっくりしたドリーアウト。`,
-    '-1': `緩やかなプルバック。`,
-    '0':  `${isChorus?'ハンドヘルドで熱量':'安定したトラッキング'}。`,
-    '1':  `ゆっくりプッシュイン。`,
-    '2':  `プッシュイン＆ズームイン${isChorus?'・力強く':'・滑らかに'}。`,
-    '3':  `強いプッシュイン。感情の核心へ。`,
-    '4':  `超クローズアップへ急速接近。最後は静止。`,
+    '-4': `序盤：クレーン急上昇またはドローンで一気に引く。終盤：静止して全景を見せる。`,
+    '-3': `序盤：滑らかなドリーアウト。終盤2秒：チルトアップを加える。`,
+    '-2': `全編：ゆっくり等速ドリーアウト（1ムーブのみ）。`,
+    '-1': `全編：緩やかなプルバック（1ムーブのみ）。`,
+    '0':  isChorus ? `全編：ハンドヘルドの微細な揺れで熱量を出す（移動はトラッキングのみ）。` : `全編：安定した水平トラッキング（1ムーブのみ）。`,
+    '1':  `全編：ゆっくり等速プッシュイン（1ムーブのみ）。`,
+    '2':  `序盤：滑らかなプッシュイン${isChorus?'・力強く':''}。終盤：減速して止まる。`,
+    '3':  `序盤：力強いプッシュイン。終盤2秒：被写体の目元で静止。`,
+    '4':  `序盤：急速な接近。終盤：超クローズアップで完全静止。`,
   };
   const camCutNote = hasCutInterval
     ? ` カット内：${cutInterval <= 1.5 ? '固定またはシェイクのみ' : cutInterval <= 3 ? '小さなムーブ' : '1ムーブで完結'}。`
     : '';
-  const camText = (CAM_DESC[camKey] || CAM_DESC['0']) + camCutNote;
+  const camText = (CAM_DESC[camKey] || CAM_DESC['0']) + camCutNote + ' カメラの移動は被写体の動作と独立させる。';
+
+  // ── レンズ（ショットサイズに応じた焦点距離・被写界深度の指定）──────────
+  const LENS_BY_SHOT = {
+    EWS: '24mm相当の超広角・パンフォーカスで空間全体を描写',
+    WS:  '28〜35mm広角・深い被写界深度',
+    MS:  '50mm標準・自然な遠近感',
+    '2S':'50mm標準・二人を同一平面に置く',
+    CU:  '85mm相当・浅い被写界深度で背景を溶かす',
+    ECU: '100mm相当・極浅フォーカス・大きなボケ',
+  };
+  const lensText = (LENS_BY_SHOT[shotB] || LENS_BY_SHOT.MS)
+    + (sA < sB - 1 ? '。接近に合わせて被写界深度を浅くしていく' : '')
+    + '。';
 
   // ── ライティング ──────────────────────────────────────────────────────
   const BG_LIGHT = { city:'ネオン反射・人工光', rain:'拡散した雨光・路面反射', stars:'月明かり・アンビエント', sakura:'柔らかい自然光', festival:'提灯の暖色光', spotlight:'スポットライト・強コントラスト', sunset:'ゴールデンアワー逆光', underwater:'屈折した青い水中光', forest:'木漏れ日', rooftop:'都市間接光', room:'小さな光源', cafe:'暖色間接照明', station:'蛍光灯の白い光', beach:'強い太陽光・水面反射' };
-  const TONE_LIGHT = { bright:'暖色・明るめ。', melancholic:'寒色・陰影強め。', neutral:'バランスの取れた自然光。' };
+  const TONE_LIGHT = { bright:'暖色系（3200K寄りのタングステン感）・明るめ。', melancholic:'寒色系（5600K以上のクールトーン）・陰影強め。', neutral:'バランスの取れた自然光。' };
   const refLook = referencePromptHints();
   const refLightHint = refLook.ja ? `参考ルック：${refLook.tempJa}・${refLook.satJa}。` : '';
   const lightA = BG_LIGHT[bgA] || '自然な環境照明';
   const lightB = bgA !== bgB ? (BG_LIGHT[bgB] || '自然な環境照明') : null;
-  const lightText = `${lightA}${lightB ? '→'+lightB : ''}。${TONE_LIGHT[tone]||''}${refLightHint}`;
+  const sepLight = (hasCharA || hasCharB) ? 'リムライトで被写体の輪郭を背景から分離。' : '';
+  const lightText = `${lightA}${lightB ? '→'+lightB : ''}。${TONE_LIGHT[tone]||''}${sepLight}${refLightHint}`;
 
   // ── 世界観（1文のみ）─────────────────────────────────────────────────
   const wvLine = lyricsWorldview?.statementJa?.split('。')[0] || '';
@@ -5348,14 +5365,18 @@ function generateVideoPrompt(panelA, panelB, numA, numB, cutInterval) {
     `${circledA}〜${circledB}でスタイル・カラーを一貫させる。`,
   ].filter(Boolean).join('　');
 
+  // 出力構成は Seedance/Kling 公式の6要素フォーミュラに準拠:
+  // 被写体 → 動き → 環境(タイムライン内) → カメラ/レンズ → スタイル(光) → 制約
   return [
     openLine,
     wvLine ? `世界観：${wvLine}。` : '',
     `コンセプト：${conceptText}`,
     `被写体：${charText}`,
-    `タイムライン：\n${timeText}`,
+    `動き：${moveText}`,
     `カメラ：${camText}`,
+    `レンズ：${lensText}`,
     `ライティング：${lightText}`,
+    `タイムライン：\n${timeText}`,
     reqLine ? `演出要望：${reqLine}` : '',
     `制約：${constraints}`,
   ].filter(Boolean).join('\n');
