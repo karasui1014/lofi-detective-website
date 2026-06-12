@@ -200,7 +200,7 @@ const CORE_SHOPS = [
   { id: "zozo",    name: "ZOZOTOWN",
     url: (q) => `https://zozo.jp/search/?p_keyv=${encodeURIComponent(q + " レディース")}` },
   { id: "rakuten", name: "楽天ファッション",
-    url: (q) => `https://search.rakuten.co.jp/search/mall/${encodeURIComponent(q + " レディース")}/216879/` },
+    url: (q) => `https://search.rakuten.co.jp/search/mall/?sitem=${encodeURIComponent(q + " レディース")}&g=216879` },
   { id: "gshop",   name: "Googleショッピング",
     url: (q) => `https://www.google.com/search?tbm=shop&q=${encodeURIComponent(q + " レディース")}` },
   { id: "amazon",  name: "Amazon",
@@ -276,7 +276,7 @@ function shopButton(label, href, recommended = false) {
   const a = document.createElement("a");
   a.className = "btn btn-shop" + (recommended ? " btn-shop-rec" : "");
   a.target = "_blank"; a.rel = "noopener";
-  a.textContent = label; a.href = href;
+  a.textContent = recommended ? "✓ " + label : label; a.href = href;
   return a;
 }
 
