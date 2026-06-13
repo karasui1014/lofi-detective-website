@@ -3,7 +3,7 @@
 動画 → SRT字幕ファイル自動生成
 使い方:
   python telop.py 動画.mp4              # 通常モード（文字起こしそのまま）
-  python telop.py 動画.mp4 --summarize  # 要約モード（1行に凝縮）
+  python telop.py 動画.mp4 --summarize  # 要約モード（無料・ローカル圧縮）
 """
 
 import sys
@@ -14,9 +14,36 @@ import json
 from pathlib import Path
 
 FILLERS = [
-    r'\bえー+\b', r'\bえっと\b', r'\bあの+\b', r'\bまあ+\b',
-    r'\bなんか\b', r'\bそのー*\b', r'\bうーん\b', r'\bんー\b',
-    r'\bほんとに\b(?=\s*ほんとに)', r'\bまじ\b(?=\s*まじ)',
+    r'えー+', r'えっと', r'あのー*', r'まあ+', r'なんか',
+    r'そのー*', r'うーん', r'んー', r'ねー*', r'よー*(?=\s)',
+]
+
+# 文末の冗長表現 → 体言止めに変換するルール
+ENDINGS = [
+    (r'することができます', 'できる'),
+    (r'していきたいと思います', 'していく'),
+    (r'していきます', 'していく'),
+    (r'したいと思います', 'したい'),
+    (r'と思っています', 'と思う'),
+    (r'と思います', 'と思う'),
+    (r'ということです', 'とのこと'),
+    (r'ということになります', 'となる'),
+    (r'になります', 'になる'),
+    (r'ています', 'てる'),
+    (r'ておきます', 'ておく'),
+    (r'てください', 'てほしい'),
+    (r'ましょう', 'しよう'),
+    (r'でしょう', 'だろう'),
+    (r'ですね', ''),
+    (r'ですよ', ''),
+    (r'ですが', 'だが'),
+    (r'です。', ''),
+    (r'です$', ''),
+    (r'ます。', ''),
+    (r'ます$', ''),
+    (r'ました。', ''),
+    (r'ました$', ''),
+    (r'。$', ''),
 ]
 
 MAX_CHARS = 20
@@ -60,54 +87,42 @@ def remove_fillers(text: str) -> str:
     return text.strip()
 
 
-def summarize_segments(segments: list[dict]) -> list[dict]:
-    try:
-        import anthropic
-    except ImportError:
-        print("  anthropicパッケージが必要です: pip3 install anthropic")
-        sys.exit(1)
+def compress_local(text: str) -> str:
+    """無料・ローカルでテキストを短縮する"""
+    text = remove_fillers(text)
 
-    config_path = Path.home() / 'Desktop' / '字幕制作ツール' / '.apikey'
-    api_key = os.environ.get('ANTHROPIC_API_KEY')
+    # 文末を体言止めに変換
+    for pattern, replacement in ENDINGS:
+        text = re.sub(pattern, replacement, text)
 
-    if not api_key and config_path.exists():
-        api_key = config_path.read_text().strip()
+    # 重複表現を除去
+    text = re.sub(r'(.{2,})\1', r'\1', text)
 
-    if not api_key:
-        print("\n  APIキーを入力してください（sk-ant-api03- で始まる文字列）")
-        api_key = input("  APIキー: ").strip()
-        if not api_key:
-            print("  キーが入力されませんでした")
-            sys.exit(1)
-        config_path.write_text(api_key)
-        print(f"  キーを保存しました → {config_path}\n")
+    # 句読点を整理
+    text = re.sub(r'[、。]+$', '', text)
+    text = re.sub(r'\s+', '', text)
 
-    client = anthropic.Anthropic(api_key=api_key)
+    # MAX_CHARSを超える場合は自然な区切りで切る
+    if len(text) > MAX_CHARS:
+        for i in range(MAX_CHARS, MAX_CHARS // 2, -1):
+            if text[i - 1] in 'はがをにでもとやへのから':
+                text = text[:i - 1]
+                break
+        else:
+            text = text[:MAX_CHARS]
+
+    return text.strip()
+
+
+def compress_segments(segments: list[dict]) -> list[dict]:
     result = []
     total = len(segments)
-
     for i, seg in enumerate(segments, 1):
-        text = remove_fillers(seg['text'])
-        if not text:
-            continue
-
-        print(f"  要約中... ({i}/{total})", end='\r')
-
-        message = client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=50,
-            messages=[{
-                "role": "user",
-                "content": (
-                    f"次の話し言葉を、動画テロップ用に{MAX_CHARS}文字以内の1行に要約してください。"
-                    f"句読点なし、体言止めや短い文で。テキストのみ返してください。\n\n{text}"
-                )
-            }]
-        )
-        summarized = message.content[0].text.strip()
-        result.append({**seg, 'text': summarized})
-
-    print(f"  要約完了 ✓ ({total}件)          ")
+        print(f"  圧縮中... ({i}/{total})", end='\r')
+        compressed = compress_local(seg['text'])
+        if compressed:
+            result.append({**seg, 'text': compressed})
+    print(f"  圧縮完了 ✓ ({total}件)          ")
     return result
 
 
@@ -137,11 +152,11 @@ def seconds_to_srt_time(s: float) -> str:
     return f"{h:02d}:{m:02d}:{sec:02d},{ms:03d}"
 
 
-def build_srt(segments: list[dict], summarize: bool = False) -> str:
+def build_srt(segments: list[dict], compressed: bool = False) -> str:
     entries = []
     index = 1
     for seg in segments:
-        text = seg['text'] if summarize else remove_fillers(seg['text'])
+        text = seg['text'] if compressed else remove_fillers(seg['text'])
         if not text:
             continue
         lines = split_into_lines(text)
@@ -156,7 +171,7 @@ def main():
     if len(sys.argv) < 2:
         print("使い方:")
         print("  python telop.py 動画.mp4              # 通常モード")
-        print("  python telop.py 動画.mp4 --summarize  # 要約モード（1行に凝縮）")
+        print("  python telop.py 動画.mp4 --summarize  # 圧縮モード（無料・1行に凝縮）")
         sys.exit(1)
 
     video_path = Path(sys.argv[1]).expanduser().resolve()
@@ -166,7 +181,7 @@ def main():
         print(f"ファイルが見つかりません: {video_path}")
         sys.exit(1)
 
-    mode = "要約テロップ" if summarize else "フルテロップ"
+    mode = "圧縮テロップ（無料）" if summarize else "フルテロップ"
     print(f"\n{video_path.name} → {mode}にします\n")
 
     audio_path = extract_audio(video_path)
@@ -174,13 +189,13 @@ def main():
     print(f"  完了 ✓ ({len(segments)}セグメント検出)")
 
     if summarize:
-        print(f"  Claude AIで要約中（{MAX_CHARS}文字以内・1行）...")
-        segments = summarize_segments(segments)
+        print(f"  ローカルで圧縮中（{MAX_CHARS}文字以内・1行）...")
+        segments = compress_segments(segments)
 
-    print(f"  テロップ用に整形中（{MAX_CHARS}文字前後）...")
-    srt_content = build_srt(segments, summarize=summarize)
+    print(f"  テロップ用に整形中...")
+    srt_content = build_srt(segments, compressed=summarize)
 
-    suffix = '_要約' if summarize else ''
+    suffix = '_圧縮' if summarize else ''
     srt_path = video_path.with_stem(video_path.stem + suffix).with_suffix('.srt')
     srt_path.write_text(srt_content, encoding='utf-8')
 
