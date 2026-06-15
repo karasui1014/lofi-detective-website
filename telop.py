@@ -240,8 +240,8 @@ def summarize_gemini(segments: list[dict]) -> list[dict]:
     cleaned = [{**s, 'text': remove_fillers(s['text'])} for s in segments]
     cleaned = [s for s in cleaned if s['text']]
 
-    # まとめて1回（または少数回）送ることでレート制限を回避する
-    CHUNK = 60
+    # 1チャンクを小さくして429に当たりにくくする（間隔も十分空ける）
+    CHUNK = 15
     result = []
     total = len(cleaned)
 
@@ -252,7 +252,7 @@ def summarize_gemini(segments: list[dict]) -> list[dict]:
         chunk = cleaned[start:start + CHUNK]
         print(f"  要約中... ({min(start + CHUNK, total)}/{total})        ", end='\r')
         if start > 0:
-            time.sleep(5)  # 連続リクエストでレート制限に当たらないよう間隔を空ける
+            time.sleep(12)  # 無料枠のレート制限（1分あたり15リクエスト）に余裕を持って対応
 
         numbered = "\n".join(f"{i}: {s['text']}" for i, s in enumerate(chunk))
         prompt = (
@@ -280,10 +280,24 @@ def summarize_gemini(segments: list[dict]) -> list[dict]:
             for seg, line in zip(chunk, lines):
                 result.append({**seg, 'text': apply_terms(line.strip())})
         except Exception as e:
-            # 失敗したチャンクはローカル圧縮＋用語統一にフォールバック
-            print(f"\n  （一部はローカル圧縮で処理: {e}）")
+            # 失敗したチャンクは1件ずつ個別に再送する（小さいほど通りやすい）
+            print(f"\n  チャンク失敗({e})、1件ずつ再試行中...")
             for seg in chunk:
-                result.append({**seg, 'text': apply_terms(compress_local(seg['text']))})
+                time.sleep(4)
+                single_prompt = (
+                    "次の動画テロップを20文字以内・です・ます調で完結した1行に書き直してください。\n"
+                    "文の途中で終わらないこと。数字・固有名詞は省略せず残すこと。\n"
+                    "次の用語は正しい表記に直すこと:\n"
+                    f"{glossary}\n\n"
+                    '出力は {"lines": ["テロップ"]} のJSON形式のみ。\n\n'
+                    f"文字起こし: {seg['text']}"
+                )
+                try:
+                    raw2 = gemini_request(single_prompt, api_key)
+                    line = json.loads(raw2).get("lines", [""])[0]
+                    result.append({**seg, 'text': apply_terms(line.strip()) or apply_terms(compress_local(seg['text']))})
+                except Exception:
+                    result.append({**seg, 'text': apply_terms(compress_local(seg['text']))})
 
     print(f"  要約完了 ✓ ({total}件)              ")
     return result
