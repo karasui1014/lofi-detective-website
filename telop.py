@@ -51,8 +51,9 @@ ENDINGS = [
     (r'。$', ''),
 ]
 
-MAX_CHARS = 20
-SOFT_LIMIT = 24  # 圧縮モードで1行が長くなりすぎる目安（超えたら自然な区切りで短縮）
+MAX_CHARS = 18
+SOFT_LIMIT = 22  # 圧縮モードで1行が長くなりすぎる目安（超えたら自然な区切りで短縮）
+HARD_LIMIT = 20  # Gemini出力にも強制適用する絶対上限
 
 # 文字起こしの誤変換・表記ゆれを統一する辞書（必要に応じて追加してください）
 # 例: Whisperが「Seedance」を「Cダンス」と聞き間違える → 正しい表記に直す
@@ -72,6 +73,18 @@ def apply_terms(text: str) -> str:
     for wrong in sorted(TERMS, key=len, reverse=True):
         text = text.replace(wrong, TERMS[wrong])
     return text
+
+
+def hard_cap(text: str) -> str:
+    """HARD_LIMIT を超える行を助詞・句読点の区切りで強制カットする"""
+    if len(text) <= HARD_LIMIT:
+        return text
+    for i in range(HARD_LIMIT, HARD_LIMIT // 2, -1):
+        if text[i - 1] in '。、！？!?, ':
+            return text[:i].strip()
+        if text[i - 1] in 'はがをにでもとやへのからまで':
+            return text[:i]
+    return text[:HARD_LIMIT]
 
 
 def extract_audio(video_path: Path) -> Path:
@@ -281,7 +294,7 @@ def summarize_gemini(segments: list[dict]) -> list[dict]:
             if len(lines) != len(chunk):
                 raise ValueError("行数が一致しません")
             for seg, line in zip(chunk, lines):
-                result.append({**seg, 'text': apply_terms(line.strip())})
+                result.append({**seg, 'text': hard_cap(apply_terms(line.strip()))})
         except Exception as e:
             # 失敗したチャンクは1件ずつ個別に再送する（小さいほど通りやすい）
             print(f"\n  チャンク失敗({e})、1件ずつ再試行中...")
