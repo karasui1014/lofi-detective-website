@@ -14,11 +14,11 @@ import json
 from pathlib import Path
 
 FILLERS = [
-    r'えー+', r'えっと', r'あのー*', r'まあ+', r'なんか',
-    r'そのー*', r'うーん', r'んー', r'ねー*', r'よー*(?=\s)',
+    r'えー+', r'えっと', r'あのー+', r'まあ+', r'なんか',
+    r'そのー+', r'うーん', r'んー', r'ねー+', r'よー+',
 ]
 
-# 文末の冗長表現 → 体言止めに変換するルール
+# 文末の冗長表現 → 体言止め・短縮に変換するルール（具体的なものから先に適用）
 ENDINGS = [
     (r'することができます', 'できる'),
     (r'していきたいと思います', 'していく'),
@@ -29,11 +29,18 @@ ENDINGS = [
     (r'ということです', 'とのこと'),
     (r'ということになります', 'となる'),
     (r'になります', 'になる'),
+    (r'てみました', 'てみた'),
+    (r'ていました', 'てた'),
+    (r'てきました', 'てきた'),
     (r'ています', 'てる'),
+    (r'しました', 'した'),
+    (r'します', 'する'),
     (r'ておきます', 'ておく'),
     (r'てください', 'てほしい'),
     (r'ましょう', 'しよう'),
     (r'でしょう', 'だろう'),
+    (r'なんです', ''),
+    (r'んです', ''),
     (r'ですね', ''),
     (r'ですよ', ''),
     (r'ですが', 'だが'),
@@ -41,12 +48,11 @@ ENDINGS = [
     (r'です$', ''),
     (r'ます。', ''),
     (r'ます$', ''),
-    (r'ました。', ''),
-    (r'ました$', ''),
     (r'。$', ''),
 ]
 
 MAX_CHARS = 20
+SOFT_LIMIT = 28  # 圧縮モードで1行が長くなりすぎる目安（超えたら自然な区切りで短縮）
 
 
 def extract_audio(video_path: Path) -> Path:
@@ -88,7 +94,7 @@ def remove_fillers(text: str) -> str:
 
 
 def compress_local(text: str) -> str:
-    """無料・ローカルでテキストを短縮する"""
+    """無料・ローカルで1行に短縮する（文の途中では切らない）"""
     text = remove_fillers(text)
 
     # 文末を体言止めに変換
@@ -97,21 +103,28 @@ def compress_local(text: str) -> str:
 
     # 重複表現を除去
     text = re.sub(r'(.{2,})\1', r'\1', text)
-
-    # 句読点を整理
-    text = re.sub(r'[、。]+$', '', text)
     text = re.sub(r'\s+', '', text)
+    text = text.strip('、。')
 
-    # MAX_CHARSを超える場合は自然な区切りで切る
-    if len(text) > MAX_CHARS:
-        for i in range(MAX_CHARS, MAX_CHARS // 2, -1):
-            if text[i - 1] in 'はがをにでもとやへのから':
-                text = text[:i - 1]
-                break
-        else:
-            text = text[:MAX_CHARS]
+    # 目安の長さに収まっていればそのまま使う
+    if len(text) <= SOFT_LIMIT:
+        return text
 
-    return text.strip()
+    # 長い場合は句読点で区切り、意味のまとまりを前半から残す
+    parts = [p for p in re.split(r'[、。]', text) if p]
+    result = ''
+    for part in parts:
+        if result and len(result) + len(part) > SOFT_LIMIT:
+            break
+        result += part
+    if result:
+        return result.strip('、。')
+
+    # 区切りが無い長文は、助詞の手前までを残す（単語の途中では切らない）
+    for i in range(SOFT_LIMIT, SOFT_LIMIT // 2, -1):
+        if text[i - 1] in 'はがをにでもとやへのからまで':
+            return text[:i - 1].strip('、。')
+    return text[:SOFT_LIMIT].strip('、。')
 
 
 def compress_segments(segments: list[dict]) -> list[dict]:
@@ -156,10 +169,15 @@ def build_srt(segments: list[dict], compressed: bool = False) -> str:
     entries = []
     index = 1
     for seg in segments:
-        text = seg['text'] if compressed else remove_fillers(seg['text'])
-        if not text:
+        if compressed:
+            # 圧縮モードは改行せず1行のまま出力する
+            text = seg['text']
+            lines = [text] if text else []
+        else:
+            text = remove_fillers(seg['text'])
+            lines = split_into_lines(text) if text else []
+        if not lines:
             continue
-        lines = split_into_lines(text)
         start = seconds_to_srt_time(seg['start'])
         end = seconds_to_srt_time(seg['end'])
         entries.append(f"{index}\n{start} --> {end}\n{chr(10).join(lines)}\n")
