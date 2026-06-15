@@ -54,6 +54,25 @@ ENDINGS = [
 MAX_CHARS = 20
 SOFT_LIMIT = 28  # 圧縮モードで1行が長くなりすぎる目安（超えたら自然な区切りで短縮）
 
+# 文字起こしの誤変換・表記ゆれを統一する辞書（必要に応じて追加してください）
+# 例: Whisperが「Seedance」を「Cダンス」と聞き間違える → 正しい表記に直す
+TERMS = {
+    'シーダンス': 'Seedance',
+    'Cダンス': 'Seedance',
+    'シーダンス2.0': 'Seedance 2.0',
+    'Cダンス2.0': 'Seedance 2.0',
+    'ドモAI': 'DomoAI',
+    'DomoAi': 'DomoAI',
+    'ミュージックビデオ': 'MV',
+}
+
+
+def apply_terms(text: str) -> str:
+    # 長いキーから先に置換（部分一致の取りこぼし防止）
+    for wrong in sorted(TERMS, key=len, reverse=True):
+        text = text.replace(wrong, TERMS[wrong])
+    return text
+
 
 def extract_audio(video_path: Path) -> Path:
     audio_path = video_path.with_suffix('.wav')
@@ -136,7 +155,7 @@ def compress_segments(segments: list[dict]) -> list[dict]:
     total = len(segments)
     for i, seg in enumerate(segments, 1):
         print(f"  圧縮中... ({i}/{total})", end='\r')
-        compressed = compress_local(seg['text'])
+        compressed = apply_terms(compress_local(seg['text']))
         if compressed:
             result.append({**seg, 'text': compressed})
     print(f"  圧縮完了 ✓ ({total}件)          ")
@@ -162,6 +181,8 @@ def get_gemini_key() -> str:
 
 def gemini_request(prompt: str, api_key: str) -> str:
     import urllib.request
+    import urllib.error
+    import time
     url = (
         "https://generativelanguage.googleapis.com/v1beta/"
         f"models/gemini-2.0-flash:generateContent?key={api_key}"
@@ -170,12 +191,23 @@ def gemini_request(prompt: str, api_key: str) -> str:
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {"temperature": 0.3, "responseMimeType": "application/json"},
     }).encode('utf-8')
-    req = urllib.request.Request(
-        url, data=body, headers={"Content-Type": "application/json"}
-    )
-    with urllib.request.urlopen(req, timeout=60) as resp:
-        data = json.loads(resp.read().decode('utf-8'))
-    return data["candidates"][0]["content"]["parts"][0]["text"]
+
+    # 429（レート制限）は待って再試行する
+    for attempt in range(4):
+        req = urllib.request.Request(
+            url, data=body, headers={"Content-Type": "application/json"}
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=90) as resp:
+                data = json.loads(resp.read().decode('utf-8'))
+            return data["candidates"][0]["content"]["parts"][0]["text"]
+        except urllib.error.HTTPError as e:
+            if e.code == 429 and attempt < 3:
+                wait = (attempt + 1) * 20
+                print(f"  混雑中... {wait}秒待って再試行 ({attempt + 1}/3)", end='\r')
+                time.sleep(wait)
+                continue
+            raise
 
 
 def summarize_gemini(segments: list[dict]) -> list[dict]:
@@ -184,13 +216,16 @@ def summarize_gemini(segments: list[dict]) -> list[dict]:
     cleaned = [{**s, 'text': remove_fillers(s['text'])} for s in segments]
     cleaned = [s for s in cleaned if s['text']]
 
-    CHUNK = 30
+    # まとめて1回（または少数回）送ることでレート制限を回避する
+    CHUNK = 60
     result = []
     total = len(cleaned)
 
+    glossary = "\n".join(f"- 「{w}」→「{c}」" for w, c in TERMS.items())
+
     for start in range(0, total, CHUNK):
         chunk = cleaned[start:start + CHUNK]
-        print(f"  要約中... ({min(start + CHUNK, total)}/{total})", end='\r')
+        print(f"  要約中... ({min(start + CHUNK, total)}/{total})        ", end='\r')
 
         numbered = "\n".join(f"{i}: {s['text']}" for i, s in enumerate(chunk))
         prompt = (
@@ -202,6 +237,8 @@ def summarize_gemini(segments: list[dict]) -> list[dict]:
             "- 話し言葉のフィラーや冗長表現は削る\n"
             "- 前後の文脈を踏まえて自然な日本語にする\n"
             "- 入力と同じ行数・同じ順序で出力する\n\n"
+            "次の用語は聞き取りミスなので必ず正しい表記に直すこと:\n"
+            f"{glossary}\n\n"
             '出力は {"lines": ["要約1", "要約2", ...]} のJSON形式のみ。\n\n'
             f"--- 文字起こし ---\n{numbered}"
         )
@@ -212,12 +249,12 @@ def summarize_gemini(segments: list[dict]) -> list[dict]:
             if len(lines) != len(chunk):
                 raise ValueError("行数が一致しません")
             for seg, line in zip(chunk, lines):
-                result.append({**seg, 'text': line.strip()})
+                result.append({**seg, 'text': apply_terms(line.strip())})
         except Exception as e:
-            # 失敗したチャンクはローカル圧縮にフォールバック
+            # 失敗したチャンクはローカル圧縮＋用語統一にフォールバック
             print(f"\n  （一部はローカル圧縮で処理: {e}）")
             for seg in chunk:
-                result.append({**seg, 'text': compress_local(seg['text'])})
+                result.append({**seg, 'text': apply_terms(compress_local(seg['text']))})
 
     print(f"  要約完了 ✓ ({total}件)              ")
     return result
