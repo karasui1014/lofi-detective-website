@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self'; object-src 'none'; base-uri 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' https://cdn.jsdelivr.net https://*.huggingface.co https://*.hf.co; worker-src blob: 'self'; object-src 'none'; base-uri 'self'">
 <title>Lyric Telop Generator | 歌詞テロップ生成ツール</title>
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=2">
 <link rel="icon" type="image/svg+xml" href="favicon.svg?v=2">
@@ -199,7 +199,25 @@ select{background:var(--surface2);color:var(--text);border:1px solid var(--borde
       <!-- Step 2: Lyrics -->
       <div class="card">
         <div class="card-header"><span class="step-badge">2</span><span class="card-title">歌詞を入力<small>1行＝1テロップ／空行で「テロップ消し」</small></span></div>
-        <textarea id="lyricsInput" placeholder="夜の街を　ひとり歩く&#10;ネオンが滲む　雨の音&#10;&#10;（空行は無表示の間として使えます）"></textarea>
+        <!-- AI transcription -->
+        <div style="background:var(--surface3);border:1px solid rgba(6,182,212,.2);border-radius:var(--radius-sm);padding:.75rem .85rem;margin-bottom:.75rem;">
+          <div style="display:flex;align-items:center;gap:.55rem;flex-wrap:wrap;margin-bottom:.5rem;">
+            <span style="font-size:.66rem;letter-spacing:.1em;color:var(--accent2);text-transform:uppercase;font-weight:700;">🎙 AI文字起こし（Whisper）</span>
+            <select id="whisperModel" style="font-size:.7rem;padding:.25rem .45rem;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;outline:none;cursor:pointer;">
+              <option value="tiny">tiny  ～39 MB・高速</option>
+              <option value="small" selected>small ～244 MB・高精度（推奨）</option>
+            </select>
+            <button class="btn btn-accent2" id="transBtn" disabled style="font-size:.72rem;padding:.38rem .75rem;">音源から歌詞を生成</button>
+          </div>
+          <div id="transProgress" style="display:none;margin-bottom:.4rem;">
+            <div style="font-size:.68rem;color:var(--accent2);margin-bottom:.3rem;" id="transMsg">準備中…</div>
+            <div style="background:var(--surface2);border-radius:4px;height:5px;overflow:hidden;">
+              <div id="transBar" style="background:linear-gradient(90deg,var(--accent2),var(--accent));height:100%;width:0%;transition:width .4s;border-radius:4px;"></div>
+            </div>
+          </div>
+          <div class="hint">初回のみモデルをダウンロード（以降はキャッシュ済みで即起動）。タイムスタンプも自動で取得します。歌詞が届いたら内容を確認・修正してください。</div>
+        </div>
+        <textarea id="lyricsInput" placeholder="夜の街を　ひとり歩く&#10;ネオンが滲む　雨の音&#10;&#10;（空行は無表示の間として使えます）&#10;&#10;↑ 手入力 または 上の「AIで生成」ボタンで自動入力できます"></textarea>
         <div class="row" style="margin-top:.6rem;">
           <button class="btn btn-primary" id="applyLyrics">歌詞を反映</button>
           <span class="hint" id="lineCount"></span>
@@ -779,6 +797,7 @@ function bindControls(){
   dz.ondrop=e=>{e.preventDefault();dz.classList.remove('drag-over');loadAudio(e.dataTransfer.files[0]);};
 
   $('applyLyrics').onclick=applyLyrics;
+  $('transBtn').onclick=runTranscription;
   $('playBtn').onclick=togglePlay; $('playBtn2').onclick=togglePlay;
   $('rewindBtn').onclick=()=>{audio.currentTime=0;};
   $('resetTimes').onclick=()=>{ lyrics.forEach(l=>l.t=null); tapCursor=0; renderLines(); updateTapTarget(); toast('時間をクリアしました'); };
@@ -826,11 +845,84 @@ function segBind(id,key){ $(id).querySelectorAll('button').forEach(b=>b.onclick=
   state[key]=b.dataset[Object.keys(b.dataset)[0]]; draw();
 });}
 
+/* ════ Whisper ブラウザ内文字起こし ════ */
+let audioFile = null;
+let whisperPipe = null;
+let transRunning = false;
+
+async function runTranscription(){
+  if(!audioFile){ toast('先に楽曲を読み込んでください'); return; }
+  if(transRunning) return;
+  transRunning = true;
+  $('transBtn').disabled = true;
+  showTransProgress(true,'準備中…',0);
+  try{
+    if(!whisperPipe){
+      showTransProgress(true,'モデルをダウンロード中（初回のみ）…',5);
+      const modelId = `Xenova/whisper-${$('whisperModel').value}`;
+      const {pipeline, env} = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2/+esm');
+      env.allowLocalModels = false;
+      whisperPipe = await pipeline('automatic-speech-recognition', modelId, {
+        progress_callback(p){
+          if(p.status==='progress' && p.total){
+            const pct = Math.round(p.loaded/p.total*100);
+            showTransProgress(true,`ダウンロード中… ${pct}%`, pct*0.6);
+          }
+        }
+      });
+    }
+    showTransProgress(true,'音声を変換中…',65);
+    const floats = await decodeAudioTo16kHz();
+    showTransProgress(true,'文字起こし中…（曲の長さに応じて数分かかる場合があります）',70);
+    const result = await whisperPipe(floats,{
+      language:'japanese', task:'transcribe',
+      return_timestamps:true, chunk_length_s:30, stride_length_s:5,
+    });
+    applyTranscriptionResult(result);
+    toast('文字起こし完了！内容を確認・修正してください。');
+  }catch(e){
+    console.error(e); toast('エラー: '+e.message);
+    whisperPipe = null; // 次回リセット
+  }finally{
+    transRunning = false;
+    $('transBtn').disabled = false;
+    showTransProgress(false);
+  }
+}
+async function decodeAudioTo16kHz(){
+  const ab = await audioFile.arrayBuffer();
+  const ac = new AudioContext();
+  const decoded = await ac.decodeAudioData(ab);
+  await ac.close();
+  const targetSr = 16000;
+  const offCtx = new OfflineAudioContext(1, Math.ceil(decoded.duration*targetSr), targetSr);
+  const src = offCtx.createBufferSource();
+  src.buffer = decoded; src.connect(offCtx.destination); src.start(0);
+  const resampled = await offCtx.startRendering();
+  return resampled.getChannelData(0);
+}
+function showTransProgress(show, msg='', pct=0){
+  $('transProgress').style.display = show?'block':'none';
+  if(show){ $('transMsg').textContent=msg; $('transBar').style.width=Math.min(100,pct)+'%'; }
+}
+function applyTranscriptionResult(result){
+  const chunks = (result.chunks||[]).filter(c=>c.text.trim());
+  if(!chunks.length){ $('lyricsInput').value=(result.text||'').trim(); applyLyrics(); return; }
+  $('lyricsInput').value = chunks.map(c=>c.text.trim()).join('\n');
+  applyLyrics();
+  // タイムスタンプ自動反映
+  chunks.forEach((c,i)=>{ if(lyrics[i] && c.timestamp?.[0]!=null) lyrics[i].t=c.timestamp[0]; });
+  tapCursor = lyrics.filter(l=>l.t!=null).length;
+  renderLines(); updateExportBtns(); updateTapTarget();
+  $('resetTimes').disabled = false;
+}
+
 function loadAudio(file){
   if(!file)return;
+  audioFile = file;
   audio.src=URL.createObjectURL(file);
   $('audioDrop').classList.add('loaded'); $('audioName').textContent='🎵 '+file.name;
-  ['playBtn','playBtn2','rewindBtn','seek','recBtn'].forEach(id=>$(id).disabled=false);
+  ['playBtn','playBtn2','rewindBtn','seek','recBtn','transBtn'].forEach(id=>$(id).disabled=false);
   if(lyrics.length){ $('tapBtn').disabled=false; $('resetTimes').disabled=false; }
   audio.onloadedmetadata=updateTransport;
 }
