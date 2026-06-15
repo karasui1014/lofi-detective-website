@@ -1,13 +1,15 @@
-const CACHE = 'sb-gen-v1';
+const CACHE = 'sb-gen-v3';
 const ASSETS = [
-  '/storyboard.html',
-  '/storyboard.css',
-  '/storyboard.js',
-  '/manifest.json',
-  '/icon-192.png',
-  '/icon-512.png',
-  '/favicon.svg',
-  '/favicon.png'
+  './storyboard.html',
+  './manifest.json',
+  './favicon.ico',
+  './favicon.svg',
+  './favicon.png',
+  './favicon-16.png',
+  './favicon-32.png',
+  './apple-touch-icon.png',
+  './icon-192.png',
+  './icon-512.png',
 ];
 
 self.addEventListener('install', e => {
@@ -25,7 +27,6 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
-  // Network-first for same-origin HTML, cache-first for assets
   const url = new URL(e.request.url);
   if (url.origin !== location.origin) return;
   e.respondWith(
