@@ -138,16 +138,16 @@ def compress_local(text: str) -> str:
             if result and len(candidate) > SOFT_LIMIT:
                 break
             result = candidate
-        if result and len(result) <= SOFT_LIMIT:
+        if result:
+            # 句の区切り（意味のまとまり）で終わっているので中途半端にならない
             return result.strip('、。')
 
-    # 句読点がない or 最初の句読点区切りがSOFT_LIMITを超える
-    # → SOFT_LIMIT文字以内で最後の助詞の直後で切る
-    search_end = min(len(text), SOFT_LIMIT + 1)
+    # 句読点がない長い1文 → 助詞の直後で切り「…」を付けて途中だと明示する
+    search_end = min(len(text), SOFT_LIMIT)
     for i in range(search_end, SOFT_LIMIT // 2, -1):
         if text[i - 1] in 'はがをにでもとやへのからまで':
-            return text[:i].strip('、。')
-    return text[:SOFT_LIMIT].strip('、。')
+            return text[:i].strip('、。') + '…'
+    return text[:SOFT_LIMIT].strip('、。') + '…'
 
 
 def merge_segments(segments: list[dict], max_gap: float = 0.8, max_duration: float = 10.0) -> list[dict]:
@@ -216,19 +216,19 @@ def gemini_request(prompt: str, api_key: str) -> str:
         "generationConfig": {"temperature": 0.3, "responseMimeType": "application/json"},
     }).encode('utf-8')
 
-    # 429（レート制限）は待って再試行する
-    for attempt in range(4):
+    # 429（レート制限）は待って再試行する（無料枠は混みやすいので長めに待つ）
+    for attempt in range(5):
         req = urllib.request.Request(
             url, data=body, headers={"Content-Type": "application/json"}
         )
         try:
-            with urllib.request.urlopen(req, timeout=90) as resp:
+            with urllib.request.urlopen(req, timeout=120) as resp:
                 data = json.loads(resp.read().decode('utf-8'))
             return data["candidates"][0]["content"]["parts"][0]["text"]
         except urllib.error.HTTPError as e:
-            if e.code == 429 and attempt < 3:
-                wait = (attempt + 1) * 20
-                print(f"  混雑中... {wait}秒待って再試行 ({attempt + 1}/3)", end='\r')
+            if e.code == 429 and attempt < 4:
+                wait = (attempt + 1) * 30
+                print(f"  混雑中... {wait}秒待って再試行 ({attempt + 1}/4)        ", end='\r')
                 time.sleep(wait)
                 continue
             raise
@@ -247,9 +247,12 @@ def summarize_gemini(segments: list[dict]) -> list[dict]:
 
     glossary = "\n".join(f"- 「{w}」→「{c}」" for w, c in TERMS.items())
 
+    import time
     for start in range(0, total, CHUNK):
         chunk = cleaned[start:start + CHUNK]
         print(f"  要約中... ({min(start + CHUNK, total)}/{total})        ", end='\r')
+        if start > 0:
+            time.sleep(5)  # 連続リクエストでレート制限に当たらないよう間隔を空ける
 
         numbered = "\n".join(f"{i}: {s['text']}" for i, s in enumerate(chunk))
         prompt = (
