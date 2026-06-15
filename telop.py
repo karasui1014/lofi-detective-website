@@ -150,10 +150,11 @@ def compress_local(text: str) -> str:
     return text[:SOFT_LIMIT].strip('、。') + '…'
 
 
-def merge_segments(segments: list[dict], max_gap: float = 0.8, max_duration: float = 10.0) -> list[dict]:
+def merge_segments(segments: list[dict], max_gap: float = 0.4, max_duration: float = 4.0, max_chars: int = 60) -> list[dict]:
     """隣接するセグメントを意味のまとまりに結合する。
     ・gap が max_gap 秒以下 → 連続した発話とみなして結合
     ・結合後の尺が max_duration 秒を超える → 打ち切って新セグメント開始
+    ・結合後の文字数が max_chars を超える → 打ち切り
     ・句読点（。！？）で終わる → 自然な文末なので打ち切り
     """
     if not segments:
@@ -163,8 +164,10 @@ def merge_segments(segments: list[dict], max_gap: float = 0.8, max_duration: flo
     for seg in segments[1:]:
         gap = seg['start'] - buf['end']
         duration = seg['end'] - buf['start']
+        combined_len = len(buf['text']) + len(seg['text'])
         ends_sentence = re.search(r'[。！？!?]\s*$', buf['text'].strip())
-        if gap <= max_gap and duration <= max_duration and not ends_sentence:
+        if (gap <= max_gap and duration <= max_duration
+                and combined_len <= max_chars and not ends_sentence):
             buf['text'] = buf['text'].rstrip() + ' ' + seg['text'].lstrip()
             buf['end'] = seg['end']
         else:
