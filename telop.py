@@ -112,18 +112,22 @@ def compress_local(text: str) -> str:
 
     # 長い場合は句読点で区切り、意味のまとまりを前半から残す
     parts = [p for p in re.split(r'[、。]', text) if p]
-    result = ''
-    for part in parts:
-        if result and len(result) + len(part) > SOFT_LIMIT:
-            break
-        result += part
-    if result:
-        return result.strip('、。')
+    if len(parts) > 1:
+        result = ''
+        for part in parts:
+            candidate = result + part
+            if result and len(candidate) > SOFT_LIMIT:
+                break
+            result = candidate
+        if result and len(result) <= SOFT_LIMIT:
+            return result.strip('、。')
 
-    # 区切りが無い長文は、助詞の手前までを残す（単語の途中では切らない）
-    for i in range(SOFT_LIMIT, SOFT_LIMIT // 2, -1):
+    # 句読点がない or 最初の句読点区切りがSOFT_LIMITを超える
+    # → SOFT_LIMIT文字以内で最後の助詞の直後で切る
+    search_end = min(len(text), SOFT_LIMIT + 1)
+    for i in range(search_end, SOFT_LIMIT // 2, -1):
         if text[i - 1] in 'はがをにでもとやへのからまで':
-            return text[:i - 1].strip('、。')
+            return text[:i].strip('、。')
     return text[:SOFT_LIMIT].strip('、。')
 
 
