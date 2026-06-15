@@ -150,6 +150,30 @@ def compress_local(text: str) -> str:
     return text[:SOFT_LIMIT].strip('、。')
 
 
+def merge_segments(segments: list[dict], max_gap: float = 0.8, max_duration: float = 10.0) -> list[dict]:
+    """隣接するセグメントを意味のまとまりに結合する。
+    ・gap が max_gap 秒以下 → 連続した発話とみなして結合
+    ・結合後の尺が max_duration 秒を超える → 打ち切って新セグメント開始
+    ・句読点（。！？）で終わる → 自然な文末なので打ち切り
+    """
+    if not segments:
+        return []
+    merged = []
+    buf = dict(segments[0])
+    for seg in segments[1:]:
+        gap = seg['start'] - buf['end']
+        duration = seg['end'] - buf['start']
+        ends_sentence = re.search(r'[。！？!?]\s*$', buf['text'].strip())
+        if gap <= max_gap and duration <= max_duration and not ends_sentence:
+            buf['text'] = buf['text'].rstrip() + ' ' + seg['text'].lstrip()
+            buf['end'] = seg['end']
+        else:
+            merged.append(buf)
+            buf = dict(seg)
+    merged.append(buf)
+    return merged
+
+
 def compress_segments(segments: list[dict]) -> list[dict]:
     result = []
     total = len(segments)
@@ -334,6 +358,11 @@ def main():
     audio_path = extract_audio(video_path)
     segments = transcribe(audio_path)
     print(f"  完了 ✓ ({len(segments)}セグメント検出)")
+
+    if shorten:
+        before = len(segments)
+        segments = merge_segments(segments)
+        print(f"  セグメントを結合 ({before} → {len(segments)}件)")
 
     if use_ai:
         print(f"  Gemini AIで要約中（意味を理解して1行に）...")
