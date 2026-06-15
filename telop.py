@@ -143,6 +143,86 @@ def compress_segments(segments: list[dict]) -> list[dict]:
     return result
 
 
+def get_gemini_key() -> str:
+    config_path = Path.home() / 'Desktop' / '字幕制作ツール' / '.geminikey'
+    key = os.environ.get('GEMINI_API_KEY')
+    if not key and config_path.exists():
+        key = config_path.read_text().strip()
+    if not key:
+        print("\n  Gemini APIキーを入力してください")
+        print("  （https://aistudio.google.com/apikey で無料取得）")
+        key = input("  APIキー: ").strip()
+        if not key:
+            print("  キーが入力されませんでした")
+            sys.exit(1)
+        config_path.write_text(key)
+        print(f"  キーを保存しました（次回から不要）\n")
+    return key
+
+
+def gemini_request(prompt: str, api_key: str) -> str:
+    import urllib.request
+    url = (
+        "https://generativelanguage.googleapis.com/v1beta/"
+        f"models/gemini-2.0-flash:generateContent?key={api_key}"
+    )
+    body = json.dumps({
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {"temperature": 0.3, "responseMimeType": "application/json"},
+    }).encode('utf-8')
+    req = urllib.request.Request(
+        url, data=body, headers={"Content-Type": "application/json"}
+    )
+    with urllib.request.urlopen(req, timeout=60) as resp:
+        data = json.loads(resp.read().decode('utf-8'))
+    return data["candidates"][0]["content"]["parts"][0]["text"]
+
+
+def summarize_gemini(segments: list[dict]) -> list[dict]:
+    """Gemini APIで意味を理解して要約（無料枠）"""
+    api_key = get_gemini_key()
+    cleaned = [{**s, 'text': remove_fillers(s['text'])} for s in segments]
+    cleaned = [s for s in cleaned if s['text']]
+
+    CHUNK = 30
+    result = []
+    total = len(cleaned)
+
+    for start in range(0, total, CHUNK):
+        chunk = cleaned[start:start + CHUNK]
+        print(f"  要約中... ({min(start + CHUNK, total)}/{total})", end='\r')
+
+        numbered = "\n".join(f"{i}: {s['text']}" for i, s in enumerate(chunk))
+        prompt = (
+            "あなたは動画テロップの編集者です。以下は動画の文字起こしを時系列に並べたものです。\n"
+            "各行を、視聴者がパッと見て内容をイメージできる読みやすいテロップに書き直してください。\n\n"
+            "ルール:\n"
+            "- 各行20〜30文字程度の1行に要約\n"
+            "- 数字・固有名詞（製品名・価格・秒数など）は省略せず残す\n"
+            "- 話し言葉のフィラーや冗長表現は削る\n"
+            "- 前後の文脈を踏まえて自然な日本語にする\n"
+            "- 入力と同じ行数・同じ順序で出力する\n\n"
+            '出力は {"lines": ["要約1", "要約2", ...]} のJSON形式のみ。\n\n'
+            f"--- 文字起こし ---\n{numbered}"
+        )
+
+        try:
+            raw = gemini_request(prompt, api_key)
+            lines = json.loads(raw).get("lines", [])
+            if len(lines) != len(chunk):
+                raise ValueError("行数が一致しません")
+            for seg, line in zip(chunk, lines):
+                result.append({**seg, 'text': line.strip()})
+        except Exception as e:
+            # 失敗したチャンクはローカル圧縮にフォールバック
+            print(f"\n  （一部はローカル圧縮で処理: {e}）")
+            for seg in chunk:
+                result.append({**seg, 'text': compress_local(seg['text'])})
+
+    print(f"  要約完了 ✓ ({total}件)              ")
+    return result
+
+
 def split_into_lines(text: str, max_chars: int = MAX_CHARS) -> list[str]:
     if len(text) <= max_chars:
         return [text]
@@ -192,32 +272,43 @@ def build_srt(segments: list[dict], compressed: bool = False) -> str:
 def main():
     if len(sys.argv) < 2:
         print("使い方:")
-        print("  python telop.py 動画.mp4              # 通常モード")
-        print("  python telop.py 動画.mp4 --summarize  # 圧縮モード（無料・1行に凝縮）")
+        print("  python telop.py 動画.mp4              # 通常モード（文字起こしそのまま）")
+        print("  python telop.py 動画.mp4 --summarize  # AI要約（Gemini無料枠・意味を理解して要約）")
+        print("  python telop.py 動画.mp4 --local      # ローカル圧縮（API不要・文末短縮のみ）")
         sys.exit(1)
 
     video_path = Path(sys.argv[1]).expanduser().resolve()
-    summarize = '--summarize' in sys.argv
+    use_ai = '--summarize' in sys.argv
+    use_local = '--local' in sys.argv
+    shorten = use_ai or use_local
 
     if not video_path.exists():
         print(f"ファイルが見つかりません: {video_path}")
         sys.exit(1)
 
-    mode = "圧縮テロップ（無料）" if summarize else "フルテロップ"
+    if use_ai:
+        mode = "AI要約テロップ（Gemini）"
+    elif use_local:
+        mode = "ローカル圧縮テロップ（無料）"
+    else:
+        mode = "フルテロップ"
     print(f"\n{video_path.name} → {mode}にします\n")
 
     audio_path = extract_audio(video_path)
     segments = transcribe(audio_path)
     print(f"  完了 ✓ ({len(segments)}セグメント検出)")
 
-    if summarize:
-        print(f"  ローカルで圧縮中（{MAX_CHARS}文字以内・1行）...")
+    if use_ai:
+        print(f"  Gemini AIで要約中（意味を理解して1行に）...")
+        segments = summarize_gemini(segments)
+    elif use_local:
+        print(f"  ローカルで圧縮中（文末短縮・1行）...")
         segments = compress_segments(segments)
 
     print(f"  テロップ用に整形中...")
-    srt_content = build_srt(segments, compressed=summarize)
+    srt_content = build_srt(segments, compressed=shorten)
 
-    suffix = '_圧縮' if summarize else ''
+    suffix = '_要約' if use_ai else ('_圧縮' if use_local else '')
     srt_path = video_path.with_stem(video_path.stem + suffix).with_suffix('.srt')
     srt_path.write_text(srt_content, encoding='utf-8')
 
