@@ -5080,58 +5080,47 @@ function generateLocationImagePrompt(bgKey, lyricLines, scenarioRaw, panels) {
     return `${num}${sec ? `【${sec}】` : ''}${ts ? `(${ts}) ` : ''}${desc}`;
   });
 
-  // Also pull matching scenario lines as scene context (up to 3)
+  // ── 各シーンポイントのコールアウト ──────────────────────────────────────
   const sceneContext = relatedScenarioLines.slice(0, 3);
 
-  // ── Compose prompt ──
-  const parts = [];
-  parts.push(`【設定】${bgFull.ja}　人物なし・背景のみ`);
-  parts.push(`【スタイル】${styleHint.ja}${genre ? `・${genre}` : ''}${artist ? `・${artist}` : ''}`);
-  if (lyricsWorldview) {
-    parts.push(`【世界観】${lyricsWorldview.statementJa.split('。')[0]}。`);
-  }
-  if (sceneContext.length) {
-    parts.push(`【場面】${sceneContext.join('　')}`);
-  }
-  parts.push(`EWS・映画的な奥行きと空気感・人物禁止`);
-  parts.push(`[EN] ${bgFull.en}, ${styleHint.en}, no people, wide shot, cinematic depth, atmospheric lighting${panelCount > 4 ? ', recurring location' : ''}`);
+  // ── 世界観・台本から読み取ったロケーションの説明 ──────────────────────
+  const wvDesc = lyricsWorldview ? lyricsWorldview.statementJa.split('。')[0] + '。' : '';
+  const sceneLine = sceneContext.length
+    ? `台本から読み取った場面：${sceneContext.join('　')}`
+    : '';
 
-  // ── 説明書き入りガイド版 ──
-  parts.push('');
-  parts.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  parts.push('【説明書き入りロケーションガイド画像版】');
-  parts.push('上記の背景写真に以下の説明書きを重ねたガイド画像を生成してください。');
-  parts.push('');
-  parts.push('■ レイアウト構成:');
-  parts.push('・メインの背景写真（上部〜中央・横幅いっぱい）に番号付きコールアウトを重ねる');
-  parts.push('・左下にシンプルなフロアマップ／平面略図（簡略化した構造図）を配置');
-  parts.push('・右下または下部に各ポイントの写真サムネイル＋説明テキストを横並びで配置');
-  parts.push('');
-  parts.push('■ このMVで登場するシーンポイント（画像内の吹き出し・コールアウトに配置）:');
-  for (const c of callouts) {
-    parts.push(`  ${c}`);
-  }
-  if (sceneContext.length) {
-    parts.push('');
-    parts.push('■ 台本から抽出した場面の説明（各ポイントの吹き出しテキストに活用）:');
-    sceneContext.forEach((l, i) => parts.push(`  ${CIRCLE[i] || '・'}${l}`));
-  }
-  parts.push('');
-  parts.push('■ 説明書きのビジュアル要素:');
-  parts.push('・各番号はピンク・水色・緑・オレンジなどカラー別の丸囲み番号（①②③④）');
-  parts.push('・番号から説明テキストへの点線の矢印（ドット矢印）');
-  parts.push('・説明テキストはカラー枠ボックス内に白背景で見やすく');
-  parts.push(`・全体のタイトルを画像左上に「${bgFull.ja.split('・')[0]}　ロケーションガイド」として配置`);
-  parts.push('');
-  parts.push('■ 英語プロンプト（説明書き入り版）:');
+  // ── コールアウトリスト（日本語） ──────────────────────────────────────
+  const calloutLines = callouts.map(c => `  ${c}`).join('\n');
+
+  // ── 英語プロンプト（統合版） ──────────────────────────────────────────
   const calloutsEn = pickedPanels.map((p, i) => {
     const sec = p.isIntro ? 'intro' : p.isOutro ? 'outro' : (p.section || '').toLowerCase();
     const desc = (p.jaDesc || '').replace(/【[^】]*】/g, '').trim().substring(0, 20);
     return `${CIRCLE[i]} ${sec ? sec + ': ' : ''}${desc || 'scene ' + (p.idx + 1)}`;
   }).join(', ');
-  parts.push(`facility guide infographic layout, ${bgFull.en}, photo with numbered callout annotations (${calloutsEn}), ①②③④ colored circle markers with dotted arrow lines pointing to scene locations, explanatory Japanese text boxes with color borders (pink/blue/green/orange), small floor plan diagram in bottom left corner, step-by-step scene thumbnails at bottom row, Japanese MV location guide style, no people, clean graphic design overlay on realistic photo`);
 
-  return parts.join('\n');
+  const audioAtmo = audioNote ? `${audioNote} ` : '';
+
+  // ── 統合プロンプト（1本化） ──────────────────────────────────────────
+  return [
+    `【MVロケーションガイド画像】${bgFull.ja.split('・')[0]}`,
+    '',
+    wvDesc + styleHint.ja + (genre ? `・${genre}` : '') + (artist ? `・${artist}` : '') + '。',
+    audioAtmo + sceneLine,
+    '',
+    `このMVで使用するロケーション「${bgFull.ja}」の撮影ガイド画像を生成してください。`,
+    `以下のシーンポイントを①〜④のカラーコールアウトで画面内に配置します：`,
+    calloutLines,
+    '',
+    `画像構成：`,
+    `・メインの背景写真（${bgFull.ja}・人物なし・超広角EWS・映画的な奥行きと空気感）を全面に配置`,
+    `・各シーンポイントに①②③④のカラー丸囲み番号（ピンク・水色・緑・オレンジ）と点線矢印のコールアウトを重ねる`,
+    `・左下にロケーションの平面略図（シンプルな構造図）を配置`,
+    `・下部に各シーンのサムネイル＋説明テキストを横並びで配置`,
+    `・画像左上にタイトル「${bgFull.ja.split('・')[0]}　ロケーションガイド」を配置`,
+    '',
+    `[EN for AI generator] ${bgFull.en}, ${styleHint.en}, no people, extreme wide shot, cinematic depth, atmospheric lighting${panelCount > 4 ? ', recurring location' : ''}. Location guide infographic layout: numbered callout annotations (${calloutsEn}) with ①②③④ colored circle markers (pink/blue/green/orange) and dotted arrow lines pointing to each scene position, explanatory text boxes with color borders, small floor plan sketch in bottom-left corner, scene thumbnail strip at bottom, title "Location Guide" in top-left, clean graphic overlay on realistic photo, Japanese MV production reference sheet style.`,
+  ].filter(s => s !== null).join('\n');
 }
 
 function closeLocationModal() {
