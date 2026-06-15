@@ -253,6 +253,8 @@ select{background:var(--surface2);color:var(--text);border:1px solid var(--borde
       <!-- Style -->
       <div class="card">
         <div class="card-header"><span class="step-badge">🎨</span><span class="card-title">書体・スタイル</span></div>
+        <div class="font-cat" style="margin-top:0;">プリセット（雰囲気から選ぶ）</div>
+        <div class="row" id="presetRow" style="margin-bottom:.5rem;gap:.4rem;"></div>
         <div id="fontPicker"></div>
         <div class="divider"></div>
 
@@ -308,13 +310,15 @@ select{background:var(--surface2);color:var(--text);border:1px solid var(--borde
       <div class="card">
         <div class="card-header"><span class="step-badge">⬇</span><span class="card-title">書き出し</span></div>
         <div class="export-row">
-          <button class="btn btn-rec" id="recBtn" disabled>● 動画(WebM)を録画して書き出し</button>
-          <button class="btn" id="pngBtn">現在のフレームをPNG</button>
-          <button class="btn" id="lrcBtn" disabled>歌詞タイミング(.lrc)</button>
+          <button class="btn btn-primary" id="zipBtn" disabled>⭐ テロップ画像一式 (透過PNG＋字幕 ZIP)</button>
+          <button class="btn btn-rec" id="recBtn" disabled>● 動画(WebM)録画</button>
+          <button class="btn" id="assBtn" disabled>.ass 字幕</button>
+          <button class="btn" id="pngBtn">現在フレームPNG</button>
+          <button class="btn" id="lrcBtn" disabled>.lrc</button>
         </div>
         <div class="notice" style="margin-top:.7rem;">
-          <b>透過</b>背景のまま録画すると、編集ソフトで重ねられる<b>オーバーレイ動画</b>になります（VP9対応ブラウザ）。<br>
-          <b>動画</b>背景を選ぶと、お手持ちの映像に歌詞を<b>焼き込み</b>します。
+          <b>⭐ZIP</b>＝行ごとの透過PNG＋timings.csv＋.ass。どの編集ソフトでも確実に重ねられる、一番おすすめの出力です。<br>
+          <b>WebM録画</b>＝透過のまま重ねられるオーバーレイ動画（透過保持はChrome/VP9のみ）。<b>動画</b>背景を選べば手持ち映像に<b>焼き込み</b>。
         </div>
       </div>
     </div>
@@ -425,21 +429,9 @@ function wrapText(text, maxW){
 function draw(){
   const W=canvas.width, H=canvas.height;
   ctx.clearRect(0,0,W,H);
-
-  // 背景
-  if(state.bg==='solid'){ ctx.fillStyle=state.bgColor; ctx.fillRect(0,0,W,H); }
-  else if(state.bg==='image' && bgImage){ drawCover(bgImage,W,H); }
-  else if(state.bg==='video' && hasBgVideo && bgVideo.readyState>=2){ drawCover(bgVideo,W,H); }
-
+  drawBackground(W,H);
   const act = activeLineAt(audio.currentTime||0);
-  if(!act || !act.line.text.trim()){ return; }
-
-  // フォント設定
-  const fpx = state.size * (H/1080); // 1080基準でスケール
-  ctx.font = `${state.weight} ${fpx}px '${state.font.fam}', sans-serif`;
-  ctx.textBaseline='middle';
-  if('letterSpacing' in ctx) ctx.letterSpacing = `${state.track*(H/1080)}px`;
-
+  if(!act || !act.line.text.trim()) return;
   // フェード透明度
   let a=1; const f=state.fade;
   if(f>0){
@@ -447,11 +439,26 @@ function draw(){
     const outA=(act.end-audio.currentTime)/f;
     a=Math.max(0,Math.min(1,Math.min(inA,outA)));
   }
-  ctx.globalAlpha=a;
+  renderText(act.line.text, a);
+}
 
-  if(state.vertical) drawVertical(act.line.text, W, H, fpx);
-  else drawHorizontal(act.line.text, W, H, fpx);
+function drawBackground(W,H){
+  if(state.bg==='solid'){ ctx.fillStyle=state.bgColor; ctx.fillRect(0,0,W,H); }
+  else if(state.bg==='image' && bgImage){ drawCover(bgImage,W,H); }
+  else if(state.bg==='video' && hasBgVideo && bgVideo.readyState>=2){ drawCover(bgVideo,W,H); }
+}
 
+// 文字レイヤーのみ描画（背景なし＝書き出しでも再利用）
+function renderText(text, alpha){
+  if(!text.trim()) return;
+  const W=canvas.width, H=canvas.height;
+  const fpx = state.size * (H/1080); // 1080基準でスケール
+  ctx.font = `${state.weight} ${fpx}px '${state.font.fam}', sans-serif`;
+  ctx.textBaseline='middle';
+  if('letterSpacing' in ctx) ctx.letterSpacing = `${state.track*(H/1080)}px`;
+  ctx.globalAlpha=alpha;
+  if(state.vertical) drawVertical(text, W, H, fpx);
+  else drawHorizontal(text, W, H, fpx);
   ctx.globalAlpha=1;
   if('letterSpacing' in ctx) ctx.letterSpacing='0px';
 }
@@ -535,6 +542,51 @@ function updateTransport(){
   $('tcode').textContent = `${fmt(c)} / ${fmt(d)}`;
 }
 
+/* ════ スタイル・プリセット（雰囲気からワンタップ） ════ */
+const PRESETS=[
+  // 歌番組＝大きめ・極太ゴシック・太い縁取り＋影、下部中央
+  { name:'歌番組', emoji:'📺', s:{ font:'Zen Kaku Gothic New', weight:700, size:100, color:'#ffffff', strokeColor:'#16213e', stroke:13, shadow:true, plate:false, vertical:false, pos:'bottom', align:'center', track:1, fade:0.1 } },
+  // YouTube MV＝小さめ・上品・控えめ縁取り＋影（人気の定番）
+  { name:'YouTube MV(小)', emoji:'▶', s:{ font:'Zen Kaku Gothic New', weight:400, size:42, color:'#ffffff', strokeColor:'#000000', stroke:3, shadow:true, plate:false, vertical:false, pos:'bottom', align:'center', track:2, fade:0.35 } },
+  // 映画字幕風
+  { name:'シネマ字幕', emoji:'🎞', s:{ font:'Zen Kaku Gothic New', weight:500, size:52, color:'#f3f3f3', strokeColor:'#000000', stroke:4, shadow:true, plate:false, vertical:false, pos:'bottom', align:'center', track:1, fade:0.2 } },
+  // 和・バラード（明朝・縦書き）
+  { name:'エモ明朝(縦)', emoji:'🌙', s:{ font:'Shippori Mincho B1', weight:500, size:58, color:'#ffffff', strokeColor:'#000000', stroke:3, shadow:true, plate:false, vertical:true, pos:'middle', align:'center', track:5, fade:0.55 } },
+  // ポップ・かわいい（丸ゴシック＋帯）
+  { name:'ポップ帯', emoji:'🍬', s:{ font:'M PLUS Rounded 1c', weight:800, size:80, color:'#ffffff', strokeColor:'#ff6b9d', stroke:0, shadow:false, plate:true, plateColor:'#ff6b9d', vertical:false, pos:'bottom', align:'center', track:0, fade:0.12 } },
+  // Lo-Fi・レトロ（ドット）
+  { name:'Lo-Fiドット', emoji:'🕹', s:{ font:'DotGothic16', weight:400, size:46, color:'#9be7ff', strokeColor:'#04121f', stroke:5, shadow:true, plate:false, vertical:false, pos:'bottom', align:'center', track:3, fade:0.1 } },
+];
+function buildPresets(){
+  const host=$('presetRow'); host.innerHTML='';
+  PRESETS.forEach(p=>{
+    const b=document.createElement('button'); b.className='btn';
+    b.style.cssText='font-size:.72rem;padding:.4rem .7rem;';
+    b.textContent=`${p.emoji} ${p.name}`;
+    b.onclick=()=>{ applyPreset(p); toast(`プリセット: ${p.name}`); };
+    host.appendChild(b);
+  });
+}
+function applyPreset(p){
+  const fObj=ALL_FONTS.find(f=>f.fam===p.s.font)||state.font;
+  Object.assign(state, p.s, {font:fObj});
+  syncUIFromState(); ensureFont(fObj).then(draw); draw();
+}
+function syncUIFromState(){
+  const set=(id,val,vid,fmt)=>{ $(id).value=val; if(vid)$(vid).textContent=fmt?fmt(val):val; };
+  set('size',state.size,'vSize',v=>v+'px');
+  set('weight',state.weight,'vWeight',v=>v);
+  set('stroke',state.stroke,'vStroke',v=>v+'px');
+  set('track',state.track,'vTrack',v=>v+'px');
+  $('fade').value=Math.round(state.fade*100); $('vFade').textContent=state.fade.toFixed(2)+'s';
+  $('color').value=state.color; $('strokeColor').value=state.strokeColor; $('plateColor').value=state.plateColor;
+  $('shadow').checked=state.shadow; $('vertical').checked=state.vertical; $('plate').checked=state.plate;
+  $('plateColor').style.display=state.plate?'inline-block':'none';
+  segSet('posSeg','pos',state.pos); segSet('alignSeg','align',state.align);
+  document.querySelectorAll('.font-chip').forEach(c=>c.classList.toggle('sel',c.dataset.fam===state.font.fam));
+}
+function segSet(id,key,val){ $(id).querySelectorAll('button').forEach(b=>b.classList.toggle('on', b.dataset[key]===val)); }
+
 /* ════ フォントUI ════ */
 function buildFontPicker(){
   const host=$('fontPicker'); host.innerHTML='';
@@ -543,6 +595,7 @@ function buildFontPicker(){
     const g=document.createElement('div'); g.className='font-grid';
     cat.fonts.forEach(f=>{
       const chip=document.createElement('button'); chip.className='font-chip'+(f.fam===state.font.fam?' sel':'');
+      chip.dataset.fam=f.fam;
       chip.innerHTML=`<div class="smp" style="font-family:'${f.fam}',sans-serif;">${f.smp}</div><div class="nm">${f.fam}</div>`;
       chip.onclick=async()=>{
         document.querySelectorAll('.font-chip').forEach(c=>c.classList.remove('sel'));
@@ -565,7 +618,7 @@ function applyLyrics(){
   tapCursor = lyrics.findIndex(l=>l.t==null); if(tapCursor<0) tapCursor=lyrics.length;
   $('lineCount').textContent = `${lyrics.length}行`;
   renderLines(); updateTapTarget();
-  $('lrcBtn').disabled = !lyrics.some(l=>l.t!=null);
+  updateExportBtns();
 }
 function renderLines(){
   const host=$('linesList'); host.innerHTML='';
@@ -579,7 +632,7 @@ function renderLines(){
       <input class="tm" value="${l.t!=null?fmt(l.t):'—'}" title="mm:ss.s で編集">
       <button class="del" title="この行を削除">×</button>`;
     row.querySelector('.line-txt').onclick=()=>{ if(l.t!=null){ audio.currentTime=l.t; } };
-    row.querySelector('.tm').onchange=(e)=>{ l.t=parseTime(e.target.value); renderLines(); $('lrcBtn').disabled=!lyrics.some(x=>x.t!=null); };
+    row.querySelector('.tm').onchange=(e)=>{ l.t=parseTime(e.target.value); renderLines(); updateExportBtns(); };
     row.querySelector('.del').onclick=()=>{ lyrics.splice(i,1); renderLines(); };
     host.appendChild(row);
   });
@@ -606,7 +659,7 @@ function tap(){
   tapCursor++;
   while(tapCursor<lyrics.length && lyrics[tapCursor].t!=null) tapCursor++;
   renderLines(); updateTapTarget();
-  $('lrcBtn').disabled=false; $('resetTimes').disabled=false;
+  updateExportBtns(); $('resetTimes').disabled=false;
 }
 
 /* ════ 再生 ════ */
@@ -625,6 +678,71 @@ function exportLRC(){
   const lines=lyrics.filter(l=>l.t!=null).sort((a,b)=>a.t-b.t)
     .map(l=>`${lrcStamp(l.t)}${l.text}`).join('\n');
   downloadBlob(new Blob([lines],{type:'text/plain'}),'lyrics.lrc'); toast('.lrc を書き出しました');
+}
+function updateExportBtns(){ const ok=lyrics.some(l=>l.t!=null); ['lrcBtn','zipBtn','assBtn'].forEach(id=>$(id).disabled=!ok); }
+
+/* ---- 行ごとの終了時刻（次の行頭 or 末尾+4秒） ---- */
+function timedLines(){ return lyrics.map((l,i)=>({...l,i})).filter(l=>l.t!=null).sort((a,b)=>a.t-b.t); }
+function endTimeOf(start){ const nx=timedLines().find(l=>l.t>start+0.001); return nx?nx.t:start+4; }
+
+/* ---- ⭐ テロップ画像一式(透過PNG)＋timings.csv＋.ass を ZIP で書き出し ---- */
+async function exportAssets(){
+  const lines=timedLines().filter(l=>l.text.trim());
+  if(!lines.length){ toast('タイミング済みの歌詞がありません'); return; }
+  $('zipBtn').disabled=true; toast('画像を生成中…');
+  await ensureFont(state.font);
+  const files=[]; const rows=[['index','filename','start_sec','end_sec','text']];
+  for(let k=0;k<lines.length;k++){
+    const l=lines[k];
+    ctx.clearRect(0,0,canvas.width,canvas.height);   // 背景なし＝透過のまま
+    renderText(l.text,1);
+    const blob=await new Promise(r=>canvas.toBlob(r,'image/png'));
+    const buf=new Uint8Array(await blob.arrayBuffer());
+    const name=`telop_${String(k+1).padStart(3,'0')}.png`;
+    files.push({name,data:buf});
+    rows.push([k+1,name,l.t.toFixed(2),endTimeOf(l.t).toFixed(2),l.text]);
+  }
+  const enc=new TextEncoder();
+  const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\r\n');
+  files.push({name:'timings.csv',data:enc.encode('﻿'+csv)});
+  files.push({name:'subtitles.ass',data:enc.encode(buildASS(lines))});
+  downloadBlob(buildZip(files),'lyric-telop-assets.zip');
+  $('zipBtn').disabled=false; draw();
+  toast(`PNG ${lines.length}枚＋字幕を書き出しました`);
+}
+function exportASS(){
+  const lines=timedLines().filter(l=>l.text.trim());
+  if(!lines.length){ toast('タイミング済みの歌詞がありません'); return; }
+  downloadBlob(new Blob([buildASS(lines)],{type:'text/plain'}),'subtitles.ass'); toast('.ass を書き出しました');
+}
+function assTime(s){ const h=Math.floor(s/3600),m=Math.floor(s%3600/60),sec=(s%60).toFixed(2).padStart(5,'0'); return `${h}:${String(m).padStart(2,'0')}:${sec}`; }
+function assColor(hex){ const n=parseInt(hex.slice(1),16); return '&H00'+[(n&255),(n>>8&255),(n>>16&255)].map(x=>x.toString(16).padStart(2,'0').toUpperCase()).join(''); }
+function buildASS(lines){
+  const W=canvas.width,H=canvas.height;
+  const align = state.pos==='top'?(state.align==='left'?7:state.align==='right'?9:8)
+              : state.pos==='middle'?(state.align==='left'?4:state.align==='right'?6:5)
+              : (state.align==='left'?1:state.align==='right'?3:2);
+  const head=`[Script Info]\nScriptType: v4.00+\nPlayResX: ${W}\nPlayResY: ${H}\nWrapStyle: 2\n\n[V4+ Styles]\nFormat: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\nStyle: Default,${state.font.fam},${Math.round(state.size)},${assColor(state.color)},&H000000FF,${assColor(state.strokeColor)},&H64000000,${state.weight>=700?-1:0},0,0,0,100,100,${state.track},0,1,${state.stroke},${state.shadow?2:0},${align},80,80,${Math.round(H*0.08)},1\n\n[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n`;
+  const body=lines.map(l=>`Dialogue: 0,${assTime(l.t)},${assTime(endTimeOf(l.t))},Default,,0,0,0,,${l.text.replace(/\n/g,'\\N')}`).join('\n');
+  return head+body+'\n';
+}
+
+/* ---- 純JS ZIP（無圧縮 store・依存なし） ---- */
+const _crcT=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0;}return t;})();
+function crc32(b){let c=0xFFFFFFFF;for(let i=0;i<b.length;i++)c=_crcT[(c^b[i])&0xFF]^(c>>>8);return (c^0xFFFFFFFF)>>>0;}
+function buildZip(files){
+  const enc=new TextEncoder(); const u16=n=>[n&255,n>>8&255]; const u32=n=>[n&255,n>>8&255,n>>16&255,n>>24&255];
+  const parts=[], central=[]; let offset=0;
+  for(const f of files){
+    const name=enc.encode(f.name), crc=crc32(f.data), sz=f.data.length;
+    const lh=Uint8Array.from([0x50,0x4b,3,4,...u16(20),...u16(0),...u16(0),...u16(0),...u16(0),...u32(crc),...u32(sz),...u32(sz),...u16(name.length),...u16(0)]);
+    parts.push(lh,name,f.data);
+    central.push(Uint8Array.from([0x50,0x4b,1,2,...u16(20),...u16(20),...u16(0),...u16(0),...u16(0),...u16(0),...u32(crc),...u32(sz),...u32(sz),...u16(name.length),...u16(0),...u16(0),...u16(0),...u16(0),...u32(0),...u32(offset)]),name);
+    offset += lh.length+name.length+f.data.length;
+  }
+  let cenSize=0; central.forEach(c=>cenSize+=c.length);
+  const eocd=Uint8Array.from([0x50,0x4b,5,6,...u16(0),...u16(0),...u16(files.length),...u16(files.length),...u32(cenSize),...u32(offset),...u16(0)]);
+  return new Blob([...parts,...central,eocd],{type:'application/zip'});
 }
 let recorder=null, recChunks=[];
 function pickMime(){
@@ -701,6 +819,7 @@ function bindControls(){
   $('aspect').onchange=e=>{state.aspect=e.target.value;applyAspect();};
 
   $('recBtn').onclick=exportWebM; $('pngBtn').onclick=exportPNG; $('lrcBtn').onclick=exportLRC;
+  $('zipBtn').onclick=exportAssets; $('assBtn').onclick=exportASS;
 }
 function segBind(id,key){ $(id).querySelectorAll('button').forEach(b=>b.onclick=()=>{
   $(id).querySelectorAll('button').forEach(x=>x.classList.remove('on')); b.classList.add('on');
@@ -728,7 +847,7 @@ function loadBg(file){
 }
 
 /* ════ 起動 ════ */
-buildFontPicker(); bindControls(); applyAspect();
+buildFontPicker(); buildPresets(); bindControls(); applyAspect();
 (async()=>{ await ensureFont(state.font); draw(); })();
 loop();
 </script>
