@@ -185,7 +185,7 @@ details.adv[open]>summary::before{content:'▾';}
       <div class="logo-mark">🎬</div>
       <div>
         <h1>Lyric Telop Generator</h1>
-        <div class="sub">歌詞テロップ生成 · Lo-Fi Detective Tools</div>
+        <div class="sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build3</div>
       </div>
     </div>
   </header>
@@ -930,9 +930,11 @@ let transRunning = false;
 // AIライブラリ(transformers.js)を複数CDNから順に読み込み（jsdelivrの+esm版で出る
 // "registerBackend" エラー対策。esm.sh を優先、ダメなら jsdelivr 通常版にフォールバック）
 async function loadTransformers(){
+  // v3(自己完結バンドル)を最優先 → ダメなら順にフォールバック
   const sources = [
+    'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3',
+    'https://esm.sh/@huggingface/transformers@3',
     'https://esm.sh/@xenova/transformers@2.17.2',
-    'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2',
   ];
   let lastErr;
   for(const url of sources){
@@ -961,6 +963,7 @@ async function runTranscription(){
       try{ env.backends.onnx.wasm.numThreads = 1; }catch(_){}
       showTransProgress(true,'モデルをダウンロード中（初回のみ）…',5);
       whisperPipe = await pipeline('automatic-speech-recognition', modelId, {
+        dtype: 'q8',
         progress_callback(p){
           if(p.status==='progress' && p.total){
             const pct = Math.round(p.loaded/p.total*100);
