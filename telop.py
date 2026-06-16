@@ -163,7 +163,7 @@ def compress_local(text: str) -> str:
     return text[:SOFT_LIMIT].strip('、。') + '…'
 
 
-def merge_segments(segments: list[dict], max_gap: float = 0.4, max_duration: float = 2.0, max_chars: int = 60) -> list[dict]:
+def merge_segments(segments: list[dict], max_gap: float = 0.3, max_duration: float = 1.2, max_chars: int = 30) -> list[dict]:
     """隣接するセグメントを意味のまとまりに結合する。
     ・gap が max_gap 秒以下 → 連続した発話とみなして結合
     ・結合後の尺が max_duration 秒を超える → 打ち切って新セグメント開始
