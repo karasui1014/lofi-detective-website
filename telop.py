@@ -51,9 +51,9 @@ ENDINGS = [
     (r'。$', ''),
 ]
 
-MAX_CHARS = 24
-SOFT_LIMIT = 30  # 圧縮モードで1行が長くなりすぎる目安（超えたら自然な区切りで短縮）
-HARD_LIMIT = 32  # 暴走した行だけを抑える安全弁（通常の文は削らない）
+MAX_CHARS = 22
+SOFT_LIMIT = 26  # 圧縮モードで1行が長くなりすぎる目安（超えたら自然な区切りで短縮）
+HARD_LIMIT = 28  # 暴走した行だけを抑える安全弁（通常の文は削らない）
 
 # 文字起こしの誤変換・表記ゆれを統一する辞書（必要に応じて追加してください）
 # 例: Whisperが「Seedance」を「Cダンス」と聞き間違える → 正しい表記に直す
@@ -196,8 +196,8 @@ def compress_segments(segments: list[dict]) -> list[dict]:
     for i, seg in enumerate(segments, 1):
         print(f"  圧縮中... ({i}/{total})", end='\r')
         compressed = apply_terms(compress_local(seg['text']))
-        if compressed:
-            result.append({**seg, 'text': compressed})
+        # 空になった場合はフィラー除去した元テキストで補填
+        result.append({**seg, 'text': compressed or apply_terms(remove_fillers(seg['text'])) or seg['text']})
     print(f"  圧縮完了 ✓ ({total}件)          ")
     return result
 
@@ -276,7 +276,7 @@ def summarize_gemini(segments: list[dict]) -> list[dict]:
             "各行を、視聴者がパッと見て内容をイメージできる読みやすいテロップに書き直してください。\n\n"
             "ルール:\n"
             "- 文を最後まで完結させることを最優先（途中で切らない）\n"
-            "- 1行あたり25文字前後（最大30文字まで可。完結のためなら超えてよい）\n"
+            "- 1行あたり20〜24文字が目標（最大28文字まで可。完結のためなら多少超えてよい）\n"
             "- 文末は必ずです・ます調で完結させる（〜です／〜ます／〜でした／〜ました）\n"
             "- 文の途中や助詞（は・が・を・で・に・と）で終わらない\n"
             "- 数字・固有名詞（製品名・価格・秒数など）は省略せず残す\n"
@@ -289,20 +289,27 @@ def summarize_gemini(segments: list[dict]) -> list[dict]:
             f"--- 文字起こし ---\n{numbered}"
         )
 
+        def safe_text(line: str, seg: dict) -> str:
+            """Gemini出力が空や短すぎる場合は元テキスト（フィラー除去済み）で補填"""
+            t = hard_cap(apply_terms(line.strip()))
+            if not t:
+                t = hard_cap(apply_terms(remove_fillers(seg['text'])))
+            return t
+
         try:
             raw = gemini_request(prompt, api_key)
             lines = json.loads(raw).get("lines", [])
             if len(lines) != len(chunk):
                 raise ValueError("行数が一致しません")
             for seg, line in zip(chunk, lines):
-                result.append({**seg, 'text': hard_cap(apply_terms(line.strip()))})
+                result.append({**seg, 'text': safe_text(line, seg)})
         except Exception as e:
             # 失敗したチャンクは1件ずつ個別に再送する（小さいほど通りやすい）
             print(f"\n  チャンク失敗({e})、1件ずつ再試行中...")
             for seg in chunk:
                 time.sleep(4)
                 single_prompt = (
-                    "次の動画テロップを25文字前後・です・ます調で完結した1行に書き直してください。\n"
+                    "次の動画テロップを20〜24文字・です・ます調で完結した1行に書き直してください。\n"
                     "文を最後まで完結させることを最優先し、途中で終わらせないこと。数字・固有名詞は省略せず残すこと。\n"
                     "次の用語は正しい表記に直すこと:\n"
                     f"{glossary}\n\n"
@@ -312,9 +319,11 @@ def summarize_gemini(segments: list[dict]) -> list[dict]:
                 try:
                     raw2 = gemini_request(single_prompt, api_key)
                     line = json.loads(raw2).get("lines", [""])[0]
-                    result.append({**seg, 'text': apply_terms(line.strip()) or apply_terms(compress_local(seg['text']))})
+                    result.append({**seg, 'text': safe_text(line, seg)})
                 except Exception:
-                    result.append({**seg, 'text': apply_terms(compress_local(seg['text']))})
+                    # 最終手段：フィラー除去した元テキストをそのまま使う
+                    t = hard_cap(apply_terms(remove_fillers(seg['text'])))
+                    result.append({**seg, 'text': t or seg['text']})
 
     print(f"  要約完了 ✓ ({total}件)              ")
     return result
