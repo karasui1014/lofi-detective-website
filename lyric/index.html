@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' https://cdn.jsdelivr.net https://huggingface.co https://*.huggingface.co https://*.hf.co; worker-src blob: 'self' https://cdn.jsdelivr.net; object-src 'none'; base-uri 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://cdn.jsdelivr.net https://esm.sh https://*.esm.sh; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' https://cdn.jsdelivr.net https://esm.sh https://*.esm.sh https://huggingface.co https://*.huggingface.co https://*.hf.co; worker-src blob: 'self' https://cdn.jsdelivr.net https://esm.sh https://*.esm.sh; object-src 'none'; base-uri 'self'">
 <title>Lyric Telop Generator | 歌詞テロップ生成ツール</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+PHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iNyIgZmlsbD0iIzdjM2FlZCIvPjx0ZXh0IHg9IjE2IiB5PSIyMyIgZm9udC1zaXplPSIxOSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iI2ZmZiIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtd2VpZ2h0PSJib2xkIj7lrZc8L3RleHQ+PC9zdmc+">
 <meta name="theme-color" content="#7c3aed">
@@ -927,6 +927,24 @@ let audioFile = null;
 let whisperPipe = null;
 let transRunning = false;
 
+// AIライブラリ(transformers.js)を複数CDNから順に読み込み（jsdelivrの+esm版で出る
+// "registerBackend" エラー対策。esm.sh を優先、ダメなら jsdelivr 通常版にフォールバック）
+async function loadTransformers(){
+  const sources = [
+    'https://esm.sh/@xenova/transformers@2.17.2',
+    'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2',
+  ];
+  let lastErr;
+  for(const url of sources){
+    try{
+      const m = await import(url);
+      if(m && m.pipeline && m.env) return m;
+      lastErr = new Error('moduleの形式が不正: '+url);
+    }catch(e){ console.warn('transformers load failed:', url, e); lastErr = e; }
+  }
+  throw lastErr || new Error('AIライブラリを読み込めませんでした');
+}
+
 async function runTranscription(){
   if(!audioFile){ toast('先に楽曲を読み込んでください'); return; }
   if(transRunning) return;
@@ -935,10 +953,13 @@ async function runTranscription(){
   showTransProgress(true,'準備中…',0);
   try{
     if(!whisperPipe){
-      showTransProgress(true,'モデルをダウンロード中（初回のみ）…',5);
+      showTransProgress(true,'AIライブラリを準備中…',3);
       const modelId = `Xenova/whisper-${$('whisperModel').value}`;
-      const {pipeline, env} = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2/+esm');
+      const {pipeline, env} = await loadTransformers();
       env.allowLocalModels = false;
+      env.useBrowserCache = true;
+      try{ env.backends.onnx.wasm.numThreads = 1; }catch(_){}
+      showTransProgress(true,'モデルをダウンロード中（初回のみ）…',5);
       whisperPipe = await pipeline('automatic-speech-recognition', modelId, {
         progress_callback(p){
           if(p.status==='progress' && p.total){
