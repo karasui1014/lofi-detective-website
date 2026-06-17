@@ -179,6 +179,22 @@ details.adv[open]>summary::before{content:'▾';}
 .help-flow{font-size:.7rem;color:var(--text-sec);background:var(--surface2);border:1px solid var(--border);
   border-radius:var(--radius-sm);padding:.6rem .85rem;margin-bottom:1rem;line-height:1.7;}
 .help-flow b{color:var(--accent2);}
+/* 差し込みガイド */
+.guide-card{margin-top:1rem;}
+.tl-mock{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:.7rem;margin-bottom:.6rem;}
+.tl-row{display:flex;align-items:center;gap:.4rem;margin:.35rem 0;}
+.tl-label{font-size:.58rem;color:var(--text-muted);width:62px;flex-shrink:0;text-align:right;}
+.tl-clip{background:rgba(124,58,237,.22);border:1px solid var(--accent);border-radius:5px;padding:.28rem .5rem;font-size:.6rem;color:#c4b5fd;white-space:nowrap;}
+.tl-base{flex:1;background:rgba(6,182,212,.14);border:1px solid var(--accent2);border-radius:5px;padding:.32rem .5rem;font-size:.64rem;color:#9be7ff;text-align:center;}
+.guide-hint{font-size:.7rem;color:var(--text-sec);margin-bottom:.85rem;line-height:1.6;}
+.guide-tabs{display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:.85rem;}
+.guide-tab{padding:.42rem .72rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text-sec);font-family:inherit;font-size:.74rem;cursor:pointer;transition:.15s;}
+.guide-tab:hover{border-color:var(--border-hi);}
+.guide-tab.on{border-color:var(--accent);background:rgba(124,58,237,.16);color:#c4b5fd;font-weight:700;}
+.guide-steps{margin:0;padding:0;list-style:none;counter-reset:gstep;}
+.guide-steps li{position:relative;padding:.45rem .6rem .45rem 2.1rem;margin:.35rem 0;background:var(--surface2);border:1px solid var(--border);border-radius:8px;font-size:.8rem;line-height:1.55;}
+.guide-steps li::before{counter-increment:gstep;content:counter(gstep);position:absolute;left:.5rem;top:50%;transform:translateY(-50%);width:1.25rem;height:1.25rem;border-radius:50%;background:var(--accent);color:#fff;font-size:.66rem;font-weight:800;display:flex;align-items:center;justify-content:center;}
+.guide-tip{margin-top:.7rem;font-size:.72rem;color:var(--accent2);background:rgba(6,182,212,.08);border:1px solid rgba(6,182,212,.2);border-radius:8px;padding:.5rem .7rem;line-height:1.6;}
 </style>
 <!-- クリックジャッキング対策：他サイトのiframeに埋め込まれたら無効化 -->
 <script>(function(){try{if(window.top!==window.self){window.top.location=window.self.location;}}catch(e){document.documentElement.style.display='none';}})();</script>
@@ -190,7 +206,7 @@ details.adv[open]>summary::before{content:'▾';}
       <div class="logo-mark">🎬</div>
       <div>
         <h1>Lyric Telop Generator</h1>
-        <div class="sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build7</div>
+        <div class="sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build8</div>
       </div>
     </div>
   </header>
@@ -381,6 +397,19 @@ details.adv[open]>summary::before{content:'▾';}
         </div>
       </div>
     </div>
+  </div>
+
+  <!-- ════════ 差し込みガイド ════════ -->
+  <div class="card guide-card">
+    <div class="card-header"><span class="step-badge">📂</span><span class="card-title">編集ソフトへの入れ方<small>自分のソフトを選ぶと手順が出ます</small></span></div>
+    <div class="notice" style="margin-bottom:.7rem;line-height:1.7;">いちばん簡単なのは <b>🎬 完成動画(WebM)</b>（ソフト不要）。編集ソフトに入れたい場合は、下でソフトを選んでください。</div>
+    <div class="tl-mock">
+      <div class="tl-row"><span class="tl-label">字幕(PNG)</span><span class="tl-clip">telop_001</span><span class="tl-clip">telop_002</span><span class="tl-clip">telop_003</span></div>
+      <div class="tl-row"><span class="tl-label">MV映像</span><span class="tl-base">あなたの映像＋音源</span></div>
+    </div>
+    <div class="guide-hint">考え方は全ソフト共通：<b>下にMV映像、上のトラックにテロップPNGを時間どおり並べる</b>だけ。タイミングは ZIP内の <b>timings.csv</b> を見ます。</div>
+    <div class="guide-tabs" id="guideTabs"></div>
+    <div class="guide-body" id="guideBody"></div>
   </div>
 </div>
 
@@ -1112,8 +1141,57 @@ function loadBg(file){
   toast('背景を読み込みました');
 }
 
+/* ════ 差し込みガイド（ソフト別の簡単手順） ════ */
+const GUIDES=[
+  {k:'CapCut', steps:[
+    '動画(MV)をタイムラインに追加する',
+    '「オーバーレイ」→「追加」で telop_001.png を選ぶ',
+    '画像を開始位置へドラッグ→端を伸ばして表示時間に合わせる（秒は timings.csv）',
+    '残りのPNGも同じように上に重ねる',
+  ], tip:'字幕でよければ subtitles.srt を「字幕」から読み込むだけでもOK。'},
+  {k:'Premiere Pro', steps:[
+    'PNGを全部「プロジェクト」パネルに読み込む',
+    'MVをV1、telop_001.png をV2トラックに置く',
+    '各クリップをドラッグで開始位置へ、端で長さを調整',
+    '行数ぶん繰り返す',
+  ], tip:'キャプションなら subtitles.srt を読み込み→「キャプション」でもOK。'},
+  {k:'DaVinci Resolve', steps:[
+    'メディアプールにPNGを読み込む',
+    'Editページで MVを下、PNGを上のトラックへ',
+    '各PNGを timings.csv の時間に合わせて配置',
+  ], tip:'字幕トラックに subtitles.srt を読み込めば一気に表示できます。'},
+  {k:'Final Cut Pro', steps:[
+    'PNGをライブラリに読み込む',
+    'MVを土台に置き、PNGを上に「接続クリップ」で重ねる',
+    '各PNGを時間位置へドラッグして合わせる',
+  ], tip:''},
+  {k:'iMovie', steps:[
+    'MVをタイムラインに置く',
+    'PNGをドラッグ→右上で「ピクチャ・イン・ピクチャ」を選ぶ',
+    '表示位置と長さを調整する',
+  ], tip:'iMovieは細かい配置が苦手。むずかしければ「🎬完成動画(WebM)」がおすすめ。'},
+  {k:'AviUtl', steps:[
+    '拡張編集タイムラインにMVを置く',
+    '上のレイヤーにPNGをドラッグ＆ドロップ',
+    '開始位置と長さ(終了秒)を合わせる',
+  ], tip:''},
+];
+function buildGuide(){
+  const tabs=$('guideTabs');
+  GUIDES.forEach((g,i)=>{
+    const b=document.createElement('button'); b.className='guide-tab'+(i===0?' on':''); b.textContent=g.k;
+    b.onclick=()=>{ document.querySelectorAll('.guide-tab').forEach(x=>x.classList.remove('on')); b.classList.add('on'); renderGuide(g); };
+    tabs.appendChild(b);
+  });
+  renderGuide(GUIDES[0]);
+}
+function renderGuide(g){
+  const steps=g.steps.map(s=>`<li>${escapeHtml(s)}</li>`).join('');
+  $('guideBody').innerHTML=`<ol class="guide-steps">${steps}</ol>`+(g.tip?`<div class="guide-tip">💡 ${escapeHtml(g.tip)}</div>`:'');
+}
+
 /* ════ 起動 ════ */
-buildFontPicker(); buildPresets(); bindControls(); applyAspect();
+buildFontPicker(); buildPresets(); buildGuide(); bindControls(); applyAspect();
 (async()=>{ await ensureFont(state.font); draw(); })();
 loop();
 </script>
