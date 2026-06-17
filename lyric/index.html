@@ -190,13 +190,13 @@ details.adv[open]>summary::before{content:'▾';}
       <div class="logo-mark">🎬</div>
       <div>
         <h1>Lyric Telop Generator</h1>
-        <div class="sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build6</div>
+        <div class="sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build7</div>
       </div>
     </div>
   </header>
 
   <div class="help-flow">
-    かんたん4ステップ：<b>①音源を入れる</b> → <b>②AIで自動生成</b>（歌詞＋タイミングを自動）→ <b>③スタイルを選ぶ</b> → <b>④書き出し</b><br>
+    かんたん4ステップ：<b>①音源を入れる</b> → <b>②AIで自動生成</b>（歌詞＋タイミング）→ <b>③スタイル（任意）</b> → <b>④完成動画を作る</b>（ソフト不要）<br>
     <span style="color:var(--text-muted);">※タイミングは音源から自動でセットされます。タップ作業は不要です。</span>
   </div>
 
@@ -326,22 +326,23 @@ details.adv[open]>summary::before{content:'▾';}
 
       <!-- Export -->
       <div class="card">
-        <div class="card-header"><span class="step-badge">⬇</span><span class="card-title">書き出し<small>迷ったら「⭐画像一式」でOK</small></span></div>
-        <div style="margin-bottom:.55rem;"><span class="badge badge-green">★ いちばんのおすすめ ↓</span></div>
-        <div class="export-row">
-          <button class="btn btn-primary" id="zipBtn" disabled>⭐ テロップ画像一式</button>
-          <button class="btn btn-rec" id="recBtn" disabled>● 動画(WebM)で録画</button>
+        <div class="card-header"><span class="step-badge">⬇</span><span class="card-title">書き出し</span></div>
+
+        <div style="margin-bottom:.5rem;"><span class="badge badge-green">★ 初心者はこれだけでOK</span></div>
+        <button class="btn btn-rec" id="recBtn" disabled style="width:100%;font-size:.95rem;padding:.85rem;">🎬 完成動画を作る（編集ソフト不要・音楽つき）</button>
+        <div class="notice" style="margin-top:.6rem;line-height:1.75;">
+          押すと曲を最後まで自動再生しながら録画し、<b>字幕＋音楽入りの動画</b>が1本でき上がります。編集ソフトは要りません。<br>
+          ・先に<b>プレビューの下の「背景」</b>で、色／画像／動画を選ぶと、それが動画の背景になります（未選択なら黒）。<br>
+          ・できる動画は WebM 形式。<b>YouTubeにはそのままアップできます</b>。
         </div>
-        <div class="notice" style="margin-top:.7rem;line-height:1.75;">
-          <b>⭐ テロップ画像一式（最もおすすめ）</b><br>
-          行ごとの透過PNG＋字幕ファイル入りのZIP。どの動画編集ソフトにも重ねられて、画質も最高です。<br><br>
-          <b>● 動画(WebM)で録画</b><br>
-          テロップを焼き込んだ動画を1本書き出します。背景は「単色／画像／動画」を選んでください（透過は保持されません）。
-        </div>
-        <details class="adv">
-          <summary>その他の形式（.ass字幕 / PNG / .lrc）</summary>
+
+        <details class="adv" style="margin-top:.7rem;">
+          <summary>編集ソフトで使う人向け（透過PNG・字幕ファイル）</summary>
           <div class="adv-body">
-            <div class="export-row">
+            <button class="btn btn-primary" id="zipBtn" disabled style="width:100%;">⭐ テロップ画像一式（透過PNG＋字幕＋使い方メモ）</button>
+            <div class="notice" style="margin-top:.55rem;">行ごとの透過PNG＋字幕(.srt/.ass)＋日本語の使い方メモ入りZIP。CapCut / Premiere / DaVinci などで重ねられます。</div>
+            <div class="export-row" style="margin-top:.6rem;">
+              <button class="btn" id="srtBtn" disabled>.srt 字幕</button>
               <button class="btn" id="assBtn" disabled>.ass 字幕</button>
               <button class="btn" id="pngBtn">現在フレームPNG</button>
               <button class="btn" id="lrcBtn" disabled>.lrc</button>
@@ -784,7 +785,7 @@ function exportLRC(){
     .map(l=>`${lrcStamp(l.t)}${l.text}`).join('\n');
   downloadBlob(new Blob([lines],{type:'text/plain'}),'lyrics.lrc'); toast('.lrc を書き出しました');
 }
-function updateExportBtns(){ const ok=lyrics.some(l=>l.t!=null); ['lrcBtn','zipBtn','assBtn'].forEach(id=>$(id).disabled=!ok); }
+function updateExportBtns(){ const ok=lyrics.some(l=>l.t!=null); ['lrcBtn','zipBtn','assBtn','srtBtn'].forEach(id=>$(id).disabled=!ok); }
 
 /* ---- 行ごとの終了時刻（次の行頭 or 末尾+4秒） ---- */
 function timedLines(){ return lyrics.map((l,i)=>({...l,i})).filter(l=>l.t!=null).sort((a,b)=>a.t-b.t); }
@@ -821,6 +822,11 @@ function exportASS(){
   const lines=timedLines().filter(l=>l.text.trim());
   if(!lines.length){ toast('タイミング済みの歌詞がありません'); return; }
   downloadBlob(new Blob([buildASS(lines)],{type:'text/plain'}),'subtitles.ass'); toast('.ass を書き出しました');
+}
+function exportSRT(){
+  const lines=timedLines().filter(l=>l.text.trim());
+  if(!lines.length){ toast('タイミング済みの歌詞がありません'); return; }
+  downloadBlob(new Blob([buildSRT(lines)],{type:'text/plain'}),'subtitles.srt'); toast('.srt を書き出しました');
 }
 function assTime(s){ const h=Math.floor(s/3600),m=Math.floor(s%3600/60),sec=(s%60).toFixed(2).padStart(5,'0'); return `${h}:${String(m).padStart(2,'0')}:${sec}`; }
 function assColor(hex){ const n=parseInt(hex.slice(1),16); return '&H00'+[(n&255),(n>>8&255),(n>>16&255)].map(x=>x.toString(16).padStart(2,'0').toUpperCase()).join(''); }
@@ -892,26 +898,42 @@ function buildZip(files){
   return new Blob([...parts,...central,eocd],{type:'application/zip'});
 }
 let recorder=null, recChunks=[];
+let recAudioCtx=null, mediaSrcNode=null, audioDestNode=null;
 function pickMime(){
-  const c=['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'];
+  const c=['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'];
   return c.find(m=>MediaRecorder.isTypeSupported(m))||'';
+}
+// 映像(canvas)＋音声(audio要素)を1つのストリームにまとめる → 音楽入り動画になる
+function getRecStream(){
+  const vid=canvas.captureStream(30);
+  try{
+    if(!recAudioCtx){
+      recAudioCtx=new (window.AudioContext||window.webkitAudioContext)();
+      mediaSrcNode=recAudioCtx.createMediaElementSource(audio);
+      audioDestNode=recAudioCtx.createMediaStreamDestination();
+      mediaSrcNode.connect(audioDestNode);
+      mediaSrcNode.connect(recAudioCtx.destination); // スピーカーでも聞こえるように
+    }
+    if(recAudioCtx.state==='suspended') recAudioCtx.resume();
+    return new MediaStream([...vid.getVideoTracks(), ...audioDestNode.stream.getAudioTracks()]);
+  }catch(e){ console.warn('音声合成不可・映像のみ:',e); return vid; }
 }
 function exportWebM(){
   if(!audio.src){ toast('先に楽曲を読み込んでください'); return; }
   if(recorder && recorder.state==='recording'){ recorder.stop(); return; }
   const mime=pickMime(); if(!mime){ toast('この環境はWebM録画に未対応です'); return; }
-  const stream=canvas.captureStream(30);
+  const stream=getRecStream();
   recChunks=[]; recorder=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:8_000_000});
   recorder.ondataavailable=e=>{ if(e.data.size) recChunks.push(e.data); };
   recorder.onstop=()=>{
     downloadBlob(new Blob(recChunks,{type:mime}),'lyric-telop.webm');
-    $('recBtn').textContent='● 動画(WebM)を録画して書き出し'; $('recBtn').classList.remove('btn-primary');
-    toast('動画を書き出しました');
+    $('recBtn').textContent='🎬 完成動画を作る（編集ソフト不要・音楽つき）'; $('recBtn').classList.remove('btn-primary');
+    toast('完成動画を書き出しました');
   };
   audio.currentTime=0; if(state.bg==='video'&&hasBgVideo)bgVideo.currentTime=0;
   audio.play(); if(state.bg==='video'&&hasBgVideo)bgVideo.play();
   recorder.start();
-  $('recBtn').textContent='■ 録画中… (クリックで停止)'; $('recBtn').classList.add('btn-primary');
+  $('recBtn').textContent='■ 録画中…（曲が終わると自動で完了／押すと停止）'; $('recBtn').classList.add('btn-primary');
   audio.onended=()=>{ if(recorder&&recorder.state==='recording')recorder.stop(); };
 }
 function downloadBlob(blob,name){ const u=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=u; a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(u),1000); }
@@ -966,7 +988,7 @@ function bindControls(){
   $('aspect').onchange=e=>{state.aspect=e.target.value;applyAspect();};
 
   $('recBtn').onclick=exportWebM; $('pngBtn').onclick=exportPNG; $('lrcBtn').onclick=exportLRC;
-  $('zipBtn').onclick=exportAssets; $('assBtn').onclick=exportASS;
+  $('zipBtn').onclick=exportAssets; $('assBtn').onclick=exportASS; $('srtBtn').onclick=exportSRT;
 }
 function segBind(id,key){ $(id).querySelectorAll('button').forEach(b=>b.onclick=()=>{
   $(id).querySelectorAll('button').forEach(x=>x.classList.remove('on')); b.classList.add('on');
