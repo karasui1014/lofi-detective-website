@@ -190,7 +190,7 @@ details.adv[open]>summary::before{content:'▾';}
       <div class="logo-mark">🎬</div>
       <div>
         <h1>Lyric Telop Generator</h1>
-        <div class="sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build5</div>
+        <div class="sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build6</div>
       </div>
     </div>
   </header>
@@ -811,6 +811,8 @@ async function exportAssets(){
   const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\r\n');
   files.push({name:'timings.csv',data:enc.encode('﻿'+csv)});
   files.push({name:'subtitles.ass',data:enc.encode(buildASS(lines))});
+  files.push({name:'subtitles.srt',data:enc.encode(buildSRT(lines))});
+  files.push({name:'つかいかた.txt',data:enc.encode('﻿'+HOWTO_TEXT)});
   downloadBlob(buildZip(files),'lyric-telop-assets.zip');
   $('zipBtn').disabled=false; draw();
   toast(`PNG ${lines.length}枚＋字幕を書き出しました`);
@@ -831,6 +833,46 @@ function buildASS(lines){
   const body=lines.map(l=>`Dialogue: 0,${assTime(l.t)},${assTime(endTimeOf(l.t))},Default,,0,0,0,,${l.text.replace(/\n/g,'\\N')}`).join('\n');
   return head+body+'\n';
 }
+function srtTime(s){ const h=Math.floor(s/3600),m=Math.floor(s%3600/60),sec=Math.floor(s%60),ms=Math.round((s-Math.floor(s))*1000); return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')},${String(ms).padStart(3,'0')}`; }
+function buildSRT(lines){ return lines.map((l,i)=>`${i+1}\r\n${srtTime(l.t)} --> ${srtTime(endTimeOf(l.t))}\r\n${l.text}\r\n`).join('\r\n'); }
+const HOWTO_TEXT = `【歌詞テロップ つかいかた】
+
+■ このZIPの中身
+- telop_001.png, 002... : 1行ずつの字幕画像（背景は透明）
+- timings.csv : 各画像をいつ出すかの一覧（開始秒/終了秒/文字）
+- subtitles.srt : 字幕ファイル（シンプル・多くのソフトで読込可）
+- subtitles.ass : 字幕ファイル（位置・スタイル付き）
+
+──────────────────────────
+方法A：透過PNGを重ねる（見た目そのまま／どのソフトでもOK）
+──────────────────────────
+1. 編集ソフトで、MV映像を一番下のトラックに置く
+2. その上のトラックに telop_001.png を置く
+3. timings.csv の「開始秒〜終了秒」に合わせて位置と長さを調整
+4. 002, 003... と行の数だけ繰り返す
+ ※PNGは透明なので、重ねるだけで文字だけがのります。
+
+ ・CapCut … 「オーバーレイ」→画像を追加→開始位置へ移動→端を伸ばして終了秒に合わせる
+ ・Premiere Pro … PNGをまとめて読込→V2以上に時間どおり並べる
+ ・DaVinci Resolve … メディアに読込→Editページで上のトラックに配置
+ ・Final Cut / iMovie … PNGを上の層（ピクチャ・イン・ピクチャ）に重ねて時間を合わせる
+
+──────────────────────────
+方法B：字幕ファイルを読み込む（速い／見た目はソフト依存）
+──────────────────────────
+ subtitles.srt を「字幕/キャプション読込」で取り込む（CapCut/Premiere/DaVinci/YouTube等）。
+ 文字の位置や色はソフト側の設定になります。見た目を完全再現したいなら方法A（透過PNG）を。
+
+──────────────────────────
+方法C：編集ソフトを使わない
+──────────────────────────
+ ツールの「背景」に映像/画像を読み込み →「動画(WebM)で録画」で字幕入り動画が1本完成。
+
+■ timings.csv の見方
+ index, filename, start_sec, end_sec, text
+ 例) 1, telop_001.png, 2.50, 6.30, 夜の街を
+ → telop_001.png を 2.5秒から6.3秒まで表示
+`;
 
 /* ---- 純JS ZIP（無圧縮 store・依存なし） ---- */
 const _crcT=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0;}return t;})();
