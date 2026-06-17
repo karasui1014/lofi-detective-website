@@ -90,6 +90,8 @@ label.fld{display:block;font-size:.66rem;color:var(--text-sec);margin:.6rem 0 .3
 .btn-accent2:hover{background:rgba(6,182,212,.1);border-color:var(--accent2);}
 .btn-rec{border-color:rgba(244,63,94,.5);color:var(--accent3);}
 .btn-rec:hover{background:rgba(244,63,94,.12);border-color:var(--accent3);}
+.btn-card{border-color:rgba(6,182,212,.5);color:var(--accent2);}
+.btn-card:hover:not(:disabled){background:rgba(6,182,212,.12);border-color:var(--accent2);}
 .btn:disabled{opacity:.4;cursor:not-allowed;}
 .btn-tap{font-size:1rem;padding:.85rem 1rem;width:100%;
   background:linear-gradient(135deg,var(--accent2),#0891b2);border:none;color:#fff;
@@ -206,7 +208,7 @@ details.adv[open]>summary::before{content:'▾';}
       <div class="logo-mark">🎬</div>
       <div>
         <h1>Lyric Telop Generator</h1>
-        <div class="sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build9</div>
+        <div class="sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build10</div>
       </div>
     </div>
   </header>
@@ -350,6 +352,12 @@ details.adv[open]>summary::before{content:'▾';}
           押すと曲を最後まで自動再生しながら録画し、<b>字幕＋音楽入りの動画</b>が1本でき上がります。編集ソフトは要りません。<br>
           ・先に<b>プレビューの下の「背景」</b>で、色／画像／動画を選ぶと、それが動画の背景になります（未選択なら黒）。<br>
           ・できる動画は WebM 形式。<b>YouTubeにはそのままアップできます</b>。
+        </div>
+
+        <button class="btn btn-card" id="cardBtn" disabled style="width:100%;margin-top:.8rem;font-size:.92rem;padding:.8rem;">🖼 歌詞カード（背景つき静止画・1行ずつ）</button>
+        <div class="notice" style="margin-top:.55rem;line-height:1.7;">
+          プレビューの<b>背景（色／画像）＋歌詞</b>を焼き込んだ<b>静止画PNG</b>を、歌詞の行数ぶんまとめて書き出します（ZIP）。SNS投稿・サムネ・リリックカードに。<br>
+          ※背景に「動画」を選んでいる場合は押した瞬間のフレームが背景になります。動画背景なら上の<b>🎬完成動画</b>がおすすめ。
         </div>
 
         <details class="adv" style="margin-top:.7rem;">
@@ -814,7 +822,11 @@ function exportLRC(){
     .map(l=>`${lrcStamp(l.t)}${l.text}`).join('\n');
   downloadBlob(new Blob([lines],{type:'text/plain'}),'lyrics.lrc'); toast('.lrc を書き出しました');
 }
-function updateExportBtns(){ const ok=lyrics.some(l=>l.t!=null); ['lrcBtn','zipBtn','assBtn','srtBtn'].forEach(id=>$(id).disabled=!ok); }
+function updateExportBtns(){
+  const ok=lyrics.some(l=>l.t!=null);
+  ['lrcBtn','zipBtn','assBtn','srtBtn'].forEach(id=>$(id).disabled=!ok);
+  $('cardBtn').disabled = !lyrics.some(l=>l.text.trim());  // カードは歌詞があれば（タイミング前でも）OK
+}
 
 /* ---- 行ごとの終了時刻（次の行頭 or 末尾+4秒） ---- */
 function timedLines(){ return lyrics.map((l,i)=>({...l,i})).filter(l=>l.t!=null).sort((a,b)=>a.t-b.t); }
@@ -847,6 +859,53 @@ async function exportAssets(){
   $('zipBtn').disabled=false; draw();
   toast(`PNG ${lines.length}枚＋字幕を書き出しました`);
 }
+/* ---- 🖼 歌詞カード：背景つき静止画を1行ずつPNGでZIP書き出し ---- */
+async function exportCards(){
+  // タイミング済みがあればその順／なければ入力順（タイミング前でも使える）
+  const timed=timedLines().filter(l=>l.text.trim());
+  const lines=timed.length ? timed
+            : lyrics.map((l,i)=>({...l,i})).filter(l=>l.text.trim());
+  if(!lines.length){ toast('歌詞がありません'); return; }
+  const btn=$('cardBtn'), label=btn.textContent; btn.disabled=true; btn.textContent='🖼 画像を生成中…';
+  toast('背景つき画像を生成中…');
+  await ensureFont(state.font);
+  const W=canvas.width, H=canvas.height;
+  const files=[]; const rows=[['index','filename','start_sec','end_sec','text']];
+  for(let k=0;k<lines.length;k++){
+    const l=lines[k];
+    ctx.clearRect(0,0,W,H);
+    drawBackground(W,H);            // ← 背景（色／画像／動画フレーム）を焼き込む
+    renderText(l.text,1);
+    const blob=await new Promise(r=>canvas.toBlob(r,'image/png'));
+    files.push({name:`card_${String(k+1).padStart(3,'0')}.png`, data:new Uint8Array(await blob.arrayBuffer())});
+    rows.push([k+1,`card_${String(k+1).padStart(3,'0')}.png`, l.t!=null?l.t.toFixed(2):'', l.t!=null?endTimeOf(l.t).toFixed(2):'', l.text]);
+  }
+  const enc=new TextEncoder();
+  const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\r\n');
+  files.push({name:'list.csv',data:enc.encode('﻿'+csv)});
+  files.push({name:'お読みください.txt',data:enc.encode('﻿'+CARD_HOWTO)});
+  downloadBlob(buildZip(files),'lyric-cards.zip');
+  ctx.clearRect(0,0,W,H); draw();
+  btn.textContent=label; btn.disabled=false;
+  toast(`背景つき画像 ${lines.length}枚を書き出しました`);
+}
+const CARD_HOWTO = `【歌詞カード（背景つき静止画）つかいかた】
+
+■ 中身
+- card_001.png, 002... : 背景＋歌詞を焼き込んだ静止画（1行＝1枚）
+- list.csv : 各画像の文字・開始/終了秒（タイミング済みのときだけ秒が入ります）
+
+■ 使い道
+- SNS投稿（X / Instagram など）にそのまま画像として載せる
+- 動画のサムネイル素材にする
+- リリックカード（歌詞画像）として配布する
+
+■ ヒント
+- 背景は、プレビュー下の「背景」で 色／画像 を選んでから書き出してください。
+- サイズはプレビューの比率（16:9 / 9:16 / 1:1 など）と同じです。SNSの正方形なら 1:1 がおすすめ。
+- 背景に「動画」を選んでいる場合は、書き出した瞬間の1フレームが背景になります。
+  動画を背景にしたいときは「🎬 完成動画(WebM)」のほうが向いています。
+`;
 function exportASS(){
   const lines=timedLines().filter(l=>l.text.trim());
   if(!lines.length){ toast('タイミング済みの歌詞がありません'); return; }
@@ -1018,6 +1077,7 @@ function bindControls(){
 
   $('recBtn').onclick=exportWebM; $('pngBtn').onclick=exportPNG; $('lrcBtn').onclick=exportLRC;
   $('zipBtn').onclick=exportAssets; $('assBtn').onclick=exportASS; $('srtBtn').onclick=exportSRT;
+  $('cardBtn').onclick=exportCards;
 }
 function segBind(id,key){ $(id).querySelectorAll('button').forEach(b=>b.onclick=()=>{
   $(id).querySelectorAll('button').forEach(x=>x.classList.remove('on')); b.classList.add('on');
