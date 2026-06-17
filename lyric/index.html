@@ -54,9 +54,11 @@ header .sub{font-size:.62rem;letter-spacing:.18em;color:var(--text-muted);text-t
 .card-title{font-size:.85rem;font-weight:600;}
 .card-title small{font-weight:400;color:var(--text-muted);font-size:.66rem;margin-left:.35rem;}
 
-.grid{display:grid;grid-template-columns:1.05fr .95fr;gap:1rem;align-items:start;}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:1rem;align-items:start;}
 @media(max-width:920px){.grid{grid-template-columns:1fr;}}
 .stack{display:flex;flex-direction:column;gap:1rem;}
+.col-preview{position:sticky;top:12px;align-self:start;}
+@media(max-width:920px){.col-preview{order:-1;position:static;}}
 
 /* Drop zone */
 .drop-zone{border:1.5px dashed rgba(124,58,237,.3);border-radius:var(--radius-sm);
@@ -185,7 +187,7 @@ details.adv[open]>summary::before{content:'▾';}
       <div class="logo-mark">🎬</div>
       <div>
         <h1>Lyric Telop Generator</h1>
-        <div class="sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build3</div>
+        <div class="sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build4</div>
       </div>
     </div>
   </header>
@@ -196,8 +198,8 @@ details.adv[open]>summary::before{content:'▾';}
   </div>
 
   <div class="grid">
-    <!-- ════════ LEFT : INPUT ════════ -->
-    <div class="stack">
+    <!-- ════════ CONTROLS COLUMN ════════ -->
+    <div class="stack col-controls">
       <!-- Step 1: Audio -->
       <div class="card">
         <div class="card-header"><span class="step-badge">1</span><span class="card-title">楽曲を読み込む<small>mp3 / wav / m4a</small></span></div>
@@ -258,43 +260,12 @@ details.adv[open]>summary::before{content:'▾';}
           </div>
         </details>
       </div>
-    </div>
-
-    <!-- ════════ RIGHT : STYLE + PREVIEW + EXPORT ════════ -->
-    <div class="stack">
-      <!-- Preview -->
-      <div class="card">
-        <div class="card-header"><span class="step-badge">▶</span><span class="card-title">プレビュー<small id="aspectLabel">16:9 / 1920×1080</small></span></div>
-        <div class="stage-wrap"><canvas id="stage" width="1920" height="1080"></canvas></div>
-        <div class="transport">
-          <button class="btn btn-accent2" id="playBtn2" disabled>▶</button>
-          <input type="range" class="seek" id="seek" min="0" max="100" value="0" step="0.01" disabled>
-          <span class="tcode" id="tcode">0:00.0 / 0:00.0</span>
-        </div>
-        <div class="row" style="margin-top:.7rem;">
-          <span style="font-size:.66rem;color:var(--text-sec);">背景:</span>
-          <div class="seg" id="bgSeg">
-            <button data-bg="transparent" class="on">透過</button>
-            <button data-bg="solid">単色</button>
-            <button data-bg="image">画像</button>
-            <button data-bg="video">動画</button>
-          </div>
-          <input type="color" id="bgColor" value="#101018" style="display:none;">
-          <label class="btn" id="bgFileBtn" style="display:none;">ファイル選択<input type="file" id="bgFile" accept="image/*,video/*" style="display:none;"></label>
-          <select id="aspect" style="margin-left:auto;">
-            <option value="16:9">16:9 横</option>
-            <option value="9:16">9:16 縦(Shorts)</option>
-            <option value="1:1">1:1 正方形</option>
-          </select>
-        </div>
-      </div>
-
       <!-- Style -->
       <div class="card">
         <div class="card-header"><span class="step-badge">🎨</span><span class="card-title">書体・スタイル</span></div>
         <div class="font-cat" style="margin-top:0;">プリセット（雰囲気から選ぶ）</div>
         <div class="row" id="presetRow" style="margin-bottom:.5rem;gap:.4rem;"></div>
-        <details class="adv">
+        <details class="adv" open>
           <summary>🔧 書体・色・位置を細かく調整（任意）</summary>
           <div class="adv-body">
             <div id="fontPicker"></div>
@@ -370,6 +341,36 @@ details.adv[open]>summary::before{content:'▾';}
             </div>
           </div>
         </details>
+      </div>
+    </div>
+
+    <!-- ════════ PREVIEW COLUMN (sticky) ════════ -->
+    <div class="col-preview">
+      <!-- Preview -->
+      <div class="card">
+        <div class="card-header"><span class="step-badge">▶</span><span class="card-title">プレビュー<small id="aspectLabel">16:9 / 1920×1080</small></span></div>
+        <div class="stage-wrap"><canvas id="stage" width="1920" height="1080"></canvas></div>
+        <div class="transport">
+          <button class="btn btn-accent2" id="playBtn2" disabled>▶</button>
+          <input type="range" class="seek" id="seek" min="0" max="100" value="0" step="0.01" disabled>
+          <span class="tcode" id="tcode">0:00.0 / 0:00.0</span>
+        </div>
+        <div class="row" style="margin-top:.7rem;">
+          <span style="font-size:.66rem;color:var(--text-sec);">背景:</span>
+          <div class="seg" id="bgSeg">
+            <button data-bg="transparent" class="on">透過</button>
+            <button data-bg="solid">単色</button>
+            <button data-bg="image">画像</button>
+            <button data-bg="video">動画</button>
+          </div>
+          <input type="color" id="bgColor" value="#101018" style="display:none;">
+          <label class="btn" id="bgFileBtn" style="display:none;">ファイル選択<input type="file" id="bgFile" accept="image/*,video/*" style="display:none;"></label>
+          <select id="aspect" style="margin-left:auto;">
+            <option value="16:9">16:9 横</option>
+            <option value="9:16">9:16 縦(Shorts)</option>
+            <option value="1:1">1:1 正方形</option>
+          </select>
+        </div>
       </div>
     </div>
   </div>
@@ -710,7 +711,8 @@ function buildFontPicker(){
 function applyLyrics(){
   const raw=$('lyricsInput').value.split('\n');
   const old=lyrics;
-  lyrics = raw.map((text,i)=>({ text, t: old[i] && old[i].text===text ? old[i].t : null }));
+  // 行の位置(index)でタイミングを引き継ぐ → 文字を直しても時刻は保持される
+  lyrics = raw.map((text,i)=>({ text, t: old[i] ? old[i].t : null }));
   tapCursor = lyrics.findIndex(l=>l.t==null); if(tapCursor<0) tapCursor=lyrics.length;
   $('lineCount').textContent = `${lyrics.length}行`;
   renderLines(); updateTapTarget();
