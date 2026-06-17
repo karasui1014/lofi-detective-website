@@ -206,7 +206,7 @@ details.adv[open]>summary::before{content:'▾';}
       <div class="logo-mark">🎬</div>
       <div>
         <h1>Lyric Telop Generator</h1>
-        <div class="sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build8</div>
+        <div class="sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build9</div>
       </div>
     </div>
   </header>
@@ -1149,6 +1149,12 @@ const GUIDES=[
     '画像を開始位置へドラッグ→端を伸ばして表示時間に合わせる（秒は timings.csv）',
     '残りのPNGも同じように上に重ねる',
   ], tip:'字幕でよければ subtitles.srt を「字幕」から読み込むだけでもOK。'},
+  {k:'PowerDirector', steps:[
+    'メディアルームにPNGを読み込む（取り込み）',
+    'MV映像を一番下のトラックに置く',
+    'telop_001.png を上のトラック（PiP）へドラッグ',
+    '各PNGを開始位置・長さ（timings.csv）に合わせる',
+  ], tip:'字幕ルームで subtitles.srt を読み込めば一気に表示できます。'},
   {k:'Premiere Pro', steps:[
     'PNGを全部「プロジェクト」パネルに読み込む',
     'MVをV1、telop_001.png をV2トラックに置く',
