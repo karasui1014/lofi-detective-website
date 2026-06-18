@@ -208,7 +208,7 @@ details.adv[open]>summary::before{content:'▾';}
       <div class="logo-mark">🎬</div>
       <div>
         <h1>Lyric Telop Generator</h1>
-        <div class="sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build12</div>
+        <div class="sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build13</div>
       </div>
     </div>
   </header>
@@ -500,13 +500,23 @@ function applyAspect(){
 }
 
 /* ════ 描画 ════ */
+const GAP_HIDE_MIN = 1.0;  // この秒数以上の空行スロットだけ「テロップ消し」として無表示にする
 function activeLineAt(t){
   // t を含む [start, nextStart) の行を返す
   const timed = lyrics.map((l,i)=>({...l,i})).filter(l=>l.t!=null).sort((a,b)=>a.t-b.t);
+  if(!timed.length) return null;
+  const songEnd = (audio.duration && isFinite(audio.duration) && audio.duration>0)
+    ? audio.duration : (timed[timed.length-1].t + 6);
   for(let k=0;k<timed.length;k++){
     const cur=timed[k], next=timed[k+1];
-    const end = next ? next.t : cur.t + 4; // 末尾は4秒
-    if(t>=cur.t && t<end) return {line:cur, start:cur.t, end};
+    const end = next ? next.t : Math.max(songEnd, cur.t + 6); // 最終行は曲尾まで保持
+    if(t>=cur.t && t<end){
+      if(cur.text.trim()) return {line:cur, start:cur.t, end, last:!next};
+      // 空行スロット：十分長いときだけ無表示（休符）。短ければ歌唱継続中なので直前の非空行を表示し続ける
+      if(end - cur.t >= GAP_HIDE_MIN) return null;
+      for(let j=k-1;j>=0;j--) if(timed[j].text.trim()) return {line:timed[j], start:timed[j].t, end, last:false};
+      return null;
+    }
   }
   return null;
 }
@@ -576,12 +586,15 @@ function draw(){
   drawBackground(W,H);
   const act = activeLineAt(audio.currentTime||0);
   if(act && act.line.text.trim()){
-    // フェード透明度
+    // フェードイン（立ち上がり）のみ。行の途中や次行の直前で消えないよう、
+    // フェードアウトは最終行が曲尾に近づいたときだけ適用する。
     let a=1; const f=state.fade;
     if(f>0){
-      const inA=(audio.currentTime-act.start)/f;
-      const outA=(act.end-audio.currentTime)/f;
-      a=Math.max(0,Math.min(1,Math.min(inA,outA)));
+      a=Math.max(0,Math.min(1,(audio.currentTime-act.start)/f));
+      if(act.last){
+        const outA=(act.end-audio.currentTime)/f;
+        a=Math.min(a, Math.max(0,Math.min(1,outA)));
+      }
     }
     renderText(act.line.text, a);
     return;
