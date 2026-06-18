@@ -208,14 +208,14 @@ details.adv[open]>summary::before{content:'▾';}
       <div class="logo-mark">🎬</div>
       <div>
         <h1>Lyric Telop Generator</h1>
-        <div class="sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build11</div>
+        <div class="sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build12</div>
       </div>
     </div>
   </header>
 
   <div class="help-flow">
-    かんたん4ステップ：<b>①音源を入れる</b> → <b>②AIで自動生成</b>（歌詞＋タイミング）→ <b>③スタイル（任意）</b> → <b>④完成動画を作る</b>（ソフト不要）<br>
-    <span style="color:var(--text-muted);">※タイミングは音源から自動でセットされます。タップ作業は不要です。</span>
+    かんたん4ステップ：<b>①音源を入れる</b> → <b>②歌詞を入力</b>（正しい歌詞を貼り付け）→ <b>③タイミングを自動でつける</b> → <b>④完成動画を作る</b>（ソフト不要）<br>
+    <span style="color:var(--text-muted);">※あなたの入力歌詞はそのまま使い、タイミングだけ音源から自動でセット。誤字は出ません。</span>
   </div>
 
   <div class="grid">
@@ -234,15 +234,21 @@ details.adv[open]>summary::before{content:'▾';}
 
       <!-- Step 2: Lyrics -->
       <div class="card">
-        <div class="card-header"><span class="step-badge">2</span><span class="card-title">歌詞とタイミング<small>AIで全自動／または歌詞を貼ってタイミングだけ</small></span></div>
-        <!-- AI transcription -->
-        <div style="background:var(--surface3);border:1px solid rgba(6,182,212,.2);border-radius:var(--radius-sm);padding:.75rem .85rem;margin-bottom:.75rem;">
-          <div style="font-size:.8rem;color:var(--accent2);font-weight:700;margin-bottom:.55rem;">🎙 音源から自動生成（歌詞＋タイミング）</div>
-          <button class="btn btn-accent2" id="transBtn" disabled style="width:100%;justify-content:center;font-size:.85rem;padding:.7rem;">▶ 音源から自動でつくる</button>
-          <div id="transProgress" style="display:none;margin-top:.5rem;">
-            <div style="font-size:.68rem;color:var(--accent2);margin-bottom:.3rem;" id="transMsg">準備中…</div>
+        <div class="card-header"><span class="step-badge">2</span><span class="card-title">歌詞を入力<small>正しい歌詞を貼り付け →「歌詞を反映」</small></span></div>
+        <textarea id="lyricsInput" placeholder="ここに歌詞を貼り付け／入力してください。&#10;&#10;・1行＝1テロップ&#10;・空行＝その間はテロップを消す&#10;&#10;入力できたら下の「歌詞を反映」を押してください（プレビューに表示されます）。"></textarea>
+        <div class="row" style="margin-top:.6rem;">
+          <button class="btn btn-primary" id="applyLyrics">歌詞を反映</button>
+          <span class="hint" id="lineCount"></span>
+        </div>
+
+        <div style="background:var(--surface3);border:1px solid rgba(34,197,94,.28);border-radius:var(--radius-sm);padding:.75rem .85rem;margin-top:.8rem;">
+          <div style="font-size:.8rem;color:var(--ok);font-weight:700;margin-bottom:.15rem;">🎯 音源からタイミングを自動でつける</div>
+          <div class="hint" style="margin-bottom:.55rem;line-height:1.7;">上の<b>正しい歌詞を「歌詞を反映」</b>したあとに押すと、<b>文字はそのまま</b>で各行のタイミングだけをAIが音源と照合してセットします（誤字は出ません）。</div>
+          <button class="btn" id="alignBtn" disabled style="width:100%;justify-content:center;font-size:.85rem;padding:.7rem;border-color:rgba(34,197,94,.45);color:var(--ok);">🎯 歌詞はそのまま・タイミングを自動でつける</button>
+          <div id="alignProgress" style="display:none;margin-top:.5rem;">
+            <div style="font-size:.68rem;color:var(--ok);margin-bottom:.3rem;" id="alignMsg">準備中…</div>
             <div style="background:var(--surface2);border-radius:4px;height:5px;overflow:hidden;">
-              <div id="transBar" style="background:linear-gradient(90deg,var(--accent2),var(--accent));height:100%;width:0%;transition:width .4s;border-radius:4px;"></div>
+              <div id="alignBar" style="background:linear-gradient(90deg,var(--ok),var(--accent2));height:100%;width:0%;transition:width .4s;border-radius:4px;"></div>
             </div>
           </div>
           <details class="adv" style="margin-top:.5rem;">
@@ -252,26 +258,9 @@ details.adv[open]>summary::before{content:'▾';}
                 <option value="tiny">速い・軽い（約39MB）</option>
                 <option value="small" selected>高精度・推奨（約244MB）</option>
               </select>
-              <div class="hint" style="margin-top:.45rem;">初回だけモデルをDL（次回から即起動）。歌詞の聞き取りと各行のタイミングはAIが自動でセットします。歌は環境により聞き間違いが出ることがあるので、生成後にサッと確認を。</div>
+              <div class="hint" style="margin-top:.45rem;">初回だけモデルをDL（次回から即起動）。タイミングのズレが大きいときは「高精度」を選ぶと改善することがあります。</div>
             </div>
           </details>
-        </div>
-        <textarea id="lyricsInput" placeholder="上の「音源から自動でつくる」を押すと、ここに歌詞が自動で入ります。&#10;&#10;聞き間違いがあれば直接なおして「歌詞を反映」を押してください。&#10;&#10;（手入力もOK。1行＝1テロップ／空行＝テロップ消し）"></textarea>
-        <div class="row" style="margin-top:.6rem;">
-          <button class="btn btn-primary" id="applyLyrics">歌詞を反映</button>
-          <span class="hint" id="lineCount"></span>
-        </div>
-
-        <div style="background:var(--surface3);border:1px solid rgba(34,197,94,.28);border-radius:var(--radius-sm);padding:.75rem .85rem;margin-top:.8rem;">
-          <div style="font-size:.8rem;color:var(--ok);font-weight:700;margin-bottom:.15rem;">🎯 入力した歌詞に、音源からタイミングだけ付ける<span class="badge badge-green" style="margin-left:.4rem;">誤字なし・おすすめ</span></div>
-          <div class="hint" style="margin-bottom:.55rem;line-height:1.7;">AIの聞き間違いが気になるとき向け。<b>正しい歌詞を上の欄に貼り付けて「歌詞を反映」</b>したあとに押すと、<b>文字はそのまま</b>・各行のタイミングだけをAIが音源と照合してセットします。</div>
-          <button class="btn" id="alignBtn" disabled style="width:100%;justify-content:center;font-size:.85rem;padding:.7rem;border-color:rgba(34,197,94,.45);color:var(--ok);">🎯 歌詞はそのまま・タイミングを自動でつける</button>
-          <div id="alignProgress" style="display:none;margin-top:.5rem;">
-            <div style="font-size:.68rem;color:var(--ok);margin-bottom:.3rem;" id="alignMsg">準備中…</div>
-            <div style="background:var(--surface2);border-radius:4px;height:5px;overflow:hidden;">
-              <div id="alignBar" style="background:linear-gradient(90deg,var(--ok),var(--accent2));height:100%;width:0%;transition:width .4s;border-radius:4px;"></div>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -284,7 +273,7 @@ details.adv[open]>summary::before{content:'▾';}
           <button class="btn" id="resetTimes" disabled>⟲ クリア</button>
           <span class="hint">行をクリックでその時間へジャンプ</span>
         </div>
-        <div class="lines" id="linesList"><div class="hint">②でAI生成すると、歌詞と自動タイミングがここに並びます。</div></div>
+        <div class="lines" id="linesList"><div class="hint">②で歌詞を反映 → 🎯タイミングを自動でつける と、各行がここに並びます。</div></div>
         <details class="adv" style="margin-top:.6rem;">
           <summary>気になる行だけ手直し（任意）</summary>
           <div class="adv-body">
@@ -488,6 +477,7 @@ const state = {
 };
 let lyrics = [];      // [{text, t:Number|null}]
 let tapCursor = 0;
+let previewIdx = 0;   // プレビューで表示する行（タイミング前の確認用）
 let bgImage = null;   // HTMLImageElement
 let hasBgVideo = false;
 
@@ -585,15 +575,29 @@ function draw(){
   ctx.clearRect(0,0,W,H);
   drawBackground(W,H);
   const act = activeLineAt(audio.currentTime||0);
-  if(!act || !act.line.text.trim()) return;
-  // フェード透明度
-  let a=1; const f=state.fade;
-  if(f>0){
-    const inA=(audio.currentTime-act.start)/f;
-    const outA=(act.end-audio.currentTime)/f;
-    a=Math.max(0,Math.min(1,Math.min(inA,outA)));
+  if(act && act.line.text.trim()){
+    // フェード透明度
+    let a=1; const f=state.fade;
+    if(f>0){
+      const inA=(audio.currentTime-act.start)/f;
+      const outA=(act.end-audio.currentTime)/f;
+      a=Math.max(0,Math.min(1,Math.min(inA,outA)));
+    }
+    renderText(act.line.text, a);
+    return;
   }
-  renderText(act.line.text, a);
+  // タイミング未設定、または停止中で該当行がないときは、確認用に1行プレビュー表示
+  const hasTiming = lyrics.some(l=>l.t!=null);
+  if(!hasTiming || audio.paused){
+    const pv = pickPreviewLine();
+    if(pv) renderText(pv, 1);
+  }
+}
+// プレビュー用に表示する1行（クリックした行→なければ最初の非空行）
+function pickPreviewLine(){
+  if(!lyrics.length) return '';
+  for(let i=previewIdx;i<lyrics.length;i++) if(lyrics[i].text.trim()) return lyrics[i].text;
+  const f=lyrics.find(l=>l.text.trim()); return f?f.text:'';
 }
 
 function drawBackground(W,H){
@@ -771,13 +775,14 @@ function applyLyrics(){
   // 行の位置(index)でタイミングを引き継ぐ → 文字を直しても時刻は保持される
   lyrics = raw.map((text,i)=>({ text, t: old[i] ? old[i].t : null }));
   tapCursor = lyrics.findIndex(l=>l.t==null); if(tapCursor<0) tapCursor=lyrics.length;
+  previewIdx = 0;   // 反映後はプレビューに先頭行を表示
   $('lineCount').textContent = `${lyrics.length}行`;
-  renderLines(); updateTapTarget();
+  renderLines(); updateTapTarget(); draw();
   updateExportBtns();
 }
 function renderLines(){
   const host=$('linesList'); host.innerHTML='';
-  if(!lyrics.length){ host.innerHTML='<div class="hint">②でAI生成すると、歌詞と自動タイミングがここに並びます。</div>'; return; }
+  if(!lyrics.length){ host.innerHTML='<div class="hint">②で歌詞を反映 → 🎯タイミングを自動でつける と、各行がここに並びます。</div>'; return; }
   lyrics.forEach((l,i)=>{
     const row=document.createElement('div'); row.className='line-item'+(l.t==null?' untimed':''); row.dataset.i=i;
     const blank = !l.text.trim();
@@ -786,7 +791,7 @@ function renderLines(){
       <div class="line-txt ${blank?'blank':''}" title="クリックでその時間へ">${blank?'（無表示）':escapeHtml(l.text)}</div>
       <input class="tm" value="${l.t!=null?fmt(l.t):'—'}" title="mm:ss.s で編集">
       <button class="del" title="この行を削除">×</button>`;
-    row.querySelector('.line-txt').onclick=()=>{ if(l.t!=null){ audio.currentTime=l.t; } };
+    row.querySelector('.line-txt').onclick=()=>{ previewIdx=i; if(l.t!=null){ audio.currentTime=l.t; } draw(); };
     row.querySelector('.tm').onchange=(e)=>{ l.t=parseTime(e.target.value); renderLines(); updateExportBtns(); };
     row.querySelector('.del').onclick=()=>{ lyrics.splice(i,1); renderLines(); };
     host.appendChild(row);
@@ -1050,7 +1055,6 @@ function bindControls(){
   dz.ondrop=e=>{e.preventDefault();dz.classList.remove('drag-over');loadAudio(e.dataTransfer.files[0]);};
 
   $('applyLyrics').onclick=applyLyrics;
-  $('transBtn').onclick=runTranscription;
   $('alignBtn').onclick=alignLyricsToAudio;
   $('playBtn').onclick=togglePlay; $('playBtn2').onclick=togglePlay;
   $('rewindBtn').onclick=()=>{audio.currentTime=0;};
@@ -1124,49 +1128,6 @@ async function loadTransformers(){
   throw lastErr || new Error('AIライブラリを読み込めませんでした');
 }
 
-async function runTranscription(){
-  if(!audioFile){ toast('先に楽曲を読み込んでください'); return; }
-  if(transRunning) return;
-  transRunning = true;
-  $('transBtn').disabled = true;
-  showTransProgress(true,'準備中…',0);
-  try{
-    if(!whisperPipe){
-      showTransProgress(true,'AIライブラリを準備中…',3);
-      const modelId = `Xenova/whisper-${$('whisperModel').value}`;
-      const {pipeline, env} = await loadTransformers();
-      env.allowLocalModels = false;
-      env.useBrowserCache = true;
-      try{ env.backends.onnx.wasm.numThreads = 1; }catch(_){}
-      showTransProgress(true,'モデルをダウンロード中（初回のみ）…',5);
-      whisperPipe = await pipeline('automatic-speech-recognition', modelId, {
-        dtype: 'q8',
-        progress_callback(p){
-          if(p.status==='progress' && p.total){
-            const pct = Math.round(p.loaded/p.total*100);
-            showTransProgress(true,`ダウンロード中… ${pct}%`, pct*0.6);
-          }
-        }
-      });
-    }
-    showTransProgress(true,'音声を変換中…',65);
-    const floats = await decodeAudioTo16kHz();
-    showTransProgress(true,'文字起こし中…（曲の長さに応じて数分かかる場合があります）',70);
-    const result = await whisperPipe(floats,{
-      language:'japanese', task:'transcribe',
-      return_timestamps:true, chunk_length_s:30, stride_length_s:5,
-    });
-    applyTranscriptionResult(result);
-    toast('文字起こし完了！内容を確認・修正してください。');
-  }catch(e){
-    console.error(e); toast('エラー: '+e.message);
-    whisperPipe = null; // 次回リセット
-  }finally{
-    transRunning = false;
-    $('transBtn').disabled = false;
-    showTransProgress(false);
-  }
-}
 async function decodeAudioTo16kHz(){
   const ab = await audioFile.arrayBuffer();
   const ac = new AudioContext();
@@ -1179,22 +1140,6 @@ async function decodeAudioTo16kHz(){
   const resampled = await offCtx.startRendering();
   return resampled.getChannelData(0);
 }
-function showTransProgress(show, msg='', pct=0){
-  $('transProgress').style.display = show?'block':'none';
-  if(show){ $('transMsg').textContent=msg; $('transBar').style.width=Math.min(100,pct)+'%'; }
-}
-function applyTranscriptionResult(result){
-  const chunks = (result.chunks||[]).filter(c=>c.text.trim());
-  if(!chunks.length){ $('lyricsInput').value=(result.text||'').trim(); applyLyrics(); return; }
-  $('lyricsInput').value = chunks.map(c=>c.text.trim()).join('\n');
-  applyLyrics();
-  // タイムスタンプ自動反映
-  chunks.forEach((c,i)=>{ if(lyrics[i] && c.timestamp?.[0]!=null) lyrics[i].t=c.timestamp[0]; });
-  tapCursor = lyrics.filter(l=>l.t!=null).length;
-  renderLines(); updateExportBtns(); updateTapTarget();
-  $('resetTimes').disabled = false;
-}
-
 /* ════════════════════════════════════════════════════════════
    🎯 強制アライメント：入力済みの「正しい歌詞」はそのまま使い、
    音源から得たタイムスタンプと文字単位で照合してタイミングだけ付ける。
@@ -1307,7 +1252,7 @@ async function alignLyricsToAudio(){
   if(transRunning) return;
   applyLyrics();  // テキストエリアの最新内容を取り込む
   if(!lyrics.some(l=>l.text.trim())){ toast('先に正しい歌詞を入力して「歌詞を反映」してください'); return; }
-  transRunning=true; $('alignBtn').disabled=true; $('transBtn').disabled=true;
+  transRunning=true; $('alignBtn').disabled=true;
   alignProgress(true,'準備中…',0);
   try{
     if(!whisperPipe){
@@ -1330,7 +1275,7 @@ async function alignLyricsToAudio(){
     applyAlignment(chunks);
     toast('入力した歌詞にタイミングを付けました！ズレは行をクリック＆タップで微調整できます。');
   }catch(e){ console.error(e); toast('エラー: '+e.message); whisperPipe=null; }
-  finally{ transRunning=false; $('transBtn').disabled=false; updateExportBtns(); alignProgress(false); }
+  finally{ transRunning=false; updateExportBtns(); alignProgress(false); }
 }
 
 function loadAudio(file){
@@ -1338,7 +1283,7 @@ function loadAudio(file){
   audioFile = file;
   audio.src=URL.createObjectURL(file);
   $('audioDrop').classList.add('loaded'); $('audioName').textContent='🎵 '+file.name;
-  ['playBtn','playBtn2','rewindBtn','seek','recBtn','transBtn'].forEach(id=>$(id).disabled=false);
+  ['playBtn','playBtn2','rewindBtn','seek','recBtn'].forEach(id=>$(id).disabled=false);
   if(lyrics.length){ $('tapBtn').disabled=false; $('resetTimes').disabled=false; }
   updateExportBtns();   // 歌詞が既にあれば「タイミング照合」ボタンを有効化
   audio.onloadedmetadata=updateTransport;
