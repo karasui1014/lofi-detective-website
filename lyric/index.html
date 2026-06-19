@@ -46,8 +46,17 @@ header .sub{font-size:.62rem;letter-spacing:.18em;color:var(--text-muted);text-t
 
 /* Cards */
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
-  padding:1.1rem 1.2rem;transition:border-color .2s;}
+  padding:1.1rem 1.2rem;transition:border-color .2s, box-shadow .2s;}
 .card:hover{border-color:var(--border-hi);}
+/* セクションごとのネオン枠（蛍光系・薄め） */
+.nb-cyan{border-color:rgba(56,232,255,.5);box-shadow:0 0 18px -7px rgba(56,232,255,.6), inset 0 0 24px -19px rgba(56,232,255,.7);}
+.nb-green{border-color:rgba(80,250,160,.5);box-shadow:0 0 18px -7px rgba(80,250,160,.55), inset 0 0 24px -19px rgba(80,250,160,.7);}
+.nb-purple{border-color:rgba(180,140,255,.55);box-shadow:0 0 18px -7px rgba(180,140,255,.6), inset 0 0 24px -19px rgba(180,140,255,.7);}
+.nb-pink{border-color:rgba(255,110,200,.5);box-shadow:0 0 18px -7px rgba(255,110,200,.55), inset 0 0 24px -19px rgba(255,110,200,.7);}
+.nb-amber{border-color:rgba(255,205,100,.5);box-shadow:0 0 18px -7px rgba(255,205,100,.55), inset 0 0 24px -19px rgba(255,205,100,.7);}
+.nb-blue{border-color:rgba(120,175,255,.55);box-shadow:0 0 18px -7px rgba(120,175,255,.6), inset 0 0 24px -19px rgba(120,175,255,.7);}
+.nb-orange{border-color:rgba(255,160,90,.5);box-shadow:0 0 18px -7px rgba(255,160,90,.55), inset 0 0 24px -19px rgba(255,160,90,.7);}
+[class*="nb-"]:hover{filter:brightness(1.08);}
 .card-header{display:flex;align-items:center;gap:.6rem;margin-bottom:.9rem;}
 .step-badge{width:22px;height:22px;border-radius:7px;flex-shrink:0;background:var(--surface3);
   border:1px solid var(--border-hi);display:flex;align-items:center;justify-content:center;
@@ -181,6 +190,11 @@ details.adv[open]>summary::before{content:'▾';}
 .help-flow{font-size:.7rem;color:var(--text-sec);background:var(--surface2);border:1px solid var(--border);
   border-radius:var(--radius-sm);padding:.6rem .85rem;margin-bottom:1rem;line-height:1.7;}
 .help-flow b{color:var(--accent2);}
+.warn-banner{font-size:.74rem;color:#ffe08a;background:rgba(245,158,11,.10);
+  border:1px solid rgba(245,158,11,.45);border-radius:var(--radius-sm);
+  padding:.7rem .9rem;margin-bottom:1rem;line-height:1.7;
+  box-shadow:0 0 18px -7px rgba(245,158,11,.5);}
+.warn-banner b{color:#ffd24d;}
 /* 差し込みガイド */
 .guide-card{margin-top:1rem;}
 .tl-mock{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:.7rem;margin-bottom:.6rem;}
@@ -208,10 +222,15 @@ details.adv[open]>summary::before{content:'▾';}
       <div class="logo-mark">🎬</div>
       <div>
         <h1>Lyric Telop Generator</h1>
-        <div class="sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build15</div>
+        <div class="sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build16</div>
       </div>
     </div>
   </header>
+
+  <div class="warn-banner">
+    ⚠️ <b>作業中はこのページを離れないでください。</b>別のタブ・アプリに切り替えると、表示が崩れたり真っ暗になることがあります（端末の仕様によるものです）。<br>
+    もし崩れてしまったら<b>ページを再読み込み</b>してください。<b>完成動画(WebM)の録画中は特に</b>、画面を切り替えず最後までこのままお待ちください。
+  </div>
 
   <div class="help-flow">
     かんたん4ステップ：<b>①音源を入れる</b> → <b>②歌詞を入力</b>（正しい歌詞を貼り付け）→ <b>③タイミングを自動でつける</b> → <b>④完成動画を作る</b>（ソフト不要）<br>
@@ -222,7 +241,7 @@ details.adv[open]>summary::before{content:'▾';}
     <!-- ════════ CONTROLS COLUMN ════════ -->
     <div class="stack col-controls">
       <!-- Step 1: Audio -->
-      <div class="card">
+      <div class="card nb-cyan">
         <div class="card-header"><span class="step-badge">1</span><span class="card-title">楽曲を読み込む<small>mp3 / wav / m4a</small></span></div>
         <div class="drop-zone" id="audioDrop">
           <input type="file" id="audioInput" accept="audio/*">
@@ -233,7 +252,7 @@ details.adv[open]>summary::before{content:'▾';}
       </div>
 
       <!-- Step 2: Lyrics -->
-      <div class="card">
+      <div class="card nb-green">
         <div class="card-header"><span class="step-badge">2</span><span class="card-title">歌詞を入力<small>正しい歌詞を貼り付け →「歌詞を反映」</small></span></div>
         <textarea id="lyricsInput" placeholder="ここに歌詞を貼り付け／入力してください。&#10;&#10;・1行＝1テロップ&#10;・空行は無視されます（連の区切りに使ってOK）&#10;・各行は次の歌詞が始まるまで表示され続けます&#10;&#10;入力できたら下の「歌詞を反映」を押してください（プレビューに表示されます）。"></textarea>
         <div class="row" style="margin-top:.6rem;">
@@ -265,7 +284,7 @@ details.adv[open]>summary::before{content:'▾';}
       </div>
 
       <!-- Step 3: Timing (auto) -->
-      <div class="card">
+      <div class="card nb-purple">
         <div class="card-header"><span class="step-badge">✓</span><span class="card-title">タイミング<small>AIが自動でセット・通常は操作不要</small></span></div>
         <div class="row" style="margin-bottom:.7rem;">
           <button class="btn btn-accent2" id="playBtn" disabled>▶ 再生</button>
@@ -288,7 +307,7 @@ details.adv[open]>summary::before{content:'▾';}
         </details>
       </div>
       <!-- Style -->
-      <div class="card">
+      <div class="card nb-pink">
         <div class="card-header"><span class="step-badge">🎨</span><span class="card-title">書体・スタイル</span></div>
         <div class="font-cat" style="margin-top:0;">プリセット（雰囲気から選ぶ）</div>
         <div class="row" id="presetRow" style="margin-bottom:.5rem;gap:.4rem;"></div>
@@ -349,7 +368,7 @@ details.adv[open]>summary::before{content:'▾';}
       </div>
 
       <!-- Export -->
-      <div class="card">
+      <div class="card nb-amber">
         <div class="card-header"><span class="step-badge">⬇</span><span class="card-title">書き出し</span></div>
 
         <div style="margin-bottom:.5rem;"><span class="badge badge-green">★ 初心者はこれだけでOK</span></div>
@@ -357,7 +376,8 @@ details.adv[open]>summary::before{content:'▾';}
         <div class="notice" style="margin-top:.6rem;line-height:1.75;">
           押すと曲を最後まで自動再生しながら録画し、<b>字幕＋音楽入りの動画</b>が1本でき上がります。編集ソフトは要りません。<br>
           ・先に<b>プレビューの下の「背景」</b>で、色／画像／動画を選ぶと、それが動画の背景になります（未選択なら黒）。<br>
-          ・できる動画は WebM 形式。<b>YouTubeにはそのままアップできます</b>。
+          ・できる動画は WebM 形式。<b>YouTubeにはそのままアップできます</b>。<br>
+          <span style="color:#ffd24d;">⚠️ 録画中はページを離れず、曲が終わるまでこのままお待ちください。</span>
         </div>
 
         <button class="btn btn-card" id="cardBtn" disabled style="width:100%;margin-top:.8rem;font-size:.92rem;padding:.8rem;">🖼 歌詞カード（背景つき静止画・1行ずつ）</button>
@@ -385,7 +405,7 @@ details.adv[open]>summary::before{content:'▾';}
     <!-- ════════ PREVIEW COLUMN (sticky) ════════ -->
     <div class="col-preview">
       <!-- Preview -->
-      <div class="card">
+      <div class="card nb-blue">
         <div class="card-header"><span class="step-badge">▶</span><span class="card-title">プレビュー<small id="aspectLabel">16:9 / 1920×1080</small></span></div>
         <div class="stage-wrap"><canvas id="stage" width="1920" height="1080"></canvas></div>
         <div class="transport">
@@ -414,7 +434,7 @@ details.adv[open]>summary::before{content:'▾';}
   </div>
 
   <!-- ════════ 差し込みガイド ════════ -->
-  <div class="card guide-card">
+  <div class="card guide-card nb-orange">
     <div class="card-header"><span class="step-badge">📂</span><span class="card-title">編集ソフトへの入れ方<small>自分のソフトを選ぶと手順が出ます</small></span></div>
     <div class="notice" style="margin-bottom:.7rem;line-height:1.7;">いちばん簡単なのは <b>🎬 完成動画(WebM)</b>（ソフト不要）。編集ソフトに入れたい場合は、下でソフトを選んでください。</div>
     <div class="tl-mock">
