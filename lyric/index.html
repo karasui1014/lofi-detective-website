@@ -208,7 +208,7 @@ details.adv[open]>summary::before{content:'▾';}
       <div class="logo-mark">🎬</div>
       <div>
         <h1>Lyric Telop Generator</h1>
-        <div class="sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build13</div>
+        <div class="sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build14</div>
       </div>
     </div>
   </header>
@@ -235,7 +235,7 @@ details.adv[open]>summary::before{content:'▾';}
       <!-- Step 2: Lyrics -->
       <div class="card">
         <div class="card-header"><span class="step-badge">2</span><span class="card-title">歌詞を入力<small>正しい歌詞を貼り付け →「歌詞を反映」</small></span></div>
-        <textarea id="lyricsInput" placeholder="ここに歌詞を貼り付け／入力してください。&#10;&#10;・1行＝1テロップ&#10;・空行＝その間はテロップを消す&#10;&#10;入力できたら下の「歌詞を反映」を押してください（プレビューに表示されます）。"></textarea>
+        <textarea id="lyricsInput" placeholder="ここに歌詞を貼り付け／入力してください。&#10;&#10;・1行＝1テロップ&#10;・空行は無視されます（連の区切りに使ってOK）&#10;・各行は次の歌詞が始まるまで表示され続けます&#10;&#10;入力できたら下の「歌詞を反映」を押してください（プレビューに表示されます）。"></textarea>
         <div class="row" style="margin-top:.6rem;">
           <button class="btn btn-primary" id="applyLyrics">歌詞を反映</button>
           <span class="hint" id="lineCount"></span>
@@ -500,23 +500,16 @@ function applyAspect(){
 }
 
 /* ════ 描画 ════ */
-const GAP_HIDE_MIN = 1.0;  // この秒数以上の空行スロットだけ「テロップ消し」として無表示にする
 function activeLineAt(t){
-  // t を含む [start, nextStart) の行を返す
-  const timed = lyrics.map((l,i)=>({...l,i})).filter(l=>l.t!=null).sort((a,b)=>a.t-b.t);
+  // 空行は無視し、各行は「次の歌詞行が始まるまで」表示し続ける（歌唱中に途切れないように）
+  const timed = lyrics.map((l,i)=>({...l,i})).filter(l=>l.t!=null && l.text.trim()).sort((a,b)=>a.t-b.t);
   if(!timed.length) return null;
   const songEnd = (audio.duration && isFinite(audio.duration) && audio.duration>0)
     ? audio.duration : (timed[timed.length-1].t + 6);
   for(let k=0;k<timed.length;k++){
     const cur=timed[k], next=timed[k+1];
     const end = next ? next.t : Math.max(songEnd, cur.t + 6); // 最終行は曲尾まで保持
-    if(t>=cur.t && t<end){
-      if(cur.text.trim()) return {line:cur, start:cur.t, end, last:!next};
-      // 空行スロット：十分長いときだけ無表示（休符）。短ければ歌唱継続中なので直前の非空行を表示し続ける
-      if(end - cur.t >= GAP_HIDE_MIN) return null;
-      for(let j=k-1;j>=0;j--) if(timed[j].text.trim()) return {line:timed[j], start:timed[j].t, end, last:false};
-      return null;
-    }
+    if(t>=cur.t && t<end) return {line:cur, start:cur.t, end, last:!next};
   }
   return null;
 }
@@ -706,7 +699,12 @@ function roundRect(x,y,w,h,r,fill){
 function hexA(hex,a){ const n=parseInt(hex.slice(1),16); return `rgba(${n>>16&255},${n>>8&255},${n&255},${a})`; }
 
 /* ════ 描画ループ ════ */
-function loop(){ draw(); updateTransport(); refreshActiveRow(); requestAnimationFrame(loop); }
+function loop(){
+  // 1フレームで例外が出ても描画ループを止めない（タブ復帰時の黒画面・固まり防止）
+  try{ draw(); updateTransport(); refreshActiveRow(); }
+  catch(e){ /* swallow: 次フレームで自動復帰 */ }
+  requestAnimationFrame(loop);
+}
 function updateTransport(){
   const d=audio.duration||0, c=audio.currentTime||0;
   $('seek').value = d? (c/d*100):0;
@@ -862,7 +860,7 @@ function updateExportBtns(){
 
 /* ---- 行ごとの終了時刻（次の行頭 or 末尾+4秒） ---- */
 function timedLines(){ return lyrics.map((l,i)=>({...l,i})).filter(l=>l.t!=null).sort((a,b)=>a.t-b.t); }
-function endTimeOf(start){ const nx=timedLines().find(l=>l.t>start+0.001); return nx?nx.t:start+4; }
+function endTimeOf(start){ const nx=timedLines().find(l=>l.t>start+0.001 && l.text.trim()); return nx?nx.t:start+4; }
 
 /* ---- ⭐ テロップ画像一式(透過PNG)＋timings.csv＋.ass を ZIP で書き出し ---- */
 async function exportAssets(){
@@ -1081,6 +1079,17 @@ function bindControls(){
     if(['TEXTAREA','INPUT','SELECT'].includes(e.target.tagName))return;
     if(e.code==='Space'||e.code==='Enter'){ e.preventDefault(); if(audio.src) togglePlay(); }
   });
+
+  // タブ復帰・canvasコンテキスト喪失からの自動復帰（黒画面→要リロードを防止）
+  document.addEventListener('visibilitychange',()=>{
+    if(!document.hidden){
+      try{ if(recAudioCtx && recAudioCtx.state==='suspended') recAudioCtx.resume(); }catch(_){}
+      try{ draw(); }catch(_){}
+    }
+  });
+  window.addEventListener('pageshow',()=>{ try{ draw(); }catch(_){} });
+  canvas.addEventListener('contextlost',e=>{ e.preventDefault(); });
+  canvas.addEventListener('contextrestored',()=>{ try{ draw(); }catch(_){} });
 
   // スタイル系
   const sl=(id,key,fmt2,after)=>{ $(id).oninput=e=>{ state[key]=+e.target.value; if(fmt2)$('v'+id[0].toUpperCase()+id.slice(1)).textContent=fmt2(state[key]); if(after)after(); draw(); }; };
