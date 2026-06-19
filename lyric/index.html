@@ -208,7 +208,7 @@ details.adv[open]>summary::before{content:'▾';}
       <div class="logo-mark">🎬</div>
       <div>
         <h1>Lyric Telop Generator</h1>
-        <div class="sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build14</div>
+        <div class="sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build15</div>
       </div>
     </div>
   </header>
@@ -272,6 +272,11 @@ details.adv[open]>summary::before{content:'▾';}
           <button class="btn" id="rewindBtn" disabled>⏮ 先頭</button>
           <button class="btn" id="resetTimes" disabled>⟲ クリア</button>
           <span class="hint">行をクリックでその時間へジャンプ</span>
+        </div>
+        <div class="ctrl" style="margin-bottom:.7rem;background:var(--surface3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:.6rem .8rem;">
+          <div class="ctrl-label"><span>⏱ 表示タイミング微調整<span class="hint" style="margin-left:.4rem;">←早く出す／遅く出す→</span></span><b id="vOffset">0.00s</b></div>
+          <input type="range" class="sl" id="offset" min="-150" max="150" step="5" value="0">
+          <div class="hint" style="margin-top:.35rem;">全体の歌詞が少し早い/遅いと感じたら、これで一括でジャストに合わせられます（再生しながら調整推奨）。</div>
         </div>
         <div class="lines" id="linesList"><div class="hint">②で歌詞を反映 → 🎯タイミングを自動でつける と、各行がここに並びます。</div></div>
         <details class="adv" style="margin-top:.6rem;">
@@ -472,7 +477,7 @@ async function ensureFont(f){
 const state = {
   font: ALL_FONTS[0], weight:500, size:72, color:'#ffffff',
   strokeColor:'#000000', stroke:6, shadow:true, plate:false, plateColor:'#000000',
-  vertical:false, pos:'bottom', align:'center', track:0, fade:0.25,
+  vertical:false, pos:'bottom', align:'center', track:0, fade:0.25, offset:0,
   bg:'transparent', bgColor:'#101018', aspect:'16:9',
 };
 let lyrics = [];      // [{text, t:Number|null}]
@@ -501,6 +506,7 @@ function applyAspect(){
 
 /* ════ 描画 ════ */
 function activeLineAt(t){
+  t -= (state.offset||0);   // タイミング微調整（＋で遅く、−で早く出す）
   // 空行は無視し、各行は「次の歌詞行が始まるまで」表示し続ける（歌唱中に途切れないように）
   const timed = lyrics.map((l,i)=>({...l,i})).filter(l=>l.t!=null && l.text.trim()).sort((a,b)=>a.t-b.t);
   if(!timed.length) return null;
@@ -699,11 +705,20 @@ function roundRect(x,y,w,h,r,fill){
 function hexA(hex,a){ const n=parseInt(hex.slice(1),16); return `rgba(${n>>16&255},${n>>8&255},${n&255},${a})`; }
 
 /* ════ 描画ループ ════ */
+let rafId=null;
 function loop(){
   // 1フレームで例外が出ても描画ループを止めない（タブ復帰時の黒画面・固まり防止）
   try{ draw(); updateTransport(); refreshActiveRow(); }
   catch(e){ /* swallow: 次フレームで自動復帰 */ }
-  requestAnimationFrame(loop);
+  rafId=requestAnimationFrame(loop);
+}
+function startLoop(){ if(rafId!=null) cancelAnimationFrame(rafId); rafId=requestAnimationFrame(loop); }
+// タブ復帰・bfcache・canvasコンテキスト喪失からの確実な復帰（黒画面→要リロードを根絶）
+function recoverView(){
+  try{ const w=canvas.width; canvas.width=w; }catch(_){}   // バッキングストアを作り直す（白紙化対策）
+  try{ if(recAudioCtx && recAudioCtx.state==='suspended') recAudioCtx.resume(); }catch(_){}
+  try{ draw(); }catch(_){}
+  startLoop();                                              // 描画ループを必ず1本だけ再始動
 }
 function updateTransport(){
   const d=audio.duration||0, c=audio.currentTime||0;
@@ -748,6 +763,7 @@ function syncUIFromState(){
   set('stroke',state.stroke,'vStroke',v=>v+'px');
   set('track',state.track,'vTrack',v=>v+'px');
   $('fade').value=Math.round(state.fade*100); $('vFade').textContent=state.fade.toFixed(2)+'s';
+  $('offset').value=Math.round(state.offset*100); $('vOffset').textContent=(state.offset>=0?'+':'')+state.offset.toFixed(2)+'s';
   $('color').value=state.color; $('strokeColor').value=state.strokeColor; $('plateColor').value=state.plateColor;
   $('shadow').checked=state.shadow; $('vertical').checked=state.vertical; $('plate').checked=state.plate;
   $('plateColor').style.display=state.plate?'inline-block':'none';
@@ -847,7 +863,7 @@ function exportPNG(){
 }
 function exportLRC(){
   const lines=lyrics.filter(l=>l.t!=null).sort((a,b)=>a.t-b.t)
-    .map(l=>`${lrcStamp(l.t)}${l.text}`).join('\n');
+    .map(l=>`${lrcStamp(offT(l.t))}${l.text}`).join('\n');
   downloadBlob(new Blob([lines],{type:'text/plain'}),'lyrics.lrc'); toast('.lrc を書き出しました');
 }
 function updateExportBtns(){
@@ -877,7 +893,7 @@ async function exportAssets(){
     const buf=new Uint8Array(await blob.arrayBuffer());
     const name=`telop_${String(k+1).padStart(3,'0')}.png`;
     files.push({name,data:buf});
-    rows.push([k+1,name,l.t.toFixed(2),endTimeOf(l.t).toFixed(2),l.text]);
+    rows.push([k+1,name,offT(l.t).toFixed(2),offT(endTimeOf(l.t)).toFixed(2),l.text]);
   }
   const enc=new TextEncoder();
   const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\r\n');
@@ -908,7 +924,7 @@ async function exportCards(){
     renderText(l.text,1);
     const blob=await new Promise(r=>canvas.toBlob(r,'image/png'));
     files.push({name:`card_${String(k+1).padStart(3,'0')}.png`, data:new Uint8Array(await blob.arrayBuffer())});
-    rows.push([k+1,`card_${String(k+1).padStart(3,'0')}.png`, l.t!=null?l.t.toFixed(2):'', l.t!=null?endTimeOf(l.t).toFixed(2):'', l.text]);
+    rows.push([k+1,`card_${String(k+1).padStart(3,'0')}.png`, l.t!=null?offT(l.t).toFixed(2):'', l.t!=null?offT(endTimeOf(l.t)).toFixed(2):'', l.text]);
   }
   const enc=new TextEncoder();
   const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\r\n');
@@ -946,6 +962,7 @@ function exportSRT(){
   if(!lines.length){ toast('タイミング済みの歌詞がありません'); return; }
   downloadBlob(new Blob([buildSRT(lines)],{type:'text/plain'}),'subtitles.srt'); toast('.srt を書き出しました');
 }
+function offT(s){ return Math.max(0, s + (state.offset||0)); }  // 微調整オフセットを反映した時刻
 function assTime(s){ const h=Math.floor(s/3600),m=Math.floor(s%3600/60),sec=(s%60).toFixed(2).padStart(5,'0'); return `${h}:${String(m).padStart(2,'0')}:${sec}`; }
 function assColor(hex){ const n=parseInt(hex.slice(1),16); return '&H00'+[(n&255),(n>>8&255),(n>>16&255)].map(x=>x.toString(16).padStart(2,'0').toUpperCase()).join(''); }
 function buildASS(lines){
@@ -954,11 +971,11 @@ function buildASS(lines){
               : state.pos==='middle'?(state.align==='left'?4:state.align==='right'?6:5)
               : (state.align==='left'?1:state.align==='right'?3:2);
   const head=`[Script Info]\nScriptType: v4.00+\nPlayResX: ${W}\nPlayResY: ${H}\nWrapStyle: 2\n\n[V4+ Styles]\nFormat: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\nStyle: Default,${state.font.fam},${Math.round(state.size)},${assColor(state.color)},&H000000FF,${assColor(state.strokeColor)},&H64000000,${state.weight>=700?-1:0},0,0,0,100,100,${state.track},0,1,${state.stroke},${state.shadow?2:0},${align},80,80,${Math.round(H*0.08)},1\n\n[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n`;
-  const body=lines.map(l=>`Dialogue: 0,${assTime(l.t)},${assTime(endTimeOf(l.t))},Default,,0,0,0,,${l.text.replace(/\n/g,'\\N')}`).join('\n');
+  const body=lines.map(l=>`Dialogue: 0,${assTime(offT(l.t))},${assTime(offT(endTimeOf(l.t)))},Default,,0,0,0,,${l.text.replace(/\n/g,'\\N')}`).join('\n');
   return head+body+'\n';
 }
 function srtTime(s){ const h=Math.floor(s/3600),m=Math.floor(s%3600/60),sec=Math.floor(s%60),ms=Math.round((s-Math.floor(s))*1000); return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')},${String(ms).padStart(3,'0')}`; }
-function buildSRT(lines){ return lines.map((l,i)=>`${i+1}\r\n${srtTime(l.t)} --> ${srtTime(endTimeOf(l.t))}\r\n${l.text}\r\n`).join('\r\n'); }
+function buildSRT(lines){ return lines.map((l,i)=>`${i+1}\r\n${srtTime(offT(l.t))} --> ${srtTime(offT(endTimeOf(l.t)))}\r\n${l.text}\r\n`).join('\r\n'); }
 const HOWTO_TEXT = `【歌詞テロップ つかいかた】
 
 ■ このZIPの中身
@@ -1080,22 +1097,18 @@ function bindControls(){
     if(e.code==='Space'||e.code==='Enter'){ e.preventDefault(); if(audio.src) togglePlay(); }
   });
 
-  // タブ復帰・canvasコンテキスト喪失からの自動復帰（黒画面→要リロードを防止）
-  document.addEventListener('visibilitychange',()=>{
-    if(!document.hidden){
-      try{ if(recAudioCtx && recAudioCtx.state==='suspended') recAudioCtx.resume(); }catch(_){}
-      try{ draw(); }catch(_){}
-    }
-  });
-  window.addEventListener('pageshow',()=>{ try{ draw(); }catch(_){} });
-  canvas.addEventListener('contextlost',e=>{ e.preventDefault(); });
-  canvas.addEventListener('contextrestored',()=>{ try{ draw(); }catch(_){} });
+  // タブ復帰・bfcache・canvasコンテキスト喪失からの自動復帰（黒画面→要リロードを防止）
+  document.addEventListener('visibilitychange',()=>{ if(!document.hidden) recoverView(); });
+  window.addEventListener('pageshow', recoverView);
+  canvas.addEventListener('contextlost', e=>{ e.preventDefault(); });
+  canvas.addEventListener('contextrestored', recoverView);
 
   // スタイル系
   const sl=(id,key,fmt2,after)=>{ $(id).oninput=e=>{ state[key]=+e.target.value; if(fmt2)$('v'+id[0].toUpperCase()+id.slice(1)).textContent=fmt2(state[key]); if(after)after(); draw(); }; };
   sl('size','size',v=>v+'px'); sl('weight','weight',v=>v); sl('stroke','stroke',v=>v+'px');
   sl('track','track',v=>v+'px'); sl('fade','fade',v=>(v/100).toFixed(2)+'s');
   $('fade').oninput=e=>{ state.fade=+e.target.value/100; $('vFade').textContent=state.fade.toFixed(2)+'s'; draw(); };
+  $('offset').oninput=e=>{ state.offset=+e.target.value/100; $('vOffset').textContent=(state.offset>=0?'+':'')+state.offset.toFixed(2)+'s'; draw(); };
   $('color').oninput=e=>{state.color=e.target.value;draw();};
   $('strokeColor').oninput=e=>{state.strokeColor=e.target.value;draw();};
   $('plateColor').oninput=e=>{state.plateColor=e.target.value;draw();};
@@ -1292,7 +1305,15 @@ async function alignLyricsToAudio(){
     alignProgress(true,'音声を解析中…',65);
     const floats=await decodeAudioTo16kHz();
     alignProgress(true,'歌詞と音源を照合中…（数分かかる場合があります）',72);
-    const result=await whisperPipe(floats,{ language:'japanese', task:'transcribe', return_timestamps:true, chunk_length_s:30, stride_length_s:5 });
+    // まず単語レベルのタイムスタンプで精度を上げる。未対応/失敗ならチャンク単位にフォールバック
+    let result;
+    try{
+      result=await whisperPipe(floats,{ language:'japanese', task:'transcribe', return_timestamps:'word', chunk_length_s:30, stride_length_s:5 });
+      if(!result || !result.chunks || !result.chunks.length) throw new Error('no word-level chunks');
+    }catch(werr){
+      console.warn('word-level timestamps unavailable, fallback to chunk-level:', werr);
+      result=await whisperPipe(floats,{ language:'japanese', task:'transcribe', return_timestamps:true, chunk_length_s:30, stride_length_s:5 });
+    }
     const chunks=(result.chunks||[]).filter(c=>c.timestamp && c.timestamp[0]!=null);
     applyAlignment(chunks);
     toast('入力した歌詞にタイミングを付けました！ズレは行をクリック＆タップで微調整できます。');
@@ -1380,7 +1401,7 @@ function renderGuide(g){
 /* ════ 起動 ════ */
 buildFontPicker(); buildPresets(); buildGuide(); bindControls(); applyAspect();
 (async()=>{ await ensureFont(state.font); draw(); })();
-loop();
+startLoop();
 </script>
 </body>
 </html>
