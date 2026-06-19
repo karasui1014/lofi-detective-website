@@ -48,14 +48,15 @@ header .sub{font-size:.62rem;letter-spacing:.18em;color:var(--text-muted);text-t
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
   padding:1.1rem 1.2rem;transition:border-color .2s, box-shadow .2s;}
 .card:hover{border-color:var(--border-hi);}
-/* セクションごとのネオン枠（蛍光系・薄め） */
-.nb-cyan{border-color:rgba(56,232,255,.5);box-shadow:0 0 18px -7px rgba(56,232,255,.6), inset 0 0 24px -19px rgba(56,232,255,.7);}
-.nb-green{border-color:rgba(80,250,160,.5);box-shadow:0 0 18px -7px rgba(80,250,160,.55), inset 0 0 24px -19px rgba(80,250,160,.7);}
-.nb-purple{border-color:rgba(180,140,255,.55);box-shadow:0 0 18px -7px rgba(180,140,255,.6), inset 0 0 24px -19px rgba(180,140,255,.7);}
-.nb-pink{border-color:rgba(255,110,200,.5);box-shadow:0 0 18px -7px rgba(255,110,200,.55), inset 0 0 24px -19px rgba(255,110,200,.7);}
-.nb-amber{border-color:rgba(255,205,100,.5);box-shadow:0 0 18px -7px rgba(255,205,100,.55), inset 0 0 24px -19px rgba(255,205,100,.7);}
-.nb-blue{border-color:rgba(120,175,255,.55);box-shadow:0 0 18px -7px rgba(120,175,255,.6), inset 0 0 24px -19px rgba(120,175,255,.7);}
-.nb-orange{border-color:rgba(255,160,90,.5);box-shadow:0 0 18px -7px rgba(255,160,90,.55), inset 0 0 24px -19px rgba(255,160,90,.7);}
+/* セクションごとのネオン枠（蛍光系） */
+[class*="nb-"]{border-width:2.5px !important;}
+.nb-cyan{border-color:rgba(56,232,255,.75);box-shadow:0 0 22px -6px rgba(56,232,255,.7), inset 0 0 26px -18px rgba(56,232,255,.8);}
+.nb-green{border-color:rgba(80,250,160,.75);box-shadow:0 0 22px -6px rgba(80,250,160,.65), inset 0 0 26px -18px rgba(80,250,160,.8);}
+.nb-purple{border-color:rgba(180,140,255,.78);box-shadow:0 0 22px -6px rgba(180,140,255,.7), inset 0 0 26px -18px rgba(180,140,255,.8);}
+.nb-pink{border-color:rgba(255,110,200,.75);box-shadow:0 0 22px -6px rgba(255,110,200,.65), inset 0 0 26px -18px rgba(255,110,200,.8);}
+.nb-amber{border-color:rgba(255,205,100,.75);box-shadow:0 0 22px -6px rgba(255,205,100,.65), inset 0 0 26px -18px rgba(255,205,100,.8);}
+.nb-blue{border-color:rgba(120,175,255,.78);box-shadow:0 0 22px -6px rgba(120,175,255,.7), inset 0 0 26px -18px rgba(120,175,255,.8);}
+.nb-orange{border-color:rgba(255,160,90,.75);box-shadow:0 0 22px -6px rgba(255,160,90,.65), inset 0 0 26px -18px rgba(255,160,90,.8);}
 [class*="nb-"]:hover{filter:brightness(1.08);}
 .card-header{display:flex;align-items:center;gap:.6rem;margin-bottom:.9rem;}
 .step-badge{width:22px;height:22px;border-radius:7px;flex-shrink:0;background:var(--surface3);
@@ -222,7 +223,7 @@ details.adv[open]>summary::before{content:'▾';}
       <div class="logo-mark">🎬</div>
       <div>
         <h1>Lyric Telop Generator</h1>
-        <div class="sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build16</div>
+        <div class="sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build17</div>
       </div>
     </div>
   </header>
@@ -270,6 +271,14 @@ details.adv[open]>summary::before{content:'▾';}
               <div id="alignBar" style="background:linear-gradient(90deg,var(--ok),var(--accent2));height:100%;width:0%;transition:width .4s;border-radius:4px;"></div>
             </div>
           </div>
+          <div id="alignWarn" style="display:none;margin-top:.55rem;font-size:.74rem;color:#ffd24d;background:rgba(245,158,11,.10);border:1px solid rgba(245,158,11,.5);border-radius:8px;padding:.6rem .75rem;line-height:1.7;box-shadow:0 0 16px -7px rgba(245,158,11,.5);">
+            ⚠️ <b>処理には数分かかることがあります。</b>終わるまで<b>このページを離れないでください</b>（タブ／アプリの切り替えで失敗します）。そのままお待ちください。
+          </div>
+          <div class="ctrl" id="offsetWrap" style="margin-top:.65rem;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.6rem .8rem;">
+            <div class="ctrl-label"><span>⏱ 出るタイミング微調整<span class="hint" style="margin-left:.4rem;">←早く出す／遅く出す→</span></span><b id="vOffset">0.00s</b></div>
+            <input type="range" class="sl" id="offset" min="-150" max="150" step="5" value="0">
+            <div class="hint" style="margin-top:.3rem;">自動でつけた後、全体が少し早い／遅いと感じたら、ここでジャストに微調整できます（再生しながらがおすすめ）。</div>
+          </div>
           <details class="adv" style="margin-top:.5rem;">
             <summary>AIの精度設定（任意）</summary>
             <div class="adv-body">
@@ -283,29 +292,6 @@ details.adv[open]>summary::before{content:'▾';}
         </div>
       </div>
 
-      <!-- Step 3: Timing (auto) -->
-      <div class="card nb-purple">
-        <div class="card-header"><span class="step-badge">✓</span><span class="card-title">タイミング<small>AIが自動でセット・通常は操作不要</small></span></div>
-        <div class="row" style="margin-bottom:.7rem;">
-          <button class="btn btn-accent2" id="playBtn" disabled>▶ 再生</button>
-          <button class="btn" id="rewindBtn" disabled>⏮ 先頭</button>
-          <button class="btn" id="resetTimes" disabled>⟲ クリア</button>
-          <span class="hint">行をクリックでその時間へジャンプ</span>
-        </div>
-        <div class="ctrl" style="margin-bottom:.7rem;background:var(--surface3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:.6rem .8rem;">
-          <div class="ctrl-label"><span>⏱ 表示タイミング微調整<span class="hint" style="margin-left:.4rem;">←早く出す／遅く出す→</span></span><b id="vOffset">0.00s</b></div>
-          <input type="range" class="sl" id="offset" min="-150" max="150" step="5" value="0">
-          <div class="hint" style="margin-top:.35rem;">全体の歌詞が少し早い/遅いと感じたら、これで一括でジャストに合わせられます（再生しながら調整推奨）。</div>
-        </div>
-        <div class="lines" id="linesList"><div class="hint">②で歌詞を反映 → 🎯タイミングを自動でつける と、各行がここに並びます。</div></div>
-        <details class="adv" style="margin-top:.6rem;">
-          <summary>気になる行だけ手直し（任意）</summary>
-          <div class="adv-body">
-            <button class="btn-tap" id="tapBtn" disabled>● 再生中に <b id="tapTarget">この行</b> でタップして時刻を上書き</button>
-            <span class="hint" style="display:block;margin-top:.5rem;">各行の時刻（数字）を直接打ち替えてもOK。<kbd>Space</kbd>=再生/停止。</span>
-          </div>
-        </details>
-      </div>
       <!-- Style -->
       <div class="card nb-pink">
         <div class="card-header"><span class="step-badge">🎨</span><span class="card-title">書体・スタイル</span></div>
@@ -828,8 +814,9 @@ function applyLyrics(){
   updateExportBtns();
 }
 function renderLines(){
-  const host=$('linesList'); host.innerHTML='';
-  if(!lyrics.length){ host.innerHTML='<div class="hint">②で歌詞を反映 → 🎯タイミングを自動でつける と、各行がここに並びます。</div>'; return; }
+  const host=$('linesList'); if(!host) return;   // タイミング一覧は廃止（自動運用）
+  host.innerHTML='';
+  if(!lyrics.length){ host.innerHTML=''; return; }
   lyrics.forEach((l,i)=>{
     const row=document.createElement('div'); row.className='line-item'+(l.t==null?' untimed':''); row.dataset.i=i;
     const blank = !l.text.trim();
@@ -857,8 +844,9 @@ function parseTime(str){
   const n=parseFloat(str); return isNaN(n)?null:n;
 }
 function updateTapTarget(){
-  $('tapTarget').textContent = tapCursor<lyrics.length ? `「${(lyrics[tapCursor].text.trim()||'（無表示）').slice(0,12)}」` : '完了';
-  $('tapBtn').disabled = tapCursor>=lyrics.length || !lyrics.length;
+  const tt=$('tapTarget'), tb=$('tapBtn'); if(!tt||!tb) return;   // タップUIは廃止
+  tt.textContent = tapCursor<lyrics.length ? `「${(lyrics[tapCursor].text.trim()||'（無表示）').slice(0,12)}」` : '完了';
+  tb.disabled = tapCursor>=lyrics.length || !lyrics.length;
 }
 function tap(){
   if(tapCursor>=lyrics.length) return;
@@ -866,7 +854,7 @@ function tap(){
   tapCursor++;
   while(tapCursor<lyrics.length && lyrics[tapCursor].t!=null) tapCursor++;
   renderLines(); updateTapTarget();
-  updateExportBtns(); $('resetTimes').disabled=false;
+  updateExportBtns();
 }
 
 /* ════ 再生 ════ */
@@ -874,7 +862,7 @@ function togglePlay(){
   if(audio.paused){ audio.play(); if(state.bg==='video'&&hasBgVideo){ bgVideo.currentTime=audio.currentTime; bgVideo.play(); } }
   else { audio.pause(); bgVideo.pause(); }
 }
-function syncPlayBtns(){ const s=audio.paused?'▶ 再生':'⏸ 停止'; $('playBtn').textContent=s; $('playBtn2').textContent=audio.paused?'▶':'⏸'; }
+function syncPlayBtns(){ $('playBtn2').textContent=audio.paused?'▶':'⏸'; }
 
 /* ════ 書き出し ════ */
 function exportPNG(){
@@ -1104,10 +1092,7 @@ function bindControls(){
 
   $('applyLyrics').onclick=applyLyrics;
   $('alignBtn').onclick=alignLyricsToAudio;
-  $('playBtn').onclick=togglePlay; $('playBtn2').onclick=togglePlay;
-  $('rewindBtn').onclick=()=>{audio.currentTime=0;};
-  $('resetTimes').onclick=()=>{ lyrics.forEach(l=>l.t=null); tapCursor=0; renderLines(); updateTapTarget(); toast('時間をクリアしました'); };
-  $('tapBtn').onclick=tap;
+  $('playBtn2').onclick=togglePlay;
   audio.onplay=syncPlayBtns; audio.onpause=syncPlayBtns;
   $('seek').oninput=e=>{ if(audio.duration){ audio.currentTime=e.target.value/100*audio.duration; if(hasBgVideo)bgVideo.currentTime=audio.currentTime; } };
 
@@ -1214,9 +1199,9 @@ function normOne(ch){
   return c;
 }
 function normLen(s){ let n=0; for(const ch of s){ if(normOne(ch)) n++; } return n; }
-// Whisperチャンク → 正規化文字列＋各文字の推定時刻
+// Whisperチャンク → 正規化文字列＋各文字の推定時刻(times)＋その単語/塊の先頭時刻(starts)
 function buildAsrTimeline(chunks){
-  const chars=[], times=[];
+  const chars=[], times=[], starts=[];
   for(const c of chunks){
     const txt=c.text||''; const ts=c.timestamp||[];
     const s=ts[0]; if(s==null) continue;
@@ -1224,9 +1209,9 @@ function buildAsrTimeline(chunks){
     const kept=[];
     for(let i=0;i<txt.length;i++){ const nc=normOne(txt[i]); if(nc) kept.push({nc,pos:i}); }
     const denom=Math.max(1,txt.length-1), span=e-s;
-    for(const k of kept){ chars.push(k.nc); times.push(s+span*(k.pos/denom)); }
+    for(const k of kept){ chars.push(k.nc); times.push(s+span*(k.pos/denom)); starts.push(s); }
   }
-  return {chars,times};
+  return {chars,times,starts};
 }
 // ユーザー歌詞 → 正規化文字列＋各文字の行番号
 function buildUserSeq(lineTexts){
@@ -1278,7 +1263,8 @@ function proportionalTimes(lineTexts, chunks, totalDur){
   for(const len of lens){ out.push(start+span*(acc/total)); acc+=len; }
   return out;
 }
-function applyAlignment(chunks){
+const ALIGN_LEAD = 0.10;  // Whisperはわずかに遅れがちなので、少し早めに出してジャスト感を出す
+function applyAlignment(chunks, wordLevel){
   const lineTexts=lyrics.map(l=>l.text);
   const N=lineTexts.length; if(!N) return;
   const totalDur=audio.duration||0;
@@ -1290,17 +1276,18 @@ function applyAlignment(chunks){
     if(asr.chars.length && usr.chars.length && cells<=6_000_000){
       const pairs=lcsMatches(asr.chars,usr.chars);
       const lineTime=new Array(N).fill(null);
-      for(const [ai,uj] of pairs){ const li=usr.lineOf[uj]; if(lineTime[li]==null) lineTime[li]=asr.times[ai]; }
+      // 単語レベルなら「行頭の文字が属する単語の先頭時刻」にスナップ＝歌い出しにジャスト
+      const timeArr = wordLevel ? asr.starts : asr.times;
+      for(const [ai,uj] of pairs){ const li=usr.lineOf[uj]; if(lineTime[li]==null) lineTime[li]=timeArr[ai]; }
       const matched=lineTime.filter(t=>t!=null).length;
       if(fillLineTimes(lineTime,totalDur)) times=lineTime;
-      console.log(`alignment: ${matched}/${N} 行をアンカー一致`);
+      console.log(`alignment: ${matched}/${N} 行一致 / wordLevel=${!!wordLevel}`);
     }
   }
   if(!times) times=proportionalTimes(lineTexts,chunks,totalDur);
-  for(let i=0;i<N;i++){ if(times[i]!=null && isFinite(times[i])) lyrics[i].t=Math.max(0,times[i]); }
+  for(let i=0;i<N;i++){ if(times[i]!=null && isFinite(times[i])) lyrics[i].t=Math.max(0, times[i]-ALIGN_LEAD); }
   tapCursor=lyrics.filter(l=>l.t!=null).length;
   renderLines(); updateExportBtns(); updateTapTarget();
-  $('resetTimes').disabled=false;
 }
 async function alignLyricsToAudio(){
   if(!audioFile){ toast('先に楽曲を読み込んでください'); return; }
@@ -1308,7 +1295,10 @@ async function alignLyricsToAudio(){
   applyLyrics();  // テキストエリアの最新内容を取り込む
   if(!lyrics.some(l=>l.text.trim())){ toast('先に正しい歌詞を入力して「歌詞を反映」してください'); return; }
   transRunning=true; $('alignBtn').disabled=true;
+  $('alignWarn').style.display='block';   // ⚠ ページを離れない＋数分かかる、を処理中ずっと表示
+  toast('処理には数分かかります。終わるまでページを離れないでください');
   alignProgress(true,'準備中…',0);
+  let wordLevel=false;
   try{
     if(!whisperPipe){
       alignProgress(true,'AIライブラリを準備中…',3);
@@ -1330,15 +1320,17 @@ async function alignLyricsToAudio(){
     try{
       result=await whisperPipe(floats,{ language:'japanese', task:'transcribe', return_timestamps:'word', chunk_length_s:30, stride_length_s:5 });
       if(!result || !result.chunks || !result.chunks.length) throw new Error('no word-level chunks');
+      wordLevel=true;
     }catch(werr){
       console.warn('word-level timestamps unavailable, fallback to chunk-level:', werr);
       result=await whisperPipe(floats,{ language:'japanese', task:'transcribe', return_timestamps:true, chunk_length_s:30, stride_length_s:5 });
+      wordLevel=false;
     }
     const chunks=(result.chunks||[]).filter(c=>c.timestamp && c.timestamp[0]!=null);
-    applyAlignment(chunks);
-    toast('入力した歌詞にタイミングを付けました！ズレは行をクリック＆タップで微調整できます。');
+    applyAlignment(chunks, wordLevel);
+    toast('タイミングを付けました！ ズレを感じたら「⏱出るタイミング微調整」で合わせられます。');
   }catch(e){ console.error(e); toast('エラー: '+e.message); whisperPipe=null; }
-  finally{ transRunning=false; updateExportBtns(); alignProgress(false); }
+  finally{ transRunning=false; updateExportBtns(); alignProgress(false); $('alignWarn').style.display='none'; }
 }
 
 function loadAudio(file){
@@ -1346,8 +1338,7 @@ function loadAudio(file){
   audioFile = file;
   audio.src=URL.createObjectURL(file);
   $('audioDrop').classList.add('loaded'); $('audioName').textContent='🎵 '+file.name;
-  ['playBtn','playBtn2','rewindBtn','seek','recBtn'].forEach(id=>$(id).disabled=false);
-  if(lyrics.length){ $('tapBtn').disabled=false; $('resetTimes').disabled=false; }
+  ['playBtn2','seek','recBtn'].forEach(id=>$(id).disabled=false);
   updateExportBtns();   // 歌詞が既にあれば「タイミング照合」ボタンを有効化
   audio.onloadedmetadata=updateTransport;
 }
