@@ -11,12 +11,12 @@
 <meta name="description" content="音楽MVの歌詞テロップを自動で焼き込み出力。書体（フォント）を雰囲気別に選べる、誰でも使える字幕生成ツール。">
 <style>
 :root{
-  --bg:#08080e; --surface:#0f0f18; --surface2:#14141f; --surface3:#1a1a28;
-  --border:rgba(255,255,255,0.07); --border-hi:rgba(255,255,255,0.13);
-  --accent:#7c3aed; --accent2:#06b6d4; --accent3:#f43f5e;
-  --accent-glow:rgba(124,58,237,0.35);
-  --text:#f0f0f8; --text-sec:rgba(255,255,255,0.55); --text-muted:rgba(255,255,255,0.32);
-  --ok:#22c55e; --radius:16px; --radius-sm:10px;
+  --bg:#211c17; --surface:#2b251e; --surface2:#342d25; --surface3:#40382e;
+  --border:rgba(255,238,221,0.11); --border-hi:rgba(255,238,221,0.20);
+  --accent:#8b6df0; --accent2:#22b3cc; --accent3:#fb7185;
+  --accent-glow:rgba(139,109,240,0.32);
+  --text:#f4ede2; --text-sec:rgba(244,237,226,0.64); --text-muted:rgba(244,237,226,0.42);
+  --ok:#34c98a; --radius:16px; --radius-sm:10px;
 }
 *{margin:0;padding:0;box-sizing:border-box;}
 html{scroll-behavior:smooth;}
@@ -24,8 +24,9 @@ body{
   background:var(--bg);color:var(--text);
   font-family:'Inter','Segoe UI',system-ui,-apple-system,'Hiragino Sans','Yu Gothic',sans-serif;
   min-height:100vh;overflow-x:hidden;line-height:1.6;
-  background-image:radial-gradient(ellipse 80% 40% at 20% 0%,rgba(124,58,237,0.06) 0%,transparent 60%),
-                   radial-gradient(ellipse 60% 40% at 80% 100%,rgba(6,182,212,0.04) 0%,transparent 60%);
+  background-image:radial-gradient(ellipse 85% 50% at 14% -6%,rgba(255,178,120,0.08) 0%,transparent 60%),
+                   radial-gradient(ellipse 70% 45% at 86% 2%,rgba(139,109,240,0.07) 0%,transparent 60%),
+                   radial-gradient(ellipse 65% 45% at 50% 106%,rgba(251,113,133,0.05) 0%,transparent 62%);
 }
 .wrap{max-width:1280px;margin:0 auto;padding:0 1.2rem 5rem;}
 a{color:inherit;}
@@ -126,7 +127,7 @@ label.fld{display:block;font-size:.66rem;color:var(--text-sec);margin:.6rem 0 .3
 /* Stage / preview */
 .stage-wrap{position:relative;width:100%;border-radius:var(--radius);overflow:hidden;
   border:1px solid var(--border-hi);background:
-    conic-gradient(#1b1b27 0 25%,#161620 0 50%,#1b1b27 0 75%,#161620 0) 0/28px 28px;}
+    conic-gradient(#322a22 0 25%,#2a231c 0 50%,#322a22 0 75%,#2a231c 0) 0/28px 28px;}
 canvas#stage{display:block;width:100%;height:auto;}
 .transport{display:flex;align-items:center;gap:.7rem;margin-top:.7rem;flex-wrap:wrap;}
 .seek{flex:1;min-width:160px;-webkit-appearance:none;appearance:none;height:6px;border-radius:6px;
@@ -233,7 +234,7 @@ details.adv[open]>summary::before{content:'▾';}
       <div class="logo-mark">🎬</div>
       <h1 class="hero-title">Lyric Telop Generator</h1>
       <div class="hero-eq" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
-      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build18</div>
+      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build19</div>
     </div>
   </header>
 
@@ -1217,11 +1218,11 @@ function buildAsrTimeline(chunks){
   }
   return {chars,times,starts};
 }
-// ユーザー歌詞 → 正規化文字列＋各文字の行番号
+// ユーザー歌詞 → 正規化文字列＋各文字の行番号＋行内での位置(0始まり)
 function buildUserSeq(lineTexts){
-  const chars=[], lineOf=[];
-  lineTexts.forEach((t,li)=>{ for(const ch of t){ const nc=normOne(ch); if(nc){ chars.push(nc); lineOf.push(li); } } });
-  return {chars,lineOf};
+  const chars=[], lineOf=[], posInLine=[];
+  lineTexts.forEach((t,li)=>{ let p=0; for(const ch of t){ const nc=normOne(ch); if(nc){ chars.push(nc); lineOf.push(li); posInLine.push(p); p++; } } });
+  return {chars,lineOf,posInLine};
 }
 // LCSで一致文字ペア [asrIdx,userIdx] を昇順で返す
 function lcsMatches(A,B){
@@ -1267,7 +1268,8 @@ function proportionalTimes(lineTexts, chunks, totalDur){
   for(const len of lens){ out.push(start+span*(acc/total)); acc+=len; }
   return out;
 }
-const ALIGN_LEAD = 0.10;  // Whisperはわずかに遅れがちなので、少し早めに出してジャスト感を出す
+const ALIGN_LEAD = 0.12;  // Whisperはわずかに遅れがちなので、少し早めに出してジャスト感を出す
+const CHAR_DUR  = 0.22;   // 1文字(モーラ)あたりの概算秒（外挿用）
 function applyAlignment(chunks, wordLevel){
   const lineTexts=lyrics.map(l=>l.text);
   const N=lineTexts.length; if(!N) return;
@@ -1279,11 +1281,23 @@ function applyAlignment(chunks, wordLevel){
     const cells=(asr.chars.length+1)*(usr.chars.length+1);
     if(asr.chars.length && usr.chars.length && cells<=6_000_000){
       const pairs=lcsMatches(asr.chars,usr.chars);
-      const lineTime=new Array(N).fill(null);
-      // 単語レベルなら「行頭の文字が属する単語の先頭時刻」にスナップ＝歌い出しにジャスト
+      // 単語レベルなら一致文字の「単語先頭時刻」を使う
       const timeArr = wordLevel ? asr.starts : asr.times;
-      for(const [ai,uj] of pairs){ const li=usr.lineOf[uj]; if(lineTime[li]==null) lineTime[li]=timeArr[ai]; }
-      const matched=lineTime.filter(t=>t!=null).length;
+      // 行ごとに一致点（行内文字位置, 時刻）を集める
+      const perLine=Array.from({length:N},()=>[]);
+      for(const [ai,uj] of pairs){ perLine[usr.lineOf[uj]].push([usr.posInLine[uj], timeArr[ai]]); }
+      // 各行：一致点から「1文字あたりの時間」を推定し、行頭(位置0)へ外挿＝歌い出しにジャスト。
+      // これで行頭が漢字などでAIと一致しなくても、行の出だしが遅れない。
+      const lineTime=new Array(N).fill(null);
+      for(let li=0; li<N; li++){
+        const m=perLine[li]; if(!m.length) continue;
+        const [p0,t0]=m[0];
+        let rate=CHAR_DUR;
+        if(m.length>=2){ const [p1,t1]=m[m.length-1]; if(p1>p0) rate=(t1-t0)/(p1-p0); }
+        rate=Math.min(0.6,Math.max(0.06,rate));      // 異常値を抑制
+        lineTime[li]=Math.max(0, t0 - rate*p0);
+      }
+      const matched=perLine.filter(m=>m.length).length;
       if(fillLineTimes(lineTime,totalDur)) times=lineTime;
       console.log(`alignment: ${matched}/${N} 行一致 / wordLevel=${!!wordLevel}`);
     }
