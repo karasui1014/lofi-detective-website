@@ -1,0 +1,1436 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://cdn.jsdelivr.net https://esm.sh https://*.esm.sh; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' https://cdn.jsdelivr.net https://esm.sh https://*.esm.sh https://huggingface.co https://*.huggingface.co https://*.hf.co; worker-src blob: 'self' https://cdn.jsdelivr.net https://esm.sh https://*.esm.sh; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'">
+<title>Lyric Telop Generator | 歌詞テロップ生成ツール</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+PHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iNyIgZmlsbD0iIzdjM2FlZCIvPjx0ZXh0IHg9IjE2IiB5PSIyMyIgZm9udC1zaXplPSIxOSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iI2ZmZiIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtd2VpZ2h0PSJib2xkIj7lrZc8L3RleHQ+PC9zdmc+">
+<meta name="theme-color" content="#7c3aed">
+<meta name="description" content="音楽MVの歌詞テロップを自動で焼き込み出力。書体（フォント）を雰囲気別に選べる、誰でも使える字幕生成ツール。">
+<style>
+:root{
+  --bg:#14110d; --surface:#1e1a15; --surface2:#26211a; --surface3:#312a21;
+  --border:rgba(255,239,222,0.13); --border-hi:rgba(255,239,222,0.24);
+  --accent:#9b7cff; --accent2:#2ccae6; --accent3:#fb7185;
+  --accent-glow:rgba(155,124,255,0.38);
+  --text:#fdf9f2; --text-sec:rgba(253,249,242,0.80); --text-muted:rgba(253,249,242,0.56);
+  --ok:#3bdba2; --radius:16px; --radius-sm:10px;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  background:var(--bg);color:var(--text);
+  font-family:'Inter','Segoe UI',system-ui,-apple-system,'Hiragino Sans','Yu Gothic',sans-serif;
+  min-height:100vh;overflow-x:hidden;line-height:1.6;
+  background-image:radial-gradient(ellipse 80% 45% at 14% -6%,rgba(255,168,108,0.06) 0%,transparent 58%),
+                   radial-gradient(ellipse 65% 42% at 86% 2%,rgba(155,124,255,0.05) 0%,transparent 58%),
+                   radial-gradient(ellipse 60% 42% at 50% 106%,rgba(251,113,133,0.04) 0%,transparent 60%);
+}
+.wrap{max-width:1280px;margin:0 auto;padding:0 1.2rem 5rem;}
+a{color:inherit;}
+
+/* Header (hero) */
+header{position:relative;text-align:center;padding:2.4rem 1rem 2rem;margin-bottom:1.5rem;overflow:hidden;
+  border-bottom:1px solid var(--border);}
+header::before{content:"";position:absolute;inset:0;pointer-events:none;
+  background:
+    radial-gradient(55% 90% at 50% -12%, rgba(124,58,237,.24), transparent 70%),
+    radial-gradient(42% 72% at 16% 18%, rgba(6,182,212,.15), transparent 70%),
+    radial-gradient(42% 72% at 84% 18%, rgba(255,110,200,.13), transparent 70%);}
+header::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(124,58,237,.7),rgba(6,182,212,.7),rgba(255,110,200,.7),transparent);}
+.hero-inner{position:relative;display:inline-flex;flex-direction:column;align-items:center;gap:.55rem;}
+.logo-mark{width:48px;height:48px;border-radius:14px;flex-shrink:0;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  display:flex;align-items:center;justify-content:center;font-size:1.5rem;
+  box-shadow:0 0 26px var(--accent-glow);}
+.hero-title{font-size:clamp(1.6rem,6.2vw,2.3rem);font-weight:800;letter-spacing:.012em;line-height:1.1;margin:.1rem 0 0;
+  background:linear-gradient(100deg,#76e9ff 0%,#b39bff 48%,#ff86d2 100%);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;
+  filter:drop-shadow(0 3px 22px rgba(124,58,237,.55));}
+.hero-eq{display:flex;align-items:flex-end;gap:3px;height:15px;}
+.hero-eq span{width:3px;height:5px;border-radius:2px;background:linear-gradient(var(--accent2),var(--accent));
+  animation:eqbar 1.1s ease-in-out infinite;}
+.hero-eq span:nth-child(2){animation-delay:.15s}.hero-eq span:nth-child(3){animation-delay:.3s}
+.hero-eq span:nth-child(4){animation-delay:.45s}.hero-eq span:nth-child(5){animation-delay:.6s}
+.hero-eq span:nth-child(6){animation-delay:.22s}.hero-eq span:nth-child(7){animation-delay:.48s}
+@keyframes eqbar{0%,100%{height:4px;opacity:.55}50%{height:15px;opacity:1}}
+.hero-sub{font-size:.62rem;letter-spacing:.2em;color:var(--text-muted);text-transform:uppercase;}
+@media(prefers-reduced-motion:reduce){.hero-eq span{animation:none;height:9px}}
+
+/* Cards */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  padding:1.1rem 1.2rem;transition:border-color .2s, box-shadow .2s;}
+.card:hover{border-color:var(--border-hi);}
+/* セクションごとのネオン枠（蛍光系） */
+[class*="nb-"]{border-width:2.5px !important;}
+.nb-cyan{border-color:rgba(56,232,255,.75);box-shadow:0 0 22px -6px rgba(56,232,255,.7), inset 0 0 26px -18px rgba(56,232,255,.8);}
+.nb-green{border-color:rgba(80,250,160,.75);box-shadow:0 0 22px -6px rgba(80,250,160,.65), inset 0 0 26px -18px rgba(80,250,160,.8);}
+.nb-purple{border-color:rgba(180,140,255,.78);box-shadow:0 0 22px -6px rgba(180,140,255,.7), inset 0 0 26px -18px rgba(180,140,255,.8);}
+.nb-pink{border-color:rgba(255,110,200,.75);box-shadow:0 0 22px -6px rgba(255,110,200,.65), inset 0 0 26px -18px rgba(255,110,200,.8);}
+.nb-amber{border-color:rgba(255,205,100,.75);box-shadow:0 0 22px -6px rgba(255,205,100,.65), inset 0 0 26px -18px rgba(255,205,100,.8);}
+.nb-blue{border-color:rgba(120,175,255,.78);box-shadow:0 0 22px -6px rgba(120,175,255,.7), inset 0 0 26px -18px rgba(120,175,255,.8);}
+.nb-orange{border-color:rgba(255,160,90,.75);box-shadow:0 0 22px -6px rgba(255,160,90,.65), inset 0 0 26px -18px rgba(255,160,90,.8);}
+[class*="nb-"]:hover{filter:brightness(1.08);}
+.card-header{display:flex;align-items:center;gap:.6rem;margin-bottom:.9rem;}
+.step-badge{width:22px;height:22px;border-radius:7px;flex-shrink:0;background:var(--surface3);
+  border:1px solid var(--border-hi);display:flex;align-items:center;justify-content:center;
+  font-size:.6rem;font-weight:800;color:var(--text-sec);}
+.card-title{font-size:.85rem;font-weight:600;}
+.card-title small{font-weight:400;color:var(--text-muted);font-size:.66rem;margin-left:.35rem;}
+
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:1rem;align-items:start;}
+@media(max-width:920px){.grid{grid-template-columns:1fr;}}
+.stack{display:flex;flex-direction:column;gap:1rem;}
+.col-preview{position:sticky;top:12px;align-self:start;}
+@media(max-width:920px){.col-preview{order:-1;position:static;}}
+
+/* Drop zone */
+.drop-zone{border:1.5px dashed rgba(124,58,237,.3);border-radius:var(--radius-sm);
+  padding:1rem;text-align:center;cursor:pointer;transition:.3s;position:relative;background:var(--surface2);}
+.drop-zone:hover,.drop-zone.drag-over{border-color:var(--accent2);background:rgba(6,182,212,.04);}
+.drop-zone.loaded{border-color:rgba(34,197,94,.55);background:rgba(34,197,94,.05);}
+.drop-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;}
+.drop-icon{font-size:1.5rem;opacity:.7;}
+.drop-zone p{color:var(--text-muted);font-size:.76rem;}
+.drop-zone .fname{margin-top:.3rem;color:var(--accent2);font-size:.76rem;font-weight:600;word-break:break-all;}
+
+/* Inputs */
+textarea,input[type=text]{width:100%;background:var(--surface2);color:var(--text);
+  border:1px solid var(--border);border-radius:var(--radius-sm);padding:.7rem .8rem;
+  font-family:inherit;font-size:.82rem;line-height:1.7;outline:none;transition:border-color .2s;resize:vertical;}
+textarea:focus,input[type=text]:focus{border-color:var(--accent);}
+textarea{min-height:150px;}
+label.fld{display:block;font-size:.66rem;color:var(--text-sec);margin:.6rem 0 .3rem;letter-spacing:.02em;}
+.row{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;}
+
+/* Buttons */
+.btn{padding:.5rem .95rem;border-radius:9px;border:1px solid var(--border-hi);background:var(--surface3);
+  color:var(--text);font-family:inherit;font-size:.76rem;font-weight:600;cursor:pointer;transition:.15s;white-space:nowrap;}
+.btn:hover{border-color:var(--accent);background:rgba(124,58,237,.12);}
+.btn-primary{background:linear-gradient(135deg,var(--accent),#9333ea);border:none;box-shadow:0 4px 16px var(--accent-glow);}
+.btn-primary:hover{filter:brightness(1.1);background:linear-gradient(135deg,var(--accent),#9333ea);}
+.btn-accent2{border-color:rgba(6,182,212,.4);color:var(--accent2);}
+.btn-accent2:hover{background:rgba(6,182,212,.1);border-color:var(--accent2);}
+.btn-rec{border-color:rgba(244,63,94,.5);color:var(--accent3);}
+.btn-rec:hover{background:rgba(244,63,94,.12);border-color:var(--accent3);}
+.btn-card{border-color:rgba(6,182,212,.5);color:var(--accent2);}
+.btn-card:hover:not(:disabled){background:rgba(6,182,212,.12);border-color:var(--accent2);}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+.btn-tap{font-size:1rem;padding:.85rem 1rem;width:100%;
+  background:linear-gradient(135deg,var(--accent2),#0891b2);border:none;color:#fff;
+  box-shadow:0 4px 16px rgba(6,182,212,.3);}
+.btn-tap:active{transform:scale(.98);}
+
+/* Stage / preview */
+.stage-wrap{position:relative;width:100%;border-radius:var(--radius);overflow:hidden;
+  border:1px solid var(--border-hi);background:
+    conic-gradient(#2a241c 0 25%,#211c16 0 50%,#2a241c 0 75%,#211c16 0) 0/28px 28px;}
+canvas#stage{display:block;width:100%;height:auto;}
+.transport{display:flex;align-items:center;gap:.7rem;margin-top:.7rem;flex-wrap:wrap;}
+.seek{flex:1;min-width:160px;-webkit-appearance:none;appearance:none;height:6px;border-radius:6px;
+  background:var(--surface3);outline:none;cursor:pointer;}
+.seek::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;border-radius:50%;
+  background:var(--accent2);cursor:pointer;box-shadow:0 0 8px rgba(6,182,212,.6);}
+.seek::-moz-range-thumb{width:15px;height:15px;border-radius:50%;background:var(--accent2);border:none;cursor:pointer;}
+.tcode{font-family:'SF Mono',monospace;font-size:.72rem;color:var(--text-sec);min-width:96px;text-align:center;}
+
+/* Line list */
+.lines{display:flex;flex-direction:column;gap:.3rem;max-height:340px;overflow-y:auto;padding-right:.2rem;}
+.line-item{display:grid;grid-template-columns:26px 1fr 78px 30px;gap:.5rem;align-items:center;
+  padding:.4rem .5rem;border-radius:8px;background:var(--surface2);border:1px solid transparent;font-size:.76rem;}
+.line-item.active{border-color:var(--accent2);background:rgba(6,182,212,.08);}
+.line-item.untimed{opacity:.5;}
+.line-no{color:var(--text-muted);font-size:.64rem;text-align:center;font-family:monospace;}
+.line-txt{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;}
+.line-txt.blank{color:var(--text-muted);font-style:italic;}
+.line-item input.tm{width:100%;background:var(--surface3);border:1px solid var(--border);
+  border-radius:6px;color:var(--accent2);font-family:monospace;font-size:.68rem;padding:.2rem .3rem;text-align:center;}
+.line-item .del{background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:.85rem;}
+.line-item .del:hover{color:var(--accent3);}
+
+/* Font picker */
+.font-cat{font-size:.6rem;letter-spacing:.14em;color:var(--accent2);text-transform:uppercase;
+  margin:.7rem 0 .35rem;opacity:.7;}
+.font-grid{display:grid;grid-template-columns:1fr 1fr;gap:.45rem;}
+.font-chip{text-align:left;padding:.55rem .6rem;border-radius:9px;background:var(--surface2);
+  border:1px solid var(--border);cursor:pointer;transition:.15s;overflow:hidden;color:var(--text);}
+.font-chip:hover{border-color:var(--border-hi);}
+.font-chip.sel{border-color:var(--accent);background:rgba(124,58,237,.1);box-shadow:0 0 0 1px var(--accent) inset;}
+.font-chip .smp{font-size:1.05rem;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#ffffff;}
+.font-chip .nm{font-size:.58rem;color:var(--text-muted);margin-top:.15rem;}
+
+/* Controls */
+.ctrl{margin-bottom:.7rem;}
+.ctrl-label{display:flex;justify-content:space-between;font-size:.66rem;color:var(--text-sec);margin-bottom:.25rem;}
+.ctrl-label b{color:var(--text);font-weight:600;font-family:monospace;}
+input[type=range].sl{width:100%;-webkit-appearance:none;appearance:none;height:5px;border-radius:5px;
+  background:var(--surface3);outline:none;}
+input[type=range].sl::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;
+  background:var(--accent);cursor:pointer;}
+input[type=range].sl::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:var(--accent);border:none;cursor:pointer;}
+input[type=color]{width:38px;height:30px;border:1px solid var(--border);border-radius:7px;background:none;cursor:pointer;padding:2px;}
+select{background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:8px;
+  padding:.4rem .55rem;font-family:inherit;font-size:.74rem;outline:none;cursor:pointer;}
+.seg{display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;}
+.seg button{padding:.38rem .65rem;border:none;background:var(--surface2);color:var(--text-sec);
+  font-family:inherit;font-size:.72rem;cursor:pointer;border-left:1px solid var(--border);}
+.seg button:first-child{border-left:none;}
+.seg button.on{background:rgba(124,58,237,.25);color:#c4b5fd;font-weight:700;}
+.toggle{display:inline-flex;align-items:center;gap:.4rem;font-size:.74rem;color:var(--text-sec);cursor:pointer;}
+.toggle input{accent-color:var(--accent);width:15px;height:15px;}
+
+.hint{font-size:.68rem;color:var(--text-muted);line-height:1.6;}
+.hint kbd{background:var(--surface3);border:1px solid var(--border-hi);border-radius:4px;
+  padding:.05rem .35rem;font-family:monospace;font-size:.66rem;color:var(--text);}
+.divider{height:1px;background:var(--border);margin:.9rem 0;}
+.toast{position:fixed;bottom:1.2rem;left:50%;transform:translateX(-50%) translateY(20px);
+  background:var(--surface3);border:1px solid var(--border-hi);border-radius:10px;padding:.6rem 1.1rem;
+  font-size:.78rem;opacity:0;pointer-events:none;transition:.3s;z-index:100;box-shadow:0 8px 30px rgba(0,0,0,.5);}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.export-row{display:flex;gap:.55rem;flex-wrap:wrap;}
+.badge{padding:.18rem .55rem;border-radius:20px;font-size:.6rem;font-weight:700;}
+.badge-green{background:rgba(34,197,94,.15);color:var(--ok);}
+.badge-cy{background:rgba(6,182,212,.12);color:var(--accent2);}
+.notice{font-size:.66rem;color:var(--text-muted);background:var(--surface2);border:1px solid var(--border);
+  border-radius:8px;padding:.55rem .7rem;line-height:1.6;}
+/* 折りたたみ（詳細設定） */
+details.adv{border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface2);margin-top:.6rem;}
+details.adv>summary{cursor:pointer;padding:.65rem .85rem;font-size:.78rem;color:var(--text-sec);list-style:none;user-select:none;}
+details.adv>summary::-webkit-details-marker{display:none;}
+details.adv>summary::before{content:'▸';color:var(--accent2);margin-right:.45rem;display:inline-block;}
+details.adv[open]>summary{color:var(--text);border-bottom:1px solid var(--border);}
+details.adv[open]>summary::before{content:'▾';}
+.adv-body{padding:.85rem;}
+.help-flow{font-size:.7rem;color:var(--text-sec);background:var(--surface2);border:1px solid var(--border);
+  border-radius:var(--radius-sm);padding:.6rem .85rem;margin-bottom:1rem;line-height:1.7;}
+.help-flow b{color:var(--accent2);}
+/* 差し込みガイド */
+.guide-card{margin-top:1rem;}
+.tl-mock{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:.7rem;margin-bottom:.6rem;}
+.tl-row{display:flex;align-items:center;gap:.4rem;margin:.35rem 0;}
+.tl-label{font-size:.58rem;color:var(--text-muted);width:62px;flex-shrink:0;text-align:right;}
+.tl-clip{background:rgba(124,58,237,.22);border:1px solid var(--accent);border-radius:5px;padding:.28rem .5rem;font-size:.6rem;color:#c4b5fd;white-space:nowrap;}
+.tl-base{flex:1;background:rgba(6,182,212,.14);border:1px solid var(--accent2);border-radius:5px;padding:.32rem .5rem;font-size:.64rem;color:#9be7ff;text-align:center;}
+.guide-hint{font-size:.7rem;color:var(--text-sec);margin-bottom:.85rem;line-height:1.6;}
+.guide-tabs{display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:.85rem;}
+.guide-tab{padding:.42rem .72rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text-sec);font-family:inherit;font-size:.74rem;cursor:pointer;transition:.15s;}
+.guide-tab:hover{border-color:var(--border-hi);}
+.guide-tab.on{border-color:var(--accent);background:rgba(124,58,237,.16);color:#c4b5fd;font-weight:700;}
+.guide-steps{margin:0;padding:0;list-style:none;counter-reset:gstep;}
+.guide-steps li{position:relative;padding:.45rem .6rem .45rem 2.1rem;margin:.35rem 0;background:var(--surface2);border:1px solid var(--border);border-radius:8px;font-size:.8rem;line-height:1.55;}
+.guide-steps li::before{counter-increment:gstep;content:counter(gstep);position:absolute;left:.5rem;top:50%;transform:translateY(-50%);width:1.25rem;height:1.25rem;border-radius:50%;background:var(--accent);color:#fff;font-size:.66rem;font-weight:800;display:flex;align-items:center;justify-content:center;}
+.guide-tip{margin-top:.7rem;font-size:.72rem;color:var(--accent2);background:rgba(6,182,212,.08);border:1px solid rgba(6,182,212,.2);border-radius:8px;padding:.5rem .7rem;line-height:1.6;}
+</style>
+<!-- クリックジャッキング対策：他サイトのiframeに埋め込まれたら無効化 -->
+<script>(function(){try{if(window.top!==window.self){window.top.location=window.self.location;}}catch(e){document.documentElement.style.display='none';}})();</script>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="hero-inner">
+      <div class="logo-mark">🎬</div>
+      <h1 class="hero-title">Lyric Telop Generator</h1>
+      <div class="hero-eq" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build20</div>
+    </div>
+  </header>
+
+  <div class="help-flow">
+    かんたん4ステップ：<b>①音源を入れる</b> → <b>②歌詞を入力</b>（正しい歌詞を貼り付け）→ <b>③タイミングを自動でつける</b> → <b>④完成動画を作る</b>（ソフト不要）<br>
+    <span style="color:var(--text-muted);">※あなたの入力歌詞はそのまま使い、タイミングだけ音源から自動でセット。誤字は出ません。</span>
+  </div>
+
+  <div class="grid">
+    <!-- ════════ CONTROLS COLUMN ════════ -->
+    <div class="stack col-controls">
+      <!-- Step 1: Audio -->
+      <div class="card nb-cyan">
+        <div class="card-header"><span class="step-badge">1</span><span class="card-title">楽曲を読み込む<small>mp3 / wav / m4a</small></span></div>
+        <div class="drop-zone" id="audioDrop">
+          <input type="file" id="audioInput" accept="audio/*">
+          <div class="drop-icon">🎵</div>
+          <p>クリック / ドラッグして音源を選択</p>
+          <div class="fname" id="audioName"></div>
+        </div>
+      </div>
+
+      <!-- Step 2: Lyrics -->
+      <div class="card nb-green">
+        <div class="card-header"><span class="step-badge">2</span><span class="card-title">歌詞を入力<small>正しい歌詞を貼り付け →「歌詞を反映」</small></span></div>
+        <textarea id="lyricsInput" placeholder="ここに歌詞を貼り付け／入力してください。&#10;&#10;・1行＝1テロップ&#10;・空行は無視されます（連の区切りに使ってOK）&#10;・各行は次の歌詞が始まるまで表示され続けます&#10;&#10;入力できたら下の「歌詞を反映」を押してください（プレビューに表示されます）。"></textarea>
+        <div class="row" style="margin-top:.6rem;">
+          <button class="btn btn-primary" id="applyLyrics">歌詞を反映</button>
+          <span class="hint" id="lineCount"></span>
+        </div>
+
+        <div style="background:var(--surface3);border:1px solid rgba(34,197,94,.28);border-radius:var(--radius-sm);padding:.75rem .85rem;margin-top:.8rem;">
+          <div style="font-size:.8rem;color:var(--ok);font-weight:700;margin-bottom:.15rem;">🎯 音源からタイミングを自動でつける</div>
+          <div class="hint" style="margin-bottom:.55rem;line-height:1.7;">上の<b>正しい歌詞を「歌詞を反映」</b>したあとに押すと、<b>文字はそのまま</b>で各行のタイミングだけをAIが音源と照合してセットします（誤字は出ません）。</div>
+          <button class="btn" id="alignBtn" disabled style="width:100%;justify-content:center;font-size:.85rem;padding:.7rem;border-color:rgba(34,197,94,.45);color:var(--ok);">🎯 歌詞はそのまま・タイミングを自動でつける</button>
+          <div id="alignProgress" style="display:none;margin-top:.5rem;">
+            <div style="font-size:.68rem;color:var(--ok);margin-bottom:.3rem;" id="alignMsg">準備中…</div>
+            <div style="background:var(--surface2);border-radius:4px;height:5px;overflow:hidden;">
+              <div id="alignBar" style="background:linear-gradient(90deg,var(--ok),var(--accent2));height:100%;width:0%;transition:width .4s;border-radius:4px;"></div>
+            </div>
+          </div>
+          <div id="alignWarn" style="display:none;margin-top:.55rem;font-size:.74rem;color:#ffd24d;background:rgba(245,158,11,.10);border:1px solid rgba(245,158,11,.5);border-radius:8px;padding:.6rem .75rem;line-height:1.7;box-shadow:0 0 16px -7px rgba(245,158,11,.5);">
+            ⚠️ <b>処理には数分かかることがあります。</b>終わるまで<b>このページを離れないでください</b>（タブ／アプリの切り替えで失敗します）。そのままお待ちください。
+          </div>
+          <div class="ctrl" id="offsetWrap" style="margin-top:.65rem;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.6rem .8rem;">
+            <div class="ctrl-label"><span>⏱ 出るタイミング微調整<span class="hint" style="margin-left:.4rem;">←早く出す／遅く出す→</span></span><b id="vOffset">0.00s</b></div>
+            <input type="range" class="sl" id="offset" min="-150" max="150" step="5" value="0">
+            <div class="hint" style="margin-top:.3rem;">自動でつけた後、全体が少し早い／遅いと感じたら、ここでジャストに微調整できます（再生しながらがおすすめ）。</div>
+          </div>
+          <details class="adv" style="margin-top:.5rem;">
+            <summary>AIの精度設定（任意）</summary>
+            <div class="adv-body">
+              <select id="whisperModel" style="font-size:.72rem;padding:.32rem .5rem;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;width:100%;cursor:pointer;">
+                <option value="tiny">速い・軽い（約39MB）</option>
+                <option value="small" selected>高精度・推奨（約244MB）</option>
+              </select>
+              <div class="hint" style="margin-top:.45rem;">初回だけモデルをDL（次回から即起動）。タイミングのズレが大きいときは「高精度」を選ぶと改善することがあります。</div>
+            </div>
+          </details>
+        </div>
+      </div>
+
+      <!-- Style -->
+      <div class="card nb-pink">
+        <div class="card-header"><span class="step-badge">🎨</span><span class="card-title">書体・スタイル</span></div>
+        <div class="font-cat" style="margin-top:0;">プリセット（雰囲気から選ぶ）</div>
+        <div class="row" id="presetRow" style="margin-bottom:.5rem;gap:.4rem;"></div>
+        <details class="adv" open>
+          <summary>🔧 書体・色・位置を細かく調整（任意）</summary>
+          <div class="adv-body">
+            <div id="fontPicker"></div>
+            <div class="divider"></div>
+
+            <div class="ctrl">
+              <div class="ctrl-label"><span>文字サイズ</span><b id="vSize">72px</b></div>
+              <input type="range" class="sl" id="size" min="24" max="180" value="72">
+            </div>
+            <div class="ctrl">
+              <div class="ctrl-label"><span>太さ (Weight)</span><b id="vWeight">500</b></div>
+              <input type="range" class="sl" id="weight" min="300" max="900" step="100" value="500">
+            </div>
+            <div class="row" style="margin-bottom:.7rem;">
+              <label class="fld" style="margin:0;">文字色</label><input type="color" id="color" value="#ffffff">
+              <label class="fld" style="margin:0 0 0 .6rem;">縁取り色</label><input type="color" id="strokeColor" value="#000000">
+            </div>
+            <div class="ctrl">
+              <div class="ctrl-label"><span>縁取りの太さ</span><b id="vStroke">6px</b></div>
+              <input type="range" class="sl" id="stroke" min="0" max="24" value="6">
+            </div>
+            <div class="row" style="margin-bottom:.7rem;">
+              <label class="toggle"><input type="checkbox" id="shadow" checked>影をつける</label>
+              <label class="toggle"><input type="checkbox" id="plate">座布団(帯)</label>
+              <input type="color" id="plateColor" value="#000000" style="display:none;">
+              <label class="toggle"><input type="checkbox" id="vertical">縦書き</label>
+            </div>
+
+            <div class="divider"></div>
+            <div class="row" style="margin-bottom:.7rem;">
+              <span style="font-size:.66rem;color:var(--text-sec);">位置:</span>
+              <div class="seg" id="posSeg">
+                <button data-pos="top">上</button>
+                <button data-pos="middle">中央</button>
+                <button data-pos="bottom" class="on">下</button>
+              </div>
+              <span style="font-size:.66rem;color:var(--text-sec);margin-left:.4rem;">揃え:</span>
+              <div class="seg" id="alignSeg">
+                <button data-align="left">左</button>
+                <button data-align="center" class="on">中</button>
+                <button data-align="right">右</button>
+              </div>
+            </div>
+            <div class="ctrl">
+              <div class="ctrl-label"><span>字間</span><b id="vTrack">0px</b></div>
+              <input type="range" class="sl" id="track" min="-5" max="30" value="0">
+            </div>
+            <div class="ctrl">
+              <div class="ctrl-label"><span>フェード(行の出入り)</span><b id="vFade">0.25s</b></div>
+              <input type="range" class="sl" id="fade" min="0" max="100" value="25">
+            </div>
+          </div>
+        </details>
+      </div>
+
+      <!-- Export -->
+      <div class="card nb-amber">
+        <div class="card-header"><span class="step-badge">⬇</span><span class="card-title">書き出し</span></div>
+
+        <div style="margin-bottom:.5rem;"><span class="badge badge-green">★ 初心者はこれだけでOK</span></div>
+        <button class="btn btn-rec" id="recBtn" disabled style="width:100%;font-size:.95rem;padding:.85rem;">🎬 完成動画を作る（編集ソフト不要・音楽つき）</button>
+        <div class="notice" style="margin-top:.6rem;line-height:1.75;">
+          押すと曲を最後まで自動再生しながら録画し、<b>字幕＋音楽入りの動画</b>が1本でき上がります。編集ソフトは要りません。<br>
+          ・先に<b>プレビューの下の「背景」</b>で、色／画像／動画を選ぶと、それが動画の背景になります（未選択なら黒）。<br>
+          ・できる動画は WebM 形式。<b>YouTubeにはそのままアップできます</b>。<br>
+          <span style="color:#ffd24d;">⚠️ 録画中はページを離れず、曲が終わるまでこのままお待ちください。</span>
+        </div>
+
+        <button class="btn btn-card" id="cardBtn" disabled style="width:100%;margin-top:.8rem;font-size:.92rem;padding:.8rem;">🖼 歌詞カード（背景つき静止画・1行ずつ）</button>
+        <div class="notice" style="margin-top:.55rem;line-height:1.7;">
+          プレビューの<b>背景（色／画像）＋歌詞</b>を焼き込んだ<b>静止画PNG</b>を、歌詞の行数ぶんまとめて書き出します（ZIP）。SNS投稿・サムネ・リリックカードに。<br>
+          ※背景に「動画」を選んでいる場合は押した瞬間のフレームが背景になります。動画背景なら上の<b>🎬完成動画</b>がおすすめ。
+        </div>
+
+        <details class="adv" style="margin-top:.7rem;">
+          <summary>編集ソフトで使う人向け（透過PNG・字幕ファイル）</summary>
+          <div class="adv-body">
+            <button class="btn btn-primary" id="zipBtn" disabled style="width:100%;">⭐ テロップ画像一式（透過PNG＋字幕＋使い方メモ）</button>
+            <div class="notice" style="margin-top:.55rem;">行ごとの透過PNG＋字幕(.srt/.ass)＋日本語の使い方メモ入りZIP。CapCut / Premiere / DaVinci などで重ねられます。</div>
+            <div class="export-row" style="margin-top:.6rem;">
+              <button class="btn" id="srtBtn" disabled>.srt 字幕</button>
+              <button class="btn" id="assBtn" disabled>.ass 字幕</button>
+              <button class="btn" id="pngBtn">現在フレームPNG</button>
+              <button class="btn" id="lrcBtn" disabled>.lrc</button>
+            </div>
+          </div>
+        </details>
+      </div>
+    </div>
+
+    <!-- ════════ PREVIEW COLUMN (sticky) ════════ -->
+    <div class="col-preview">
+      <!-- Preview -->
+      <div class="card nb-blue">
+        <div class="card-header"><span class="step-badge">▶</span><span class="card-title">プレビュー<small id="aspectLabel">16:9 / 1920×1080</small></span></div>
+        <div class="stage-wrap"><canvas id="stage" width="1920" height="1080"></canvas></div>
+        <div class="transport">
+          <button class="btn btn-accent2" id="playBtn2" disabled>▶</button>
+          <input type="range" class="seek" id="seek" min="0" max="100" value="0" step="0.01" disabled>
+          <span class="tcode" id="tcode">0:00.0 / 0:00.0</span>
+        </div>
+        <div class="row" style="margin-top:.7rem;">
+          <span style="font-size:.66rem;color:var(--text-sec);">背景:</span>
+          <div class="seg" id="bgSeg">
+            <button data-bg="transparent" class="on">透過</button>
+            <button data-bg="solid">単色</button>
+            <button data-bg="image">画像</button>
+            <button data-bg="video">動画</button>
+          </div>
+          <input type="color" id="bgColor" value="#101018" style="display:none;">
+          <label class="btn" id="bgFileBtn" style="display:none;">ファイル選択<input type="file" id="bgFile" accept="image/*,video/*" style="display:none;"></label>
+          <select id="aspect" style="margin-left:auto;">
+            <option value="16:9">16:9 横</option>
+            <option value="9:16">9:16 縦(Shorts)</option>
+            <option value="1:1">1:1 正方形</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════ 差し込みガイド ════════ -->
+  <div class="card guide-card nb-orange">
+    <div class="card-header"><span class="step-badge">📂</span><span class="card-title">編集ソフトへの入れ方<small>自分のソフトを選ぶと手順が出ます</small></span></div>
+    <div class="notice" style="margin-bottom:.7rem;line-height:1.7;">いちばん簡単なのは <b>🎬 完成動画(WebM)</b>（ソフト不要）。編集ソフトに入れたい場合は、下でソフトを選んでください。</div>
+    <div class="tl-mock">
+      <div class="tl-row"><span class="tl-label">字幕(PNG)</span><span class="tl-clip">telop_001</span><span class="tl-clip">telop_002</span><span class="tl-clip">telop_003</span></div>
+      <div class="tl-row"><span class="tl-label">MV映像</span><span class="tl-base">あなたの映像＋音源</span></div>
+    </div>
+    <div class="guide-hint">考え方は全ソフト共通：<b>下にMV映像、上のトラックにテロップPNGを時間どおり並べる</b>だけ。タイミングは ZIP内の <b>timings.csv</b> を見ます。</div>
+    <div class="guide-tabs" id="guideTabs"></div>
+    <div class="guide-body" id="guideBody"></div>
+  </div>
+</div>
+
+<audio id="audio"></audio>
+<video id="bgVideo" muted playsinline style="display:none;"></video>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ════════════════════════════════════════════════
+   歌詞テロップ生成ツール — Lo-Fi Detective Tools
+   出力: 映像/画像への焼き込み  /  タイミング: 手動タップ
+════════════════════════════════════════════════ */
+
+/* ---- 書体キュレーション（すべて Google Fonts / SIL OFL：商用MV・焼き込み・同梱OK） ---- */
+const FONT_CATS = [
+  { cat:'ゴシック（現代・ポップ・高視認）', fonts:[
+    { fam:'Zen Kaku Gothic New', gf:'Zen+Kaku+Gothic+New:wght@400;500;700', w:500, smp:'夜明けの歌' },
+    { fam:'M PLUS Rounded 1c',   gf:'M+PLUS+Rounded+1c:wght@400;700;800',  w:700, smp:'まるい光' },
+    { fam:'Dela Gothic One',     gf:'Dela+Gothic+One',                     w:400, smp:'衝動', single:true },
+  ]},
+  { cat:'明朝（情緒・文学的・ミステリー）', fonts:[
+    { fam:'Shippori Mincho B1',  gf:'Shippori+Mincho+B1:wght@400;700;800', w:500, smp:'真実の影' },
+    { fam:'Zen Old Mincho',      gf:'Zen+Old+Mincho:wght@400;700;900',     w:400, smp:'静かな夜' },
+  ]},
+  { cat:'筆・手書き（和・エモい・温度感）', fonts:[
+    { fam:'Yuji Syuku',          gf:'Yuji+Syuku',                          w:400, smp:'花の記憶', single:true },
+    { fam:'Zen Kurenaido',       gf:'Zen+Kurenaido',                       w:400, smp:'手紙の続き', single:true },
+    { fam:'Klee One',            gf:'Klee+One:wght@400;600',               w:400, smp:'放課後' },
+  ]},
+  { cat:'レトロ・個性派（Lo-Fiの世界観）', fonts:[
+    { fam:'DotGothic16',         gf:'DotGothic16',                         w:400, smp:'8bitの街', single:true },
+    { fam:'Reggae One',          gf:'Reggae+One',                          w:400, smp:'NIGHT CITY', single:true },
+    { fam:'RocknRoll One',       gf:'RocknRoll+One',                       w:400, smp:'反逆のうた', single:true },
+  ]},
+];
+const ALL_FONTS = FONT_CATS.flatMap(c=>c.fonts);
+const loadedFonts = new Set();
+
+function fontCssUrl(gf){ return `https://fonts.googleapis.com/css2?family=${gf}&display=swap`; }
+async function ensureFont(f){
+  if(!loadedFonts.has(f.fam)){
+    const link=document.createElement('link');
+    link.rel='stylesheet'; link.href=fontCssUrl(f.gf);
+    document.head.appendChild(link);
+    loadedFonts.add(f.fam);
+  }
+  try{ await document.fonts.load(`${state.weight} 64px '${f.fam}'`); await document.fonts.ready; }catch(e){}
+}
+
+/* ---- 状態 ---- */
+const state = {
+  font: ALL_FONTS[0], weight:500, size:72, color:'#ffffff',
+  strokeColor:'#000000', stroke:6, shadow:true, plate:false, plateColor:'#000000',
+  vertical:false, pos:'bottom', align:'center', track:0, fade:0.25, offset:0,
+  bg:'transparent', bgColor:'#101018', aspect:'16:9',
+};
+let lyrics = [];      // [{text, t:Number|null}]
+let tapCursor = 0;
+let previewIdx = 0;   // プレビューで表示する行（タイミング前の確認用）
+let bgImage = null;   // HTMLImageElement
+let hasBgVideo = false;
+
+/* ---- DOM ---- */
+const $ = id => document.getElementById(id);
+const audio = $('audio'), bgVideo = $('bgVideo');
+const canvas = $('stage'), ctx = canvas.getContext('2d');
+
+/* ---- ユーティリティ ---- */
+function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),1900); }
+function fmt(sec){ if(!isFinite(sec))sec=0; const m=Math.floor(sec/60), s=Math.floor(sec%60), d=Math.floor((sec*10)%10); return `${m}:${String(s).padStart(2,'0')}.${d}`; }
+function lrcStamp(sec){ const m=Math.floor(sec/60), s=(sec%60).toFixed(2).padStart(5,'0'); return `[${String(m).padStart(2,'0')}:${s}]`; }
+
+/* ---- 解像度 ---- */
+function applyAspect(){
+  const map={'16:9':[1920,1080],'9:16':[1080,1920],'1:1':[1080,1080]};
+  const [w,h]=map[state.aspect]; canvas.width=w; canvas.height=h;
+  $('aspectLabel').textContent=`${state.aspect} / ${w}×${h}`;
+  draw();
+}
+
+/* ════ 描画 ════ */
+function activeLineAt(t){
+  t -= (state.offset||0);   // タイミング微調整（＋で遅く、−で早く出す）
+  // 空行は無視し、各行は「次の歌詞行が始まるまで」表示し続ける（歌唱中に途切れないように）
+  const timed = lyrics.map((l,i)=>({...l,i})).filter(l=>l.t!=null && l.text.trim()).sort((a,b)=>a.t-b.t);
+  if(!timed.length) return null;
+  const songEnd = (audio.duration && isFinite(audio.duration) && audio.duration>0)
+    ? audio.duration : (timed[timed.length-1].t + 6);
+  for(let k=0;k<timed.length;k++){
+    const cur=timed[k], next=timed[k+1];
+    const end = next ? next.t : Math.max(songEnd, cur.t + 6); // 最終行は曲尾まで保持
+    if(t>=cur.t && t<end) return {line:cur, start:cur.t, end, last:!next};
+  }
+  return null;
+}
+
+// 行頭禁則（行の先頭に置かない）／行末禁則（行の末尾に置かない）
+const KINSOKU_HEAD=/[、。，．・：；！？!?）」』】〕〉》ぁぃぅぇぉっゃゅょゎァィゥェォッャュョーヽヾゝゞ々]/;
+const KINSOKU_TAIL=/[（「『【〔〈《]/;
+
+// 自然な区切り（句読点・空白・助詞の後）で文節に分割
+function segmentJP(text){
+  const chars=[...text], segs=[]; let cur='';
+  for(let i=0;i<chars.length;i++){
+    const ch=chars[i], next=chars[i+1]||'';
+    cur+=ch;
+    const afterPunct=/[、。，．！？!?…：；\s　]/.test(ch);
+    const afterParticle=/[をにはがでとへもや]/.test(ch) && !/[をにはがでとへもや]/.test(next);
+    if((afterPunct||afterParticle) && next && !KINSOKU_HEAD.test(next) && !KINSOKU_TAIL.test(ch)){
+      segs.push(cur); cur='';
+    }
+  }
+  if(cur) segs.push(cur);
+  return segs;
+}
+
+// 1行を綺麗に折り返す（自然な区切り＋行数バランス＋禁則）
+function wrapOne(text, maxW){
+  if(ctx.measureText(text).width<=maxW) return [text];
+  let segs=segmentJP(text);
+  // 1セグメントが長すぎる場合は文字単位で分割（保険）
+  const safe=[];
+  for(const s of segs){
+    if(ctx.measureText(s).width<=maxW){ safe.push(s); continue; }
+    let c='';
+    for(const ch of [...s]){
+      if(c && ctx.measureText(c+ch).width>maxW){ safe.push(c); c=ch; } else c+=ch;
+    }
+    if(c) safe.push(c);
+  }
+  segs=safe;
+  const total=ctx.measureText(text).width;
+  const n=Math.min(Math.max(1,Math.ceil(total/maxW)),4); // 行数を均す
+  const target=total/n;
+  const lines=[]; let cur='';
+  for(const seg of segs){
+    const test=cur+seg;
+    if(cur && ctx.measureText(test).width>maxW){ lines.push(cur); cur=seg; }
+    else if(cur && lines.length<n-1 && ctx.measureText(cur).width>=target){ lines.push(cur); cur=seg; }
+    else cur=test;
+  }
+  if(cur.trim()!=='') lines.push(cur);
+  return lines.length?lines:[text];
+}
+
+function wrapText(text, maxW){
+  // 明示的な改行（\n）を尊重しつつ、各行を綺麗に折り返す
+  const out=[];
+  for(const para of text.split('\n')){
+    if(para===''){ out.push(''); continue; }
+    out.push(...wrapOne(para, maxW));
+  }
+  return out.length?out:[''];
+}
+
+function draw(){
+  const W=canvas.width, H=canvas.height;
+  ctx.clearRect(0,0,W,H);
+  drawBackground(W,H);
+  const act = activeLineAt(audio.currentTime||0);
+  if(act && act.line.text.trim()){
+    // フェードイン（立ち上がり）のみ。行の途中や次行の直前で消えないよう、
+    // フェードアウトは最終行が曲尾に近づいたときだけ適用する。
+    let a=1; const f=state.fade;
+    if(f>0){
+      a=Math.max(0,Math.min(1,(audio.currentTime-act.start)/f));
+      if(act.last){
+        const outA=(act.end-audio.currentTime)/f;
+        a=Math.min(a, Math.max(0,Math.min(1,outA)));
+      }
+    }
+    renderText(act.line.text, a);
+    return;
+  }
+  // タイミング未設定、または停止中で該当行がないときは、確認用に1行プレビュー表示
+  const hasTiming = lyrics.some(l=>l.t!=null);
+  if(!hasTiming || audio.paused){
+    const pv = pickPreviewLine();
+    if(pv) renderText(pv, 1);
+  }
+}
+// プレビュー用に表示する1行（クリックした行→なければ最初の非空行）
+function pickPreviewLine(){
+  if(!lyrics.length) return '';
+  for(let i=previewIdx;i<lyrics.length;i++) if(lyrics[i].text.trim()) return lyrics[i].text;
+  const f=lyrics.find(l=>l.text.trim()); return f?f.text:'';
+}
+
+function drawBackground(W,H){
+  if(state.bg==='solid'){ ctx.fillStyle=state.bgColor; ctx.fillRect(0,0,W,H); }
+  else if(state.bg==='image' && bgImage){ drawCover(bgImage,W,H); }
+  else if(state.bg==='video' && hasBgVideo && bgVideo.readyState>=2){ drawCover(bgVideo,W,H); }
+}
+
+// 文字レイヤーのみ描画（背景なし＝書き出しでも再利用）
+function renderText(text, alpha){
+  if(!text.trim()) return;
+  const W=canvas.width, H=canvas.height;
+  const fpx = state.size * (H/1080); // 1080基準でスケール
+  ctx.font = `${state.weight} ${fpx}px '${state.font.fam}', sans-serif`;
+  ctx.textBaseline='middle';
+  if('letterSpacing' in ctx) ctx.letterSpacing = `${state.track*(H/1080)}px`;
+  ctx.globalAlpha=alpha;
+  if(state.vertical) drawVertical(text, W, H, fpx);
+  else drawHorizontal(text, W, H, fpx);
+  ctx.globalAlpha=1;
+  if('letterSpacing' in ctx) ctx.letterSpacing='0px';
+}
+
+function drawCover(media,W,H){
+  const mw=media.videoWidth||media.naturalWidth||media.width;
+  const mh=media.videoHeight||media.naturalHeight||media.height;
+  if(!mw||!mh)return;
+  const r=Math.max(W/mw,H/mh), dw=mw*r, dh=mh*r;
+  ctx.drawImage(media,(W-dw)/2,(H-dh)/2,dw,dh);
+}
+
+function paintText(str,x,y){
+  // 縁取り→影→塗り の順で潰れにくく
+  if(state.stroke>0){
+    if(state.shadow){ ctx.shadowColor='rgba(0,0,0,.6)'; ctx.shadowBlur=state.size*0.18*(canvas.height/1080); ctx.shadowOffsetY=state.size*0.06*(canvas.height/1080); }
+    ctx.lineWidth=state.stroke*2*(canvas.height/1080); ctx.strokeStyle=state.strokeColor;
+    ctx.lineJoin='round'; ctx.miterLimit=2; ctx.strokeText(str,x,y);
+    ctx.shadowColor='transparent'; ctx.shadowBlur=0; ctx.shadowOffsetY=0;
+  } else if(state.shadow){
+    ctx.shadowColor='rgba(0,0,0,.7)'; ctx.shadowBlur=state.size*0.2*(canvas.height/1080); ctx.shadowOffsetY=state.size*0.07*(canvas.height/1080);
+  }
+  ctx.fillStyle=state.color; ctx.fillText(str,x,y);
+  ctx.shadowColor='transparent'; ctx.shadowBlur=0; ctx.shadowOffsetY=0;
+}
+
+function drawHorizontal(text,W,H,fpx){
+  const margin=H*0.08, lh=fpx*1.35;
+  const rows=wrapText(text, W-margin*2);
+  const blockH=rows.length*lh;
+  let cy;
+  if(state.pos==='top') cy=margin+lh/2;
+  else if(state.pos==='middle') cy=H/2-blockH/2+lh/2;
+  else cy=H-margin-blockH+lh/2;
+
+  ctx.textAlign=state.align;
+  let x = state.align==='left'?margin : state.align==='right'?W-margin : W/2;
+
+  // 座布団
+  if(state.plate){
+    let maxW=0; rows.forEach(r=>maxW=Math.max(maxW,ctx.measureText(r).width));
+    const pad=fpx*0.4; const px = state.align==='left'?margin-pad : state.align==='right'?W-margin-maxW-pad : W/2-maxW/2-pad;
+    roundRect(px, cy-lh/2-pad*0.3, maxW+pad*2, blockH+pad*0.6, fpx*0.18, hexA(state.plateColor,0.55));
+  }
+  rows.forEach((r,i)=>paintText(r, x, cy+i*lh));
+}
+
+function drawVertical(text,W,H,fpx){
+  const margin=H*0.08, chH=fpx*1.08;
+  const chars=[...text.replace(/\n/g,'')];
+  const blockH=chars.length*chH;
+  const maxChars=Math.floor((H-margin*2)/chH);
+  const cols=[]; for(let i=0;i<chars.length;i+=maxChars) cols.push(chars.slice(i,i+maxChars));
+  const colW=fpx*1.5;
+  let startX = W - margin - colW/2; // 右から左へ
+  ctx.textAlign='center';
+  cols.forEach((col,ci)=>{
+    const x=startX-ci*colW;
+    let y0;
+    const colH=col.length*chH;
+    if(state.pos==='top') y0=margin+chH/2;
+    else if(state.pos==='middle') y0=H/2-colH/2+chH/2;
+    else y0=H-margin-colH+chH/2;
+    col.forEach((ch,i)=>paintText(ch, x, y0+i*chH));
+  });
+}
+
+function roundRect(x,y,w,h,r,fill){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
+  ctx.fillStyle=fill; ctx.fill();
+}
+function hexA(hex,a){ const n=parseInt(hex.slice(1),16); return `rgba(${n>>16&255},${n>>8&255},${n&255},${a})`; }
+
+/* ════ 描画ループ ════ */
+let rafId=null;
+function loop(){
+  // 1フレームで例外が出ても描画ループを止めない（タブ復帰時の黒画面・固まり防止）
+  try{ draw(); updateTransport(); refreshActiveRow(); }
+  catch(e){ /* swallow: 次フレームで自動復帰 */ }
+  rafId=requestAnimationFrame(loop);
+}
+function startLoop(){ if(rafId!=null) cancelAnimationFrame(rafId); rafId=requestAnimationFrame(loop); }
+// タブ復帰・bfcache・canvasコンテキスト喪失からの確実な復帰（黒画面→要リロードを根絶）
+function recoverView(){
+  try{ const w=canvas.width; canvas.width=w; }catch(_){}   // バッキングストアを作り直す（白紙化対策）
+  try{ if(recAudioCtx && recAudioCtx.state==='suspended') recAudioCtx.resume(); }catch(_){}
+  try{ draw(); }catch(_){}
+  startLoop();                                              // 描画ループを必ず1本だけ再始動
+}
+function updateTransport(){
+  const d=audio.duration||0, c=audio.currentTime||0;
+  $('seek').value = d? (c/d*100):0;
+  $('tcode').textContent = `${fmt(c)} / ${fmt(d)}`;
+}
+
+/* ════ スタイル・プリセット（雰囲気からワンタップ） ════ */
+const PRESETS=[
+  // 歌番組＝大きめ・極太ゴシック・太い縁取り＋影、下部中央
+  { name:'歌番組', emoji:'📺', s:{ font:'Zen Kaku Gothic New', weight:700, size:100, color:'#ffffff', strokeColor:'#16213e', stroke:13, shadow:true, plate:false, vertical:false, pos:'bottom', align:'center', track:1, fade:0.1 } },
+  // YouTube MV＝小さめ・上品・控えめ縁取り＋影（人気の定番）
+  { name:'YouTube MV(小)', emoji:'▶', s:{ font:'Zen Kaku Gothic New', weight:400, size:42, color:'#ffffff', strokeColor:'#000000', stroke:3, shadow:true, plate:false, vertical:false, pos:'bottom', align:'center', track:2, fade:0.35 } },
+  // 映画字幕風
+  { name:'シネマ字幕', emoji:'🎞', s:{ font:'Zen Kaku Gothic New', weight:500, size:52, color:'#f3f3f3', strokeColor:'#000000', stroke:4, shadow:true, plate:false, vertical:false, pos:'bottom', align:'center', track:1, fade:0.2 } },
+  // 和・バラード（明朝・縦書き）
+  { name:'エモ明朝(縦)', emoji:'🌙', s:{ font:'Shippori Mincho B1', weight:500, size:58, color:'#ffffff', strokeColor:'#000000', stroke:3, shadow:true, plate:false, vertical:true, pos:'middle', align:'center', track:5, fade:0.55 } },
+  // ポップ・かわいい（丸ゴシック＋帯）
+  { name:'ポップ帯', emoji:'🍬', s:{ font:'M PLUS Rounded 1c', weight:800, size:80, color:'#ffffff', strokeColor:'#ff6b9d', stroke:0, shadow:false, plate:true, plateColor:'#ff6b9d', vertical:false, pos:'bottom', align:'center', track:0, fade:0.12 } },
+  // Lo-Fi・レトロ（ドット）
+  { name:'Lo-Fiドット', emoji:'🕹', s:{ font:'DotGothic16', weight:400, size:46, color:'#9be7ff', strokeColor:'#04121f', stroke:5, shadow:true, plate:false, vertical:false, pos:'bottom', align:'center', track:3, fade:0.1 } },
+];
+function buildPresets(){
+  const host=$('presetRow'); host.innerHTML='';
+  PRESETS.forEach(p=>{
+    const b=document.createElement('button'); b.className='btn';
+    b.style.cssText='font-size:.72rem;padding:.4rem .7rem;';
+    b.textContent=`${p.emoji} ${p.name}`;
+    b.onclick=()=>{ applyPreset(p); toast(`プリセット: ${p.name}`); };
+    host.appendChild(b);
+  });
+}
+function applyPreset(p){
+  const fObj=ALL_FONTS.find(f=>f.fam===p.s.font)||state.font;
+  Object.assign(state, p.s, {font:fObj});
+  syncUIFromState(); ensureFont(fObj).then(draw); draw();
+}
+function syncUIFromState(){
+  const set=(id,val,vid,fmt)=>{ $(id).value=val; if(vid)$(vid).textContent=fmt?fmt(val):val; };
+  set('size',state.size,'vSize',v=>v+'px');
+  set('weight',state.weight,'vWeight',v=>v);
+  set('stroke',state.stroke,'vStroke',v=>v+'px');
+  set('track',state.track,'vTrack',v=>v+'px');
+  $('fade').value=Math.round(state.fade*100); $('vFade').textContent=state.fade.toFixed(2)+'s';
+  $('offset').value=Math.round(state.offset*100); $('vOffset').textContent=(state.offset>=0?'+':'')+state.offset.toFixed(2)+'s';
+  $('color').value=state.color; $('strokeColor').value=state.strokeColor; $('plateColor').value=state.plateColor;
+  $('shadow').checked=state.shadow; $('vertical').checked=state.vertical; $('plate').checked=state.plate;
+  $('plateColor').style.display=state.plate?'inline-block':'none';
+  segSet('posSeg','pos',state.pos); segSet('alignSeg','align',state.align);
+  document.querySelectorAll('.font-chip').forEach(c=>c.classList.toggle('sel',c.dataset.fam===state.font.fam));
+}
+function segSet(id,key,val){ $(id).querySelectorAll('button').forEach(b=>b.classList.toggle('on', b.dataset[key]===val)); }
+
+/* ════ フォントUI ════ */
+function buildFontPicker(){
+  const host=$('fontPicker'); host.innerHTML='';
+  FONT_CATS.forEach(cat=>{
+    const h=document.createElement('div'); h.className='font-cat'; h.textContent=cat.cat; host.appendChild(h);
+    const g=document.createElement('div'); g.className='font-grid';
+    cat.fonts.forEach(f=>{
+      const chip=document.createElement('button'); chip.className='font-chip'+(f.fam===state.font.fam?' sel':'');
+      chip.dataset.fam=f.fam;
+      chip.innerHTML=`<div class="smp" style="font-family:'${f.fam}',sans-serif;">${f.smp}</div><div class="nm">${f.fam}</div>`;
+      chip.onclick=async()=>{
+        document.querySelectorAll('.font-chip').forEach(c=>c.classList.remove('sel'));
+        chip.classList.add('sel'); state.font=f;
+        // 単一ウェイトのフォントはweight無効化のヒント
+        await ensureFont(f); draw();
+      };
+      ensureFont(f); // チップ自身のプレビュー用に先読み
+      g.appendChild(chip);
+    });
+    host.appendChild(g);
+  });
+}
+
+/* ════ 歌詞・タップ ════ */
+function applyLyrics(){
+  const raw=$('lyricsInput').value.split('\n');
+  const old=lyrics;
+  // 行の位置(index)でタイミングを引き継ぐ → 文字を直しても時刻は保持される
+  lyrics = raw.map((text,i)=>({ text, t: old[i] ? old[i].t : null }));
+  tapCursor = lyrics.findIndex(l=>l.t==null); if(tapCursor<0) tapCursor=lyrics.length;
+  previewIdx = 0;   // 反映後はプレビューに先頭行を表示
+  $('lineCount').textContent = `${lyrics.length}行`;
+  renderLines(); updateTapTarget(); draw();
+  updateExportBtns();
+}
+function renderLines(){
+  const host=$('linesList'); if(!host) return;   // タイミング一覧は廃止（自動運用）
+  host.innerHTML='';
+  if(!lyrics.length){ host.innerHTML=''; return; }
+  lyrics.forEach((l,i)=>{
+    const row=document.createElement('div'); row.className='line-item'+(l.t==null?' untimed':''); row.dataset.i=i;
+    const blank = !l.text.trim();
+    row.innerHTML=`
+      <div class="line-no">${i+1}</div>
+      <div class="line-txt ${blank?'blank':''}" title="クリックでその時間へ">${blank?'（無表示）':escapeHtml(l.text)}</div>
+      <input class="tm" value="${l.t!=null?fmt(l.t):'—'}" title="mm:ss.s で編集">
+      <button class="del" title="この行を削除">×</button>`;
+    row.querySelector('.line-txt').onclick=()=>{ previewIdx=i; if(l.t!=null){ audio.currentTime=l.t; } draw(); };
+    row.querySelector('.tm').onchange=(e)=>{ l.t=parseTime(e.target.value); renderLines(); updateExportBtns(); };
+    row.querySelector('.del').onclick=()=>{ lyrics.splice(i,1); renderLines(); };
+    host.appendChild(row);
+  });
+}
+function refreshActiveRow(){
+  const act=activeLineAt(audio.currentTime||0);
+  document.querySelectorAll('.line-item').forEach(r=>{
+    r.classList.toggle('active', act && +r.dataset.i===act.line.i);
+  });
+}
+function escapeHtml(s){ return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function parseTime(str){
+  str=str.trim(); if(str==='—'||str==='')return null;
+  const m=str.match(/^(\d+):(\d+(?:\.\d+)?)$/); if(m) return (+m[1])*60+parseFloat(m[2]);
+  const n=parseFloat(str); return isNaN(n)?null:n;
+}
+function updateTapTarget(){
+  const tt=$('tapTarget'), tb=$('tapBtn'); if(!tt||!tb) return;   // タップUIは廃止
+  tt.textContent = tapCursor<lyrics.length ? `「${(lyrics[tapCursor].text.trim()||'（無表示）').slice(0,12)}」` : '完了';
+  tb.disabled = tapCursor>=lyrics.length || !lyrics.length;
+}
+function tap(){
+  if(tapCursor>=lyrics.length) return;
+  lyrics[tapCursor].t = audio.currentTime;
+  tapCursor++;
+  while(tapCursor<lyrics.length && lyrics[tapCursor].t!=null) tapCursor++;
+  renderLines(); updateTapTarget();
+  updateExportBtns();
+}
+
+/* ════ 再生 ════ */
+function togglePlay(){
+  if(audio.paused){ audio.play(); if(state.bg==='video'&&hasBgVideo){ bgVideo.currentTime=audio.currentTime; bgVideo.play(); } }
+  else { audio.pause(); bgVideo.pause(); }
+}
+function syncPlayBtns(){ $('playBtn2').textContent=audio.paused?'▶':'⏸'; }
+
+/* ════ 書き出し ════ */
+function exportPNG(){
+  draw();
+  canvas.toBlob(b=>{ downloadBlob(b,'telop-frame.png'); toast('PNGを書き出しました'); });
+}
+function exportLRC(){
+  const lines=lyrics.filter(l=>l.t!=null).sort((a,b)=>a.t-b.t)
+    .map(l=>`${lrcStamp(offT(l.t))}${l.text}`).join('\n');
+  downloadBlob(new Blob([lines],{type:'text/plain'}),'lyrics.lrc'); toast('.lrc を書き出しました');
+}
+function updateExportBtns(){
+  const ok=lyrics.some(l=>l.t!=null);
+  ['lrcBtn','zipBtn','assBtn','srtBtn'].forEach(id=>$(id).disabled=!ok);
+  const hasText=lyrics.some(l=>l.text.trim());
+  $('cardBtn').disabled = !hasText;  // カードは歌詞があれば（タイミング前でも）OK
+  const ab=$('alignBtn'); if(ab) ab.disabled = !(audioFile && hasText);  // 照合は音源＋歌詞が要る
+}
+
+/* ---- 行ごとの終了時刻（次の行頭 or 末尾+4秒） ---- */
+function timedLines(){ return lyrics.map((l,i)=>({...l,i})).filter(l=>l.t!=null).sort((a,b)=>a.t-b.t); }
+function endTimeOf(start){ const nx=timedLines().find(l=>l.t>start+0.001 && l.text.trim()); return nx?nx.t:start+4; }
+
+/* ---- ⭐ テロップ画像一式(透過PNG)＋timings.csv＋.ass を ZIP で書き出し ---- */
+async function exportAssets(){
+  const lines=timedLines().filter(l=>l.text.trim());
+  if(!lines.length){ toast('タイミング済みの歌詞がありません'); return; }
+  $('zipBtn').disabled=true; toast('画像を生成中…');
+  await ensureFont(state.font);
+  const files=[]; const rows=[['index','filename','start_sec','end_sec','text']];
+  for(let k=0;k<lines.length;k++){
+    const l=lines[k];
+    ctx.clearRect(0,0,canvas.width,canvas.height);   // 背景なし＝透過のまま
+    renderText(l.text,1);
+    const blob=await new Promise(r=>canvas.toBlob(r,'image/png'));
+    const buf=new Uint8Array(await blob.arrayBuffer());
+    const name=`telop_${String(k+1).padStart(3,'0')}.png`;
+    files.push({name,data:buf});
+    rows.push([k+1,name,offT(l.t).toFixed(2),offT(endTimeOf(l.t)).toFixed(2),l.text]);
+  }
+  const enc=new TextEncoder();
+  const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\r\n');
+  files.push({name:'timings.csv',data:enc.encode('﻿'+csv)});
+  files.push({name:'subtitles.ass',data:enc.encode(buildASS(lines))});
+  files.push({name:'subtitles.srt',data:enc.encode(buildSRT(lines))});
+  files.push({name:'つかいかた.txt',data:enc.encode('﻿'+HOWTO_TEXT)});
+  downloadBlob(buildZip(files),'lyric-telop-assets.zip');
+  $('zipBtn').disabled=false; draw();
+  toast(`PNG ${lines.length}枚＋字幕を書き出しました`);
+}
+/* ---- 🖼 歌詞カード：背景つき静止画を1行ずつPNGでZIP書き出し ---- */
+async function exportCards(){
+  // タイミング済みがあればその順／なければ入力順（タイミング前でも使える）
+  const timed=timedLines().filter(l=>l.text.trim());
+  const lines=timed.length ? timed
+            : lyrics.map((l,i)=>({...l,i})).filter(l=>l.text.trim());
+  if(!lines.length){ toast('歌詞がありません'); return; }
+  const btn=$('cardBtn'), label=btn.textContent; btn.disabled=true; btn.textContent='🖼 画像を生成中…';
+  toast('背景つき画像を生成中…');
+  await ensureFont(state.font);
+  const W=canvas.width, H=canvas.height;
+  const files=[]; const rows=[['index','filename','start_sec','end_sec','text']];
+  for(let k=0;k<lines.length;k++){
+    const l=lines[k];
+    ctx.clearRect(0,0,W,H);
+    drawBackground(W,H);            // ← 背景（色／画像／動画フレーム）を焼き込む
+    renderText(l.text,1);
+    const blob=await new Promise(r=>canvas.toBlob(r,'image/png'));
+    files.push({name:`card_${String(k+1).padStart(3,'0')}.png`, data:new Uint8Array(await blob.arrayBuffer())});
+    rows.push([k+1,`card_${String(k+1).padStart(3,'0')}.png`, l.t!=null?offT(l.t).toFixed(2):'', l.t!=null?offT(endTimeOf(l.t)).toFixed(2):'', l.text]);
+  }
+  const enc=new TextEncoder();
+  const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\r\n');
+  files.push({name:'list.csv',data:enc.encode('﻿'+csv)});
+  files.push({name:'お読みください.txt',data:enc.encode('﻿'+CARD_HOWTO)});
+  downloadBlob(buildZip(files),'lyric-cards.zip');
+  ctx.clearRect(0,0,W,H); draw();
+  btn.textContent=label; btn.disabled=false;
+  toast(`背景つき画像 ${lines.length}枚を書き出しました`);
+}
+const CARD_HOWTO = `【歌詞カード（背景つき静止画）つかいかた】
+
+■ 中身
+- card_001.png, 002... : 背景＋歌詞を焼き込んだ静止画（1行＝1枚）
+- list.csv : 各画像の文字・開始/終了秒（タイミング済みのときだけ秒が入ります）
+
+■ 使い道
+- SNS投稿（X / Instagram など）にそのまま画像として載せる
+- 動画のサムネイル素材にする
+- リリックカード（歌詞画像）として配布する
+
+■ ヒント
+- 背景は、プレビュー下の「背景」で 色／画像 を選んでから書き出してください。
+- サイズはプレビューの比率（16:9 / 9:16 / 1:1 など）と同じです。SNSの正方形なら 1:1 がおすすめ。
+- 背景に「動画」を選んでいる場合は、書き出した瞬間の1フレームが背景になります。
+  動画を背景にしたいときは「🎬 完成動画(WebM)」のほうが向いています。
+`;
+function exportASS(){
+  const lines=timedLines().filter(l=>l.text.trim());
+  if(!lines.length){ toast('タイミング済みの歌詞がありません'); return; }
+  downloadBlob(new Blob([buildASS(lines)],{type:'text/plain'}),'subtitles.ass'); toast('.ass を書き出しました');
+}
+function exportSRT(){
+  const lines=timedLines().filter(l=>l.text.trim());
+  if(!lines.length){ toast('タイミング済みの歌詞がありません'); return; }
+  downloadBlob(new Blob([buildSRT(lines)],{type:'text/plain'}),'subtitles.srt'); toast('.srt を書き出しました');
+}
+function offT(s){ return Math.max(0, s + (state.offset||0)); }  // 微調整オフセットを反映した時刻
+function assTime(s){ const h=Math.floor(s/3600),m=Math.floor(s%3600/60),sec=(s%60).toFixed(2).padStart(5,'0'); return `${h}:${String(m).padStart(2,'0')}:${sec}`; }
+function assColor(hex){ const n=parseInt(hex.slice(1),16); return '&H00'+[(n&255),(n>>8&255),(n>>16&255)].map(x=>x.toString(16).padStart(2,'0').toUpperCase()).join(''); }
+function buildASS(lines){
+  const W=canvas.width,H=canvas.height;
+  const align = state.pos==='top'?(state.align==='left'?7:state.align==='right'?9:8)
+              : state.pos==='middle'?(state.align==='left'?4:state.align==='right'?6:5)
+              : (state.align==='left'?1:state.align==='right'?3:2);
+  const head=`[Script Info]\nScriptType: v4.00+\nPlayResX: ${W}\nPlayResY: ${H}\nWrapStyle: 2\n\n[V4+ Styles]\nFormat: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\nStyle: Default,${state.font.fam},${Math.round(state.size)},${assColor(state.color)},&H000000FF,${assColor(state.strokeColor)},&H64000000,${state.weight>=700?-1:0},0,0,0,100,100,${state.track},0,1,${state.stroke},${state.shadow?2:0},${align},80,80,${Math.round(H*0.08)},1\n\n[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n`;
+  const body=lines.map(l=>`Dialogue: 0,${assTime(offT(l.t))},${assTime(offT(endTimeOf(l.t)))},Default,,0,0,0,,${l.text.replace(/\n/g,'\\N')}`).join('\n');
+  return head+body+'\n';
+}
+function srtTime(s){ const h=Math.floor(s/3600),m=Math.floor(s%3600/60),sec=Math.floor(s%60),ms=Math.round((s-Math.floor(s))*1000); return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')},${String(ms).padStart(3,'0')}`; }
+function buildSRT(lines){ return lines.map((l,i)=>`${i+1}\r\n${srtTime(offT(l.t))} --> ${srtTime(offT(endTimeOf(l.t)))}\r\n${l.text}\r\n`).join('\r\n'); }
+const HOWTO_TEXT = `【歌詞テロップ つかいかた】
+
+■ このZIPの中身
+- telop_001.png, 002... : 1行ずつの字幕画像（背景は透明）
+- timings.csv : 各画像をいつ出すかの一覧（開始秒/終了秒/文字）
+- subtitles.srt : 字幕ファイル（シンプル・多くのソフトで読込可）
+- subtitles.ass : 字幕ファイル（位置・スタイル付き）
+
+──────────────────────────
+方法A：透過PNGを重ねる（見た目そのまま／どのソフトでもOK）
+──────────────────────────
+1. 編集ソフトで、MV映像を一番下のトラックに置く
+2. その上のトラックに telop_001.png を置く
+3. timings.csv の「開始秒〜終了秒」に合わせて位置と長さを調整
+4. 002, 003... と行の数だけ繰り返す
+ ※PNGは透明なので、重ねるだけで文字だけがのります。
+
+ ・CapCut … 「オーバーレイ」→画像を追加→開始位置へ移動→端を伸ばして終了秒に合わせる
+ ・Premiere Pro … PNGをまとめて読込→V2以上に時間どおり並べる
+ ・DaVinci Resolve … メディアに読込→Editページで上のトラックに配置
+ ・Final Cut / iMovie … PNGを上の層（ピクチャ・イン・ピクチャ）に重ねて時間を合わせる
+
+──────────────────────────
+方法B：字幕ファイルを読み込む（速い／見た目はソフト依存）
+──────────────────────────
+ subtitles.srt を「字幕/キャプション読込」で取り込む（CapCut/Premiere/DaVinci/YouTube等）。
+ 文字の位置や色はソフト側の設定になります。見た目を完全再現したいなら方法A（透過PNG）を。
+
+──────────────────────────
+方法C：編集ソフトを使わない
+──────────────────────────
+ ツールの「背景」に映像/画像を読み込み →「動画(WebM)で録画」で字幕入り動画が1本完成。
+
+■ timings.csv の見方
+ index, filename, start_sec, end_sec, text
+ 例) 1, telop_001.png, 2.50, 6.30, 夜の街を
+ → telop_001.png を 2.5秒から6.3秒まで表示
+`;
+
+/* ---- 純JS ZIP（無圧縮 store・依存なし） ---- */
+const _crcT=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0;}return t;})();
+function crc32(b){let c=0xFFFFFFFF;for(let i=0;i<b.length;i++)c=_crcT[(c^b[i])&0xFF]^(c>>>8);return (c^0xFFFFFFFF)>>>0;}
+function buildZip(files){
+  const enc=new TextEncoder(); const u16=n=>[n&255,n>>8&255]; const u32=n=>[n&255,n>>8&255,n>>16&255,n>>24&255];
+  const parts=[], central=[]; let offset=0;
+  for(const f of files){
+    const name=enc.encode(f.name), crc=crc32(f.data), sz=f.data.length;
+    const lh=Uint8Array.from([0x50,0x4b,3,4,...u16(20),...u16(0),...u16(0),...u16(0),...u16(0),...u32(crc),...u32(sz),...u32(sz),...u16(name.length),...u16(0)]);
+    parts.push(lh,name,f.data);
+    central.push(Uint8Array.from([0x50,0x4b,1,2,...u16(20),...u16(20),...u16(0),...u16(0),...u16(0),...u16(0),...u32(crc),...u32(sz),...u32(sz),...u16(name.length),...u16(0),...u16(0),...u16(0),...u16(0),...u32(0),...u32(offset)]),name);
+    offset += lh.length+name.length+f.data.length;
+  }
+  let cenSize=0; central.forEach(c=>cenSize+=c.length);
+  const eocd=Uint8Array.from([0x50,0x4b,5,6,...u16(0),...u16(0),...u16(files.length),...u16(files.length),...u32(cenSize),...u32(offset),...u16(0)]);
+  return new Blob([...parts,...central,eocd],{type:'application/zip'});
+}
+let recorder=null, recChunks=[];
+let recAudioCtx=null, mediaSrcNode=null, audioDestNode=null;
+function pickMime(){
+  const c=['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'];
+  return c.find(m=>MediaRecorder.isTypeSupported(m))||'';
+}
+// 映像(canvas)＋音声(audio要素)を1つのストリームにまとめる → 音楽入り動画になる
+function getRecStream(){
+  const vid=canvas.captureStream(30);
+  try{
+    if(!recAudioCtx){
+      recAudioCtx=new (window.AudioContext||window.webkitAudioContext)();
+      mediaSrcNode=recAudioCtx.createMediaElementSource(audio);
+      audioDestNode=recAudioCtx.createMediaStreamDestination();
+      mediaSrcNode.connect(audioDestNode);
+      mediaSrcNode.connect(recAudioCtx.destination); // スピーカーでも聞こえるように
+    }
+    if(recAudioCtx.state==='suspended') recAudioCtx.resume();
+    return new MediaStream([...vid.getVideoTracks(), ...audioDestNode.stream.getAudioTracks()]);
+  }catch(e){ console.warn('音声合成不可・映像のみ:',e); return vid; }
+}
+function exportWebM(){
+  if(!audio.src){ toast('先に楽曲を読み込んでください'); return; }
+  if(recorder && recorder.state==='recording'){ recorder.stop(); return; }
+  const mime=pickMime(); if(!mime){ toast('この環境はWebM録画に未対応です'); return; }
+  const stream=getRecStream();
+  recChunks=[]; recorder=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:8_000_000});
+  recorder.ondataavailable=e=>{ if(e.data.size) recChunks.push(e.data); };
+  recorder.onstop=()=>{
+    downloadBlob(new Blob(recChunks,{type:mime}),'lyric-telop.webm');
+    $('recBtn').textContent='🎬 完成動画を作る（編集ソフト不要・音楽つき）'; $('recBtn').classList.remove('btn-primary');
+    toast('完成動画を書き出しました');
+  };
+  audio.currentTime=0; if(state.bg==='video'&&hasBgVideo)bgVideo.currentTime=0;
+  audio.play(); if(state.bg==='video'&&hasBgVideo)bgVideo.play();
+  recorder.start();
+  $('recBtn').textContent='■ 録画中…（曲が終わると自動で完了／押すと停止）'; $('recBtn').classList.add('btn-primary');
+  audio.onended=()=>{ if(recorder&&recorder.state==='recording')recorder.stop(); };
+}
+function downloadBlob(blob,name){ const u=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=u; a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(u),1000); }
+
+/* ════ イベント結線 ════ */
+function bindControls(){
+  // audio drop
+  const dz=$('audioDrop');
+  $('audioInput').onchange=e=>loadAudio(e.target.files[0]);
+  dz.ondragover=e=>{e.preventDefault();dz.classList.add('drag-over');};
+  dz.ondragleave=()=>dz.classList.remove('drag-over');
+  dz.ondrop=e=>{e.preventDefault();dz.classList.remove('drag-over');loadAudio(e.dataTransfer.files[0]);};
+
+  $('applyLyrics').onclick=applyLyrics;
+  $('alignBtn').onclick=alignLyricsToAudio;
+  $('playBtn2').onclick=togglePlay;
+  audio.onplay=syncPlayBtns; audio.onpause=syncPlayBtns;
+  $('seek').oninput=e=>{ if(audio.duration){ audio.currentTime=e.target.value/100*audio.duration; if(hasBgVideo)bgVideo.currentTime=audio.currentTime; } };
+
+  // キーボード
+  document.addEventListener('keydown',e=>{
+    if(['TEXTAREA','INPUT','SELECT'].includes(e.target.tagName))return;
+    if(e.code==='Space'||e.code==='Enter'){ e.preventDefault(); if(audio.src) togglePlay(); }
+  });
+
+  // タブ復帰・bfcache・canvasコンテキスト喪失からの自動復帰（黒画面→要リロードを防止）
+  document.addEventListener('visibilitychange',()=>{ if(!document.hidden) recoverView(); });
+  window.addEventListener('pageshow', recoverView);
+  canvas.addEventListener('contextlost', e=>{ e.preventDefault(); });
+  canvas.addEventListener('contextrestored', recoverView);
+
+  // スタイル系
+  const sl=(id,key,fmt2,after)=>{ $(id).oninput=e=>{ state[key]=+e.target.value; if(fmt2)$('v'+id[0].toUpperCase()+id.slice(1)).textContent=fmt2(state[key]); if(after)after(); draw(); }; };
+  sl('size','size',v=>v+'px'); sl('weight','weight',v=>v); sl('stroke','stroke',v=>v+'px');
+  sl('track','track',v=>v+'px'); sl('fade','fade',v=>(v/100).toFixed(2)+'s');
+  $('fade').oninput=e=>{ state.fade=+e.target.value/100; $('vFade').textContent=state.fade.toFixed(2)+'s'; draw(); };
+  $('offset').oninput=e=>{ state.offset=+e.target.value/100; $('vOffset').textContent=(state.offset>=0?'+':'')+state.offset.toFixed(2)+'s'; draw(); };
+  $('color').oninput=e=>{state.color=e.target.value;draw();};
+  $('strokeColor').oninput=e=>{state.strokeColor=e.target.value;draw();};
+  $('plateColor').oninput=e=>{state.plateColor=e.target.value;draw();};
+  $('shadow').onchange=e=>{state.shadow=e.target.checked;draw();};
+  $('vertical').onchange=e=>{state.vertical=e.target.checked;draw();};
+  $('plate').onchange=e=>{state.plate=e.target.checked;$('plateColor').style.display=e.target.checked?'inline-block':'none';draw();};
+
+  segBind('posSeg','pos'); segBind('alignSeg','align');
+  // 背景
+  $('bgSeg').querySelectorAll('button').forEach(b=>b.onclick=()=>{
+    $('bgSeg').querySelectorAll('button').forEach(x=>x.classList.remove('on')); b.classList.add('on');
+    state.bg=b.dataset.bg;
+    $('bgColor').style.display=state.bg==='solid'?'inline-block':'none';
+    $('bgFileBtn').style.display=(state.bg==='image'||state.bg==='video')?'inline-flex':'none';
+    draw();
+  });
+  $('bgColor').oninput=e=>{state.bgColor=e.target.value;draw();};
+  $('bgFile').onchange=e=>loadBg(e.target.files[0]);
+  $('aspect').onchange=e=>{state.aspect=e.target.value;applyAspect();};
+
+  $('recBtn').onclick=exportWebM; $('pngBtn').onclick=exportPNG; $('lrcBtn').onclick=exportLRC;
+  $('zipBtn').onclick=exportAssets; $('assBtn').onclick=exportASS; $('srtBtn').onclick=exportSRT;
+  $('cardBtn').onclick=exportCards;
+}
+function segBind(id,key){ $(id).querySelectorAll('button').forEach(b=>b.onclick=()=>{
+  $(id).querySelectorAll('button').forEach(x=>x.classList.remove('on')); b.classList.add('on');
+  state[key]=b.dataset[Object.keys(b.dataset)[0]]; draw();
+});}
+
+/* ════ Whisper ブラウザ内文字起こし ════ */
+let audioFile = null;
+let whisperPipe = null;
+let transRunning = false;
+
+// AIライブラリ(transformers.js)を複数CDNから順に読み込み（jsdelivrの+esm版で出る
+// "registerBackend" エラー対策。esm.sh を優先、ダメなら jsdelivr 通常版にフォールバック）
+async function loadTransformers(){
+  // v3(自己完結バンドル)を最優先 → ダメなら順にフォールバック
+  const sources = [
+    'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3',
+    'https://esm.sh/@huggingface/transformers@3',
+    'https://esm.sh/@xenova/transformers@2.17.2',
+  ];
+  let lastErr;
+  for(const url of sources){
+    try{
+      const m = await import(url);
+      if(m && m.pipeline && m.env) return m;
+      lastErr = new Error('moduleの形式が不正: '+url);
+    }catch(e){ console.warn('transformers load failed:', url, e); lastErr = e; }
+  }
+  throw lastErr || new Error('AIライブラリを読み込めませんでした');
+}
+
+async function decodeAudioTo16kHz(){
+  const ab = await audioFile.arrayBuffer();
+  const ac = new AudioContext();
+  const decoded = await ac.decodeAudioData(ab);
+  await ac.close();
+  const targetSr = 16000;
+  const offCtx = new OfflineAudioContext(1, Math.ceil(decoded.duration*targetSr), targetSr);
+  const src = offCtx.createBufferSource();
+  src.buffer = decoded; src.connect(offCtx.destination); src.start(0);
+  const resampled = await offCtx.startRendering();
+  return resampled.getChannelData(0);
+}
+/* ════════════════════════════════════════════════════════════
+   🎯 強制アライメント：入力済みの「正しい歌詞」はそのまま使い、
+   音源から得たタイムスタンプと文字単位で照合してタイミングだけ付ける。
+   （AIの文字起こしテキストは出力に使わない＝誤字が出ない）
+   ════════════════════════════════════════════════════════════ */
+function alignProgress(show, msg='', pct=0){
+  $('alignProgress').style.display = show?'block':'none';
+  if(show){ $('alignMsg').textContent=msg; $('alignBar').style.width=Math.min(100,pct)+'%'; }
+}
+// 1文字を正規化（照合用）。捨てる文字は '' を返す
+function normOne(ch){
+  if(/[\s　、。，．・「」『』（）()【】〈〉！!？\?,.;:…—\-‐－〜~＝="'’”“`｜|/／\\]/.test(ch)) return '';
+  let c=ch.normalize('NFKC').toLowerCase();
+  c=c.replace(/[ァ-ヶ]/g,m=>String.fromCharCode(m.charCodeAt(0)-0x60)); // カタカナ→ひらがな
+  c=c[0]||'';
+  if(/\s/.test(c)) return '';
+  return c;
+}
+function normLen(s){ let n=0; for(const ch of s){ if(normOne(ch)) n++; } return n; }
+// Whisperチャンク → 正規化文字列＋各文字の推定時刻(times)＋その単語/塊の先頭時刻(starts)
+function buildAsrTimeline(chunks){
+  const chars=[], times=[], starts=[];
+  for(const c of chunks){
+    const txt=c.text||''; const ts=c.timestamp||[];
+    const s=ts[0]; if(s==null) continue;
+    const e=(ts[1]!=null&&ts[1]>s)?ts[1]:s;
+    const kept=[];
+    for(let i=0;i<txt.length;i++){ const nc=normOne(txt[i]); if(nc) kept.push({nc,pos:i}); }
+    const denom=Math.max(1,txt.length-1), span=e-s;
+    for(const k of kept){ chars.push(k.nc); times.push(s+span*(k.pos/denom)); starts.push(s); }
+  }
+  return {chars,times,starts};
+}
+// ユーザー歌詞 → 正規化文字列＋各文字の行番号＋行内での位置(0始まり)
+function buildUserSeq(lineTexts){
+  const chars=[], lineOf=[], posInLine=[];
+  lineTexts.forEach((t,li)=>{ let p=0; for(const ch of t){ const nc=normOne(ch); if(nc){ chars.push(nc); lineOf.push(li); posInLine.push(p); p++; } } });
+  return {chars,lineOf,posInLine};
+}
+// LCSで一致文字ペア [asrIdx,userIdx] を昇順で返す
+function lcsMatches(A,B){
+  const n=A.length, m=B.length, W=m+1;
+  const dp=new Int32Array((n+1)*W);
+  for(let i=n-1;i>=0;i--){
+    const Ai=A[i], row=i*W, next=(i+1)*W;
+    for(let j=m-1;j>=0;j--){
+      dp[row+j] = Ai===B[j] ? dp[next+j+1]+1 : Math.max(dp[next+j], dp[row+j+1]);
+    }
+  }
+  const pairs=[]; let i=0,j=0;
+  while(i<n && j<m){
+    if(A[i]===B[j]){ pairs.push([i,j]); i++; j++; }
+    else if(dp[(i+1)*W+j] >= dp[i*W+(j+1)]) i++; else j++;
+  }
+  return pairs;
+}
+// アンカー(一致行)の間を補間して全行に時刻を入れる
+function fillLineTimes(lineTime, totalDur){
+  const N=lineTime.length; const anc=[];
+  for(let i=0;i<N;i++) if(lineTime[i]!=null) anc.push(i);
+  if(!anc.length) return false;
+  const first=anc[0];
+  for(let i=0;i<first;i++) lineTime[i]=lineTime[first]*((i+1)/(first+1));
+  for(let a=0;a<anc.length-1;a++){
+    const L=anc[a],R=anc[a+1],tL=lineTime[L],tR=lineTime[R];
+    for(let i=L+1;i<R;i++) lineTime[i]=tL+(tR-tL)*((i-L)/(R-L));
+  }
+  const last=anc[anc.length-1];
+  const endT=(totalDur&&totalDur>lineTime[last])?totalDur:lineTime[last]+(N-last)*2;
+  for(let i=last+1;i<N;i++) lineTime[i]=lineTime[last]+(endT-lineTime[last])*((i-last)/(N-last));
+  for(let i=1;i<N;i++) if(lineTime[i]<=lineTime[i-1]) lineTime[i]=lineTime[i-1]+0.2;
+  return true;
+}
+// 照合できないときの保険：文字数比で全体に均等割り
+function proportionalTimes(lineTexts, chunks, totalDur){
+  const start=chunks.length?(chunks[0].timestamp?.[0]??0):0;
+  const end=chunks.length?(chunks[chunks.length-1].timestamp?.[1]??totalDur):totalDur;
+  const span=Math.max(1,(end||totalDur||0)-start);
+  const lens=lineTexts.map(t=>Math.max(1,normLen(t)));
+  const total=lens.reduce((a,b)=>a+b,0); let acc=0; const out=[];
+  for(const len of lens){ out.push(start+span*(acc/total)); acc+=len; }
+  return out;
+}
+const ALIGN_LEAD = 0.12;  // Whisperはわずかに遅れがちなので、少し早めに出してジャスト感を出す
+const CHAR_DUR  = 0.22;   // 1文字(モーラ)あたりの概算秒（外挿用）
+function applyAlignment(chunks, wordLevel){
+  const lineTexts=lyrics.map(l=>l.text);
+  const N=lineTexts.length; if(!N) return;
+  const totalDur=audio.duration||0;
+  let times=null;
+  if(chunks.length){
+    const asr=buildAsrTimeline(chunks);
+    const usr=buildUserSeq(lineTexts);
+    const cells=(asr.chars.length+1)*(usr.chars.length+1);
+    if(asr.chars.length && usr.chars.length && cells<=6_000_000){
+      const pairs=lcsMatches(asr.chars,usr.chars);
+      // 単語レベルなら一致文字の「単語先頭時刻」を使う
+      const timeArr = wordLevel ? asr.starts : asr.times;
+      // 行ごとに一致点（行内文字位置, 時刻）を集める
+      const perLine=Array.from({length:N},()=>[]);
+      for(const [ai,uj] of pairs){ perLine[usr.lineOf[uj]].push([usr.posInLine[uj], timeArr[ai]]); }
+      // 各行：一致点から「1文字あたりの時間」を推定し、行頭(位置0)へ外挿＝歌い出しにジャスト。
+      // これで行頭が漢字などでAIと一致しなくても、行の出だしが遅れない。
+      const lineTime=new Array(N).fill(null);
+      for(let li=0; li<N; li++){
+        const m=perLine[li]; if(!m.length) continue;
+        const [p0,t0]=m[0];
+        let rate=CHAR_DUR;
+        if(m.length>=2){ const [p1,t1]=m[m.length-1]; if(p1>p0) rate=(t1-t0)/(p1-p0); }
+        rate=Math.min(0.6,Math.max(0.06,rate));      // 異常値を抑制
+        lineTime[li]=Math.max(0, t0 - rate*p0);
+      }
+      const matched=perLine.filter(m=>m.length).length;
+      if(fillLineTimes(lineTime,totalDur)) times=lineTime;
+      console.log(`alignment: ${matched}/${N} 行一致 / wordLevel=${!!wordLevel}`);
+    }
+  }
+  if(!times) times=proportionalTimes(lineTexts,chunks,totalDur);
+  for(let i=0;i<N;i++){ if(times[i]!=null && isFinite(times[i])) lyrics[i].t=Math.max(0, times[i]-ALIGN_LEAD); }
+  tapCursor=lyrics.filter(l=>l.t!=null).length;
+  renderLines(); updateExportBtns(); updateTapTarget();
+}
+async function alignLyricsToAudio(){
+  if(!audioFile){ toast('先に楽曲を読み込んでください'); return; }
+  if(transRunning) return;
+  applyLyrics();  // テキストエリアの最新内容を取り込む
+  if(!lyrics.some(l=>l.text.trim())){ toast('先に正しい歌詞を入力して「歌詞を反映」してください'); return; }
+  transRunning=true; $('alignBtn').disabled=true;
+  $('alignWarn').style.display='block';   // ⚠ ページを離れない＋数分かかる、を処理中ずっと表示
+  toast('処理には数分かかります。終わるまでページを離れないでください');
+  alignProgress(true,'準備中…',0);
+  let wordLevel=false;
+  try{
+    if(!whisperPipe){
+      alignProgress(true,'AIライブラリを準備中…',3);
+      const modelId=`Xenova/whisper-${$('whisperModel').value}`;
+      const {pipeline, env}=await loadTransformers();
+      env.allowLocalModels=false; env.useBrowserCache=true;
+      try{ env.backends.onnx.wasm.numThreads=1; }catch(_){}
+      alignProgress(true,'モデルをダウンロード中（初回のみ）…',5);
+      whisperPipe=await pipeline('automatic-speech-recognition', modelId, {
+        dtype:'q8',
+        progress_callback(p){ if(p.status==='progress'&&p.total){ const pct=Math.round(p.loaded/p.total*100); alignProgress(true,`ダウンロード中… ${pct}%`,pct*0.6);} }
+      });
+    }
+    alignProgress(true,'音声を解析中…',65);
+    const floats=await decodeAudioTo16kHz();
+    alignProgress(true,'歌詞と音源を照合中…（数分かかる場合があります）',72);
+    // まず単語レベルのタイムスタンプで精度を上げる。未対応/失敗ならチャンク単位にフォールバック
+    let result;
+    try{
+      result=await whisperPipe(floats,{ language:'japanese', task:'transcribe', return_timestamps:'word', chunk_length_s:30, stride_length_s:5 });
+      if(!result || !result.chunks || !result.chunks.length) throw new Error('no word-level chunks');
+      wordLevel=true;
+    }catch(werr){
+      console.warn('word-level timestamps unavailable, fallback to chunk-level:', werr);
+      result=await whisperPipe(floats,{ language:'japanese', task:'transcribe', return_timestamps:true, chunk_length_s:30, stride_length_s:5 });
+      wordLevel=false;
+    }
+    const chunks=(result.chunks||[]).filter(c=>c.timestamp && c.timestamp[0]!=null);
+    applyAlignment(chunks, wordLevel);
+    toast('タイミングを付けました！ ズレを感じたら「⏱出るタイミング微調整」で合わせられます。');
+  }catch(e){ console.error(e); toast('エラー: '+e.message); whisperPipe=null; }
+  finally{ transRunning=false; updateExportBtns(); alignProgress(false); $('alignWarn').style.display='none'; }
+}
+
+function loadAudio(file){
+  if(!file)return;
+  audioFile = file;
+  audio.src=URL.createObjectURL(file);
+  $('audioDrop').classList.add('loaded'); $('audioName').textContent='🎵 '+file.name;
+  ['playBtn2','seek','recBtn'].forEach(id=>$(id).disabled=false);
+  updateExportBtns();   // 歌詞が既にあれば「タイミング照合」ボタンを有効化
+  audio.onloadedmetadata=updateTransport;
+}
+function loadBg(file){
+  if(!file)return;
+  const url=URL.createObjectURL(file);
+  if(file.type.startsWith('video')){
+    bgVideo.src=url; hasBgVideo=true; bgVideo.onloadeddata=draw;
+    bgVideo.loop=false;
+  }else{
+    bgImage=new Image(); bgImage.onload=draw; bgImage.src=url;
+  }
+  toast('背景を読み込みました');
+}
+
+/* ════ 差し込みガイド（ソフト別の簡単手順） ════ */
+const GUIDES=[
+  {k:'CapCut', steps:[
+    '動画(MV)をタイムラインに追加する',
+    '「オーバーレイ」→「追加」で telop_001.png を選ぶ',
+    '画像を開始位置へドラッグ→端を伸ばして表示時間に合わせる（秒は timings.csv）',
+    '残りのPNGも同じように上に重ねる',
+  ], tip:'字幕でよければ subtitles.srt を「字幕」から読み込むだけでもOK。'},
+  {k:'PowerDirector', steps:[
+    'メディアルームにPNGを読み込む（取り込み）',
+    'MV映像を一番下のトラックに置く',
+    'telop_001.png を上のトラック（PiP）へドラッグ',
+    '各PNGを開始位置・長さ（timings.csv）に合わせる',
+  ], tip:'字幕ルームで subtitles.srt を読み込めば一気に表示できます。'},
+  {k:'Premiere Pro', steps:[
+    'PNGを全部「プロジェクト」パネルに読み込む',
+    'MVをV1、telop_001.png をV2トラックに置く',
+    '各クリップをドラッグで開始位置へ、端で長さを調整',
+    '行数ぶん繰り返す',
+  ], tip:'キャプションなら subtitles.srt を読み込み→「キャプション」でもOK。'},
+  {k:'DaVinci Resolve', steps:[
+    'メディアプールにPNGを読み込む',
+    'Editページで MVを下、PNGを上のトラックへ',
+    '各PNGを timings.csv の時間に合わせて配置',
+  ], tip:'字幕トラックに subtitles.srt を読み込めば一気に表示できます。'},
+  {k:'Final Cut Pro', steps:[
+    'PNGをライブラリに読み込む',
+    'MVを土台に置き、PNGを上に「接続クリップ」で重ねる',
+    '各PNGを時間位置へドラッグして合わせる',
+  ], tip:''},
+  {k:'iMovie', steps:[
+    'MVをタイムラインに置く',
+    'PNGをドラッグ→右上で「ピクチャ・イン・ピクチャ」を選ぶ',
+    '表示位置と長さを調整する',
+  ], tip:'iMovieは細かい配置が苦手。むずかしければ「🎬完成動画(WebM)」がおすすめ。'},
+  {k:'AviUtl', steps:[
+    '拡張編集タイムラインにMVを置く',
+    '上のレイヤーにPNGをドラッグ＆ドロップ',
+    '開始位置と長さ(終了秒)を合わせる',
+  ], tip:''},
+];
+function buildGuide(){
+  const tabs=$('guideTabs');
+  GUIDES.forEach((g,i)=>{
+    const b=document.createElement('button'); b.className='guide-tab'+(i===0?' on':''); b.textContent=g.k;
+    b.onclick=()=>{ document.querySelectorAll('.guide-tab').forEach(x=>x.classList.remove('on')); b.classList.add('on'); renderGuide(g); };
+    tabs.appendChild(b);
+  });
+  renderGuide(GUIDES[0]);
+}
+function renderGuide(g){
+  const steps=g.steps.map(s=>`<li>${escapeHtml(s)}</li>`).join('');
+  $('guideBody').innerHTML=`<ol class="guide-steps">${steps}</ol>`+(g.tip?`<div class="guide-tip">💡 ${escapeHtml(g.tip)}</div>`:'');
+}
+
+/* ════ 起動 ════ */
+buildFontPicker(); buildPresets(); buildGuide(); bindControls(); applyAspect();
+(async()=>{ await ensureFont(state.font); draw(); })();
+startLoop();
+</script>
+</body>
+</html>
