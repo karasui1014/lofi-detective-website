@@ -234,7 +234,7 @@ details.adv[open]>summary::before{content:'▾';}
       <div class="logo-mark">🎬</div>
       <h1 class="hero-title">Lyric Telop Generator</h1>
       <div class="hero-eq" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
-      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build22</div>
+      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build23</div>
     </div>
   </header>
 
@@ -616,17 +616,38 @@ function paintText(str,x,y,fpx){
 
 // ── 自動フィット（横）：1行に収まるよう必要なら縮小。極端に長い時だけ2行へ ──
 function measureAt(str,px){ ctx.font=`${state.weight} ${px}px '${state.font.fam}', sans-serif`; return ctx.measureText(str).width; }
-// 中央付近で、句読点・助詞のあと等の自然な位置を選んで2分割（禁則考慮）
+// 文字種で語境界を推定して自然な位置で2分割（禁則・バランス考慮）
+const PARTICLE=/[をにはがでとへもやのねさよかぞぜわ]/;
+function charType(ch){
+  if(/[、。，．！？!?…・]/.test(ch)) return 'punct';
+  if(/[一-鿿々]/.test(ch)) return 'kanji';
+  if(/[ァ-ヿ]/.test(ch)) return 'kata';
+  if(/[぀-ゟ]/.test(ch)) return 'hira';
+  if(/[A-Za-z0-9]/.test(ch)) return 'alnum';
+  return 'other';
+}
+// 2つの文字の境界の「割りやすさ」。小さいほど自然な切れ目
+function breakCost(prev,cur){
+  if(/[、。，．！？!?…・\s　]/.test(prev)) return 0;            // 句読点の直後＝最良
+  if(PARTICLE.test(prev) && !PARTICLE.test(cur)) return 0.8;   // 助詞の直後
+  const a=charType(prev), b=charType(cur);
+  if(a==='hira'&&b==='kanji') return 1.4;   // 送り仮名→次語の漢字＝語境界の可能性大
+  if(b==='kata'&&a!=='kata') return 1.4;    // カタカナ語の始まり
+  if(a==='kata'&&b!=='kata') return 1.6;    // カタカナ語の終わり
+  if(a==='alnum'&&b!=='alnum') return 1.5;
+  if(a==='kanji'&&b==='hira') return 3.6;   // 漢字→送り仮名の途中＝避ける
+  if(a==='kanji'&&b==='kanji') return 2.8;  // 熟語の途中かも＝やや避ける
+  if(a==='hira'&&b==='hira') return 2.4;
+  return 2.2;
+}
 function splitTwo(text){
-  const chars=[...text]; if(chars.length<2) return [text];
-  const mid=chars.length/2; let best=-1, bestScore=1e9;
-  for(let i=1;i<chars.length;i++){
+  const chars=[...text]; const n=chars.length; if(n<2) return [text];
+  const mid=n/2; let best=-1, bestScore=1e9;
+  for(let i=1;i<n;i++){
     const prev=chars[i-1], cur=chars[i];
     if(KINSOKU_HEAD.test(cur)||KINSOKU_TAIL.test(prev)) continue;
-    let pref=2.4;
-    if(/[、。，．！？!?…・\s　]/.test(prev)) pref=0;
-    else if(/[をにはがでとへもやのね]/.test(prev)) pref=1;
-    const score=Math.abs(i-mid)+pref*1.6;
+    if(Math.min(i,n-i) < n*0.30) continue;                    // 偏りすぎ(1文字だけ等)を防ぐ
+    const score=breakCost(prev,cur) + Math.abs(i-mid)/mid*2.2; // 語境界+中央寄りを両立
     if(score<bestScore){ bestScore=score; best=i; }
   }
   if(best<1) best=Math.round(mid);
