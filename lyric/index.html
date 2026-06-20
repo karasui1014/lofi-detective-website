@@ -234,7 +234,7 @@ details.adv[open]>summary::before{content:'▾';}
       <div class="logo-mark">🎬</div>
       <h1 class="hero-title">Lyric Telop Generator</h1>
       <div class="hero-eq" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
-      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build20</div>
+      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build21</div>
     </div>
   </header>
 
@@ -535,61 +535,6 @@ function activeLineAt(t){
 const KINSOKU_HEAD=/[、。，．・：；！？!?）」』】〕〉》ぁぃぅぇぉっゃゅょゎァィゥェォッャュョーヽヾゝゞ々]/;
 const KINSOKU_TAIL=/[（「『【〔〈《]/;
 
-// 自然な区切り（句読点・空白・助詞の後）で文節に分割
-function segmentJP(text){
-  const chars=[...text], segs=[]; let cur='';
-  for(let i=0;i<chars.length;i++){
-    const ch=chars[i], next=chars[i+1]||'';
-    cur+=ch;
-    const afterPunct=/[、。，．！？!?…：；\s　]/.test(ch);
-    const afterParticle=/[をにはがでとへもや]/.test(ch) && !/[をにはがでとへもや]/.test(next);
-    if((afterPunct||afterParticle) && next && !KINSOKU_HEAD.test(next) && !KINSOKU_TAIL.test(ch)){
-      segs.push(cur); cur='';
-    }
-  }
-  if(cur) segs.push(cur);
-  return segs;
-}
-
-// 1行を綺麗に折り返す（自然な区切り＋行数バランス＋禁則）
-function wrapOne(text, maxW){
-  if(ctx.measureText(text).width<=maxW) return [text];
-  let segs=segmentJP(text);
-  // 1セグメントが長すぎる場合は文字単位で分割（保険）
-  const safe=[];
-  for(const s of segs){
-    if(ctx.measureText(s).width<=maxW){ safe.push(s); continue; }
-    let c='';
-    for(const ch of [...s]){
-      if(c && ctx.measureText(c+ch).width>maxW){ safe.push(c); c=ch; } else c+=ch;
-    }
-    if(c) safe.push(c);
-  }
-  segs=safe;
-  const total=ctx.measureText(text).width;
-  const n=Math.min(Math.max(1,Math.ceil(total/maxW)),4); // 行数を均す
-  const target=total/n;
-  const lines=[]; let cur='';
-  for(const seg of segs){
-    const test=cur+seg;
-    if(cur && ctx.measureText(test).width>maxW){ lines.push(cur); cur=seg; }
-    else if(cur && lines.length<n-1 && ctx.measureText(cur).width>=target){ lines.push(cur); cur=seg; }
-    else cur=test;
-  }
-  if(cur.trim()!=='') lines.push(cur);
-  return lines.length?lines:[text];
-}
-
-function wrapText(text, maxW){
-  // 明示的な改行（\n）を尊重しつつ、各行を綺麗に折り返す
-  const out=[];
-  for(const para of text.split('\n')){
-    if(para===''){ out.push(''); continue; }
-    out.push(...wrapOne(para, maxW));
-  }
-  return out.length?out:[''];
-}
-
 function draw(){
   const W=canvas.width, H=canvas.height;
   ctx.clearRect(0,0,W,H);
@@ -652,58 +597,117 @@ function drawCover(media,W,H){
   ctx.drawImage(media,(W-dw)/2,(H-dh)/2,dw,dh);
 }
 
-function paintText(str,x,y){
+function paintText(str,x,y,fpx){
+  const H=canvas.height;
+  fpx = fpx || state.size*(H/1080);
+  const sw = (state.size>0 ? state.stroke/state.size : 0) * fpx * 2; // 縁取りも実サイズに連動
   // 縁取り→影→塗り の順で潰れにくく
   if(state.stroke>0){
-    if(state.shadow){ ctx.shadowColor='rgba(0,0,0,.6)'; ctx.shadowBlur=state.size*0.18*(canvas.height/1080); ctx.shadowOffsetY=state.size*0.06*(canvas.height/1080); }
-    ctx.lineWidth=state.stroke*2*(canvas.height/1080); ctx.strokeStyle=state.strokeColor;
+    if(state.shadow){ ctx.shadowColor='rgba(0,0,0,.6)'; ctx.shadowBlur=fpx*0.18; ctx.shadowOffsetY=fpx*0.06; }
+    ctx.lineWidth=sw; ctx.strokeStyle=state.strokeColor;
     ctx.lineJoin='round'; ctx.miterLimit=2; ctx.strokeText(str,x,y);
     ctx.shadowColor='transparent'; ctx.shadowBlur=0; ctx.shadowOffsetY=0;
   } else if(state.shadow){
-    ctx.shadowColor='rgba(0,0,0,.7)'; ctx.shadowBlur=state.size*0.2*(canvas.height/1080); ctx.shadowOffsetY=state.size*0.07*(canvas.height/1080);
+    ctx.shadowColor='rgba(0,0,0,.7)'; ctx.shadowBlur=fpx*0.2; ctx.shadowOffsetY=fpx*0.07;
   }
   ctx.fillStyle=state.color; ctx.fillText(str,x,y);
   ctx.shadowColor='transparent'; ctx.shadowBlur=0; ctx.shadowOffsetY=0;
 }
 
-function drawHorizontal(text,W,H,fpx){
-  const margin=H*0.08, lh=fpx*1.35;
-  const rows=wrapText(text, W-margin*2);
+// ── 自動フィット（横）：1行に収まるよう必要なら縮小。極端に長い時だけ2行へ ──
+function measureAt(str,px){ ctx.font=`${state.weight} ${px}px '${state.font.fam}', sans-serif`; return ctx.measureText(str).width; }
+// 中央付近で、句読点・助詞のあと等の自然な位置を選んで2分割（禁則考慮）
+function splitTwo(text){
+  const chars=[...text]; if(chars.length<2) return [text];
+  const mid=chars.length/2; let best=-1, bestScore=1e9;
+  for(let i=1;i<chars.length;i++){
+    const prev=chars[i-1], cur=chars[i];
+    if(KINSOKU_HEAD.test(cur)||KINSOKU_TAIL.test(prev)) continue;
+    let pref=2.4;
+    if(/[、。，．！？!?…・\s　]/.test(prev)) pref=0;
+    else if(/[をにはがでとへもやのね]/.test(prev)) pref=1;
+    const score=Math.abs(i-mid)+pref*1.6;
+    if(score<bestScore){ bestScore=score; best=i; }
+  }
+  if(best<1) best=Math.round(mid);
+  return [chars.slice(0,best).join('').trim(), chars.slice(best).join('').trim()].filter(s=>s);
+}
+function fitHorizontal(text, baseFpx, maxW){
+  text=text.replace(/\s*\n\s*/g,' ').trim();
+  const w=measureAt(text,baseFpx);
+  if(w<=maxW) return {lines:[text], fpx:baseFpx};      // 短い/普通の行はそのまま大きく
+  const need=baseFpx*(maxW/w);                          // 1行に収める推定サイズ
+  const minOne=baseFpx*0.58;
+  if(need>=minOne) return {lines:[text], fpx:need*0.98}; // 少しだけ縮めて1行キープ
+  const two=splitTwo(text);                              // それでも長い→自然な位置で2行
+  if(two.length<2) return {lines:[text], fpx:Math.max(need, baseFpx*0.5)};
+  const wide=Math.max(measureAt(two[0],baseFpx), measureAt(two[1],baseFpx));
+  let f = wide<=maxW ? baseFpx : baseFpx*(maxW/wide)*0.98;
+  f=Math.max(f, baseFpx*0.45);
+  return {lines:two, fpx:f};
+}
+// ── 自動フィット（縦）：1列に収まるよう必要なら縮小。極端に長い時だけ2列へ ──
+function fitVertical(chars, baseFpx, maxH){
+  const n=chars.length||1, h=n*(baseFpx*1.05);
+  if(h<=maxH) return {cols:[chars], fpx:baseFpx};
+  const need=baseFpx*(maxH/h), minOne=baseFpx*0.55;
+  if(need>=minOne) return {cols:[chars], fpx:need*0.98};
+  const half=Math.ceil(n/2);
+  const cols=[chars.slice(0,half), chars.slice(half)];
+  const tallest=half*(baseFpx*1.05);
+  let f= tallest<=maxH ? baseFpx : baseFpx*(maxH/tallest)*0.98;
+  return {cols, fpx:Math.max(f, baseFpx*0.45)};
+}
+// 縦書きで回転すべき文字（括弧・長音・ダッシュ）と、右上に寄せる句読点
+const VERT_ROTATE=/[ー…―—‐－−〜～（）()「」『』【】〔〕〈〉《》｛｝\[\]{}｜|]/;
+const VERT_KUTEN=/[、。，．]/;
+function paintVChar(ch,x,y,fpx){
+  if(VERT_ROTATE.test(ch)){
+    ctx.save(); ctx.translate(x,y); ctx.rotate(Math.PI/2); paintText(ch,0,0,fpx); ctx.restore();
+  } else if(VERT_KUTEN.test(ch)){
+    paintText(ch, x+fpx*0.34, y-fpx*0.40, fpx);   // 句読点は升目の右上へ
+  } else {
+    paintText(ch,x,y,fpx);
+  }
+}
+
+function drawHorizontal(text,W,H,baseFpx){
+  const margin=H*0.07, maxW=W-margin*2;
+  const fit=fitHorizontal(text, baseFpx, maxW);
+  const rows=fit.lines, fpx=fit.fpx, lh=fpx*1.32;
+  ctx.font=`${state.weight} ${fpx}px '${state.font.fam}', sans-serif`;
   const blockH=rows.length*lh;
   let cy;
   if(state.pos==='top') cy=margin+lh/2;
   else if(state.pos==='middle') cy=H/2-blockH/2+lh/2;
   else cy=H-margin-blockH+lh/2;
-
   ctx.textAlign=state.align;
-  let x = state.align==='left'?margin : state.align==='right'?W-margin : W/2;
-
-  // 座布団
+  const x = state.align==='left'?margin : state.align==='right'?W-margin : W/2;
   if(state.plate){
-    let maxW=0; rows.forEach(r=>maxW=Math.max(maxW,ctx.measureText(r).width));
-    const pad=fpx*0.4; const px = state.align==='left'?margin-pad : state.align==='right'?W-margin-maxW-pad : W/2-maxW/2-pad;
-    roundRect(px, cy-lh/2-pad*0.3, maxW+pad*2, blockH+pad*0.6, fpx*0.18, hexA(state.plateColor,0.55));
+    let mw=0; rows.forEach(r=>mw=Math.max(mw,ctx.measureText(r).width));
+    const pad=fpx*0.4; const px=state.align==='left'?margin-pad : state.align==='right'?W-margin-mw-pad : W/2-mw/2-pad;
+    roundRect(px, cy-lh/2-pad*0.3, mw+pad*2, blockH+pad*0.6, fpx*0.18, hexA(state.plateColor,0.55));
   }
-  rows.forEach((r,i)=>paintText(r, x, cy+i*lh));
+  rows.forEach((r,i)=>paintText(r, x, cy+i*lh, fpx));
 }
 
-function drawVertical(text,W,H,fpx){
-  const margin=H*0.08, chH=fpx*1.08;
-  const chars=[...text.replace(/\n/g,'')];
-  const blockH=chars.length*chH;
-  const maxChars=Math.floor((H-margin*2)/chH);
-  const cols=[]; for(let i=0;i<chars.length;i+=maxChars) cols.push(chars.slice(i,i+maxChars));
-  const colW=fpx*1.5;
-  let startX = W - margin - colW/2; // 右から左へ
+function drawVertical(text,W,H,baseFpx){
+  const margin=H*0.07, maxH=H-margin*2;
+  const chars=[...text.replace(/\s*\n\s*/g,'').trim()];
+  if(!chars.length) return;
+  const fit=fitVertical(chars, baseFpx, maxH);
+  const fpx=fit.fpx, chH=fpx*1.05, colW=fpx*1.5, cols=fit.cols;
+  ctx.font=`${state.weight} ${fpx}px '${state.font.fam}', sans-serif`;
   ctx.textAlign='center';
+  const startX = W - margin - colW/2; // 右→左
   cols.forEach((col,ci)=>{
     const x=startX-ci*colW;
-    let y0;
     const colH=col.length*chH;
+    let y0;
     if(state.pos==='top') y0=margin+chH/2;
     else if(state.pos==='middle') y0=H/2-colH/2+chH/2;
     else y0=H-margin-colH+chH/2;
-    col.forEach((ch,i)=>paintText(ch, x, y0+i*chH));
+    col.forEach((ch,i)=>paintVChar(ch, x, y0+i*chH, fpx));
   });
 }
 
