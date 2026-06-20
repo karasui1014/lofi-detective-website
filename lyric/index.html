@@ -234,7 +234,7 @@ details.adv[open]>summary::before{content:'▾';}
       <div class="logo-mark">🎬</div>
       <h1 class="hero-title">Lyric Telop Generator</h1>
       <div class="hero-eq" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
-      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build21</div>
+      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build22</div>
     </div>
   </header>
 
@@ -635,28 +635,27 @@ function splitTwo(text){
 function fitHorizontal(text, baseFpx, maxW){
   text=text.replace(/\s*\n\s*/g,' ').trim();
   const w=measureAt(text,baseFpx);
-  if(w<=maxW) return {lines:[text], fpx:baseFpx};      // 短い/普通の行はそのまま大きく
+  if(w<=maxW) return {lines:[text], fpx:baseFpx};       // 1行で収まる→そのまま大きく
   const need=baseFpx*(maxW/w);                          // 1行に収める推定サイズ
-  const minOne=baseFpx*0.58;
-  if(need>=minOne) return {lines:[text], fpx:need*0.98}; // 少しだけ縮めて1行キープ
-  const two=splitTwo(text);                              // それでも長い→自然な位置で2行
-  if(two.length<2) return {lines:[text], fpx:Math.max(need, baseFpx*0.5)};
+  // ほんの少し(〜8%)はみ出す程度なら1行を維持。それ以上は無理に縮めず2行へ（大きさ優先）
+  if(need>=baseFpx*0.92) return {lines:[text], fpx:need*0.99};
+  const two=splitTwo(text);                              // 自然な位置で2行に分割（禁則考慮）
+  if(two.length<2) return {lines:[text], fpx:Math.max(baseFpx*0.5, need*0.99)};
   const wide=Math.max(measureAt(two[0],baseFpx), measureAt(two[1],baseFpx));
-  let f = wide<=maxW ? baseFpx : baseFpx*(maxW/wide)*0.98;
-  f=Math.max(f, baseFpx*0.45);
-  return {lines:two, fpx:f};
+  if(wide<=maxW) return {lines:two, fpx:baseFpx};        // 2行・指定サイズのまま＝自然で大きい
+  return {lines:two, fpx:Math.max(baseFpx*0.5, baseFpx*(maxW/wide)*0.98)}; // 2行でも長ければ控えめに縮小
 }
-// ── 自動フィット（縦）：1列に収まるよう必要なら縮小。極端に長い時だけ2列へ ──
+// ── 自動フィット（縦）：1列で収まればそのまま。少しの超過だけ縮め、それ以上は2列へ ──
 function fitVertical(chars, baseFpx, maxH){
   const n=chars.length||1, h=n*(baseFpx*1.05);
   if(h<=maxH) return {cols:[chars], fpx:baseFpx};
-  const need=baseFpx*(maxH/h), minOne=baseFpx*0.55;
-  if(need>=minOne) return {cols:[chars], fpx:need*0.98};
+  const need=baseFpx*(maxH/h);
+  if(need>=baseFpx*0.92) return {cols:[chars], fpx:need*0.99};
   const half=Math.ceil(n/2);
   const cols=[chars.slice(0,half), chars.slice(half)];
   const tallest=half*(baseFpx*1.05);
-  let f= tallest<=maxH ? baseFpx : baseFpx*(maxH/tallest)*0.98;
-  return {cols, fpx:Math.max(f, baseFpx*0.45)};
+  if(tallest<=maxH) return {cols, fpx:baseFpx};
+  return {cols, fpx:Math.max(baseFpx*0.5, baseFpx*(maxH/tallest)*0.98)};
 }
 // 縦書きで回転すべき文字（括弧・長音・ダッシュ）と、右上に寄せる句読点
 const VERT_ROTATE=/[ー…―—‐－−〜～（）()「」『』【】〔〕〈〉《》｛｝\[\]{}｜|]/;
@@ -1245,20 +1244,25 @@ function lcsMatches(A,B){
   }
   return pairs;
 }
-// アンカー(一致行)の間を補間して全行に時刻を入れる
-function fillLineTimes(lineTime, totalDur){
-  const N=lineTime.length; const anc=[];
-  for(let i=0;i<N;i++) if(lineTime[i]!=null) anc.push(i);
+// アンカー(一致行)の間を埋めて全行に時刻を入れる。
+// 未一致(=AIが拾えなかった)行は、行の文字数で時間を按分＝長い行ほど長く取る。
+// これで「途中で遅れて出る/早く出る」を軽減。
+function fillLineTimes(lineTime, totalDur, weights){
+  const N=lineTime.length; if(!N) return false;
+  const w=weights||lineTime.map(()=>1);
+  const cum=new Array(N+1); cum[0]=0;
+  for(let i=0;i<N;i++) cum[i+1]=cum[i]+Math.max(0.3, w[i]||0);  // 各行の重み＝文字数
+  const anc=[]; for(let i=0;i<N;i++) if(lineTime[i]!=null) anc.push(i);
   if(!anc.length) return false;
   const first=anc[0];
-  for(let i=0;i<first;i++) lineTime[i]=lineTime[first]*((i+1)/(first+1));
+  if(first>0){ const t0=Math.max(0,lineTime[first]), span=cum[first]||1; for(let i=0;i<first;i++) lineTime[i]=t0*(cum[i]/span); }
   for(let a=0;a<anc.length-1;a++){
-    const L=anc[a],R=anc[a+1],tL=lineTime[L],tR=lineTime[R];
-    for(let i=L+1;i<R;i++) lineTime[i]=tL+(tR-tL)*((i-L)/(R-L));
+    const L=anc[a],R=anc[a+1],tL=lineTime[L],tR=lineTime[R],span=cum[R]-cum[L]||1;
+    for(let i=L+1;i<R;i++) lineTime[i]=tL+(tR-tL)*((cum[i]-cum[L])/span);
   }
   const last=anc[anc.length-1];
   const endT=(totalDur&&totalDur>lineTime[last])?totalDur:lineTime[last]+(N-last)*2;
-  for(let i=last+1;i<N;i++) lineTime[i]=lineTime[last]+(endT-lineTime[last])*((i-last)/(N-last));
+  if(last<N-1){ const span=cum[N]-cum[last]||1; for(let i=last+1;i<N;i++) lineTime[i]=lineTime[last]+(endT-lineTime[last])*((cum[i]-cum[last])/span); }
   for(let i=1;i<N;i++) if(lineTime[i]<=lineTime[i-1]) lineTime[i]=lineTime[i-1]+0.2;
   return true;
 }
@@ -1302,7 +1306,8 @@ function applyAlignment(chunks, wordLevel){
         lineTime[li]=Math.max(0, t0 - rate*p0);
       }
       const matched=perLine.filter(m=>m.length).length;
-      if(fillLineTimes(lineTime,totalDur)) times=lineTime;
+      const weights=lineTexts.map(t=>normLen(t)||1);  // 文字数で時間按分
+      if(fillLineTimes(lineTime,totalDur,weights)) times=lineTime;
       console.log(`alignment: ${matched}/${N} 行一致 / wordLevel=${!!wordLevel}`);
     }
   }
