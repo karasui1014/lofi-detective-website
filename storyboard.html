@@ -52,14 +52,19 @@ header{
   border-bottom:1px solid var(--border);
   margin-bottom:1.8rem;
 }
-.header-left{display:flex;align-items:center;gap:1rem;}
+.header-left{display:flex;align-items:center;gap:1rem;flex:1;justify-content:center;}
 .logo-mark{
   width:36px;height:36px;border-radius:10px;flex-shrink:0;
   background:linear-gradient(135deg,var(--accent),var(--accent2));
   display:flex;align-items:center;justify-content:center;
   font-size:1rem;box-shadow:0 0 20px var(--accent-glow);
 }
-header h1{font-size:1.15rem;font-weight:700;letter-spacing:.02em;}
+header h1{font-size:1.35rem;font-weight:700;letter-spacing:.02em;}
+.header-warning{
+  font-size:.7rem;color:#fca5a5;background:rgba(239,68,68,.12);
+  border:1px solid rgba(239,68,68,.35);border-radius:6px;
+  padding:.25rem .6rem;white-space:nowrap;
+}
 .header-tag{
   font-size:.58rem;letter-spacing:.2em;color:var(--text-muted);
   background:var(--surface2);border:1px solid var(--border);
@@ -86,6 +91,11 @@ header h1{font-size:1.15rem;font-weight:700;letter-spacing:.02em;}
 }
 .card:hover{border-color:var(--border-hi);}
 .card-span2{grid-column:1/-1;}
+.nb-cyan{border-color:rgba(56,232,255,.75);box-shadow:0 0 22px -6px rgba(56,232,255,.7),inset 0 0 26px -18px rgba(56,232,255,.8);}
+.nb-green{border-color:rgba(80,250,160,.75);box-shadow:0 0 22px -6px rgba(80,250,160,.65),inset 0 0 26px -18px rgba(80,250,160,.8);}
+.nb-purple{border-color:rgba(180,140,255,.78);box-shadow:0 0 22px -6px rgba(180,140,255,.7),inset 0 0 26px -18px rgba(180,140,255,.8);}
+.nb-pink{border-color:rgba(255,110,200,.75);box-shadow:0 0 22px -6px rgba(255,110,200,.65),inset 0 0 26px -18px rgba(255,110,200,.8);}
+.nb-amber{border-color:rgba(255,205,100,.75);box-shadow:0 0 22px -6px rgba(255,205,100,.65),inset 0 0 26px -18px rgba(255,205,100,.8);}
 
 .card-header{display:flex;align-items:center;gap:.65rem;margin-bottom:1rem;}
 .step-badge{
@@ -575,6 +585,7 @@ label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;
     <div class="header-left">
       <div class="logo-mark">🎬</div>
       <h1>Storyboard Generator</h1>
+      <span class="header-warning">※第三者への無断譲渡・公開はNGです</span>
     </div>
     <span class="header-tag">MV Director's Edition</span>
   </header>
@@ -584,7 +595,7 @@ label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;
   <div class="input-grid">
 
     <!-- Step 1: Audio -->
-    <div class="card">
+    <div class="card nb-cyan">
       <div class="card-header">
         <div class="step-badge">1</div>
         <span class="card-title">楽曲ファイル</span>
@@ -649,7 +660,7 @@ label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;
     </div>
 
     <!-- Step 2: MV Style -->
-    <div class="card">
+    <div class="card nb-purple">
       <div class="card-header">
         <div class="step-badge">2</div>
         <span class="card-title">MVスタイル</span>
@@ -658,7 +669,7 @@ label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;
     </div>
 
     <!-- Step 3: Lyrics -->
-    <div class="card">
+    <div class="card nb-green">
       <div class="card-header">
         <div class="step-badge">3</div>
         <span class="card-title">歌詞</span>
@@ -684,7 +695,7 @@ label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;
     </div>
 
     <!-- Step 4: Settings -->
-    <div class="card">
+    <div class="card nb-amber">
       <div class="card-header">
         <div class="step-badge">4</div>
         <span class="card-title">設定</span>
@@ -711,7 +722,7 @@ label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;
   </div><!-- /input-grid -->
 
   <!-- Step 5: Reference video (optional) -->
-  <div class="card ref-card">
+  <div class="card ref-card nb-pink">
     <div class="card-header">
       <div class="step-badge">5</div>
       <span class="card-title">参考動画（任意）</span>
