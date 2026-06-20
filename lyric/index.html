@@ -11,12 +11,12 @@
 <meta name="description" content="音楽MVの歌詞テロップを自動で焼き込み出力。書体（フォント）を雰囲気別に選べる、誰でも使える字幕生成ツール。">
 <style>
 :root{
-  --bg:#211c17; --surface:#2b251e; --surface2:#342d25; --surface3:#40382e;
-  --border:rgba(255,238,221,0.11); --border-hi:rgba(255,238,221,0.20);
-  --accent:#8b6df0; --accent2:#22b3cc; --accent3:#fb7185;
-  --accent-glow:rgba(139,109,240,0.32);
-  --text:#f4ede2; --text-sec:rgba(244,237,226,0.64); --text-muted:rgba(244,237,226,0.42);
-  --ok:#34c98a; --radius:16px; --radius-sm:10px;
+  --bg:#14110d; --surface:#1e1a15; --surface2:#26211a; --surface3:#312a21;
+  --border:rgba(255,239,222,0.13); --border-hi:rgba(255,239,222,0.24);
+  --accent:#9b7cff; --accent2:#2ccae6; --accent3:#fb7185;
+  --accent-glow:rgba(155,124,255,0.38);
+  --text:#fdf9f2; --text-sec:rgba(253,249,242,0.80); --text-muted:rgba(253,249,242,0.56);
+  --ok:#3bdba2; --radius:16px; --radius-sm:10px;
 }
 *{margin:0;padding:0;box-sizing:border-box;}
 html{scroll-behavior:smooth;}
@@ -24,9 +24,9 @@ body{
   background:var(--bg);color:var(--text);
   font-family:'Inter','Segoe UI',system-ui,-apple-system,'Hiragino Sans','Yu Gothic',sans-serif;
   min-height:100vh;overflow-x:hidden;line-height:1.6;
-  background-image:radial-gradient(ellipse 85% 50% at 14% -6%,rgba(255,178,120,0.08) 0%,transparent 60%),
-                   radial-gradient(ellipse 70% 45% at 86% 2%,rgba(139,109,240,0.07) 0%,transparent 60%),
-                   radial-gradient(ellipse 65% 45% at 50% 106%,rgba(251,113,133,0.05) 0%,transparent 62%);
+  background-image:radial-gradient(ellipse 80% 45% at 14% -6%,rgba(255,168,108,0.06) 0%,transparent 58%),
+                   radial-gradient(ellipse 65% 42% at 86% 2%,rgba(155,124,255,0.05) 0%,transparent 58%),
+                   radial-gradient(ellipse 60% 42% at 50% 106%,rgba(251,113,133,0.04) 0%,transparent 60%);
 }
 .wrap{max-width:1280px;margin:0 auto;padding:0 1.2rem 5rem;}
 a{color:inherit;}
@@ -127,7 +127,7 @@ label.fld{display:block;font-size:.66rem;color:var(--text-sec);margin:.6rem 0 .3
 /* Stage / preview */
 .stage-wrap{position:relative;width:100%;border-radius:var(--radius);overflow:hidden;
   border:1px solid var(--border-hi);background:
-    conic-gradient(#322a22 0 25%,#2a231c 0 50%,#322a22 0 75%,#2a231c 0) 0/28px 28px;}
+    conic-gradient(#2a241c 0 25%,#211c16 0 50%,#2a241c 0 75%,#211c16 0) 0/28px 28px;}
 canvas#stage{display:block;width:100%;height:auto;}
 .transport{display:flex;align-items:center;gap:.7rem;margin-top:.7rem;flex-wrap:wrap;}
 .seek{flex:1;min-width:160px;-webkit-appearance:none;appearance:none;height:6px;border-radius:6px;
@@ -234,7 +234,7 @@ details.adv[open]>summary::before{content:'▾';}
       <div class="logo-mark">🎬</div>
       <h1 class="hero-title">Lyric Telop Generator</h1>
       <div class="hero-eq" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
-      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build19</div>
+      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build20</div>
     </div>
   </header>
 
