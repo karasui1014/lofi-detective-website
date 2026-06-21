@@ -234,7 +234,7 @@ details.adv[open]>summary::before{content:'▾';}
       <div class="logo-mark">🎬</div>
       <h1 class="hero-title">Lyric Telop Generator</h1>
       <div class="hero-eq" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
-      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build23</div>
+      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build24</div>
     </div>
   </header>
 
@@ -260,7 +260,8 @@ details.adv[open]>summary::before{content:'▾';}
       <!-- Step 2: Lyrics -->
       <div class="card nb-green">
         <div class="card-header"><span class="step-badge">2</span><span class="card-title">歌詞を入力<small>正しい歌詞を貼り付け →「歌詞を反映」</small></span></div>
-        <textarea id="lyricsInput" placeholder="ここに歌詞を貼り付け／入力してください。&#10;&#10;・1行＝1テロップ&#10;・空行は無視されます（連の区切りに使ってOK）&#10;・各行は次の歌詞が始まるまで表示され続けます&#10;&#10;入力できたら下の「歌詞を反映」を押してください（プレビューに表示されます）。"></textarea>
+        <textarea id="lyricsInput" placeholder="ここに歌詞を貼り付け／入力してください。&#10;&#10;・1行＝1テロップ&#10;・2行で見せたい所は スラッシュ /  を入れる（例：夜の街を歩いて/君を探してる）&#10;・空行は無視（連の区切りに使ってOK）&#10;&#10;入力できたら下の「歌詞を反映」を押してください。"></textarea>
+        <div class="notice" style="margin:.5rem 0 0;line-height:1.7;">💡 <b>テロップを2行にしたい所</b>は、歌詞の中に <b>/</b>（スラッシュ）を入れてください。その位置でぴったり改行します。例）<span style="color:var(--accent2);">愛してると言えずに/今日もすれ違う</span></div>
         <div class="row" style="margin-top:.6rem;">
           <button class="btn btn-primary" id="applyLyrics">歌詞を反映</button>
           <span class="hint" id="lineCount"></span>
@@ -653,18 +654,21 @@ function splitTwo(text){
   if(best<1) best=Math.round(mid);
   return [chars.slice(0,best).join('').trim(), chars.slice(best).join('').trim()].filter(s=>s);
 }
+// ユーザーが歌詞内に入れた区切り記号( / ／ | ｜ )で手動改行。無ければ[元のまま]
+const BREAK_MARK=/\s*[／\/｜|]\s*/;
+function manualRows(text){ return String(text).split(BREAK_MARK).map(s=>s.trim()).filter(s=>s.length); }
 function fitHorizontal(text, baseFpx, maxW){
   text=text.replace(/\s*\n\s*/g,' ').trim();
   const w=measureAt(text,baseFpx);
   if(w<=maxW) return {lines:[text], fpx:baseFpx};       // 1行で収まる→そのまま大きく
   const need=baseFpx*(maxW/w);                          // 1行に収める推定サイズ
-  // ほんの少し(〜8%)はみ出す程度なら1行を維持。それ以上は無理に縮めず2行へ（大きさ優先）
-  if(need>=baseFpx*0.92) return {lines:[text], fpx:need*0.99};
-  const two=splitTwo(text);                              // 自然な位置で2行に分割（禁則考慮）
-  if(two.length<2) return {lines:[text], fpx:Math.max(baseFpx*0.5, need*0.99)};
+  // 手動改行が基本なので、自動では極力1行を維持（60%まで縮小）。それ未満なら保険で2行
+  if(need>=baseFpx*0.60) return {lines:[text], fpx:need*0.99};
+  const two=splitTwo(text);
+  if(two.length<2) return {lines:[text], fpx:Math.max(baseFpx*0.4, need*0.99)};
   const wide=Math.max(measureAt(two[0],baseFpx), measureAt(two[1],baseFpx));
-  if(wide<=maxW) return {lines:two, fpx:baseFpx};        // 2行・指定サイズのまま＝自然で大きい
-  return {lines:two, fpx:Math.max(baseFpx*0.5, baseFpx*(maxW/wide)*0.98)}; // 2行でも長ければ控えめに縮小
+  if(wide<=maxW) return {lines:two, fpx:baseFpx};
+  return {lines:two, fpx:Math.max(baseFpx*0.45, baseFpx*(maxW/wide)*0.98)};
 }
 // ── 自動フィット（縦）：1列で収まればそのまま。少しの超過だけ縮め、それ以上は2列へ ──
 function fitVertical(chars, baseFpx, maxH){
@@ -693,8 +697,16 @@ function paintVChar(ch,x,y,fpx){
 
 function drawHorizontal(text,W,H,baseFpx){
   const margin=H*0.07, maxW=W-margin*2;
-  const fit=fitHorizontal(text, baseFpx, maxW);
-  const rows=fit.lines, fpx=fit.fpx, lh=fpx*1.32;
+  const manual=manualRows(text);
+  let rows, fpx;
+  if(manual.length>=2){           // ユーザー指定の改行を尊重（自動分割しない）
+    rows=manual;
+    const wide=Math.max(...rows.map(r=>measureAt(r,baseFpx)));
+    fpx = wide<=maxW ? baseFpx : Math.max(baseFpx*0.35, baseFpx*(maxW/wide)*0.98);
+  } else {
+    const fit=fitHorizontal(text, baseFpx, maxW); rows=fit.lines; fpx=fit.fpx;
+  }
+  const lh=fpx*1.32;
   ctx.font=`${state.weight} ${fpx}px '${state.font.fam}', sans-serif`;
   const blockH=rows.length*lh;
   let cy;
@@ -713,10 +725,18 @@ function drawHorizontal(text,W,H,baseFpx){
 
 function drawVertical(text,W,H,baseFpx){
   const margin=H*0.07, maxH=H-margin*2;
-  const chars=[...text.replace(/\s*\n\s*/g,'').trim()];
-  if(!chars.length) return;
-  const fit=fitVertical(chars, baseFpx, maxH);
-  const fpx=fit.fpx, chH=fpx*1.05, colW=fpx*1.5, cols=fit.cols;
+  const manual=manualRows(text);
+  let cols, fpx;
+  if(manual.length>=2){           // 指定改行は「列」として右→左に並べる
+    cols=manual.map(s=>[...s]);
+    const tallest=Math.max(...cols.map(c=>c.length))*(baseFpx*1.05);
+    fpx = tallest<=maxH ? baseFpx : Math.max(baseFpx*0.35, baseFpx*(maxH/tallest)*0.98);
+  } else {
+    const chars=[...text.replace(/\s*\n\s*/g,'').trim()];
+    if(!chars.length) return;
+    const fit=fitVertical(chars, baseFpx, maxH); cols=fit.cols; fpx=fit.fpx;
+  }
+  const chH=fpx*1.05, colW=fpx*1.5;
   ctx.font=`${state.weight} ${fpx}px '${state.font.fam}', sans-serif`;
   ctx.textAlign='center';
   const startX = W - margin - colW/2; // 右→左
@@ -900,7 +920,7 @@ function exportPNG(){
 }
 function exportLRC(){
   const lines=lyrics.filter(l=>l.t!=null).sort((a,b)=>a.t-b.t)
-    .map(l=>`${lrcStamp(offT(l.t))}${l.text}`).join('\n');
+    .map(l=>`${lrcStamp(offT(l.t))}${manualRows(l.text).join(' ')}`).join('\n');
   downloadBlob(new Blob([lines],{type:'text/plain'}),'lyrics.lrc'); toast('.lrc を書き出しました');
 }
 function updateExportBtns(){
@@ -930,7 +950,7 @@ async function exportAssets(){
     const buf=new Uint8Array(await blob.arrayBuffer());
     const name=`telop_${String(k+1).padStart(3,'0')}.png`;
     files.push({name,data:buf});
-    rows.push([k+1,name,offT(l.t).toFixed(2),offT(endTimeOf(l.t)).toFixed(2),l.text]);
+    rows.push([k+1,name,offT(l.t).toFixed(2),offT(endTimeOf(l.t)).toFixed(2),manualRows(l.text).join(' ')]);
   }
   const enc=new TextEncoder();
   const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\r\n');
@@ -961,7 +981,7 @@ async function exportCards(){
     renderText(l.text,1);
     const blob=await new Promise(r=>canvas.toBlob(r,'image/png'));
     files.push({name:`card_${String(k+1).padStart(3,'0')}.png`, data:new Uint8Array(await blob.arrayBuffer())});
-    rows.push([k+1,`card_${String(k+1).padStart(3,'0')}.png`, l.t!=null?offT(l.t).toFixed(2):'', l.t!=null?offT(endTimeOf(l.t)).toFixed(2):'', l.text]);
+    rows.push([k+1,`card_${String(k+1).padStart(3,'0')}.png`, l.t!=null?offT(l.t).toFixed(2):'', l.t!=null?offT(endTimeOf(l.t)).toFixed(2):'', manualRows(l.text).join(' ')]);
   }
   const enc=new TextEncoder();
   const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\r\n');
@@ -1008,11 +1028,11 @@ function buildASS(lines){
               : state.pos==='middle'?(state.align==='left'?4:state.align==='right'?6:5)
               : (state.align==='left'?1:state.align==='right'?3:2);
   const head=`[Script Info]\nScriptType: v4.00+\nPlayResX: ${W}\nPlayResY: ${H}\nWrapStyle: 2\n\n[V4+ Styles]\nFormat: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\nStyle: Default,${state.font.fam},${Math.round(state.size)},${assColor(state.color)},&H000000FF,${assColor(state.strokeColor)},&H64000000,${state.weight>=700?-1:0},0,0,0,100,100,${state.track},0,1,${state.stroke},${state.shadow?2:0},${align},80,80,${Math.round(H*0.08)},1\n\n[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n`;
-  const body=lines.map(l=>`Dialogue: 0,${assTime(offT(l.t))},${assTime(offT(endTimeOf(l.t)))},Default,,0,0,0,,${l.text.replace(/\n/g,'\\N')}`).join('\n');
+  const body=lines.map(l=>`Dialogue: 0,${assTime(offT(l.t))},${assTime(offT(endTimeOf(l.t)))},Default,,0,0,0,,${manualRows(l.text).join('\\N')}`).join('\n');
   return head+body+'\n';
 }
 function srtTime(s){ const h=Math.floor(s/3600),m=Math.floor(s%3600/60),sec=Math.floor(s%60),ms=Math.round((s-Math.floor(s))*1000); return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')},${String(ms).padStart(3,'0')}`; }
-function buildSRT(lines){ return lines.map((l,i)=>`${i+1}\r\n${srtTime(offT(l.t))} --> ${srtTime(offT(endTimeOf(l.t)))}\r\n${l.text}\r\n`).join('\r\n'); }
+function buildSRT(lines){ return lines.map((l,i)=>`${i+1}\r\n${srtTime(offT(l.t))} --> ${srtTime(offT(endTimeOf(l.t)))}\r\n${manualRows(l.text).join('\r\n')}\r\n`).join('\r\n'); }
 const HOWTO_TEXT = `【歌詞テロップ つかいかた】
 
 ■ このZIPの中身
