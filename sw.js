@@ -1,15 +1,15 @@
-const CACHE = 'sb-gen-v4';
+const CACHE = 'sb-gen-v5';
 const ASSETS = [
   './storyboard.html',
-  './manifest.json',
-  './favicon.ico',
-  './favicon.svg',
+  './manifest.json?v=3',
+  './favicon.ico?v=3',
+  './favicon.svg?v=3',
   './favicon.png',
-  './favicon-16.png',
-  './favicon-32.png',
-  './apple-touch-icon.png',
-  './icon-192.png',
-  './icon-512.png',
+  './favicon-16.png?v=3',
+  './favicon-32.png?v=3',
+  './apple-touch-icon.png?v=3',
+  './icon-192.png?v=3',
+  './icon-512.png?v=3',
 ];
 
 self.addEventListener('install', e => {
