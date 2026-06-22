@@ -6,7 +6,7 @@
 <meta name="referrer" content="no-referrer">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://cdn.jsdelivr.net https://esm.sh https://*.esm.sh; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' https://cdn.jsdelivr.net https://esm.sh https://*.esm.sh https://huggingface.co https://*.huggingface.co https://*.hf.co; worker-src blob: 'self' https://cdn.jsdelivr.net https://esm.sh https://*.esm.sh; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'">
 <title>Lyric Telop Generator | 歌詞テロップ生成ツール</title>
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSI2NCIgeTI9IjY0IiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjOWI3Y2ZmIi8+PHN0b3Agb2Zmc2V0PSIuNSIgc3RvcC1jb2xvcj0iIzIyYzBkNiIvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iI2ZiNzE4NSIvPjwvbGluZWFyR3JhZGllbnQ+PGxpbmVhckdyYWRpZW50IGlkPSJzIiB4MT0iMCIgeTE9IjAiIHgyPSIwIiB5Mj0iNDIiIGdyYWRpZW50VW5pdHM9InVzZXJTcGFjZU9uVXNlIj48c3RvcCBvZmZzZXQ9IjAiIHN0b3AtY29sb3I9IiNmZmYiIHN0b3Atb3BhY2l0eT0iLjMwIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjZmZmIiBzdG9wLW9wYWNpdHk9IjAiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCB4PSIyIiB5PSIyIiB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHJ4PSIxNiIgZmlsbD0idXJsKCNnKSIvPjxyZWN0IHg9IjIiIHk9IjIiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcng9IjE2IiBmaWxsPSJ1cmwoI3MpIi8+PGcgZmlsbD0iI2ZmZiI+PHJlY3QgeD0iMTYiIHk9IjI2IiB3aWR0aD0iNSIgaGVpZ2h0PSIxMyIgcng9IjIuNSIgb3BhY2l0eT0iLjkyIi8+PHJlY3QgeD0iMjUiIHk9IjE4IiB3aWR0aD0iNSIgaGVpZ2h0PSIyMSIgcng9IjIuNSIvPjxyZWN0IHg9IjM0IiB5PSIyOCIgd2lkdGg9IjUiIGhlaWdodD0iMTEiIHJ4PSIyLjUiIG9wYWNpdHk9Ii44OCIvPjxyZWN0IHg9IjQzIiB5PSIyMiIgd2lkdGg9IjUiIGhlaWdodD0iMTciIHJ4PSIyLjUiIG9wYWNpdHk9Ii45NSIvPjwvZz48cmVjdCB4PSIxNiIgeT0iNDUiIHdpZHRoPSIzMiIgaGVpZ2h0PSI2IiByeD0iMyIgZmlsbD0iI2ZmZiIgb3BhY2l0eT0iLjk1Ii8+PC9zdmc+">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+PHJlY3QgeD0iMiIgeT0iMiIgd2lkdGg9IjYwIiBoZWlnaHQ9IjYwIiByeD0iMTQiIGZpbGw9IiNlZmU2ZDMiLz48ZyBmaWxsPSIjOWZiNGNiIj48cGF0aCBkPSJNMzEgMzAgTDU4IDI5LjUgTDQ5IDMzIEw1NiAzNiBMNDUgMzcuNSBMMzEgMzggWiIvPjxwYXRoIGQ9Ik0zMyAzMCBMNiAyOS41IEwxNSAzMyBMOCAzNiBMMTkgMzcuNSBMMzMgMzggWiIvPjwvZz48cmVjdCB4PSIyOC40IiB5PSIxMS41IiB3aWR0aD0iNy4yIiBoZWlnaHQ9IjIzLjUiIHJ4PSIzLjQiIGZpbGw9IiM2ZTUxM2EiLz48cmVjdCB4PSIyOC40IiB5PSIxNS44IiB3aWR0aD0iNy4yIiBoZWlnaHQ9IjIuMyIgZmlsbD0iI2NhYTI0YyIvPjxyZWN0IHg9IjI4LjQiIHk9IjMwIiB3aWR0aD0iNy4yIiBoZWlnaHQ9IjIuNSIgZmlsbD0iI2NhYTI0YyIvPjxwYXRoIGQ9Ik0yOC42IDM0LjUgTDM1LjQgMzQuNSBMMzIgNTEuNSBaIiBmaWxsPSIjOWFhMGE3Ii8+PHBhdGggZD0iTTMyIDM2LjUgTDMyIDQ4LjUiIHN0cm9rZT0iIzVmNjQ2OSIgc3Ryb2tlLXdpZHRoPSIwLjkiLz48Y2lyY2xlIGN4PSIzMiIgY3k9IjQwIiByPSIxLjEiIGZpbGw9IiM1ZjY0NjkiLz48cGF0aCBkPSJNNDUgMTUgbDAuOSAyLjggMi44IDAuOSAtMi44IDAuOSAtMC45IDIuOCAtMC45IC0yLjggLTIuOCAtMC45IDIuOCAtMC45IHoiIGZpbGw9IiMzYTNhM2EiIG9wYWNpdHk9Ii41Ii8+PC9zdmc+">
 <meta name="theme-color" content="#7c3aed">
 <meta name="description" content="音楽MVの歌詞テロップを自動で焼き込み出力。書体（フォント）を雰囲気別に選べる、誰でも使える字幕生成ツール。">
 <style>
@@ -228,7 +228,7 @@ details.adv[open]>summary::before{content:'▾';}
       <div class="logo-mark">🎬</div>
       <h1 class="hero-title">Lyric Telop Generator</h1>
       <div class="hero-rule" aria-hidden="true"></div>
-      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build28</div>
+      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build32</div>
     </div>
   </header>
 
@@ -253,16 +253,15 @@ details.adv[open]>summary::before{content:'▾';}
       <!-- Step 2: Lyrics -->
       <div class="card nb-green">
         <div class="card-header"><span class="step-badge">2</span><span class="card-title">歌詞を入力<small>正しい歌詞を貼り付け →「歌詞を反映」</small></span></div>
-        <textarea id="lyricsInput" placeholder="ここに歌詞を貼り付け／入力してください。&#10;&#10;・1行＝1テロップ&#10;・2行で見せたい所は スラッシュ /  を入れる（例：夜の街を歩いて/君を探してる）&#10;・空行は無視（連の区切りに使ってOK）&#10;&#10;入力できたら下の「歌詞を反映」を押してください。"></textarea>
-        <div class="notice" style="margin:.5rem 0 0;line-height:1.7;">💡 <b>テロップを2行にしたい所</b>は、歌詞の中に <b>/</b>（スラッシュ）か <b>スペース</b> を入れてください。その位置で改行します。例）<span style="color:var(--accent2);">愛してると言えずに/今日もすれ違う</span><br>※<b>語の途中では改行しません</b>（区切りが無く収まらない時は少し小さくなります）。</div>
-        <div class="row" style="margin-top:.6rem;">
-          <button class="btn btn-primary" id="applyLyrics">歌詞を反映</button>
+        <textarea id="lyricsInput" placeholder="ここに歌詞を貼り付け／入力してください。&#10;&#10;・1行＝1テロップ&#10;・2行で見せたい所は スラッシュ /  かスペースを入れる（例：夜の街を歩いて/君を探してる）&#10;・空行は無視（連の区切りに使ってOK）&#10;&#10;入力した歌詞は自動で反映されます。"></textarea>
+        <div class="notice" style="margin:.5rem 0 0;line-height:1.7;">💡 <b>テロップを2行にしたい所</b>は、歌詞の中に <b>/</b>（スラッシュ）か <b>スペース</b> を入れてください。その位置で改行します。例）<span style="color:var(--accent2);">愛してると言えずに/今日もすれ違う</span></div>
+        <div class="row" style="margin-top:.4rem;justify-content:flex-end;">
           <span class="hint" id="lineCount"></span>
         </div>
 
         <div style="background:var(--surface3);border:1px solid rgba(34,197,94,.28);border-radius:var(--radius-sm);padding:.75rem .85rem;margin-top:.8rem;">
           <div style="font-size:.8rem;color:var(--ok);font-weight:700;margin-bottom:.15rem;">🎯 タイミングを自動生成</div>
-          <div class="hint" style="margin-bottom:.55rem;line-height:1.85;"><b>①正しい歌詞を貼り付け</b> → <b>②「歌詞を反映」を押す</b> → <b>③「自動生成」を押す</b><br>文字はそのまま、各行のタイミングだけをAIが音源と照合してセットします（誤字は出ません）。</div>
+          <div class="hint" style="margin-bottom:.55rem;line-height:1.85;"><b>①正しい歌詞を貼り付け</b> → <b>②「自動生成」を押すだけ</b><br>文字はそのまま、各行のタイミングだけをAIが音源と照合してセットします（誤字は出ません）。</div>
           <button class="btn" id="alignBtn" disabled style="width:100%;justify-content:center;font-size:.9rem;padding:.7rem;border-color:rgba(34,197,94,.45);color:var(--ok);">🎯 自動生成</button>
           <div id="alignProgress" style="display:none;margin-top:.5rem;">
             <div style="font-size:.68rem;color:var(--ok);margin-bottom:.3rem;" id="alignMsg">準備中…</div>
@@ -513,18 +512,33 @@ function applyAspect(){
 }
 
 /* ════ 描画 ════ */
+// 1行の歌唱時間の概算（ASRで終端が取れない行・編集直後のフォールバック用）
+const SING_RATE=0.42;   // 1文字あたりの概算歌唱秒
+const MIN_SING=1.6;     // 最低限の歌唱秒
+const HOLD_TAIL=1.2;    // 歌い終わってからの余韻（小さな隙間を埋め、連続行のチラつきを防ぐ）
+
 function activeLineAt(t){
   t -= (state.offset||0);   // タイミング微調整（＋で遅く、−で早く出す）
-  // 空行は無視し、各行は「次の歌詞行が始まるまで」表示し続ける（歌唱中に途切れないように）
+  // 空行は無視。各行は「歌い終わり＋余韻」まで表示する。次行がすぐ続くならそのままバトンタッチし、
+  // 間奏のように間が空くときは余韻のあとに消す（＝前奏・間奏中は歌詞を出さない）。
   const timed = lyrics.map((l,i)=>({...l,i})).filter(l=>l.t!=null && l.text.trim()).sort((a,b)=>a.t-b.t);
   if(!timed.length) return null;
   const songEnd = (audio.duration && isFinite(audio.duration) && audio.duration>0)
     ? audio.duration : (timed[timed.length-1].t + 6);
   for(let k=0;k<timed.length;k++){
     const cur=timed[k], next=timed[k+1];
-    // 最終行は最大8秒で消す（長い間奏でも残り続けない／曲が早く終わればそこまで）
-    const end = next ? next.t : Math.min(songEnd, cur.t + 8);
-    if(t>=cur.t && t<end) return {line:cur, start:cur.t, end, last:!next};
+    // この行が歌い終わる目安：ASR由来の終端があれば優先、無ければ文字数から概算
+    let natEnd = (cur.tEnd!=null && isFinite(cur.tEnd) && cur.tEnd>cur.t)
+      ? cur.tEnd : cur.t + Math.max(MIN_SING, normLen(cur.text)*SING_RATE);
+    natEnd += HOLD_TAIL;   // 余韻
+    let end, fadeOut;
+    if(next){
+      if(natEnd < next.t - 0.05){ end=natEnd; fadeOut=true; }   // 間奏：余韻のあとに消す
+      else { end=next.t; fadeOut=false; }                        // 連続：次行へ受け渡し
+    } else {
+      end=Math.min(songEnd, natEnd); fadeOut=true;               // 最終行
+    }
+    if(t>=cur.t && t<end) return {line:cur, start:cur.t, end, fadeOut, last:!next};
   }
   return null;
 }
@@ -543,8 +557,8 @@ function draw(){
     // フェードアウトは最終行が曲尾に近づいたときだけ適用する。
     let a=1; const f=state.fade;
     if(f>0){
-      a=Math.max(0,Math.min(1,(audio.currentTime-act.start)/f));
-      if(act.last){
+      a=Math.max(0,Math.min(1,(audio.currentTime-act.start)/f));   // フェードイン
+      if(act.fadeOut){                                             // 間奏入り・曲尾でフェードアウト
         const outA=(act.end-audio.currentTime)/f;
         a=Math.min(a, Math.max(0,Math.min(1,outA)));
       }
@@ -865,7 +879,7 @@ function applyLyrics(){
   const raw=$('lyricsInput').value.split('\n');
   const old=lyrics;
   // 行の位置(index)でタイミングを引き継ぐ → 文字を直しても時刻は保持される
-  lyrics = raw.map((text,i)=>({ text, t: old[i] ? old[i].t : null }));
+  lyrics = raw.map((text,i)=>({ text, t: old[i] ? old[i].t : null, tEnd: old[i] ? old[i].tEnd : null }));
   tapCursor = lyrics.findIndex(l=>l.t==null); if(tapCursor<0) tapCursor=lyrics.length;
   $('lineCount').textContent = `${lyrics.length}行`;
   renderLines(); updateTapTarget(); draw();
@@ -942,7 +956,15 @@ function updateExportBtns(){
 
 /* ---- 行ごとの終了時刻（次の行頭 or 末尾+4秒） ---- */
 function timedLines(){ return lyrics.map((l,i)=>({...l,i})).filter(l=>l.t!=null).sort((a,b)=>a.t-b.t); }
-function endTimeOf(start){ const nx=timedLines().find(l=>l.t>start+0.001 && l.text.trim()); return nx?nx.t:start+4; }
+// 字幕の終了時刻：歌い終わり＋余韻まで。次行が近ければそこで切替、間奏なら余韻後に消す（プレビューと同じ挙動）
+function endTimeOf(l){
+  const nx=timedLines().find(x=>x.t>l.t+0.001 && x.text.trim());
+  let natEnd=(l.tEnd!=null && isFinite(l.tEnd) && l.tEnd>l.t) ? l.tEnd : l.t+Math.max(MIN_SING, normLen(l.text)*SING_RATE);
+  natEnd+=HOLD_TAIL;
+  if(nx) return Math.min(nx.t, natEnd);
+  const songEnd=(audio.duration&&isFinite(audio.duration)&&audio.duration>0)?audio.duration:l.t+8;
+  return Math.min(songEnd, natEnd);
+}
 
 /* ---- ⭐ テロップ画像一式(透過PNG)＋timings.csv＋.ass を ZIP で書き出し ---- */
 async function exportAssets(){
@@ -959,7 +981,7 @@ async function exportAssets(){
     const buf=new Uint8Array(await blob.arrayBuffer());
     const name=`telop_${String(k+1).padStart(3,'0')}.png`;
     files.push({name,data:buf});
-    rows.push([k+1,name,offT(l.t).toFixed(2),offT(endTimeOf(l.t)).toFixed(2),manualRows(l.text).join(' ')]);
+    rows.push([k+1,name,offT(l.t).toFixed(2),offT(endTimeOf(l)).toFixed(2),manualRows(l.text).join(' ')]);
   }
   const enc=new TextEncoder();
   const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\r\n');
@@ -990,7 +1012,7 @@ async function exportCards(){
     renderText(l.text,1);
     const blob=await new Promise(r=>canvas.toBlob(r,'image/png'));
     files.push({name:`card_${String(k+1).padStart(3,'0')}.png`, data:new Uint8Array(await blob.arrayBuffer())});
-    rows.push([k+1,`card_${String(k+1).padStart(3,'0')}.png`, l.t!=null?offT(l.t).toFixed(2):'', l.t!=null?offT(endTimeOf(l.t)).toFixed(2):'', manualRows(l.text).join(' ')]);
+    rows.push([k+1,`card_${String(k+1).padStart(3,'0')}.png`, l.t!=null?offT(l.t).toFixed(2):'', l.t!=null?offT(endTimeOf(l)).toFixed(2):'', manualRows(l.text).join(' ')]);
   }
   const enc=new TextEncoder();
   const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\r\n');
@@ -1037,11 +1059,11 @@ function buildASS(lines){
               : state.pos==='middle'?(state.align==='left'?4:state.align==='right'?6:5)
               : (state.align==='left'?1:state.align==='right'?3:2);
   const head=`[Script Info]\nScriptType: v4.00+\nPlayResX: ${W}\nPlayResY: ${H}\nWrapStyle: 2\n\n[V4+ Styles]\nFormat: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\nStyle: Default,${state.font.fam},${Math.round(state.size)},${assColor(state.color)},&H000000FF,${assColor(state.strokeColor)},&H64000000,${state.weight>=700?-1:0},0,0,0,100,100,${state.track},0,1,${state.stroke},${state.shadow?2:0},${align},80,80,${Math.round(H*0.08)},1\n\n[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n`;
-  const body=lines.map(l=>`Dialogue: 0,${assTime(offT(l.t))},${assTime(offT(endTimeOf(l.t)))},Default,,0,0,0,,${manualRows(l.text).join('\\N')}`).join('\n');
+  const body=lines.map(l=>`Dialogue: 0,${assTime(offT(l.t))},${assTime(offT(endTimeOf(l)))},Default,,0,0,0,,${manualRows(l.text).join('\\N')}`).join('\n');
   return head+body+'\n';
 }
 function srtTime(s){ const h=Math.floor(s/3600),m=Math.floor(s%3600/60),sec=Math.floor(s%60),ms=Math.round((s-Math.floor(s))*1000); return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')},${String(ms).padStart(3,'0')}`; }
-function buildSRT(lines){ return lines.map((l,i)=>`${i+1}\r\n${srtTime(offT(l.t))} --> ${srtTime(offT(endTimeOf(l.t)))}\r\n${manualRows(l.text).join('\r\n')}\r\n`).join('\r\n'); }
+function buildSRT(lines){ return lines.map((l,i)=>`${i+1}\r\n${srtTime(offT(l.t))} --> ${srtTime(offT(endTimeOf(l)))}\r\n${manualRows(l.text).join('\r\n')}\r\n`).join('\r\n'); }
 const HOWTO_TEXT = `【歌詞テロップ つかいかた】
 
 ■ このZIPの中身
@@ -1148,7 +1170,6 @@ function bindControls(){
   dz.ondragleave=()=>dz.classList.remove('drag-over');
   dz.ondrop=e=>{e.preventDefault();dz.classList.remove('drag-over');loadAudio(e.dataTransfer.files[0]);};
 
-  $('applyLyrics').onclick=applyLyrics;
   $('alignBtn').onclick=alignLyricsToAudio;
   $('playBtn2').onclick=togglePlay;
   // 入力欄：カーソルのある行をプレビューに即時表示＋自動で反映（手直しがすぐ見える）
@@ -1312,8 +1333,15 @@ function fillLineTimes(lineTime, totalDur, weights){
   for(let i=0;i<N;i++) cum[i+1]=cum[i]+Math.max(0.3, w[i]||0);  // 各行の重み＝文字数
   const anc=[]; for(let i=0;i<N;i++) if(lineTime[i]!=null) anc.push(i);
   if(!anc.length) return false;
-  const first=anc[0];
-  if(first>0){ const t0=Math.max(0,lineTime[first]), span=cum[first]||1; for(let i=0;i<first;i++) lineTime[i]=t0*(cum[i]/span); }
+  const first=anc[0], lastAnc=anc[anc.length-1];
+  // 一致区間から曲全体の平均ペース(秒/文字)を出す
+  let gRate=CHAR_DUR;
+  if(lastAnc>first && cum[lastAnc]>cum[first]) gRate=(lineTime[lastAnc]-lineTime[first])/(cum[lastAnc]-cum[first]);
+  gRate=Math.min(0.8,Math.max(0.08,gRate));
+  // 最初の一致行より前の行：平均ペースで一致行から遡って配置する。
+  // 0秒固定だと前奏に歌詞が出てしまい、歌い出し検出に頼るとAIが序盤を拾えないとき
+  // 途中まで歌詞が出なくなる。平均ペースでの逆算が最も安定する。
+  for(let i=first-1;i>=0;i--) lineTime[i]=Math.max(0, lineTime[first]-(cum[first]-cum[i])*gRate);
   for(let a=0;a<anc.length-1;a++){
     const L=anc[a],R=anc[a+1],tL=lineTime[L],tR=lineTime[R],span=cum[R]-cum[L]||1;
     for(let i=L+1;i<R;i++) lineTime[i]=tL+(tR-tL)*((cum[i]-cum[L])/span);
@@ -1340,7 +1368,7 @@ function applyAlignment(chunks, wordLevel){
   const lineTexts=lyrics.map(l=>l.text);
   const N=lineTexts.length; if(!N) return;
   const totalDur=audio.duration||0;
-  let times=null;
+  let times=null, lineEnd=null;
   if(chunks.length){
     const asr=buildAsrTimeline(chunks);
     const usr=buildUserSeq(lineTexts);
@@ -1353,24 +1381,40 @@ function applyAlignment(chunks, wordLevel){
       const perLine=Array.from({length:N},()=>[]);
       for(const [ai,uj] of pairs){ perLine[usr.lineOf[uj]].push([usr.posInLine[uj], timeArr[ai]]); }
       // 各行：一致点から「1文字あたりの時間」を推定し、行頭(位置0)へ外挿＝歌い出しにジャスト。
-      // これで行頭が漢字などでAIと一致しなくても、行の出だしが遅れない。
+      // 同じレートで行末文字へも外挿し、歌い終わり(tEnd)を求める＝間奏で消すための終端。
       const lineTime=new Array(N).fill(null);
+      lineEnd=new Array(N).fill(null);
+      const solid=new Array(N).fill(false);
       for(let li=0; li<N; li++){
         const m=perLine[li]; if(!m.length) continue;
-        const [p0,t0]=m[0];
+        const [p0,t0]=m[0], [pL,tL]=m[m.length-1];
         let rate=CHAR_DUR;
-        if(m.length>=2){ const [p1,t1]=m[m.length-1]; if(p1>p0) rate=(t1-t0)/(p1-p0); }
+        if(pL>p0) rate=(tL-t0)/(pL-p0);
         rate=Math.min(0.6,Math.max(0.06,rate));      // 異常値を抑制
-        lineTime[li]=Math.max(0, t0 - rate*p0);
+        lineTime[li]=Math.max(0, t0 - rate*p0);                 // 行頭へ外挿（歌い出し）
+        const lastPos=Math.max(0, normLen(lineTexts[li])-1);
+        lineEnd[li]=tL + rate*Math.max(0, lastPos-pL);          // 行末へ外挿（歌い終わり）
+        solid[li]=m.length>=2;   // 2文字以上一致＝時刻が信頼できるアンカー（1文字だけは時刻がブレやすい）
       }
-      const matched=perLine.filter(m=>m.length).length;
+      const matched=perLine.filter(m=>m.length).length, nSolid=solid.filter(Boolean).length;
       const weights=lineTexts.map(t=>normLen(t)||1);  // 文字数で時間按分
-      if(fillLineTimes(lineTime,totalDur,weights)) times=lineTime;
-      console.log(`alignment: ${matched}/${N} 行一致 / wordLevel=${!!wordLevel}`);
+      // 信頼アンカーが十分あるときは、1文字だけ一致のブレやすい行を捨てて文字数比で均等補間する。
+      // （序盤はAIが数文字しか拾えず、ブレた1文字に引っぱられて「間隔バラバラ」になりがちなため）
+      const anchors=lineTime.slice();
+      if(nSolid>=2){ for(let i=0;i<N;i++) if(!solid[i]){ anchors[i]=null; lineEnd[i]=null; } }
+      if(fillLineTimes(anchors,totalDur,weights)) times=anchors;
+      console.log(`alignment: ${matched}/${N} 行一致 (信頼アンカー${nSolid}) / wordLevel=${!!wordLevel}`);
     }
   }
   if(!times) times=proportionalTimes(lineTexts,chunks,totalDur);
-  for(let i=0;i<N;i++){ if(times[i]!=null && isFinite(times[i])) lyrics[i].t=Math.max(0, times[i]-ALIGN_LEAD); }
+  for(let i=0;i<N;i++){
+    if(times[i]==null || !isFinite(times[i])) continue;
+    lyrics[i].t=Math.max(0, times[i]-ALIGN_LEAD);
+    // 歌い終わり：ASR由来があれば使い、無ければ文字数から概算（間奏で消す判定に使う）
+    let te=(lineEnd && lineEnd[i]!=null && isFinite(lineEnd[i])) ? lineEnd[i] : null;
+    if(te==null || te<=lyrics[i].t) te=lyrics[i].t+Math.max(1.4,(normLen(lineTexts[i])||1)*0.42);
+    lyrics[i].tEnd=te;
+  }
   tapCursor=lyrics.filter(l=>l.t!=null).length;
   renderLines(); updateExportBtns(); updateTapTarget();
 }
