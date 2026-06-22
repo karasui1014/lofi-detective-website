@@ -228,7 +228,7 @@ details.adv[open]>summary::before{content:'▾';}
       <div class="logo-mark">🎬</div>
       <h1 class="hero-title">Lyric Telop Generator</h1>
       <div class="hero-rule" aria-hidden="true"></div>
-      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build30</div>
+      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build31</div>
     </div>
   </header>
 
@@ -1326,21 +1326,22 @@ function lcsMatches(A,B){
 // アンカー(一致行)の間を埋めて全行に時刻を入れる。
 // 未一致(=AIが拾えなかった)行は、行の文字数で時間を按分＝長い行ほど長く取る。
 // これで「途中で遅れて出る/早く出る」を軽減。
-function fillLineTimes(lineTime, totalDur, weights, firstFloor){
+function fillLineTimes(lineTime, totalDur, weights){
   const N=lineTime.length; if(!N) return false;
   const w=weights||lineTime.map(()=>1);
   const cum=new Array(N+1); cum[0]=0;
   for(let i=0;i<N;i++) cum[i+1]=cum[i]+Math.max(0.3, w[i]||0);  // 各行の重み＝文字数
   const anc=[]; for(let i=0;i<N;i++) if(lineTime[i]!=null) anc.push(i);
   if(!anc.length) return false;
-  const first=anc[0];
-  // 最初のアンカーより前の行は「歌い出し(=最初に声を検出した時刻)」から按分する。
-  // 0秒から割り振ると前奏に歌詞が出てしまうので floor を下限にする。
-  if(first>0){
-    const floor=Math.max(0, firstFloor||0);
-    const tA=Math.max(floor, lineTime[first]), span=cum[first]||1;
-    for(let i=0;i<first;i++) lineTime[i]=floor+(tA-floor)*(cum[i]/span);
-  }
+  const first=anc[0], lastAnc=anc[anc.length-1];
+  // 一致区間から曲全体の平均ペース(秒/文字)を出す
+  let gRate=CHAR_DUR;
+  if(lastAnc>first && cum[lastAnc]>cum[first]) gRate=(lineTime[lastAnc]-lineTime[first])/(cum[lastAnc]-cum[first]);
+  gRate=Math.min(0.8,Math.max(0.08,gRate));
+  // 最初の一致行より前の行：平均ペースで一致行から遡って配置する。
+  // 0秒固定だと前奏に歌詞が出てしまい、歌い出し検出に頼るとAIが序盤を拾えないとき
+  // 途中まで歌詞が出なくなる。平均ペースでの逆算が最も安定する。
+  for(let i=first-1;i>=0;i--) lineTime[i]=Math.max(0, lineTime[first]-(cum[first]-cum[i])*gRate);
   for(let a=0;a<anc.length-1;a++){
     const L=anc[a],R=anc[a+1],tL=lineTime[L],tR=lineTime[R],span=cum[R]-cum[L]||1;
     for(let i=L+1;i<R;i++) lineTime[i]=tL+(tR-tL)*((cum[i]-cum[L])/span);
@@ -1367,11 +1368,10 @@ function applyAlignment(chunks, wordLevel){
   const lineTexts=lyrics.map(l=>l.text);
   const N=lineTexts.length; if(!N) return;
   const totalDur=audio.duration||0;
-  let times=null, lineEnd=null, vocalStart=0;
+  let times=null, lineEnd=null;
   if(chunks.length){
     const asr=buildAsrTimeline(chunks);
     const usr=buildUserSeq(lineTexts);
-    vocalStart=asr.times.length?Math.max(0,asr.times[0]):0;  // 最初に声を検出した時刻＝歌い出しの下限
     const cells=(asr.chars.length+1)*(usr.chars.length+1);
     if(asr.chars.length && usr.chars.length && cells<=6_000_000){
       const pairs=lcsMatches(asr.chars,usr.chars);
@@ -1396,7 +1396,7 @@ function applyAlignment(chunks, wordLevel){
       }
       const matched=perLine.filter(m=>m.length).length;
       const weights=lineTexts.map(t=>normLen(t)||1);  // 文字数で時間按分
-      if(fillLineTimes(lineTime,totalDur,weights,vocalStart)) times=lineTime;
+      if(fillLineTimes(lineTime,totalDur,weights)) times=lineTime;
       console.log(`alignment: ${matched}/${N} 行一致 / wordLevel=${!!wordLevel}`);
     }
   }
