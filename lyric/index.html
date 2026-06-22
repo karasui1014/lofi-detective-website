@@ -6,7 +6,7 @@
 <meta name="referrer" content="no-referrer">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://cdn.jsdelivr.net https://esm.sh https://*.esm.sh; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' https://cdn.jsdelivr.net https://esm.sh https://*.esm.sh https://huggingface.co https://*.huggingface.co https://*.hf.co; worker-src blob: 'self' https://cdn.jsdelivr.net https://esm.sh https://*.esm.sh; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'">
 <title>Lyric Telop Generator | 歌詞テロップ生成ツール</title>
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+PHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iNyIgZmlsbD0iIzdjM2FlZCIvPjx0ZXh0IHg9IjE2IiB5PSIyMyIgZm9udC1zaXplPSIxOSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iI2ZmZiIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtd2VpZ2h0PSJib2xkIj7lrZc8L3RleHQ+PC9zdmc+">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSI2NCIgeTI9IjY0IiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjOWI3Y2ZmIi8+PHN0b3Agb2Zmc2V0PSIuNSIgc3RvcC1jb2xvcj0iIzIyYzBkNiIvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iI2ZiNzE4NSIvPjwvbGluZWFyR3JhZGllbnQ+PGxpbmVhckdyYWRpZW50IGlkPSJzIiB4MT0iMCIgeTE9IjAiIHgyPSIwIiB5Mj0iNDIiIGdyYWRpZW50VW5pdHM9InVzZXJTcGFjZU9uVXNlIj48c3RvcCBvZmZzZXQ9IjAiIHN0b3AtY29sb3I9IiNmZmYiIHN0b3Atb3BhY2l0eT0iLjMwIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjZmZmIiBzdG9wLW9wYWNpdHk9IjAiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCB4PSIyIiB5PSIyIiB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHJ4PSIxNiIgZmlsbD0idXJsKCNnKSIvPjxyZWN0IHg9IjIiIHk9IjIiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcng9IjE2IiBmaWxsPSJ1cmwoI3MpIi8+PGcgZmlsbD0iI2ZmZiI+PHJlY3QgeD0iMTYiIHk9IjI2IiB3aWR0aD0iNSIgaGVpZ2h0PSIxMyIgcng9IjIuNSIgb3BhY2l0eT0iLjkyIi8+PHJlY3QgeD0iMjUiIHk9IjE4IiB3aWR0aD0iNSIgaGVpZ2h0PSIyMSIgcng9IjIuNSIvPjxyZWN0IHg9IjM0IiB5PSIyOCIgd2lkdGg9IjUiIGhlaWdodD0iMTEiIHJ4PSIyLjUiIG9wYWNpdHk9Ii44OCIvPjxyZWN0IHg9IjQzIiB5PSIyMiIgd2lkdGg9IjUiIGhlaWdodD0iMTciIHJ4PSIyLjUiIG9wYWNpdHk9Ii45NSIvPjwvZz48cmVjdCB4PSIxNiIgeT0iNDUiIHdpZHRoPSIzMiIgaGVpZ2h0PSI2IiByeD0iMyIgZmlsbD0iI2ZmZiIgb3BhY2l0eT0iLjk1Ii8+PC9zdmc+">
 <meta name="theme-color" content="#7c3aed">
 <meta name="description" content="音楽MVの歌詞テロップを自動で焼き込み出力。書体（フォント）を雰囲気別に選べる、誰でも使える字幕生成ツール。">
 <style>
@@ -234,7 +234,7 @@ details.adv[open]>summary::before{content:'▾';}
       <div class="logo-mark">🎬</div>
       <h1 class="hero-title">Lyric Telop Generator</h1>
       <div class="hero-eq" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
-      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build25</div>
+      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build26</div>
     </div>
   </header>
 
