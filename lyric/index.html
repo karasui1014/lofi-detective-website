@@ -50,15 +50,9 @@ header::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:1px
   background:linear-gradient(100deg,#76e9ff 0%,#b39bff 48%,#ff86d2 100%);
   -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;
   filter:drop-shadow(0 3px 22px rgba(124,58,237,.55));}
-.hero-eq{display:flex;align-items:flex-end;gap:3px;height:15px;}
-.hero-eq span{width:3px;height:5px;border-radius:2px;background:linear-gradient(var(--accent2),var(--accent));
-  animation:eqbar 1.1s ease-in-out infinite;}
-.hero-eq span:nth-child(2){animation-delay:.15s}.hero-eq span:nth-child(3){animation-delay:.3s}
-.hero-eq span:nth-child(4){animation-delay:.45s}.hero-eq span:nth-child(5){animation-delay:.6s}
-.hero-eq span:nth-child(6){animation-delay:.22s}.hero-eq span:nth-child(7){animation-delay:.48s}
-@keyframes eqbar{0%,100%{height:4px;opacity:.55}50%{height:15px;opacity:1}}
+.hero-rule{width:130px;height:3px;border-radius:2px;
+  background:linear-gradient(90deg,transparent,#9b7cff,#22c0d6,#fb7185,transparent);opacity:.85;}
 .hero-sub{font-size:.62rem;letter-spacing:.2em;color:var(--text-muted);text-transform:uppercase;}
-@media(prefers-reduced-motion:reduce){.hero-eq span{animation:none;height:9px}}
 
 /* Cards */
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
@@ -233,14 +227,13 @@ details.adv[open]>summary::before{content:'▾';}
     <div class="hero-inner">
       <div class="logo-mark">🎬</div>
       <h1 class="hero-title">Lyric Telop Generator</h1>
-      <div class="hero-eq" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
-      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build27</div>
+      <div class="hero-rule" aria-hidden="true"></div>
+      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build28</div>
     </div>
   </header>
 
   <div class="help-flow">
-    かんたん4ステップ：<b>①音源を入れる</b> → <b>②歌詞を入力</b>（正しい歌詞を貼り付け）→ <b>③タイミングを自動でつける</b> → <b>④完成動画を作る</b>（ソフト不要）<br>
-    <span style="color:var(--text-muted);">※あなたの入力歌詞はそのまま使い、タイミングだけ音源から自動でセット。誤字は出ません。</span>
+    かんたん4ステップ：<b>①音源を入れる</b> → <b>②歌詞を入力</b>（正しい歌詞を貼り付け）→ <b>③タイミングを自動生成</b> → <b>④完成動画を作る</b>（ソフト不要）
   </div>
 
   <div class="grid">
@@ -261,16 +254,16 @@ details.adv[open]>summary::before{content:'▾';}
       <div class="card nb-green">
         <div class="card-header"><span class="step-badge">2</span><span class="card-title">歌詞を入力<small>正しい歌詞を貼り付け →「歌詞を反映」</small></span></div>
         <textarea id="lyricsInput" placeholder="ここに歌詞を貼り付け／入力してください。&#10;&#10;・1行＝1テロップ&#10;・2行で見せたい所は スラッシュ /  を入れる（例：夜の街を歩いて/君を探してる）&#10;・空行は無視（連の区切りに使ってOK）&#10;&#10;入力できたら下の「歌詞を反映」を押してください。"></textarea>
-        <div class="notice" style="margin:.5rem 0 0;line-height:1.7;">💡 <b>テロップを2行にしたい所</b>は、歌詞の中に <b>/</b>（スラッシュ）を入れてください。その位置でぴったり改行します。例）<span style="color:var(--accent2);">愛してると言えずに/今日もすれ違う</span><br>※スペースを入れた所でも自動で折り返します。<b>語の途中では改行しません</b>（収まらない時は少し小さくなります）。</div>
+        <div class="notice" style="margin:.5rem 0 0;line-height:1.7;">💡 <b>テロップを2行にしたい所</b>は、歌詞の中に <b>/</b>（スラッシュ）か <b>スペース</b> を入れてください。その位置で改行します。例）<span style="color:var(--accent2);">愛してると言えずに/今日もすれ違う</span><br>※<b>語の途中では改行しません</b>（区切りが無く収まらない時は少し小さくなります）。</div>
         <div class="row" style="margin-top:.6rem;">
           <button class="btn btn-primary" id="applyLyrics">歌詞を反映</button>
           <span class="hint" id="lineCount"></span>
         </div>
 
         <div style="background:var(--surface3);border:1px solid rgba(34,197,94,.28);border-radius:var(--radius-sm);padding:.75rem .85rem;margin-top:.8rem;">
-          <div style="font-size:.8rem;color:var(--ok);font-weight:700;margin-bottom:.15rem;">🎯 音源からタイミングを自動でつける</div>
-          <div class="hint" style="margin-bottom:.55rem;line-height:1.7;">上の<b>正しい歌詞を「歌詞を反映」</b>したあとに押すと、<b>文字はそのまま</b>で各行のタイミングだけをAIが音源と照合してセットします（誤字は出ません）。</div>
-          <button class="btn" id="alignBtn" disabled style="width:100%;justify-content:center;font-size:.85rem;padding:.7rem;border-color:rgba(34,197,94,.45);color:var(--ok);">🎯 歌詞はそのまま・タイミングを自動でつける</button>
+          <div style="font-size:.8rem;color:var(--ok);font-weight:700;margin-bottom:.15rem;">🎯 タイミングを自動生成</div>
+          <div class="hint" style="margin-bottom:.55rem;line-height:1.85;"><b>①正しい歌詞を貼り付け</b> → <b>②「歌詞を反映」を押す</b> → <b>③「自動生成」を押す</b><br>文字はそのまま、各行のタイミングだけをAIが音源と照合してセットします（誤字は出ません）。</div>
+          <button class="btn" id="alignBtn" disabled style="width:100%;justify-content:center;font-size:.9rem;padding:.7rem;border-color:rgba(34,197,94,.45);color:var(--ok);">🎯 自動生成</button>
           <div id="alignProgress" style="display:none;margin-top:.5rem;">
             <div style="font-size:.68rem;color:var(--ok);margin-bottom:.3rem;" id="alignMsg">準備中…</div>
             <div style="background:var(--surface2);border-radius:4px;height:5px;overflow:hidden;">
@@ -455,6 +448,7 @@ const FONT_CATS = [
     { fam:'Zen Kaku Gothic New', gf:'Zen+Kaku+Gothic+New:wght@400;500;700', w:500, smp:'夜明けの歌' },
     { fam:'M PLUS Rounded 1c',   gf:'M+PLUS+Rounded+1c:wght@400;700;800',  w:700, smp:'まるい光' },
     { fam:'Dela Gothic One',     gf:'Dela+Gothic+One',                     w:400, smp:'衝動', single:true },
+    { fam:'BIZ UDPGothic',       gf:'BIZ+UDPGothic:wght@400;700',          w:700, smp:'始まりの朝' },
   ]},
   { cat:'明朝（情緒・文学的・ミステリー）', fonts:[
     { fam:'Shippori Mincho B1',  gf:'Shippori+Mincho+B1:wght@400;700;800', w:500, smp:'真実の影' },
@@ -464,11 +458,13 @@ const FONT_CATS = [
     { fam:'Yuji Syuku',          gf:'Yuji+Syuku',                          w:400, smp:'花の記憶', single:true },
     { fam:'Zen Kurenaido',       gf:'Zen+Kurenaido',                       w:400, smp:'手紙の続き', single:true },
     { fam:'Klee One',            gf:'Klee+One:wght@400;600',               w:400, smp:'放課後' },
+    { fam:'Yusei Magic',         gf:'Yusei+Magic',                         w:400, smp:'なんでもない日', single:true },
   ]},
   { cat:'レトロ・個性派（Lo-Fiの世界観）', fonts:[
     { fam:'DotGothic16',         gf:'DotGothic16',                         w:400, smp:'8bitの街', single:true },
     { fam:'Reggae One',          gf:'Reggae+One',                          w:400, smp:'NIGHT CITY', single:true },
     { fam:'RocknRoll One',       gf:'RocknRoll+One',                       w:400, smp:'反逆のうた', single:true },
+    { fam:'Hachi Maru Pop',      gf:'Hachi+Maru+Pop',                      w:400, smp:'ゆめみ心地', single:true },
   ]},
 ];
 const ALL_FONTS = FONT_CATS.flatMap(c=>c.fonts);
