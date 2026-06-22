@@ -234,7 +234,7 @@ details.adv[open]>summary::before{content:'▾';}
       <div class="logo-mark">🎬</div>
       <h1 class="hero-title">Lyric Telop Generator</h1>
       <div class="hero-eq" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
-      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build24</div>
+      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build25</div>
     </div>
   </header>
 
@@ -562,10 +562,19 @@ function draw(){
     if(pv) renderText(pv, 1);
   }
 }
-// プレビュー用に表示する1行（クリックした行→なければ最初の非空行）
+// プレビュー用に表示する1行。編集中はテキストエリアでカーソルがある行を
+// そのまま（/ 含めて）即時表示するので、手直しがすぐ反映される。
 function pickPreviewLine(){
+  const ta=$('lyricsInput');
+  if(ta && ta.value.trim()){
+    const lines=ta.value.split('\n');
+    const idx=Math.min(Math.max(0,previewIdx), lines.length-1);
+    if(lines[idx] && lines[idx].trim()) return lines[idx];
+    for(let i=idx;i<lines.length;i++) if(lines[i] && lines[i].trim()) return lines[i];
+    for(let i=idx;i>=0;i--) if(lines[i] && lines[i].trim()) return lines[i];
+  }
   if(!lyrics.length) return '';
-  for(let i=previewIdx;i<lyrics.length;i++) if(lyrics[i].text.trim()) return lyrics[i].text;
+  for(let i=previewIdx;i<lyrics.length;i++) if(lyrics[i] && lyrics[i].text.trim()) return lyrics[i].text;
   const f=lyrics.find(l=>l.text.trim()); return f?f.text:'';
 }
 
@@ -657,30 +666,18 @@ function splitTwo(text){
 // ユーザーが歌詞内に入れた区切り記号( / ／ | ｜ )で手動改行。無ければ[元のまま]
 const BREAK_MARK=/\s*[／\/｜|]\s*/;
 function manualRows(text){ return String(text).split(BREAK_MARK).map(s=>s.trim()).filter(s=>s.length); }
+// 自動では改行しない（勝手な崩れを防止）。収まるまで縮小して常に1行。2行にしたい所は手動 / で。
 function fitHorizontal(text, baseFpx, maxW){
   text=text.replace(/\s*\n\s*/g,' ').trim();
   const w=measureAt(text,baseFpx);
-  if(w<=maxW) return {lines:[text], fpx:baseFpx};       // 1行で収まる→そのまま大きく
-  const need=baseFpx*(maxW/w);                          // 1行に収める推定サイズ
-  // 手動改行が基本なので、自動では極力1行を維持（60%まで縮小）。それ未満なら保険で2行
-  if(need>=baseFpx*0.60) return {lines:[text], fpx:need*0.99};
-  const two=splitTwo(text);
-  if(two.length<2) return {lines:[text], fpx:Math.max(baseFpx*0.4, need*0.99)};
-  const wide=Math.max(measureAt(two[0],baseFpx), measureAt(two[1],baseFpx));
-  if(wide<=maxW) return {lines:two, fpx:baseFpx};
-  return {lines:two, fpx:Math.max(baseFpx*0.45, baseFpx*(maxW/wide)*0.98)};
+  if(w<=maxW) return {lines:[text], fpx:baseFpx};
+  return {lines:[text], fpx:Math.max(baseFpx*0.30, baseFpx*(maxW/w)*0.99)};
 }
-// ── 自動フィット（縦）：1列で収まればそのまま。少しの超過だけ縮め、それ以上は2列へ ──
+// 縦も同様：自動では列を増やさず1列に収める。複数列にしたい所は手動 / で。
 function fitVertical(chars, baseFpx, maxH){
   const n=chars.length||1, h=n*(baseFpx*1.05);
   if(h<=maxH) return {cols:[chars], fpx:baseFpx};
-  const need=baseFpx*(maxH/h);
-  if(need>=baseFpx*0.92) return {cols:[chars], fpx:need*0.99};
-  const half=Math.ceil(n/2);
-  const cols=[chars.slice(0,half), chars.slice(half)];
-  const tallest=half*(baseFpx*1.05);
-  if(tallest<=maxH) return {cols, fpx:baseFpx};
-  return {cols, fpx:Math.max(baseFpx*0.5, baseFpx*(maxH/tallest)*0.98)};
+  return {cols:[chars], fpx:Math.max(baseFpx*0.30, baseFpx*(maxH/h)*0.99)};
 }
 // 縦書きで回転すべき文字（括弧・長音・ダッシュ）と、右上に寄せる句読点
 const VERT_ROTATE=/[ー…―—‐－−〜～（）()「」『』【】〔〕〈〉《》｛｝\[\]{}｜|]/;
@@ -857,7 +854,6 @@ function applyLyrics(){
   // 行の位置(index)でタイミングを引き継ぐ → 文字を直しても時刻は保持される
   lyrics = raw.map((text,i)=>({ text, t: old[i] ? old[i].t : null }));
   tapCursor = lyrics.findIndex(l=>l.t==null); if(tapCursor<0) tapCursor=lyrics.length;
-  previewIdx = 0;   // 反映後はプレビューに先頭行を表示
   $('lineCount').textContent = `${lyrics.length}行`;
   renderLines(); updateTapTarget(); draw();
   updateExportBtns();
@@ -1142,6 +1138,14 @@ function bindControls(){
   $('applyLyrics').onclick=applyLyrics;
   $('alignBtn').onclick=alignLyricsToAudio;
   $('playBtn2').onclick=togglePlay;
+  // 入力欄：カーソルのある行をプレビューに即時表示＋自動で反映（手直しがすぐ見える）
+  (function(){
+    const ta=$('lyricsInput'); if(!ta) return;
+    const onCaret=()=>{ const p=ta.selectionStart||0; previewIdx=ta.value.slice(0,p).split('\n').length-1; if(audio.paused) draw(); };
+    ['keyup','click','focus'].forEach(ev=>ta.addEventListener(ev,onCaret));
+    let t=null;
+    ta.addEventListener('input',()=>{ onCaret(); clearTimeout(t); t=setTimeout(applyLyrics,350); });
+  })();
   audio.onplay=syncPlayBtns; audio.onpause=syncPlayBtns;
   $('seek').oninput=e=>{ if(audio.duration){ audio.currentTime=e.target.value/100*audio.duration; if(hasBgVideo)bgVideo.currentTime=audio.currentTime; } };
 
