@@ -234,7 +234,7 @@ details.adv[open]>summary::before{content:'▾';}
       <div class="logo-mark">🎬</div>
       <h1 class="hero-title">Lyric Telop Generator</h1>
       <div class="hero-eq" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
-      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build26</div>
+      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build27</div>
     </div>
   </header>
 
@@ -261,7 +261,7 @@ details.adv[open]>summary::before{content:'▾';}
       <div class="card nb-green">
         <div class="card-header"><span class="step-badge">2</span><span class="card-title">歌詞を入力<small>正しい歌詞を貼り付け →「歌詞を反映」</small></span></div>
         <textarea id="lyricsInput" placeholder="ここに歌詞を貼り付け／入力してください。&#10;&#10;・1行＝1テロップ&#10;・2行で見せたい所は スラッシュ /  を入れる（例：夜の街を歩いて/君を探してる）&#10;・空行は無視（連の区切りに使ってOK）&#10;&#10;入力できたら下の「歌詞を反映」を押してください。"></textarea>
-        <div class="notice" style="margin:.5rem 0 0;line-height:1.7;">💡 <b>テロップを2行にしたい所</b>は、歌詞の中に <b>/</b>（スラッシュ）を入れてください。その位置でぴったり改行します。例）<span style="color:var(--accent2);">愛してると言えずに/今日もすれ違う</span></div>
+        <div class="notice" style="margin:.5rem 0 0;line-height:1.7;">💡 <b>テロップを2行にしたい所</b>は、歌詞の中に <b>/</b>（スラッシュ）を入れてください。その位置でぴったり改行します。例）<span style="color:var(--accent2);">愛してると言えずに/今日もすれ違う</span><br>※スペースを入れた所でも自動で折り返します。<b>語の途中では改行しません</b>（収まらない時は少し小さくなります）。</div>
         <div class="row" style="margin-top:.6rem;">
           <button class="btn btn-primary" id="applyLyrics">歌詞を反映</button>
           <span class="hint" id="lineCount"></span>
@@ -526,7 +526,8 @@ function activeLineAt(t){
     ? audio.duration : (timed[timed.length-1].t + 6);
   for(let k=0;k<timed.length;k++){
     const cur=timed[k], next=timed[k+1];
-    const end = next ? next.t : Math.max(songEnd, cur.t + 6); // 最終行は曲尾まで保持
+    // 最終行は最大8秒で消す（長い間奏でも残り続けない／曲が早く終わればそこまで）
+    const end = next ? next.t : Math.min(songEnd, cur.t + 8);
     if(t>=cur.t && t<end) return {line:cur, start:cur.t, end, last:!next};
   }
   return null;
@@ -555,9 +556,12 @@ function draw(){
     renderText(act.line.text, a);
     return;
   }
-  // タイミング未設定、または停止中で該当行がないときは、確認用に1行プレビュー表示
+  // 確認用プレビュー：編集中／タイミング未設定／一時停止中だけ。
+  // 曲が最後まで終わったら歌詞は残さない（最終行はフェードアウト済み）。
   const hasTiming = lyrics.some(l=>l.t!=null);
-  if(!hasTiming || audio.paused){
+  const lin=$('lyricsInput');
+  const editing = lin && document.activeElement===lin;
+  if(!hasTiming || (audio.paused && (!audio.ended || editing))){
     const pv = pickPreviewLine();
     if(pv) renderText(pv, 1);
   }
@@ -666,18 +670,46 @@ function splitTwo(text){
 // ユーザーが歌詞内に入れた区切り記号( / ／ | ｜ )で手動改行。無ければ[元のまま]
 const BREAK_MARK=/\s*[／\/｜|]\s*/;
 function manualRows(text){ return String(text).split(BREAK_MARK).map(s=>s.trim()).filter(s=>s.length); }
-// 自動では改行しない（勝手な崩れを防止）。収まるまで縮小して常に1行。2行にしたい所は手動 / で。
-function fitHorizontal(text, baseFpx, maxW){
-  text=text.replace(/\s*\n\s*/g,' ').trim();
-  const w=measureAt(text,baseFpx);
-  if(w<=maxW) return {lines:[text], fpx:baseFpx};
-  return {lines:[text], fpx:Math.max(baseFpx*0.30, baseFpx*(maxW/w)*0.99)};
+// スペースでのみ折り返す（語の途中では絶対に切らない）。スペースが無ければ1行のまま。
+function wrapBySpaceH(seg, fpx, maxW){
+  const words=seg.split(/[\s　]+/).filter(w=>w.length);
+  if(words.length<=1) return [seg];
+  const lines=[]; let cur='';
+  for(const w of words){
+    const test=cur?cur+' '+w:w;
+    if(cur && measureAt(test,fpx)>maxW){ lines.push(cur); cur=w; } else cur=test;
+  }
+  if(cur) lines.push(cur);
+  return lines.length?lines:[seg];
 }
-// 縦も同様：自動では列を増やさず1列に収める。複数列にしたい所は手動 / で。
-function fitVertical(chars, baseFpx, maxH){
-  const n=chars.length||1, h=n*(baseFpx*1.05);
-  if(h<=maxH) return {cols:[chars], fpx:baseFpx};
-  return {cols:[chars], fpx:Math.max(baseFpx*0.30, baseFpx*(maxH/h)*0.99)};
+// 横：手動 / で確定改行＋スペースで折り返し。長い1語だけの時は縮小（語は割らない）。
+function fitHorizontal(text, baseFpx, maxW){
+  let base=manualRows(text); if(!base.length) base=[text.replace(/\s*\n\s*/g,' ').trim()];
+  let rows=[]; for(const s of base) rows.push(...wrapBySpaceH(s, baseFpx, maxW));
+  if(!rows.length) rows=[text];
+  const wide=Math.max(...rows.map(r=>measureAt(r,baseFpx)));
+  const fpx = wide<=maxW ? baseFpx : Math.max(baseFpx*0.30, baseFpx*(maxW/wide)*0.99);
+  return {lines:rows, fpx};
+}
+// 縦：手動 / とスペースで列に分割（語の途中では切らない）。列が高すぎる時だけ縮小。
+function colsBySpaceV(seg, fpx, maxH){
+  const words=seg.split(/[\s　]+/).filter(w=>w.length);
+  if(words.length<=1) return [[...seg]];
+  const cap=Math.max(1, Math.floor(maxH/(fpx*1.05)));
+  const cols=[]; let cur='';
+  for(const w of words){
+    if(cur && [...(cur+w)].length>cap){ cols.push([...cur]); cur=w; } else cur+=w;
+  }
+  if(cur) cols.push([...cur]);
+  return cols.length?cols:[[...seg]];
+}
+function fitVertical(text, baseFpx, maxH){
+  let base=manualRows(text); if(!base.length) base=[String(text).replace(/\s*\n\s*/g,'').trim()];
+  let cols=[]; for(const s of base) cols.push(...colsBySpaceV(s, baseFpx, maxH));
+  if(!cols.length) cols=[[...String(text)]];
+  const tall=Math.max(...cols.map(c=>c.length))*(baseFpx*1.05);
+  const fpx = tall<=maxH ? baseFpx : Math.max(baseFpx*0.30, baseFpx*(maxH/tall)*0.99);
+  return {cols, fpx};
 }
 // 縦書きで回転すべき文字（括弧・長音・ダッシュ）と、右上に寄せる句読点
 const VERT_ROTATE=/[ー…―—‐－−〜～（）()「」『』【】〔〕〈〉《》｛｝\[\]{}｜|]/;
@@ -694,15 +726,8 @@ function paintVChar(ch,x,y,fpx){
 
 function drawHorizontal(text,W,H,baseFpx){
   const margin=H*0.07, maxW=W-margin*2;
-  const manual=manualRows(text);
-  let rows, fpx;
-  if(manual.length>=2){           // ユーザー指定の改行を尊重（自動分割しない）
-    rows=manual;
-    const wide=Math.max(...rows.map(r=>measureAt(r,baseFpx)));
-    fpx = wide<=maxW ? baseFpx : Math.max(baseFpx*0.35, baseFpx*(maxW/wide)*0.98);
-  } else {
-    const fit=fitHorizontal(text, baseFpx, maxW); rows=fit.lines; fpx=fit.fpx;
-  }
+  const fit=fitHorizontal(text, baseFpx, maxW);   // 手動 / ＋スペース折り返しを内包
+  const rows=fit.lines, fpx=fit.fpx;
   const lh=fpx*1.32;
   ctx.font=`${state.weight} ${fpx}px '${state.font.fam}', sans-serif`;
   const blockH=rows.length*lh;
@@ -722,17 +747,9 @@ function drawHorizontal(text,W,H,baseFpx){
 
 function drawVertical(text,W,H,baseFpx){
   const margin=H*0.07, maxH=H-margin*2;
-  const manual=manualRows(text);
-  let cols, fpx;
-  if(manual.length>=2){           // 指定改行は「列」として右→左に並べる
-    cols=manual.map(s=>[...s]);
-    const tallest=Math.max(...cols.map(c=>c.length))*(baseFpx*1.05);
-    fpx = tallest<=maxH ? baseFpx : Math.max(baseFpx*0.35, baseFpx*(maxH/tallest)*0.98);
-  } else {
-    const chars=[...text.replace(/\s*\n\s*/g,'').trim()];
-    if(!chars.length) return;
-    const fit=fitVertical(chars, baseFpx, maxH); cols=fit.cols; fpx=fit.fpx;
-  }
+  const fit=fitVertical(text, baseFpx, maxH);      // 手動 / ＋スペースで列分割を内包
+  const cols=fit.cols, fpx=fit.fpx;
+  if(!cols.length) return;
   const chH=fpx*1.05, colW=fpx*1.5;
   ctx.font=`${state.weight} ${fpx}px '${state.font.fam}', sans-serif`;
   ctx.textAlign='center';
