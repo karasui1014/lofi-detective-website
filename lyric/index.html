@@ -228,7 +228,7 @@ details.adv[open]>summary::before{content:'▾';}
       <div class="logo-mark">🎬</div>
       <h1 class="hero-title">Lyric Telop Generator</h1>
       <div class="hero-rule" aria-hidden="true"></div>
-      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build32</div>
+      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build33</div>
     </div>
   </header>
 
@@ -1323,6 +1323,26 @@ function lcsMatches(A,B){
   }
   return pairs;
 }
+// 文字数ペースから大きく外れたアンカー（時刻がブレた行）を間引く＝表示間隔のバラつきを抑える。
+// 「間隔バラバラ」はたいてい1つのズレたアンカーが原因なので、近傍の傾向から外れた点を順に除去する。
+function rejectAnchorOutliers(lineTime, sidx, cum){
+  if(sidx.length<3) return sidx;
+  let idx=sidx.slice(), changed=true;
+  while(idx.length>=3 && changed){
+    changed=false;
+    const g=(lineTime[idx[idx.length-1]]-lineTime[idx[0]])/Math.max(1e-6,(cum[idx[idx.length-1]]-cum[idx[0]]));
+    let worst=-1,worstDev=0;
+    for(let k=1;k<idx.length-1;k++){
+      const L=idx[k-1],M=idx[k],R=idx[k+1];
+      const exp=lineTime[L]+(lineTime[R]-lineTime[L])*((cum[M]-cum[L])/Math.max(1e-6,(cum[R]-cum[L])));
+      const dev=Math.abs(lineTime[M]-exp);
+      const tol=Math.max(1.2, Math.abs(g)*(cum[R]-cum[L])*0.4);   // 隣接区間の半分程度を超えたら外れ値
+      if(dev>tol && dev>worstDev){ worstDev=dev; worst=k; }
+    }
+    if(worst>=0){ idx.splice(worst,1); changed=true; }
+  }
+  return idx;
+}
 // アンカー(一致行)の間を埋めて全行に時刻を入れる。
 // 未一致(=AIが拾えなかった)行は、行の文字数で時間を按分＝長い行ほど長く取る。
 // これで「途中で遅れて出る/早く出る」を軽減。
@@ -1394,16 +1414,22 @@ function applyAlignment(chunks, wordLevel){
         lineTime[li]=Math.max(0, t0 - rate*p0);                 // 行頭へ外挿（歌い出し）
         const lastPos=Math.max(0, normLen(lineTexts[li])-1);
         lineEnd[li]=tL + rate*Math.max(0, lastPos-pL);          // 行末へ外挿（歌い終わり）
-        solid[li]=m.length>=2;   // 2文字以上一致＝時刻が信頼できるアンカー（1文字だけは時刻がブレやすい）
+        solid[li]=m.length>=2;   // 2文字以上一致＝時刻が比較的信頼できる候補（1文字だけは時刻がブレやすい）
       }
-      const matched=perLine.filter(m=>m.length).length, nSolid=solid.filter(Boolean).length;
+      const matched=perLine.filter(m=>m.length).length;
       const weights=lineTexts.map(t=>normLen(t)||1);  // 文字数で時間按分
-      // 信頼アンカーが十分あるときは、1文字だけ一致のブレやすい行を捨てて文字数比で均等補間する。
-      // （序盤はAIが数文字しか拾えず、ブレた1文字に引っぱられて「間隔バラバラ」になりがちなため）
+      const cum=new Array(N+1); cum[0]=0; for(let i=0;i<N;i++) cum[i+1]=cum[i]+Math.max(0.3,weights[i]);
+      // ①1文字だけ一致のブレやすい行を候補から外す → ②文字数ペースから外れたアンカーも間引く。
+      // 残った信頼アンカーの間を文字数比で均等補間するので、序盤の「間隔バラバラ」を抑えられる。
+      let sidx=[]; for(let i=0;i<N;i++) if(solid[i] && lineTime[i]!=null) sidx.push(i);
+      sidx=rejectAnchorOutliers(lineTime, sidx, cum);
       const anchors=lineTime.slice();
-      if(nSolid>=2){ for(let i=0;i<N;i++) if(!solid[i]){ anchors[i]=null; lineEnd[i]=null; } }
+      if(sidx.length>=2){
+        const keep=new Set(sidx);
+        for(let i=0;i<N;i++) if(!keep.has(i)){ anchors[i]=null; lineEnd[i]=null; }
+      }
       if(fillLineTimes(anchors,totalDur,weights)) times=anchors;
-      console.log(`alignment: ${matched}/${N} 行一致 (信頼アンカー${nSolid}) / wordLevel=${!!wordLevel}`);
+      console.log(`alignment: ${matched}/${N} 行一致 (採用アンカー${sidx.length}) / wordLevel=${!!wordLevel}`);
     }
   }
   if(!times) times=proportionalTimes(lineTexts,chunks,totalDur);
