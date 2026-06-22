@@ -1,4 +1,4 @@
-const CACHE = 'sb-gen-v3';
+const CACHE = 'sb-gen-v4';
 const ASSETS = [
   './storyboard.html',
   './manifest.json',
