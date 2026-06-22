@@ -6,7 +6,7 @@
 <meta name="referrer" content="no-referrer">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://cdn.jsdelivr.net https://esm.sh https://*.esm.sh; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' https://cdn.jsdelivr.net https://esm.sh https://*.esm.sh https://huggingface.co https://*.huggingface.co https://*.hf.co; worker-src blob: 'self' https://cdn.jsdelivr.net https://esm.sh https://*.esm.sh; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'">
 <title>Lyric Telop Generator | 歌詞テロップ生成ツール</title>
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSI2NCIgeTI9IjY0IiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjOWI3Y2ZmIi8+PHN0b3Agb2Zmc2V0PSIuNSIgc3RvcC1jb2xvcj0iIzIyYzBkNiIvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iI2ZiNzE4NSIvPjwvbGluZWFyR3JhZGllbnQ+PGxpbmVhckdyYWRpZW50IGlkPSJzIiB4MT0iMCIgeTE9IjAiIHgyPSIwIiB5Mj0iNDIiIGdyYWRpZW50VW5pdHM9InVzZXJTcGFjZU9uVXNlIj48c3RvcCBvZmZzZXQ9IjAiIHN0b3AtY29sb3I9IiNmZmYiIHN0b3Atb3BhY2l0eT0iLjMwIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjZmZmIiBzdG9wLW9wYWNpdHk9IjAiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCB4PSIyIiB5PSIyIiB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHJ4PSIxNiIgZmlsbD0idXJsKCNnKSIvPjxyZWN0IHg9IjIiIHk9IjIiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcng9IjE2IiBmaWxsPSJ1cmwoI3MpIi8+PGcgZmlsbD0iI2ZmZiI+PHJlY3QgeD0iMTYiIHk9IjI2IiB3aWR0aD0iNSIgaGVpZ2h0PSIxMyIgcng9IjIuNSIgb3BhY2l0eT0iLjkyIi8+PHJlY3QgeD0iMjUiIHk9IjE4IiB3aWR0aD0iNSIgaGVpZ2h0PSIyMSIgcng9IjIuNSIvPjxyZWN0IHg9IjM0IiB5PSIyOCIgd2lkdGg9IjUiIGhlaWdodD0iMTEiIHJ4PSIyLjUiIG9wYWNpdHk9Ii44OCIvPjxyZWN0IHg9IjQzIiB5PSIyMiIgd2lkdGg9IjUiIGhlaWdodD0iMTciIHJ4PSIyLjUiIG9wYWNpdHk9Ii45NSIvPjwvZz48cmVjdCB4PSIxNiIgeT0iNDUiIHdpZHRoPSIzMiIgaGVpZ2h0PSI2IiByeD0iMyIgZmlsbD0iI2ZmZiIgb3BhY2l0eT0iLjk1Ii8+PC9zdmc+">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+PHJlY3QgeD0iMiIgeT0iMiIgd2lkdGg9IjYwIiBoZWlnaHQ9IjYwIiByeD0iMTQiIGZpbGw9IiNlZmU2ZDMiLz48ZyBmaWxsPSIjOWZiNGNiIj48cGF0aCBkPSJNMzEgMzAgTDU4IDI5LjUgTDQ5IDMzIEw1NiAzNiBMNDUgMzcuNSBMMzEgMzggWiIvPjxwYXRoIGQ9Ik0zMyAzMCBMNiAyOS41IEwxNSAzMyBMOCAzNiBMMTkgMzcuNSBMMzMgMzggWiIvPjwvZz48cmVjdCB4PSIyOC40IiB5PSIxMS41IiB3aWR0aD0iNy4yIiBoZWlnaHQ9IjIzLjUiIHJ4PSIzLjQiIGZpbGw9IiM2ZTUxM2EiLz48cmVjdCB4PSIyOC40IiB5PSIxNS44IiB3aWR0aD0iNy4yIiBoZWlnaHQ9IjIuMyIgZmlsbD0iI2NhYTI0YyIvPjxyZWN0IHg9IjI4LjQiIHk9IjMwIiB3aWR0aD0iNy4yIiBoZWlnaHQ9IjIuNSIgZmlsbD0iI2NhYTI0YyIvPjxwYXRoIGQ9Ik0yOC42IDM0LjUgTDM1LjQgMzQuNSBMMzIgNTEuNSBaIiBmaWxsPSIjOWFhMGE3Ii8+PHBhdGggZD0iTTMyIDM2LjUgTDMyIDQ4LjUiIHN0cm9rZT0iIzVmNjQ2OSIgc3Ryb2tlLXdpZHRoPSIwLjkiLz48Y2lyY2xlIGN4PSIzMiIgY3k9IjQwIiByPSIxLjEiIGZpbGw9IiM1ZjY0NjkiLz48cGF0aCBkPSJNNDUgMTUgbDAuOSAyLjggMi44IDAuOSAtMi44IDAuOSAtMC45IDIuOCAtMC45IC0yLjggLTIuOCAtMC45IDIuOCAtMC45IHoiIGZpbGw9IiMzYTNhM2EiIG9wYWNpdHk9Ii41Ii8+PC9zdmc+">
 <meta name="theme-color" content="#7c3aed">
 <meta name="description" content="音楽MVの歌詞テロップを自動で焼き込み出力。書体（フォント）を雰囲気別に選べる、誰でも使える字幕生成ツール。">
 <style>
@@ -228,7 +228,7 @@ details.adv[open]>summary::before{content:'▾';}
       <div class="logo-mark">🎬</div>
       <h1 class="hero-title">Lyric Telop Generator</h1>
       <div class="hero-rule" aria-hidden="true"></div>
-      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build28</div>
+      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build29</div>
     </div>
   </header>
 
@@ -253,16 +253,15 @@ details.adv[open]>summary::before{content:'▾';}
       <!-- Step 2: Lyrics -->
       <div class="card nb-green">
         <div class="card-header"><span class="step-badge">2</span><span class="card-title">歌詞を入力<small>正しい歌詞を貼り付け →「歌詞を反映」</small></span></div>
-        <textarea id="lyricsInput" placeholder="ここに歌詞を貼り付け／入力してください。&#10;&#10;・1行＝1テロップ&#10;・2行で見せたい所は スラッシュ /  を入れる（例：夜の街を歩いて/君を探してる）&#10;・空行は無視（連の区切りに使ってOK）&#10;&#10;入力できたら下の「歌詞を反映」を押してください。"></textarea>
-        <div class="notice" style="margin:.5rem 0 0;line-height:1.7;">💡 <b>テロップを2行にしたい所</b>は、歌詞の中に <b>/</b>（スラッシュ）か <b>スペース</b> を入れてください。その位置で改行します。例）<span style="color:var(--accent2);">愛してると言えずに/今日もすれ違う</span><br>※<b>語の途中では改行しません</b>（区切りが無く収まらない時は少し小さくなります）。</div>
-        <div class="row" style="margin-top:.6rem;">
-          <button class="btn btn-primary" id="applyLyrics">歌詞を反映</button>
+        <textarea id="lyricsInput" placeholder="ここに歌詞を貼り付け／入力してください。&#10;&#10;・1行＝1テロップ&#10;・2行で見せたい所は スラッシュ /  かスペースを入れる（例：夜の街を歩いて/君を探してる）&#10;・空行は無視（連の区切りに使ってOK）&#10;&#10;入力した歌詞は自動で反映されます。"></textarea>
+        <div class="notice" style="margin:.5rem 0 0;line-height:1.7;">💡 <b>テロップを2行にしたい所</b>は、歌詞の中に <b>/</b>（スラッシュ）か <b>スペース</b> を入れてください。その位置で改行します。例）<span style="color:var(--accent2);">愛してると言えずに/今日もすれ違う</span></div>
+        <div class="row" style="margin-top:.4rem;justify-content:flex-end;">
           <span class="hint" id="lineCount"></span>
         </div>
 
         <div style="background:var(--surface3);border:1px solid rgba(34,197,94,.28);border-radius:var(--radius-sm);padding:.75rem .85rem;margin-top:.8rem;">
           <div style="font-size:.8rem;color:var(--ok);font-weight:700;margin-bottom:.15rem;">🎯 タイミングを自動生成</div>
-          <div class="hint" style="margin-bottom:.55rem;line-height:1.85;"><b>①正しい歌詞を貼り付け</b> → <b>②「歌詞を反映」を押す</b> → <b>③「自動生成」を押す</b><br>文字はそのまま、各行のタイミングだけをAIが音源と照合してセットします（誤字は出ません）。</div>
+          <div class="hint" style="margin-bottom:.55rem;line-height:1.85;"><b>①正しい歌詞を貼り付け</b> → <b>②「自動生成」を押すだけ</b><br>文字はそのまま、各行のタイミングだけをAIが音源と照合してセットします（誤字は出ません）。</div>
           <button class="btn" id="alignBtn" disabled style="width:100%;justify-content:center;font-size:.9rem;padding:.7rem;border-color:rgba(34,197,94,.45);color:var(--ok);">🎯 自動生成</button>
           <div id="alignProgress" style="display:none;margin-top:.5rem;">
             <div style="font-size:.68rem;color:var(--ok);margin-bottom:.3rem;" id="alignMsg">準備中…</div>
@@ -1148,7 +1147,6 @@ function bindControls(){
   dz.ondragleave=()=>dz.classList.remove('drag-over');
   dz.ondrop=e=>{e.preventDefault();dz.classList.remove('drag-over');loadAudio(e.dataTransfer.files[0]);};
 
-  $('applyLyrics').onclick=applyLyrics;
   $('alignBtn').onclick=alignLyricsToAudio;
   $('playBtn2').onclick=togglePlay;
   // 入力欄：カーソルのある行をプレビューに即時表示＋自動で反映（手直しがすぐ見える）
