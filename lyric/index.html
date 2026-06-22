@@ -228,7 +228,7 @@ details.adv[open]>summary::before{content:'▾';}
       <div class="logo-mark">🎬</div>
       <h1 class="hero-title">Lyric Telop Generator</h1>
       <div class="hero-rule" aria-hidden="true"></div>
-      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build33</div>
+      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build34</div>
     </div>
   </header>
 
@@ -261,7 +261,7 @@ details.adv[open]>summary::before{content:'▾';}
 
         <div style="background:var(--surface3);border:1px solid rgba(34,197,94,.28);border-radius:var(--radius-sm);padding:.75rem .85rem;margin-top:.8rem;">
           <div style="font-size:.8rem;color:var(--ok);font-weight:700;margin-bottom:.15rem;">🎯 タイミングを自動生成</div>
-          <div class="hint" style="margin-bottom:.55rem;line-height:1.85;"><b>①正しい歌詞を貼り付け</b> → <b>②「自動生成」を押すだけ</b><br>文字はそのまま、各行のタイミングだけをAIが音源と照合してセットします（誤字は出ません）。</div>
+          <div class="hint" style="margin-bottom:.55rem;line-height:1.85;"><b>①正しい歌詞を貼り付け</b> → <b>②「自動生成」を押すだけ</b><br>文字はそのまま、各行のタイミングだけをAIが音源と照合してセットします（誤字は出ません）。<br><b>序盤がズレる時</b>は、下の「1行目を手で合わせる」で直せます。</div>
           <button class="btn" id="alignBtn" disabled style="width:100%;justify-content:center;font-size:.9rem;padding:.7rem;border-color:rgba(34,197,94,.45);color:var(--ok);">🎯 自動生成</button>
           <div id="alignProgress" style="display:none;margin-top:.5rem;">
             <div style="font-size:.68rem;color:var(--ok);margin-bottom:.3rem;" id="alignMsg">準備中…</div>
@@ -271,6 +271,14 @@ details.adv[open]>summary::before{content:'▾';}
           </div>
           <div id="alignWarn" style="display:none;margin-top:.55rem;font-size:.74rem;color:#ffd24d;background:rgba(245,158,11,.10);border:1px solid rgba(245,158,11,.5);border-radius:8px;padding:.6rem .75rem;line-height:1.7;box-shadow:0 0 16px -7px rgba(245,158,11,.5);">
             ⚠️ <b>処理には数分かかることがあります。</b>終わるまで<b>このページを離れないでください</b>（タブ／アプリの切り替えで失敗します）。そのままお待ちください。
+          </div>
+          <div id="tapFirstWrap" style="display:none;margin-top:.65rem;background:var(--surface2);border:1px solid rgba(34,197,94,.32);border-radius:8px;padding:.6rem .8rem;">
+            <div class="ctrl-label" style="margin-bottom:.35rem;"><span style="color:var(--ok);font-weight:700;">🎯 1行目のタイミングを手で合わせる</span></div>
+            <div class="hint" style="margin-bottom:.55rem;line-height:1.75;">序盤がズレる時に。<b>▶で再生</b>して、<b>1行目を歌い始めた瞬間に「ここ！」</b>を押すと、最初の数行のタイミングを合わせ直します（押すのは1回でOK／その先は変わりません）。</div>
+            <div class="row" style="gap:.45rem;align-items:stretch;">
+              <button class="btn btn-accent2" id="tapPlayBtn" style="flex:0 0 auto;padding:.55rem .9rem;font-size:1rem;">▶</button>
+              <button class="btn" id="tapFirstBtn" style="flex:1;justify-content:center;font-weight:700;border-color:rgba(34,197,94,.5);color:var(--ok);">👆 ここ！（1行目）</button>
+            </div>
           </div>
           <div class="ctrl" id="offsetWrap" style="margin-top:.65rem;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.6rem .8rem;">
             <div class="ctrl-label"><span>⏱ 出るタイミング微調整<span class="hint" style="margin-left:.4rem;">←早く出す／遅く出す→</span></span><b id="vOffset">0.00s</b></div>
@@ -490,6 +498,7 @@ const state = {
 let lyrics = [];      // [{text, t:Number|null}]
 let tapCursor = 0;
 let previewIdx = 0;   // プレビューで表示する行（タイミング前の確認用）
+let keptAnchorIdx = [];   // 自動生成で採用した信頼アンカーの行番号（1行目タップ合わせの基準点に使う）
 let bgImage = null;   // HTMLImageElement
 let hasBgVideo = false;
 
@@ -934,7 +943,35 @@ function togglePlay(){
   if(audio.paused){ audio.play(); if(state.bg==='video'&&hasBgVideo){ bgVideo.currentTime=audio.currentTime; bgVideo.play(); } }
   else { audio.pause(); bgVideo.pause(); }
 }
-function syncPlayBtns(){ $('playBtn2').textContent=audio.paused?'▶':'⏸'; }
+function syncPlayBtns(){ const s=audio.paused?'▶':'⏸'; $('playBtn2').textContent=s; const tp=$('tapPlayBtn'); if(tp) tp.textContent=s; }
+
+// 1行目をタップで合わせる：序盤がズレる時、1行目が出る瞬間に押すと最初の数行を合わせ直す。
+// タップ時刻=1行目の開始。そこから「最初の信頼アンカー」までを文字数比で配置し直し、その先は据え置く。
+function setFirstLineByTap(){
+  if(!lyrics.length || !lyrics.some(l=>l.text.trim())){ toast('先に歌詞を入力してください'); return; }
+  if(!lyrics.some(l=>l.t!=null)){ toast('先に「自動生成」を押してください'); return; }
+  audio.pause();
+  const T0=Math.max(0,(audio.currentTime||0)-0.18);  // タップの反応遅れを少し補正
+  // 1行目より後ろの「信頼できる基準点」を探す（そこまでを再配置、その先は触らない）
+  let endIdx=null;
+  for(const i of keptAnchorIdx){ if(i>=1 && lyrics[i] && lyrics[i].t!=null && lyrics[i].t>T0+0.4){ endIdx=i; break; } }
+  if(endIdx==null){ for(let i=1;i<lyrics.length;i++){ if(lyrics[i].t!=null && lyrics[i].t>T0+0.4){ endIdx=i; break; } } }
+  if(endIdx==null){
+    // 後ろに基準点が無い → 全体を平行移動（1行目=T0）
+    const base=lyrics.find(l=>l.t!=null); const d=T0-(base?base.t:0);
+    lyrics.forEach(l=>{ if(l.t!=null) l.t=Math.max(0,l.t+d); if(l.tEnd!=null) l.tEnd=Math.max(0,l.tEnd+d); });
+  } else {
+    const tEnd=lyrics[endIdx].t;
+    const cum=[0]; for(let i=0;i<=endIdx;i++) cum.push(cum[i]+Math.max(0.3, normLen(lyrics[i].text)||0.3));
+    const span=cum[endIdx]||1;
+    for(let i=0;i<endIdx;i++){ lyrics[i].t=T0+(tEnd-T0)*(cum[i]/span); lyrics[i].tEnd=null; }  // 終端は文字数から再算出させる
+    for(let i=1;i<=endIdx;i++) if(lyrics[i].t!=null && lyrics[i-1].t!=null && lyrics[i].t<=lyrics[i-1].t) lyrics[i].t=lyrics[i-1].t+0.2;
+  }
+  renderLines(); updateExportBtns();
+  if(audio.currentTime>0.1) audio.currentTime=Math.max(0,T0-0.05);  // 合わせた位置を確認しやすく
+  draw();
+  toast('1行目に合わせて、序盤のタイミングを調整しました');
+}
 
 /* ════ 書き出し ════ */
 function exportPNG(){
@@ -952,6 +989,7 @@ function updateExportBtns(){
   const hasText=lyrics.some(l=>l.text.trim());
   $('cardBtn').disabled = !hasText;  // カードは歌詞があれば（タイミング前でも）OK
   const ab=$('alignBtn'); if(ab) ab.disabled = !(audioFile && hasText);  // 照合は音源＋歌詞が要る
+  const tw=$('tapFirstWrap'); if(tw) tw.style.display = ok ? 'block' : 'none';  // 1行目合わせは自動生成後だけ表示
 }
 
 /* ---- 行ごとの終了時刻（次の行頭 or 末尾+4秒） ---- */
@@ -1171,6 +1209,8 @@ function bindControls(){
   dz.ondrop=e=>{e.preventDefault();dz.classList.remove('drag-over');loadAudio(e.dataTransfer.files[0]);};
 
   $('alignBtn').onclick=alignLyricsToAudio;
+  $('tapFirstBtn').onclick=setFirstLineByTap;
+  $('tapPlayBtn').onclick=togglePlay;
   $('playBtn2').onclick=togglePlay;
   // 入力欄：カーソルのある行をプレビューに即時表示＋自動で反映（手直しがすぐ見える）
   (function(){
@@ -1389,6 +1429,7 @@ function applyAlignment(chunks, wordLevel){
   const N=lineTexts.length; if(!N) return;
   const totalDur=audio.duration||0;
   let times=null, lineEnd=null;
+  keptAnchorIdx=[];   // 今回の採用アンカーで更新
   if(chunks.length){
     const asr=buildAsrTimeline(chunks);
     const usr=buildUserSeq(lineTexts);
@@ -1423,6 +1464,7 @@ function applyAlignment(chunks, wordLevel){
       // 残った信頼アンカーの間を文字数比で均等補間するので、序盤の「間隔バラバラ」を抑えられる。
       let sidx=[]; for(let i=0;i<N;i++) if(solid[i] && lineTime[i]!=null) sidx.push(i);
       sidx=rejectAnchorOutliers(lineTime, sidx, cum);
+      keptAnchorIdx=sidx.slice();   // 1行目タップ合わせの「信頼できる下流の基準点」に使う
       const anchors=lineTime.slice();
       if(sidx.length>=2){
         const keep=new Set(sidx);
