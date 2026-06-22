@@ -228,7 +228,7 @@ details.adv[open]>summary::before{content:'▾';}
       <div class="logo-mark">🎬</div>
       <h1 class="hero-title">Lyric Telop Generator</h1>
       <div class="hero-rule" aria-hidden="true"></div>
-      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build31</div>
+      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build32</div>
     </div>
   </header>
 
@@ -1384,6 +1384,7 @@ function applyAlignment(chunks, wordLevel){
       // 同じレートで行末文字へも外挿し、歌い終わり(tEnd)を求める＝間奏で消すための終端。
       const lineTime=new Array(N).fill(null);
       lineEnd=new Array(N).fill(null);
+      const solid=new Array(N).fill(false);
       for(let li=0; li<N; li++){
         const m=perLine[li]; if(!m.length) continue;
         const [p0,t0]=m[0], [pL,tL]=m[m.length-1];
@@ -1393,11 +1394,16 @@ function applyAlignment(chunks, wordLevel){
         lineTime[li]=Math.max(0, t0 - rate*p0);                 // 行頭へ外挿（歌い出し）
         const lastPos=Math.max(0, normLen(lineTexts[li])-1);
         lineEnd[li]=tL + rate*Math.max(0, lastPos-pL);          // 行末へ外挿（歌い終わり）
+        solid[li]=m.length>=2;   // 2文字以上一致＝時刻が信頼できるアンカー（1文字だけは時刻がブレやすい）
       }
-      const matched=perLine.filter(m=>m.length).length;
+      const matched=perLine.filter(m=>m.length).length, nSolid=solid.filter(Boolean).length;
       const weights=lineTexts.map(t=>normLen(t)||1);  // 文字数で時間按分
-      if(fillLineTimes(lineTime,totalDur,weights)) times=lineTime;
-      console.log(`alignment: ${matched}/${N} 行一致 / wordLevel=${!!wordLevel}`);
+      // 信頼アンカーが十分あるときは、1文字だけ一致のブレやすい行を捨てて文字数比で均等補間する。
+      // （序盤はAIが数文字しか拾えず、ブレた1文字に引っぱられて「間隔バラバラ」になりがちなため）
+      const anchors=lineTime.slice();
+      if(nSolid>=2){ for(let i=0;i<N;i++) if(!solid[i]){ anchors[i]=null; lineEnd[i]=null; } }
+      if(fillLineTimes(anchors,totalDur,weights)) times=anchors;
+      console.log(`alignment: ${matched}/${N} 行一致 (信頼アンカー${nSolid}) / wordLevel=${!!wordLevel}`);
     }
   }
   if(!times) times=proportionalTimes(lineTexts,chunks,totalDur);
