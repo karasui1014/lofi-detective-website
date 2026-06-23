@@ -228,7 +228,7 @@ details.adv[open]>summary::before{content:'▾';}
       <div class="logo-mark">🎬</div>
       <h1 class="hero-title">Lyric Telop Generator</h1>
       <div class="hero-rule" aria-hidden="true"></div>
-      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build34</div>
+      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build35</div>
     </div>
   </header>
 
@@ -274,10 +274,11 @@ details.adv[open]>summary::before{content:'▾';}
           </div>
           <div id="tapFirstWrap" style="display:none;margin-top:.65rem;background:var(--surface2);border:1px solid rgba(34,197,94,.32);border-radius:8px;padding:.6rem .8rem;">
             <div class="ctrl-label" style="margin-bottom:.35rem;"><span style="color:var(--ok);font-weight:700;">🎯 1行目のタイミングを手で合わせる</span></div>
-            <div class="hint" style="margin-bottom:.55rem;line-height:1.75;">序盤がズレる時に。<b>▶で再生</b>して、<b>1行目を歌い始めた瞬間に「ここ！」</b>を押すと、最初の数行のタイミングを合わせ直します（押すのは1回でOK／その先は変わりません）。</div>
+            <div class="hint" style="margin-bottom:.55rem;line-height:1.75;">序盤がズレる時に。<b>▶で再生</b>して、<b>歌い始めた瞬間に「ここ！」</b>を押すとその行をセット。<b>1行目だけでもOK</b>。次の行とのつながりも合わせたい時は、続けて<b>2行目・3行目もタップ</b>すればOK（押した先は自動で並びます）。<br>やり直しは <b>↺</b>。</div>
             <div class="row" style="gap:.45rem;align-items:stretch;">
               <button class="btn btn-accent2" id="tapPlayBtn" style="flex:0 0 auto;padding:.55rem .9rem;font-size:1rem;">▶</button>
               <button class="btn" id="tapFirstBtn" style="flex:1;justify-content:center;font-weight:700;border-color:rgba(34,197,94,.5);color:var(--ok);">👆 ここ！（1行目）</button>
+              <button class="btn" id="tapResetBtn" title="最初からやり直す" style="flex:0 0 auto;padding:.55rem .8rem;">↺</button>
             </div>
           </div>
           <div class="ctrl" id="offsetWrap" style="margin-top:.65rem;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.6rem .8rem;">
@@ -499,6 +500,7 @@ let lyrics = [];      // [{text, t:Number|null}]
 let tapCursor = 0;
 let previewIdx = 0;   // プレビューで表示する行（タイミング前の確認用）
 let keptAnchorIdx = [];   // 自動生成で採用した信頼アンカーの行番号（1行目タップ合わせの基準点に使う）
+let firstTapCursor = 0;   // 「ここ！」で次にセットする行（序盤タップ合わせ用）
 let bgImage = null;   // HTMLImageElement
 let hasBgVideo = false;
 
@@ -889,6 +891,7 @@ function applyLyrics(){
   const old=lyrics;
   // 行の位置(index)でタイミングを引き継ぐ → 文字を直しても時刻は保持される
   lyrics = raw.map((text,i)=>({ text, t: old[i] ? old[i].t : null, tEnd: old[i] ? old[i].tEnd : null }));
+  firstTapCursor=0;   // 歌詞を編集したら行番号がずれるので、序盤タップ合わせは1行目に戻す
   tapCursor = lyrics.findIndex(l=>l.t==null); if(tapCursor<0) tapCursor=lyrics.length;
   $('lineCount').textContent = `${lyrics.length}行`;
   renderLines(); updateTapTarget(); draw();
@@ -945,32 +948,60 @@ function togglePlay(){
 }
 function syncPlayBtns(){ const s=audio.paused?'▶':'⏸'; $('playBtn2').textContent=s; const tp=$('tapPlayBtn'); if(tp) tp.textContent=s; }
 
-// 1行目をタップで合わせる：序盤がズレる時、1行目が出る瞬間に押すと最初の数行を合わせ直す。
-// タップ時刻=1行目の開始。そこから「最初の信頼アンカー」までを文字数比で配置し直し、その先は据え置く。
+// 採用アンカーの自動時刻から曲の歌唱ペース(秒/文字)を推定する（1行目タップ後の自然な間隔づけに使う）
+function naturalSecPerChar(){
+  if(keptAnchorIdx.length>=2){
+    const a=keptAnchorIdx[0], b=keptAnchorIdx[keptAnchorIdx.length-1];
+    if(lyrics[a]&&lyrics[b]&&lyrics[a].t!=null&&lyrics[b].t!=null&&b>a){
+      let chars=0; for(let i=a;i<b;i++) chars+=Math.max(0.3, normLen(lyrics[i].text)||0.3);
+      const p=(lyrics[b].t-lyrics[a].t)/Math.max(0.001,chars);
+      if(isFinite(p)&&p>0) return Math.min(0.6,Math.max(0.16,p));
+    }
+  }
+  return SING_RATE;
+}
+// 序盤のタイミングを手で合わせる。1行ずつ「歌い出した瞬間」にタップでき、押した行を順にセット。
+// タップした最後の行より後ろは、次の信頼アンカーまで“曲本来のペース”で自動で並べ直す（その先は据え置き）。
+// → 1行目だけ合わせてもOK、1～2行目まで合わせれば「次行とのつながり」も思い通りになる。
+function nextTapLine(){ for(let i=firstTapCursor;i<lyrics.length;i++) if(lyrics[i] && lyrics[i].text.trim()) return i; return -1; }
+function updateTapBtnLabel(){
+  const b=$('tapFirstBtn'); if(!b) return;
+  const idx=nextTapLine();
+  b.textContent = idx<0 ? '👆 ここ！' : `👆 ここ！（${idx+1}行目）`;
+}
+function resetTapSeq(){ firstTapCursor=0; updateTapBtnLabel(); }
+// 指定行より後ろ〜次の信頼アンカーを、曲本来の歌唱ペースで並べ直す（足りなければ収まるよう圧縮）
+function reflowAfter(startLine){
+  const T0=lyrics[startLine] && lyrics[startLine].t; if(T0==null) return;
+  const ok=i=> i>startLine && lyrics[i] && lyrics[i].t!=null && lyrics[i].t>T0+0.4;
+  let endIdx=null;
+  for(const i of keptAnchorIdx){ if(ok(i)){ endIdx=i; break; } }
+  if(endIdx==null){ for(let i=startLine+1;i<lyrics.length;i++){ if(ok(i)){ endIdx=i; break; } } }
+  if(endIdx==null){   // 後ろに基準点が無ければ、最後のタップ行から後ろをペースで並べるだけ
+    const pace=naturalSecPerChar(); let acc=0;
+    for(let i=startLine+1;i<lyrics.length;i++){ acc+=Math.max(0.3,normLen(lyrics[i-1].text)||0.3); if(lyrics[i].text.trim()){ lyrics[i].t=T0+acc*pace; lyrics[i].tEnd=null; } }
+    return;
+  }
+  const tEnd=lyrics[endIdx].t, pace=naturalSecPerChar();
+  const off=[]; let acc=0; for(let i=startLine;i<endIdx;i++){ off.push(acc); acc+=Math.max(0.3, normLen(lyrics[i].text)||0.3); }
+  const naturalEnd=T0+acc*pace;                                   // 自然ペースで endIdx に達する時刻
+  const scale = naturalEnd>tEnd ? (tEnd-T0)/Math.max(0.001,(naturalEnd-T0)) : 1;  // 収まらない時だけ圧縮
+  for(let j=1;j<off.length;j++){ lyrics[startLine+j].t=T0+off[j]*pace*scale; lyrics[startLine+j].tEnd=null; }
+  for(let i=startLine+1;i<=endIdx;i++) if(lyrics[i].t!=null && lyrics[i-1].t!=null && lyrics[i].t<=lyrics[i-1].t) lyrics[i].t=lyrics[i-1].t+0.2;
+}
 function setFirstLineByTap(){
   if(!lyrics.length || !lyrics.some(l=>l.text.trim())){ toast('先に歌詞を入力してください'); return; }
   if(!lyrics.some(l=>l.t!=null)){ toast('先に「自動生成」を押してください'); return; }
-  audio.pause();
-  const T0=Math.max(0,(audio.currentTime||0)-0.18);  // タップの反応遅れを少し補正
-  // 1行目より後ろの「信頼できる基準点」を探す（そこまでを再配置、その先は触らない）
-  let endIdx=null;
-  for(const i of keptAnchorIdx){ if(i>=1 && lyrics[i] && lyrics[i].t!=null && lyrics[i].t>T0+0.4){ endIdx=i; break; } }
-  if(endIdx==null){ for(let i=1;i<lyrics.length;i++){ if(lyrics[i].t!=null && lyrics[i].t>T0+0.4){ endIdx=i; break; } } }
-  if(endIdx==null){
-    // 後ろに基準点が無い → 全体を平行移動（1行目=T0）
-    const base=lyrics.find(l=>l.t!=null); const d=T0-(base?base.t:0);
-    lyrics.forEach(l=>{ if(l.t!=null) l.t=Math.max(0,l.t+d); if(l.tEnd!=null) l.tEnd=Math.max(0,l.tEnd+d); });
-  } else {
-    const tEnd=lyrics[endIdx].t;
-    const cum=[0]; for(let i=0;i<=endIdx;i++) cum.push(cum[i]+Math.max(0.3, normLen(lyrics[i].text)||0.3));
-    const span=cum[endIdx]||1;
-    for(let i=0;i<endIdx;i++){ lyrics[i].t=T0+(tEnd-T0)*(cum[i]/span); lyrics[i].tEnd=null; }  // 終端は文字数から再算出させる
-    for(let i=1;i<=endIdx;i++) if(lyrics[i].t!=null && lyrics[i-1].t!=null && lyrics[i].t<=lyrics[i-1].t) lyrics[i].t=lyrics[i-1].t+0.2;
-  }
-  renderLines(); updateExportBtns();
-  if(audio.currentTime>0.1) audio.currentTime=Math.max(0,T0-0.05);  // 合わせた位置を確認しやすく
-  draw();
-  toast('1行目に合わせて、序盤のタイミングを調整しました');
+  const cur=nextTapLine();
+  if(cur<0){ resetTapSeq(); toast('全行ぶんタップ済みです。やり直す時は ↺ を押してください'); return; }
+  let t=Math.max(0,(audio.currentTime||0)-0.18);   // タップの反応遅れを少し補正
+  if(cur>0){ for(let p=cur-1;p>=0;p--){ if(lyrics[p].t!=null){ t=Math.max(t, lyrics[p].t+0.3); break; } } }  // 直前の行より後に
+  lyrics[cur].t=t; lyrics[cur].tEnd=null;
+  reflowAfter(cur);                                 // タップ行より後ろは自然ペースで並べ直し
+  firstTapCursor=cur+1; updateTapBtnLabel();
+  renderLines(); updateExportBtns(); draw();
+  const nx=nextTapLine();
+  toast(nx>=0 ? `${cur+1}行目をセット。次の行も合わせるなら ▶ で進めてタップ（不要ならここで完了）` : `${cur+1}行目をセットしました`);
 }
 
 /* ════ 書き出し ════ */
@@ -989,7 +1020,7 @@ function updateExportBtns(){
   const hasText=lyrics.some(l=>l.text.trim());
   $('cardBtn').disabled = !hasText;  // カードは歌詞があれば（タイミング前でも）OK
   const ab=$('alignBtn'); if(ab) ab.disabled = !(audioFile && hasText);  // 照合は音源＋歌詞が要る
-  const tw=$('tapFirstWrap'); if(tw) tw.style.display = ok ? 'block' : 'none';  // 1行目合わせは自動生成後だけ表示
+  const tw=$('tapFirstWrap'); if(tw){ tw.style.display = ok ? 'block' : 'none'; if(ok) updateTapBtnLabel(); }  // 1行目合わせは自動生成後だけ表示
 }
 
 /* ---- 行ごとの終了時刻（次の行頭 or 末尾+4秒） ---- */
@@ -1210,6 +1241,7 @@ function bindControls(){
 
   $('alignBtn').onclick=alignLyricsToAudio;
   $('tapFirstBtn').onclick=setFirstLineByTap;
+  $('tapResetBtn').onclick=()=>{ resetTapSeq(); toast('1行目から合わせ直せます'); };
   $('tapPlayBtn').onclick=togglePlay;
   $('playBtn2').onclick=togglePlay;
   // 入力欄：カーソルのある行をプレビューに即時表示＋自動で反映（手直しがすぐ見える）
@@ -1484,6 +1516,7 @@ function applyAlignment(chunks, wordLevel){
     lyrics[i].tEnd=te;
   }
   tapCursor=lyrics.filter(l=>l.t!=null).length;
+  firstTapCursor=0;   // 自動生成し直したら、序盤タップ合わせも1行目から
   renderLines(); updateExportBtns(); updateTapTarget();
 }
 async function alignLyricsToAudio(){
