@@ -228,7 +228,7 @@ details.adv[open]>summary::before{content:'▾';}
       <div class="logo-mark">🎬</div>
       <h1 class="hero-title">Lyric Telop Generator</h1>
       <div class="hero-rule" aria-hidden="true"></div>
-      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build35</div>
+      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build36</div>
     </div>
   </header>
 
@@ -1395,6 +1395,20 @@ function lcsMatches(A,B){
   }
   return pairs;
 }
+// 行順で時刻が「非減少」になる最大のアンカー部分集合だけ残す（後の行ほど後の時刻、を保証）。
+// サビ等のリピート歌詞で、ある行が後方の同じ語に誤マッチして時刻が逆転 → サビ前で歌詞が乱れる、を防ぐ。
+function monotonicAnchors(lineTime, sidx){
+  const n=sidx.length; if(n<2) return sidx;
+  const dp=new Array(n).fill(1), prev=new Array(n).fill(-1); let best=0;
+  for(let i=0;i<n;i++){
+    for(let j=0;j<i;j++){
+      if(lineTime[sidx[j]]<=lineTime[sidx[i]]+1e-6 && dp[j]+1>dp[i]){ dp[i]=dp[j]+1; prev[i]=j; }
+    }
+    if(dp[i]>dp[best]) best=i;
+  }
+  const keep=[]; for(let k=best;k>=0;k=prev[k]) keep.push(sidx[k]);
+  return keep.reverse();
+}
 // 文字数ペースから大きく外れたアンカー（時刻がブレた行）を間引く＝表示間隔のバラつきを抑える。
 // 「間隔バラバラ」はたいてい1つのズレたアンカーが原因なので、近傍の傾向から外れた点を順に除去する。
 function rejectAnchorOutliers(lineTime, sidx, cum){
@@ -1492,13 +1506,15 @@ function applyAlignment(chunks, wordLevel){
       const matched=perLine.filter(m=>m.length).length;
       const weights=lineTexts.map(t=>normLen(t)||1);  // 文字数で時間按分
       const cum=new Array(N+1); cum[0]=0; for(let i=0;i<N;i++) cum[i+1]=cum[i]+Math.max(0.3,weights[i]);
-      // ①1文字だけ一致のブレやすい行を候補から外す → ②文字数ペースから外れたアンカーも間引く。
-      // 残った信頼アンカーの間を文字数比で均等補間するので、序盤の「間隔バラバラ」を抑えられる。
+      // ①1文字だけ一致のブレやすい行を候補から外す → ②行順で時刻が逆転するアンカー（サビ等の
+      // リピート歌詞で誤マッチした行）を除去 → ③文字数ペースから外れたアンカーも間引く。
+      // 残った信頼アンカーの間を文字数比で均等補間するので、序盤バラつき＆サビ前の乱れを抑えられる。
       let sidx=[]; for(let i=0;i<N;i++) if(solid[i] && lineTime[i]!=null) sidx.push(i);
+      sidx=monotonicAnchors(lineTime, sidx);
       sidx=rejectAnchorOutliers(lineTime, sidx, cum);
       keptAnchorIdx=sidx.slice();   // 1行目タップ合わせの「信頼できる下流の基準点」に使う
       const anchors=lineTime.slice();
-      if(sidx.length>=2){
+      if(sidx.length>=1){
         const keep=new Set(sidx);
         for(let i=0;i<N;i++) if(!keep.has(i)){ anchors[i]=null; lineEnd[i]=null; }
       }
