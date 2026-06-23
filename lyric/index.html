@@ -228,7 +228,7 @@ details.adv[open]>summary::before{content:'▾';}
       <div class="logo-mark">🎬</div>
       <h1 class="hero-title">Lyric Telop Generator</h1>
       <div class="hero-rule" aria-hidden="true"></div>
-      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build37</div>
+      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build38</div>
     </div>
   </header>
 
@@ -1411,68 +1411,34 @@ function lcsMatches(A,B){
   }
   return pairs;
 }
-// 行順で時刻が「非減少」になる最大のアンカー部分集合だけ残す（後の行ほど後の時刻、を保証）。
-// サビ等のリピート歌詞で、ある行が後方の同じ語に誤マッチして時刻が逆転 → サビ前で歌詞が乱れる、を防ぐ。
-function monotonicAnchors(lineTime, sidx){
-  const n=sidx.length; if(n<2) return sidx;
+// 単調非減少のアイソトニック回帰（PAVA）。並んだ時刻列のノイズをならしつつ「後ろほど大きい」値に整える。
+function isotonicNonDecreasing(ys){
+  const blocks=[];   // {sum,cnt,val}
+  for(let i=0;i<ys.length;i++){
+    let b={sum:ys[i],cnt:1,val:ys[i]};
+    while(blocks.length && blocks[blocks.length-1].val>b.val){ const p=blocks.pop(); const sum=p.sum+b.sum, cnt=p.cnt+b.cnt; b={sum,cnt,val:sum/cnt}; }
+    blocks.push(b);
+  }
+  const out=[]; for(const b of blocks) for(let k=0;k<b.cnt;k++) out.push(b.val); return out;
+}
+// 値が非減少になる最大の部分列のインデックスを返す（時刻が逆転した誤マッチ点を捨てる：サビ等のリピート対策）。
+function longestNonDecreasing(vals){
+  const n=vals.length; if(n<2) return vals.map((_,i)=>i);
   const dp=new Array(n).fill(1), prev=new Array(n).fill(-1); let best=0;
-  for(let i=0;i<n;i++){
-    for(let j=0;j<i;j++){
-      if(lineTime[sidx[j]]<=lineTime[sidx[i]]+1e-6 && dp[j]+1>dp[i]){ dp[i]=dp[j]+1; prev[i]=j; }
-    }
-    if(dp[i]>dp[best]) best=i;
-  }
-  const keep=[]; for(let k=best;k>=0;k=prev[k]) keep.push(sidx[k]);
-  return keep.reverse();
+  for(let i=0;i<n;i++){ for(let j=0;j<i;j++){ if(vals[j]<=vals[i]+1e-6 && dp[j]+1>dp[i]){ dp[i]=dp[j]+1; prev[i]=j; } } if(dp[i]>dp[best]) best=i; }
+  const k=[]; for(let i=best;i>=0;i=prev[i]) k.push(i); return k.reverse();
 }
-// 文字数ペースから大きく外れたアンカー（時刻がブレた行）を間引く＝表示間隔のバラつきを抑える。
-// 「間隔バラバラ」はたいてい1つのズレたアンカーが原因なので、近傍の傾向から外れた点を順に除去する。
-function rejectAnchorOutliers(lineTime, sidx, cum){
-  if(sidx.length<3) return sidx;
-  let idx=sidx.slice(), changed=true;
-  while(idx.length>=3 && changed){
-    changed=false;
-    const g=(lineTime[idx[idx.length-1]]-lineTime[idx[0]])/Math.max(1e-6,(cum[idx[idx.length-1]]-cum[idx[0]]));
-    let worst=-1,worstDev=0;
-    for(let k=1;k<idx.length-1;k++){
-      const L=idx[k-1],M=idx[k],R=idx[k+1];
-      const exp=lineTime[L]+(lineTime[R]-lineTime[L])*((cum[M]-cum[L])/Math.max(1e-6,(cum[R]-cum[L])));
-      const dev=Math.abs(lineTime[M]-exp);
-      const tol=Math.max(1.2, Math.abs(g)*(cum[R]-cum[L])*0.4);   // 隣接区間の半分程度を超えたら外れ値
-      if(dev>tol && dev>worstDev){ worstDev=dev; worst=k; }
-    }
-    if(worst>=0){ idx.splice(worst,1); changed=true; }
-  }
-  return idx;
-}
-// アンカー(一致行)の間を埋めて全行に時刻を入れる。
-// 未一致(=AIが拾えなかった)行は、行の文字数で時間を按分＝長い行ほど長く取る。
-// これで「途中で遅れて出る/早く出る」を軽減。
-function fillLineTimes(lineTime, totalDur, weights){
-  const N=lineTime.length; if(!N) return false;
-  const w=weights||lineTime.map(()=>1);
-  const cum=new Array(N+1); cum[0]=0;
-  for(let i=0;i<N;i++) cum[i+1]=cum[i]+Math.max(0.3, w[i]||0);  // 各行の重み＝文字数
-  const anc=[]; for(let i=0;i<N;i++) if(lineTime[i]!=null) anc.push(i);
-  if(!anc.length) return false;
-  const first=anc[0], lastAnc=anc[anc.length-1];
-  // 一致区間から曲全体の平均ペース(秒/文字)を出す
-  let gRate=CHAR_DUR;
-  if(lastAnc>first && cum[lastAnc]>cum[first]) gRate=(lineTime[lastAnc]-lineTime[first])/(cum[lastAnc]-cum[first]);
-  gRate=Math.min(0.8,Math.max(0.08,gRate));
-  // 最初の一致行より前の行：平均ペースで一致行から遡って配置する。
-  // 0秒固定だと前奏に歌詞が出てしまい、歌い出し検出に頼るとAIが序盤を拾えないとき
-  // 途中まで歌詞が出なくなる。平均ペースでの逆算が最も安定する。
-  for(let i=first-1;i>=0;i--) lineTime[i]=Math.max(0, lineTime[first]-(cum[first]-cum[i])*gRate);
-  for(let a=0;a<anc.length-1;a++){
-    const L=anc[a],R=anc[a+1],tL=lineTime[L],tR=lineTime[R],span=cum[R]-cum[L]||1;
-    for(let i=L+1;i<R;i++) lineTime[i]=tL+(tR-tL)*((cum[i]-cum[L])/span);
-  }
-  const last=anc[anc.length-1];
-  const endT=(totalDur&&totalDur>lineTime[last])?totalDur:lineTime[last]+(N-last)*2;
-  if(last<N-1){ const span=cum[N]-cum[last]||1; for(let i=last+1;i<N;i++) lineTime[i]=lineTime[last]+(endT-lineTime[last])*((cum[i]-cum[last])/span); }
-  for(let i=1;i<N;i++) if(lineTime[i]<=lineTime[i-1]) lineTime[i]=lineTime[i-1]+0.2;
-  return true;
+// 文字位置→時刻 の区分線形関数（範囲外は端の傾きで外挿）。xsは昇順、ysは非減少。
+function makeTimeFn(xs, ys){
+  const n=xs.length;
+  const er=(lo,hi)=>{ const r=(ys[hi]-ys[lo])/Math.max(1,(xs[hi]-xs[lo])); return Math.min(0.8,Math.max(0.06, r||CHAR_DUR)); };
+  return x=>{
+    if(!n) return null;
+    if(x<=xs[0]) return Math.max(0, ys[0]-(xs[0]-x)*er(0,Math.min(n-1,3)));
+    if(x>=xs[n-1]) return ys[n-1]+(x-xs[n-1])*er(Math.max(0,n-4),n-1);
+    let lo=0,hi=n-1; while(hi-lo>1){ const mid=(lo+hi)>>1; if(xs[mid]<=x) lo=mid; else hi=mid; }
+    const sp=xs[hi]-xs[lo]||1; return ys[lo]+(ys[hi]-ys[lo])*((x-xs[lo])/sp);
+  };
 }
 // 照合できないときの保険：文字数比で全体に均等割り
 function proportionalTimes(lineTexts, chunks, totalDur){
@@ -1500,42 +1466,29 @@ function applyAlignment(chunks, wordLevel){
       const pairs=lcsMatches(asr.chars,usr.chars);
       // 単語レベルなら一致文字の「単語先頭時刻」を使う
       const timeArr = wordLevel ? asr.starts : asr.times;
-      // 行ごとに一致点（行内文字位置, 時刻）を集める
-      const perLine=Array.from({length:N},()=>[]);
-      for(const [ai,uj] of pairs){ perLine[usr.lineOf[uj]].push([usr.posInLine[uj], timeArr[ai]]); }
-      // 各行：一致点から「1文字あたりの時間」を推定し、行頭(位置0)へ外挿＝歌い出しにジャスト。
-      // 同じレートで行末文字へも外挿し、歌い終わり(tEnd)を求める＝間奏で消すための終端。
-      const lineTime=new Array(N).fill(null);
-      lineEnd=new Array(N).fill(null);
-      const solid=new Array(N).fill(false);
-      for(let li=0; li<N; li++){
-        const m=perLine[li]; if(!m.length) continue;
-        const [p0,t0]=m[0], [pL,tL]=m[m.length-1];
-        let rate=CHAR_DUR;
-        if(pL>p0) rate=(tL-t0)/(pL-p0);
-        rate=Math.min(0.6,Math.max(0.06,rate));      // 異常値を抑制
-        lineTime[li]=Math.max(0, t0 - rate*p0);                 // 行頭へ外挿（歌い出し）
-        const lastPos=Math.max(0, normLen(lineTexts[li])-1);
-        lineEnd[li]=tL + rate*Math.max(0, lastPos-pL);          // 行末へ外挿（歌い終わり）
-        solid[li]=m.length>=2;   // 2文字以上一致＝時刻が比較的信頼できる候補（1文字だけは時刻がブレやすい）
+      // 全文字を使った大域フィット：文字位置→時刻 の単調曲線を1本作る。
+      // ①一致点を (大域文字位置, 時刻) として集める → ②時刻が逆転した誤マッチ点を捨てる(最長非減少列) →
+      // ③アイソトニック回帰でノイズをならす → ④各行の先頭/末尾の文字位置から時刻を読む。
+      // 1行ずつ個別に推定するより、全データを束ねて使うので精度・安定が上がる（タップ無しでも合いやすい）。
+      const U=usr.chars.length;
+      const xs=[], ts=[]; for(const [ai,uj] of pairs){ xs.push(uj); ts.push(timeArr[ai]); }
+      if(xs.length>=2){
+        const keepI=longestNonDecreasing(ts);                                         // 逆転した誤マッチ点を除去
+        const kx=keepI.map(i=>xs[i]), kt=isotonicNonDecreasing(keepI.map(i=>ts[i]));   // 残りをならして単調化
+        const Tf=makeTimeFn(kx,kt);
+        const lineStartX=new Array(N).fill(-1), lineEndX=new Array(N).fill(-1);
+        for(let g=0; g<U; g++){ const li=usr.lineOf[g]; if(lineStartX[li]<0) lineStartX[li]=g; lineEndX[li]=g; }
+        const lineTime=new Array(N).fill(null); lineEnd=new Array(N).fill(null);
+        for(let li=0; li<N; li++){
+          if(lineStartX[li]<0) continue;                       // 空行
+          lineTime[li]=Math.max(0, Tf(lineStartX[li]));        // 行頭の文字位置 → 歌い出し
+          lineEnd[li]=Tf(lineEndX[li]+1);                      // 行末の次 → 歌い終わり目安
+        }
+        times=lineTime;
+        const cnt=new Array(N).fill(0); for(const uj of xs) cnt[usr.lineOf[uj]]++;
+        keptAnchorIdx=[]; for(let li=0; li<N; li++) if(cnt[li]>=2) keptAnchorIdx.push(li);  // タップ合わせ用の信頼行
+        console.log(`alignment(global): ${keptAnchorIdx.length}信頼行 / ${pairs.length}点 / wordLevel=${!!wordLevel}`);
       }
-      const matched=perLine.filter(m=>m.length).length;
-      const weights=lineTexts.map(t=>normLen(t)||1);  // 文字数で時間按分
-      const cum=new Array(N+1); cum[0]=0; for(let i=0;i<N;i++) cum[i+1]=cum[i]+Math.max(0.3,weights[i]);
-      // ①1文字だけ一致のブレやすい行を候補から外す → ②行順で時刻が逆転するアンカー（サビ等の
-      // リピート歌詞で誤マッチした行）を除去 → ③文字数ペースから外れたアンカーも間引く。
-      // 残った信頼アンカーの間を文字数比で均等補間するので、序盤バラつき＆サビ前の乱れを抑えられる。
-      let sidx=[]; for(let i=0;i<N;i++) if(solid[i] && lineTime[i]!=null) sidx.push(i);
-      sidx=monotonicAnchors(lineTime, sidx);
-      sidx=rejectAnchorOutliers(lineTime, sidx, cum);
-      keptAnchorIdx=sidx.slice();   // 1行目タップ合わせの「信頼できる下流の基準点」に使う
-      const anchors=lineTime.slice();
-      if(sidx.length>=1){
-        const keep=new Set(sidx);
-        for(let i=0;i<N;i++) if(!keep.has(i)){ anchors[i]=null; lineEnd[i]=null; }
-      }
-      if(fillLineTimes(anchors,totalDur,weights)) times=anchors;
-      console.log(`alignment: ${matched}/${N} 行一致 (採用アンカー${sidx.length}) / wordLevel=${!!wordLevel}`);
     }
   }
   if(!times) times=proportionalTimes(lineTexts,chunks,totalDur);
