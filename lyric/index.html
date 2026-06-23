@@ -228,7 +228,7 @@ details.adv[open]>summary::before{content:'▾';}
       <div class="logo-mark">🎬</div>
       <h1 class="hero-title">Lyric Telop Generator</h1>
       <div class="hero-rule" aria-hidden="true"></div>
-      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build36</div>
+      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build37</div>
     </div>
   </header>
 
@@ -501,6 +501,7 @@ let tapCursor = 0;
 let previewIdx = 0;   // プレビューで表示する行（タイミング前の確認用）
 let keptAnchorIdx = [];   // 自動生成で採用した信頼アンカーの行番号（1行目タップ合わせの基準点に使う）
 let firstTapCursor = 0;   // 「ここ！」で次にセットする行（序盤タップ合わせ用）
+let autoTimes = [];       // 直近の自動生成の各行時刻スナップショット（タップ後の再配置で相対間隔を保つのに使う）
 let bgImage = null;   // HTMLImageElement
 let hasBgVideo = false;
 
@@ -892,6 +893,7 @@ function applyLyrics(){
   // 行の位置(index)でタイミングを引き継ぐ → 文字を直しても時刻は保持される
   lyrics = raw.map((text,i)=>({ text, t: old[i] ? old[i].t : null, tEnd: old[i] ? old[i].tEnd : null }));
   firstTapCursor=0;   // 歌詞を編集したら行番号がずれるので、序盤タップ合わせは1行目に戻す
+  autoTimes=[];       // 行がずれるので相対間隔の基準は破棄（次の自動生成で取り直す）
   tapCursor = lyrics.findIndex(l=>l.t==null); if(tapCursor<0) tapCursor=lyrics.length;
   $('lineCount').textContent = `${lyrics.length}行`;
   renderLines(); updateTapTarget(); draw();
@@ -970,7 +972,9 @@ function updateTapBtnLabel(){
   b.textContent = idx<0 ? '👆 ここ！' : `👆 ここ！（${idx+1}行目）`;
 }
 function resetTapSeq(){ firstTapCursor=0; updateTapBtnLabel(); }
-// 指定行より後ろ〜次の信頼アンカーを、曲本来の歌唱ペースで並べ直す（足りなければ収まるよう圧縮）
+// 指定行より後ろ〜次の信頼アンカーを並べ直す。
+// まず自動生成の“相対間隔”を保ったまま伸縮（サビ前の構造＝間奏・タメを壊さない）。
+// 自動の形が使えない時だけ、曲本来のペースで均等配置（足りなければ圧縮）にフォールバック。
 function reflowAfter(startLine){
   const T0=lyrics[startLine] && lyrics[startLine].t; if(T0==null) return;
   const ok=i=> i>startLine && lyrics[i] && lyrics[i].t!=null && lyrics[i].t>T0+0.4;
@@ -982,7 +986,19 @@ function reflowAfter(startLine){
     for(let i=startLine+1;i<lyrics.length;i++){ acc+=Math.max(0.3,normLen(lyrics[i-1].text)||0.3); if(lyrics[i].text.trim()){ lyrics[i].t=T0+acc*pace; lyrics[i].tEnd=null; } }
     return;
   }
-  const tEnd=lyrics[endIdx].t, pace=naturalSecPerChar();
+  const tEnd=lyrics[endIdx].t;
+  // ① 自動生成の相対間隔を保って startLine→T0 / endIdx→tEnd に合わせる（極端な伸縮の時だけ②へ）
+  const aS=autoTimes[startLine], aE=autoTimes[endIdx];
+  if(aS!=null && aE!=null && (aE-aS)>0.2){
+    const S=(tEnd-T0)/(aE-aS);
+    if(S>0.45 && S<2.5){
+      for(let i=startLine+1;i<endIdx;i++){ if(autoTimes[i]!=null){ lyrics[i].t=T0+(autoTimes[i]-aS)*S; lyrics[i].tEnd=null; } }
+      for(let i=startLine+1;i<=endIdx;i++) if(lyrics[i].t!=null && lyrics[i-1].t!=null && lyrics[i].t<=lyrics[i-1].t) lyrics[i].t=lyrics[i-1].t+0.2;
+      return;
+    }
+  }
+  // ② フォールバック：曲本来のペースで均等に並べ、足りなければ収まるよう圧縮
+  const pace=naturalSecPerChar();
   const off=[]; let acc=0; for(let i=startLine;i<endIdx;i++){ off.push(acc); acc+=Math.max(0.3, normLen(lyrics[i].text)||0.3); }
   const naturalEnd=T0+acc*pace;                                   // 自然ペースで endIdx に達する時刻
   const scale = naturalEnd>tEnd ? (tEnd-T0)/Math.max(0.001,(naturalEnd-T0)) : 1;  // 収まらない時だけ圧縮
@@ -1533,6 +1549,7 @@ function applyAlignment(chunks, wordLevel){
   }
   tapCursor=lyrics.filter(l=>l.t!=null).length;
   firstTapCursor=0;   // 自動生成し直したら、序盤タップ合わせも1行目から
+  autoTimes=lyrics.map(l=>l.t);   // タップ後の再配置で“相対間隔”を保つための基準
   renderLines(); updateExportBtns(); updateTapTarget();
 }
 async function alignLyricsToAudio(){
