@@ -136,6 +136,7 @@ canvas#stage{display:block;width:100%;height:auto;}
 .line-item{display:grid;grid-template-columns:26px 1fr 78px 30px;gap:.5rem;align-items:center;
   padding:.4rem .5rem;border-radius:8px;background:var(--surface2);border:1px solid transparent;font-size:.76rem;}
 .line-item.active{border-color:var(--accent2);background:rgba(6,182,212,.08);}
+.line-item.tap-target{border-color:var(--ok);background:rgba(34,197,94,.14);box-shadow:0 0 0 1px var(--ok) inset;}
 .line-item.untimed{opacity:.5;}
 .line-no{color:var(--text-muted);font-size:.64rem;text-align:center;font-family:monospace;}
 .line-txt{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;}
@@ -228,7 +229,7 @@ details.adv[open]>summary::before{content:'▾';}
       <div class="logo-mark">🎬</div>
       <h1 class="hero-title">Lyric Telop Generator</h1>
       <div class="hero-rule" aria-hidden="true"></div>
-      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build45</div>
+      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build46</div>
     </div>
   </header>
 
@@ -299,7 +300,18 @@ details.adv[open]>summary::before{content:'▾';}
           <details class="adv" id="timesPanel" style="margin-top:.6rem;">
             <summary>📋 各行のタイミングを確認・修正（自動がズレた所だけ直せます）</summary>
             <div class="adv-body">
-              <div class="hint" style="margin-bottom:.5rem;line-height:1.7;">各行の出る時刻(mm:ss.s)です。<b>行をタップ</b>でその時間へ移動、時刻を<b>直接書き換え</b>もOK。サビ以降がズレる時はここで直すのが確実です。空欄は<b>×</b>で削除できます。</div>
+              <div class="hint" style="margin-bottom:.5rem;line-height:1.7;">各行の出る時刻(mm:ss.s)です。<b>行をタップ</b>でその時間へ移動、時刻を<b>直接書き換え</b>もOK。空欄は<b>×</b>で削除できます。</div>
+              <div id="manTapBox" style="background:var(--surface3);border:1px solid rgba(34,197,94,.32);border-radius:8px;padding:.65rem .75rem;margin-bottom:.6rem;">
+                <div style="font-size:.8rem;color:var(--ok);font-weight:700;margin-bottom:.25rem;">⏱ 手動でタイミングをつける（確実）</div>
+                <div class="hint" style="margin-bottom:.5rem;line-height:1.7;">▶で再生し、<b>各行を歌い始めた瞬間に「タップ」</b>を押すだけ。押すたびに自動で次の行へ進みます。間違えたら<b>⏮</b>で1つ戻す、頭からは<b>↺</b>。</div>
+                <div style="font-size:.82rem;margin-bottom:.5rem;">次にセット → <b id="manNextLabel" style="color:var(--accent2);">1行目</b> <span class="hint" id="manProgress"></span></div>
+                <div class="row" style="gap:.4rem;align-items:stretch;">
+                  <button class="btn btn-accent2" id="manPlayBtn" style="flex:0 0 auto;padding:.55rem .85rem;font-size:1rem;">▶</button>
+                  <button class="btn" id="manTapBtn" style="flex:1;justify-content:center;font-weight:800;font-size:1.05rem;border-color:rgba(34,197,94,.55);color:var(--ok);">⏱ タップ</button>
+                  <button class="btn" id="manBackBtn" title="1つ戻す" style="flex:0 0 auto;padding:.55rem .7rem;">⏮</button>
+                  <button class="btn" id="manResetBtn" title="最初から" style="flex:0 0 auto;padding:.55rem .7rem;">↺</button>
+                </div>
+              </div>
               <div class="row" style="margin-bottom:.5rem;"><button class="btn" id="copyTimesBtn" style="font-size:.75rem;padding:.4rem .75rem;">📋 全行のタイミングをコピー</button></div>
               <div id="linesList" style="max-height:340px;overflow-y:auto;display:flex;flex-direction:column;gap:.3rem;"></div>
             </div>
@@ -510,6 +522,7 @@ let previewIdx = 0;   // プレビューで表示する行（タイミング前�
 let keptAnchorIdx = [];   // 自動生成で採用した信頼アンカーの行番号（1行目タップ合わせの基準点に使う）
 let firstTapCursor = 0;   // 「ここ！」で次にセットする行（序盤タップ合わせ用）
 let autoTimes = [];       // 直近の自動生成の各行時刻スナップショット（タップ後の再配置で相対間隔を保つのに使う）
+let manCursor = 0;        // 手動タップで次にセットする行（各行のタイミング一覧の「⏱タップ」用）
 let bgImage = null;   // HTMLImageElement
 let hasBgVideo = false;
 
@@ -901,6 +914,7 @@ function applyLyrics(){
   // 行の位置(index)でタイミングを引き継ぐ → 文字を直しても時刻は保持される
   lyrics = raw.map((text,i)=>({ text, t: old[i] ? old[i].t : null, tEnd: old[i] ? old[i].tEnd : null }));
   firstTapCursor=0;   // 歌詞を編集したら行番号がずれるので、序盤タップ合わせは1行目に戻す
+  manCursor=0;        // 手動タップも1行目に戻す
   autoTimes=[];       // 行がずれるので相対間隔の基準は破棄（次の自動生成で取り直す）
   tapCursor = lyrics.findIndex(l=>l.t==null); if(tapCursor<0) tapCursor=lyrics.length;
   $('lineCount').textContent = `${lyrics.length}行`;
@@ -924,6 +938,7 @@ function renderLines(){
     row.querySelector('.del').onclick=()=>{ lyrics.splice(i,1); renderLines(); };
     host.appendChild(row);
   });
+  manUpdate();   // 手動タップの「次の行」ハイライト/ラベルを再適用
 }
 function refreshActiveRow(){
   const act=activeLineAt(audio.currentTime||0);
@@ -956,7 +971,36 @@ function togglePlay(){
   if(audio.paused){ audio.play(); if(state.bg==='video'&&hasBgVideo){ bgVideo.currentTime=audio.currentTime; bgVideo.play(); } }
   else { audio.pause(); bgVideo.pause(); }
 }
-function syncPlayBtns(){ const s=audio.paused?'▶':'⏸'; $('playBtn2').textContent=s; const tp=$('tapPlayBtn'); if(tp) tp.textContent=s; }
+function syncPlayBtns(){ const s=audio.paused?'▶':'⏸'; $('playBtn2').textContent=s; const tp=$('tapPlayBtn'); if(tp) tp.textContent=s; const mp=$('manPlayBtn'); if(mp) mp.textContent=s; }
+
+// ── 手動タップでタイミングをつける（繰り返しの強い曲など、自動が苦手な曲向けの確実な方法）──
+function manNextLine(){ for(let i=manCursor;i<lyrics.length;i++) if(lyrics[i] && lyrics[i].text.trim()) return i; return -1; }
+function manUpdate(){
+  const idx=manNextLine();
+  const lbl=$('manNextLabel'); if(lbl) lbl.textContent = idx<0 ? '完了 🎉' : `${idx+1}行目「${(lyrics[idx].text||'').slice(0,16)}」`;
+  const tot=lyrics.filter(l=>l.text.trim()).length, done=lyrics.filter(l=>l.t!=null && l.text.trim()).length;
+  const pr=$('manProgress'); if(pr) pr.textContent = `（${done}/${tot}行）`;
+  document.querySelectorAll('#linesList .line-item').forEach(r=>r.classList.toggle('tap-target', idx>=0 && +r.dataset.i===idx));
+}
+function manScroll(){ const tr=document.querySelector('#linesList .line-item.tap-target'); if(tr && tr.scrollIntoView) tr.scrollIntoView({block:'nearest'}); }
+function manTap(){
+  if(!lyrics.some(l=>l.text.trim())){ toast('先に歌詞を入力してください'); return; }
+  if(!audioFile){ toast('先に楽曲を読み込んでください'); return; }
+  const idx=manNextLine(); if(idx<0){ toast('全行つけ終わりました 🎉'); return; }
+  let t=Math.max(0,(audio.currentTime||0)-0.15);   // タップの反応遅れを少し補正
+  for(let p=idx-1;p>=0;p--){ if(lyrics[p].t!=null){ t=Math.max(t, lyrics[p].t+0.05); break; } }  // 前の行より後に
+  lyrics[idx].t=t; lyrics[idx].tEnd=null;
+  manCursor=idx+1;
+  renderLines(); updateExportBtns(); draw(); manScroll();   // renderLines の最後で manUpdate も走る
+}
+function manBack(){
+  let i=Math.min(manCursor,lyrics.length)-1;
+  while(i>=0 && !(lyrics[i] && lyrics[i].text.trim())) i--;
+  if(i<0){ toast('これより前はありません'); return; }
+  lyrics[i].t=null; lyrics[i].tEnd=null; manCursor=i;   // 直前の行をクリアして、その行をもう一度狙えるように
+  renderLines(); updateExportBtns(); draw(); manScroll();
+}
+function manReset(){ manCursor=0; manUpdate(); manScroll(); toast('1行目から付け直せます'); }
 
 // 採用アンカーの自動時刻から曲の歌唱ペース(秒/文字)を推定する（1行目タップ後の自然な間隔づけに使う）
 function naturalSecPerChar(){
@@ -1267,9 +1311,10 @@ function bindControls(){
   $('alignBtn').onclick=alignLyricsToAudio;
   $('tapFirstBtn').onclick=setFirstLineByTap;
   $('tapResetBtn').onclick=()=>{ resetTapSeq(); toast('1行目から合わせ直せます'); };
+  $('manTapBtn').onclick=manTap; $('manPlayBtn').onclick=togglePlay; $('manBackBtn').onclick=manBack; $('manResetBtn').onclick=manReset;
   $('copyTimesBtn').onclick=()=>{
     if(!lyrics.length){ toast('先に歌詞を入力してください'); return; }
-    const txt='build45  '+lyrics.map((l,i)=>`${i+1}. ${l.t!=null?fmt(l.t):'--'}  ${l.text||'(空)'}`).join('\n');
+    const txt='build46  '+lyrics.map((l,i)=>`${i+1}. ${l.t!=null?fmt(l.t):'--'}  ${l.text||'(空)'}`).join('\n');
     const done=()=>toast('コピーしました。チャットに貼り付けて教えてください');
     if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(done).catch(()=>fallbackCopy(txt,done)); }
     else fallbackCopy(txt,done);
