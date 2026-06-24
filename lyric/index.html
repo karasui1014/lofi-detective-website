@@ -228,7 +228,7 @@ details.adv[open]>summary::before{content:'▾';}
       <div class="logo-mark">🎬</div>
       <h1 class="hero-title">Lyric Telop Generator</h1>
       <div class="hero-rule" aria-hidden="true"></div>
-      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build42</div>
+      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build43</div>
     </div>
   </header>
 
@@ -294,6 +294,13 @@ details.adv[open]>summary::before{content:'▾';}
                 <option value="small" selected>高精度・推奨（約244MB）</option>
               </select>
               <div class="hint" style="margin-top:.45rem;">🔒 解析は<b>すべて端末内</b>で実行。<b>利用料・回数制限なし</b>、音源も送信されません。初回だけAIモデルをDL（高精度＝約244MB・<b>Wi-Fi推奨</b>／次回からは即起動）。タイミングのズレが大きいときは「高精度」が有利です。</div>
+            </div>
+          </details>
+          <details class="adv" id="timesPanel" style="margin-top:.6rem;">
+            <summary>📋 各行のタイミングを確認・修正（自動がズレた所だけ直せます）</summary>
+            <div class="adv-body">
+              <div class="hint" style="margin-bottom:.5rem;line-height:1.7;">各行の出る時刻(mm:ss.s)です。<b>行をタップ</b>でその時間へ移動、時刻を<b>直接書き換え</b>もOK。サビ以降がズレる時はここで直すのが確実です。空欄は<b>×</b>で削除できます。</div>
+              <div id="linesList" style="max-height:340px;overflow-y:auto;display:flex;flex-direction:column;gap:.3rem;"></div>
             </div>
           </details>
         </div>
@@ -527,7 +534,7 @@ function applyAspect(){
 // 1行の歌唱時間の概算（ASRで終端が取れない行・編集直後のフォールバック用）
 const SING_RATE=0.42;   // 1文字あたりの概算歌唱秒
 const MIN_SING=1.6;     // 最低限の歌唱秒
-const HOLD_TAIL=1.2;    // 歌い終わってからの余韻（小さな隙間を埋め、連続行のチラつきを防ぐ）
+const HOLD_TAIL=0.7;    // 歌い終わってからの余韻（短いほど間奏で早くフェードアウトする）
 
 function activeLineAt(t){
   t -= (state.offset||0);   // タイミング微調整（＋で遅く、−で早く出す）
@@ -1517,8 +1524,17 @@ function applyAlignment(chunks, wordLevel, onsets){
       const U=usr.chars.length;
       const xs=[], ts=[]; for(const [ai,uj] of pairs){ xs.push(uj); ts.push(timeArr[ai]); }
       if(xs.length>=2){
-        const keepI=longestNonDecreasing(ts);                                         // 逆転した誤マッチ点を除去
-        const kx=keepI.map(i=>xs[i]), kt=isotonicNonDecreasing(keepI.map(i=>ts[i]));   // 残りをならして単調化
+        // ①時刻が逆転した誤マッチ点を除去 → ②基準カーブ → ③その基準から大きく外れた点（サビ等の
+        // リピートで後方に誤マッチした文字）を残差で除去して再フィット。
+        // これで「サビで1か所ズレて以降が総崩れ」を防ぎ、サビ後のタイミングも安定する。
+        let keepI=longestNonDecreasing(ts);
+        let kx=keepI.map(i=>xs[i]), kt=isotonicNonDecreasing(keepI.map(i=>ts[i]));
+        const Tf0=makeTimeFn(kx,kt);
+        const good=[]; for(let i=0;i<xs.length;i++){ const p=Tf0(xs[i]); if(p!=null && Math.abs(ts[i]-p)<=2.5) good.push(i); }
+        if(good.length>=2 && good.length<xs.length){
+          const gx=good.map(i=>xs[i]), gt=good.map(i=>ts[i]); const gi=longestNonDecreasing(gt);
+          kx=gi.map(i=>gx[i]); kt=isotonicNonDecreasing(gi.map(i=>gt[i]));
+        }
         const Tf=makeTimeFn(kx,kt);
         const lineStartX=new Array(N).fill(-1);
         for(let g=0; g<U; g++){ const li=usr.lineOf[g]; if(lineStartX[li]<0) lineStartX[li]=g; }
@@ -1527,18 +1543,8 @@ function applyAlignment(chunks, wordLevel, onsets){
           if(lineStartX[li]<0) continue;                       // 空行
           lineTime[li]=Math.max(0, Tf(lineStartX[li]));        // 行頭の文字位置 → 歌い出し
         }
-        // 歌い終わり(tEnd)は“実音”に基づく：その行で最後に一致した文字のASR時刻＝実際に歌っていた終端。
-        // 大域フィットの補間値だと間奏をまたいでサビまで伸び、「直前の歌詞が消えない」原因になる。
-        const cnt=new Array(N).fill(0);
-        for(const [ai,uj] of pairs){
-          const li=usr.lineOf[uj]; cnt[li]++;
-          const at=asr.times[ai];
-          if(at!=null && isFinite(at) && (lineEnd[li]==null || at>lineEnd[li])) lineEnd[li]=at;
-        }
-        for(let li=0; li<N; li++) if(lineEnd[li]!=null) lineEnd[li]+=0.4;   // 歌い終わりに少し余韻
-        // 間奏に歌詞を食い込ませない：一致が無い行が「次の一致行まで大きく時間が空く(=間奏)」区間にある時、
-        // 前の行に続けて歌唱ペースで前詰めし、間奏は次の一致行（サビ等）の直前に残す。
-        // ペースは“局所スロープの中央値”を使う（間奏に引っぱられた平均だと間奏を見抜けない）。
+        const cnt=new Array(N).fill(0); for(const uj of xs) cnt[usr.lineOf[uj]]++;   // 各行の一致文字数
+        // 曲の歌唱ペース(秒/文字)＝局所スロープの中央値（間奏や誤マッチに引っぱられない）
         const slopes=[]; for(let i=1;i<kx.length;i++){ const dx=kx[i]-kx[i-1]; if(dx>0) slopes.push((kt[i]-kt[i-1])/dx); }
         slopes.sort((a,b)=>a-b);
         let gRate=Math.min(0.8,Math.max(0.10, slopes.length?slopes[slopes.length>>1]:CHAR_DUR));
@@ -1567,6 +1573,10 @@ function applyAlignment(chunks, wordLevel, onsets){
           }
         }
         times=lineTime;
+        // 歌い終わり(tEnd)＝その行の“採用された一致文字”の最後の時刻（実音ベースだが誤マッチ除去済みで堅牢）。
+        // 行自身の文字だけを見るので、間奏やサビへの誤マッチで終端がサビまで飛ぶことがない（＝直前行がちゃんと消える）。
+        for(let j=0;j<kx.length;j++){ const li=usr.lineOf[kx[j]]; if(li!=null && (lineEnd[li]==null || kt[j]>lineEnd[li])) lineEnd[li]=kt[j]; }
+        for(let li=0; li<N; li++) if(lineEnd[li]!=null) lineEnd[li]+=0.4;   // 歌い終わりに少し余韻
         keptAnchorIdx=[]; for(let li=0; li<N; li++) if(cnt[li]>=2) keptAnchorIdx.push(li);  // タップ合わせ用の信頼行
         console.log(`alignment(global): ${keptAnchorIdx.length}信頼行 / ${pairs.length}点 / wordLevel=${!!wordLevel}`);
       }
@@ -1576,11 +1586,9 @@ function applyAlignment(chunks, wordLevel, onsets){
   for(let i=0;i<N;i++){
     if(times[i]==null || !isFinite(times[i])) continue;
     lyrics[i].t=Math.max(0, times[i]-ALIGN_LEAD);
-    // 歌い終わり（間奏で消す判定に使う）。ASR由来があれば使うが、その行の歌唱分を超えて
-    // 伸ばさないよう上限を掛ける＝間奏に食い込んで「直前の歌詞が消えない」を防ぐ。
+    // 歌い終わり（間奏で消す判定に使う）＝行の長さ基準の堅牢な値（applyAlignmentで計算済み）。
     const singDur=Math.max(MIN_SING,(normLen(lineTexts[i])||1)*SING_RATE);
-    let te=(lineEnd && lineEnd[i]!=null && isFinite(lineEnd[i])) ? Math.min(lineEnd[i], lyrics[i].t+singDur*1.5) : (lyrics[i].t+singDur);
-    if(te<=lyrics[i].t) te=lyrics[i].t+singDur;
+    let te=(lineEnd && lineEnd[i]!=null && isFinite(lineEnd[i]) && lineEnd[i]>lyrics[i].t) ? lineEnd[i] : (lyrics[i].t+singDur);
     lyrics[i].tEnd=te;
   }
   tapCursor=lyrics.filter(l=>l.t!=null).length;
