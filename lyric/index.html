@@ -228,7 +228,7 @@ details.adv[open]>summary::before{content:'▾';}
       <div class="logo-mark">🎬</div>
       <h1 class="hero-title">Lyric Telop Generator</h1>
       <div class="hero-rule" aria-hidden="true"></div>
-      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build43</div>
+      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build44</div>
     </div>
   </header>
 
@@ -300,6 +300,7 @@ details.adv[open]>summary::before{content:'▾';}
             <summary>📋 各行のタイミングを確認・修正（自動がズレた所だけ直せます）</summary>
             <div class="adv-body">
               <div class="hint" style="margin-bottom:.5rem;line-height:1.7;">各行の出る時刻(mm:ss.s)です。<b>行をタップ</b>でその時間へ移動、時刻を<b>直接書き換え</b>もOK。サビ以降がズレる時はここで直すのが確実です。空欄は<b>×</b>で削除できます。</div>
+              <div class="row" style="margin-bottom:.5rem;"><button class="btn" id="copyTimesBtn" style="font-size:.75rem;padding:.4rem .75rem;">📋 全行のタイミングをコピー</button></div>
               <div id="linesList" style="max-height:340px;overflow-y:auto;display:flex;flex-direction:column;gap:.3rem;"></div>
             </div>
           </details>
@@ -1252,6 +1253,7 @@ function exportWebM(){
   audio.onended=()=>{ if(recorder&&recorder.state==='recording')recorder.stop(); };
 }
 function downloadBlob(blob,name){ const u=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=u; a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(u),1000); }
+function fallbackCopy(txt,done){ const ta=document.createElement('textarea'); ta.value=txt; ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.focus(); ta.select(); try{ document.execCommand('copy'); done&&done(); }catch(_){ toast('コピーできませんでした。一覧を手で送ってください'); } ta.remove(); }
 
 /* ════ イベント結線 ════ */
 function bindControls(){
@@ -1265,6 +1267,13 @@ function bindControls(){
   $('alignBtn').onclick=alignLyricsToAudio;
   $('tapFirstBtn').onclick=setFirstLineByTap;
   $('tapResetBtn').onclick=()=>{ resetTapSeq(); toast('1行目から合わせ直せます'); };
+  $('copyTimesBtn').onclick=()=>{
+    if(!lyrics.length){ toast('先に歌詞を入力してください'); return; }
+    const txt='build44  '+lyrics.map((l,i)=>`${i+1}. ${l.t!=null?fmt(l.t):'--'}  ${l.text||'(空)'}`).join('\n');
+    const done=()=>toast('コピーしました。チャットに貼り付けて教えてください');
+    if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(done).catch(()=>fallbackCopy(txt,done)); }
+    else fallbackCopy(txt,done);
+  };
   $('tapPlayBtn').onclick=togglePlay;
   $('playBtn2').onclick=togglePlay;
   // 入力欄：カーソルのある行をプレビューに即時表示＋自動で反映（手直しがすぐ見える）
