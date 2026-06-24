@@ -228,7 +228,7 @@ details.adv[open]>summary::before{content:'▾';}
       <div class="logo-mark">🎬</div>
       <h1 class="hero-title">Lyric Telop Generator</h1>
       <div class="hero-rule" aria-hidden="true"></div>
-      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build38</div>
+      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build39</div>
     </div>
   </header>
 
@@ -293,7 +293,7 @@ details.adv[open]>summary::before{content:'▾';}
                 <option value="tiny">速い・軽い（約39MB）</option>
                 <option value="small" selected>高精度・推奨（約244MB）</option>
               </select>
-              <div class="hint" style="margin-top:.45rem;">初回だけモデルをDL（次回から即起動）。タイミングのズレが大きいときは「高精度」を選ぶと改善することがあります。</div>
+              <div class="hint" style="margin-top:.45rem;">🔒 解析は<b>すべて端末内</b>で実行。<b>利用料・回数制限なし</b>、音源も送信されません。初回だけAIモデルをDL（高精度＝約244MB・<b>Wi-Fi推奨</b>／次回からは即起動）。タイミングのズレが大きいときは「高精度」が有利です。</div>
             </div>
           </details>
         </div>
@@ -1452,7 +1452,31 @@ function proportionalTimes(lineTexts, chunks, totalDur){
 }
 const ALIGN_LEAD = 0.12;  // Whisperはわずかに遅れがちなので、少し早めに出してジャスト感を出す
 const CHAR_DUR  = 0.22;   // 1文字(モーラ)あたりの概算秒（外挿用）
-function applyAlignment(chunks, wordLevel){
+// 音声のエネルギー立ち上がり（オンセット＝歌い出し・打点）を検出。Whisperの時刻分解能を超えてジャストにするための“音の手がかり”。
+function detectOnsets(floats, sr){
+  const hop=160, win=400;                 // 10ms毎・25ms窓（16kHz想定）
+  const nF=Math.floor((floats.length-win)/hop); if(nF<=4) return [];
+  const le=new Float32Array(nF);
+  for(let i=0;i<nF;i++){ let s=0; const off=i*hop; for(let j=0;j<win;j++){ const v=floats[off+j]; s+=v*v; } le[i]=Math.log(1e-7+Math.sqrt(s/win)); }
+  const flux=new Float32Array(nF);
+  for(let i=1;i<nF;i++){ const d=le[i]-le[i-1]; flux[i]=d>0?d:0; }   // 立ち上がり（正方向の変化）だけ
+  const onsets=[]; const wM=20;            // ±200ms の局所平均でしきい値を適応
+  for(let i=2;i<nF-1;i++){
+    let m=0,c=0; for(let k=Math.max(0,i-wM);k<=Math.min(nF-1,i+wM);k++){ m+=flux[k]; c++; } m/=c;
+    if(flux[i]>flux[i-1] && flux[i]>=flux[i+1] && flux[i]>m*1.6 && flux[i]>0.08) onsets.push(i*hop/sr);  // ピーク＆十分強い
+  }
+  return onsets;
+}
+// 予測時刻 t を、窓内で最も近いオンセットへスナップ（窓外なら据え置き）。
+function snapToOnset(t, onsets, win){
+  if(!onsets||!onsets.length) return t;
+  let lo=0,hi=onsets.length-1;
+  while(lo<=hi){ const m=(lo+hi)>>1; if(onsets[m]<t) lo=m+1; else hi=m-1; }
+  let best=null,bd=win;
+  for(const idx of [hi,lo]){ if(idx>=0&&idx<onsets.length){ const d=Math.abs(onsets[idx]-t); if(d<bd){ bd=d; best=onsets[idx]; } } }
+  return best!=null?best:t;
+}
+function applyAlignment(chunks, wordLevel, onsets){
   const lineTexts=lyrics.map(l=>l.text);
   const N=lineTexts.length; if(!N) return;
   const totalDur=audio.duration||0;
@@ -1483,6 +1507,17 @@ function applyAlignment(chunks, wordLevel){
           if(lineStartX[li]<0) continue;                       // 空行
           lineTime[li]=Math.max(0, Tf(lineStartX[li]));        // 行頭の文字位置 → 歌い出し
           lineEnd[li]=Tf(lineEndX[li]+1);                      // 行末の次 → 歌い終わり目安
+        }
+        // 音のオンセットへスナップ＝Whisperの分解能を超えてジャストに（窓内のみ／順序は保つ）
+        if(onsets && onsets.length){
+          let prevT=-Infinity;
+          for(let li=0; li<N; li++){
+            if(lineTime[li]==null) continue;
+            let t=lineTime[li]; const s=snapToOnset(t, onsets, 0.28);
+            if(s>prevT+0.08) t=s;                 // スナップ先が前行より後なら採用
+            else if(t<=prevT) t=prevT+0.08;       // 採用しない時も順序だけは保つ
+            lineTime[li]=t; prevT=t;
+          }
         }
         times=lineTime;
         const cnt=new Array(N).fill(0); for(const uj of xs) cnt[usr.lineOf[uj]]++;
@@ -1530,6 +1565,7 @@ async function alignLyricsToAudio(){
     }
     alignProgress(true,'音声を解析中…',65);
     const floats=await decodeAudioTo16kHz();
+    const onsets=detectOnsets(floats,16000);   // 歌い出し・打点を検出してジャスト合わせに使う
     alignProgress(true,'歌詞と音源を照合中…（数分かかる場合があります）',72);
     // まず単語レベルのタイムスタンプで精度を上げる。未対応/失敗ならチャンク単位にフォールバック
     let result;
@@ -1543,7 +1579,7 @@ async function alignLyricsToAudio(){
       wordLevel=false;
     }
     const chunks=(result.chunks||[]).filter(c=>c.timestamp && c.timestamp[0]!=null);
-    applyAlignment(chunks, wordLevel);
+    applyAlignment(chunks, wordLevel, onsets);
     toast('タイミングを付けました！ ズレを感じたら「⏱出るタイミング微調整」で合わせられます。');
   }catch(e){ console.error(e); toast('エラー: '+e.message); whisperPipe=null; }
   finally{ transRunning=false; updateExportBtns(); alignProgress(false); $('alignWarn').style.display='none'; }
