@@ -189,7 +189,7 @@ canvas.wave{display:block;width:100%;height:74px;}
   <div class="toprow">
     <!-- 2: Style -->
     <div class="card nb-green" id="styleCard">
-      <div class="card-head"><span class="step-num">02</span><span class="card-title">スタイル<small>10 modes</small></span></div>
+      <div class="card-head"><span class="step-num">02</span><span class="card-title">スタイル<small>12 modes</small></span></div>
       <div class="preset-grid" id="presetGrid"></div>
       <p id="styleNote">スタイルにカーソルを合わせると説明が出ます。選ぶとEQに点線で効きが表示されます。</p>
       <div class="ctl-row">
@@ -264,7 +264,7 @@ const BANDS = [
 ];
 let eqGains = BANDS.map(()=>0);
 
-/* 10 スタイル（控えめ＝素直・歪まない） */
+/* 12 スタイル（控えめ＝素直・歪まない） */
 const PRESETS = [
   { id:'clean', emoji:'🎚️', name:'クリーン', tag:'Natural', special:false, note:'色付け最小。低域を安定させ、ピークだけリミッターで整える透明な土台。迷ったらこれ。',
     highpass:{f:30}, lowShelf:{f:90,gain:1.0}, lowMid:{f:350,gain:-0.8,q:1.0}, presence:{f:4000,gain:0.8,q:0.9}, air:{f:12000,gain:1.0},
@@ -281,6 +281,12 @@ const PRESETS = [
   { id:'warm', emoji:'🟤', name:'ウォーム', tag:'Cozy', special:false, note:'丸くなめらかな質感。低中域をふっくら、高域をロールオフ。Lo-Fi/チル向き。',
     highpass:{f:35}, lowShelf:{f:120,gain:2.0}, lowMid:{f:250,gain:0.8,q:0.9}, presence:{f:3000,gain:-1.0,q:1.0}, air:{f:10000,gain:-2.5},
     deHarsh:[], lowpass:{f:15500,q:0.7}, drive:0.10, comp:{threshold:-22,knee:30,ratio:1.8,attack:0.02,release:0.25}, width:0.96, bassMonoHz:110, targetRmsDb:-15, ceilingDb:-1.0 },
+  { id:'vintage', emoji:'📻', name:'ヴィンテージ', tag:'Tape', special:false, note:'テープ/ヴァイナル風の質感。上下をロールオフし倍音を足した、色の濃いLo-Fiキャラクター。',
+    highpass:{f:45}, lowShelf:{f:130,gain:2.0}, lowMid:{f:280,gain:1.2,q:0.8}, presence:{f:2500,gain:-1.0,q:1.0}, air:{f:8500,gain:-4.0},
+    deHarsh:[], lowpass:{f:13000,q:0.7}, drive:0.18, comp:{threshold:-20,knee:24,ratio:2.2,attack:0.015,release:0.2}, width:0.90, bassMonoHz:120, targetRmsDb:-14.5, ceilingDb:-1.0 },
+  { id:'acoustic', emoji:'🎸', name:'アコースティック', tag:'Dynamic', special:false, note:'生楽器向けの自然でダイナミックな仕上げ。ほぼ無加工に近く、音の強弱と空気感を保つ。',
+    highpass:{f:28}, lowShelf:{f:90,gain:0.5}, lowMid:{f:300,gain:-0.5,q:1.0}, presence:{f:4000,gain:1.0,q:0.9}, air:{f:13000,gain:1.5},
+    deHarsh:[{f:7000,threshold:-30,ratio:2.5}], lowpass:null, drive:0, comp:{threshold:-26,knee:30,ratio:1.3,attack:0.02,release:0.3}, width:1.05, bassMonoHz:90, targetRmsDb:-16, ceilingDb:-1.0 },
   { id:'bassrich', emoji:'🔊', name:'低音リッチ', tag:'Low End', special:false, note:'割れない太く安定した低音。低域モノ化＋控えめブースト＋リミッターで重心の低い音に。',
     highpass:{f:24}, lowShelf:{f:75,gain:3.0}, lowMid:{f:180,gain:0.8,q:0.8}, presence:{f:3500,gain:0.4,q:1.0}, air:{f:12000,gain:0.8},
     deHarsh:[], lowpass:null, drive:0.05, comp:{threshold:-22,knee:26,ratio:2.0,attack:0.012,release:0.18}, width:1.0, bassMonoHz:130, targetRmsDb:-14, ceilingDb:-1.0 },
