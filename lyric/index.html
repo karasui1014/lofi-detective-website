@@ -228,7 +228,7 @@ details.adv[open]>summary::before{content:'▾';}
       <div class="logo-mark">🎬</div>
       <h1 class="hero-title">Lyric Telop Generator</h1>
       <div class="hero-rule" aria-hidden="true"></div>
-      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build39</div>
+      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build40</div>
     </div>
   </header>
 
@@ -1452,28 +1452,48 @@ function proportionalTimes(lineTexts, chunks, totalDur){
 }
 const ALIGN_LEAD = 0.12;  // Whisperはわずかに遅れがちなので、少し早めに出してジャスト感を出す
 const CHAR_DUR  = 0.22;   // 1文字(モーラ)あたりの概算秒（外挿用）
-// 音声のエネルギー立ち上がり（オンセット＝歌い出し・打点）を検出。Whisperの時刻分解能を超えてジャストにするための“音の手がかり”。
+// 反復基数2 FFT（in-place）。スペクトル変化からオンセットを取るために使う。
+function fftInplace(re, im){
+  const n=re.length;
+  for(let i=1,j=0;i<n;i++){ let bit=n>>1; for(;j&bit;bit>>=1) j^=bit; j^=bit; if(i<j){ let t=re[i];re[i]=re[j];re[j]=t; t=im[i];im[i]=im[j];im[j]=t; } }
+  for(let len=2;len<=n;len<<=1){ const ang=-2*Math.PI/len, wr=Math.cos(ang), wi=Math.sin(ang);
+    for(let i=0;i<n;i+=len){ let cr=1,ci=0;
+      for(let k=0;k<len>>1;k++){ const a=i+k,b=a+(len>>1); const vr=re[b]*cr-im[b]*ci, vi=re[b]*ci+im[b]*cr; re[b]=re[a]-vr;im[b]=im[a]-vi; re[a]+=vr;im[a]+=vi; const ncr=cr*wr-ci*wi; ci=cr*wi+ci*wr; cr=ncr; }
+    }
+  }
+}
+// オンセット（歌い出し・打点）を“声の帯域を重視したスペクトルフラックス”で検出。{t,s}=時刻と強さ。
+// 単なる音量変化(キック等)より、声・音符の立ち上がりに反応しやすく、ジャスト合わせの精度が上がる。
 function detectOnsets(floats, sr){
-  const hop=160, win=400;                 // 10ms毎・25ms窓（16kHz想定）
-  const nF=Math.floor((floats.length-win)/hop); if(nF<=4) return [];
-  const le=new Float32Array(nF);
-  for(let i=0;i<nF;i++){ let s=0; const off=i*hop; for(let j=0;j<win;j++){ const v=floats[off+j]; s+=v*v; } le[i]=Math.log(1e-7+Math.sqrt(s/win)); }
-  const flux=new Float32Array(nF);
-  for(let i=1;i<nF;i++){ const d=le[i]-le[i-1]; flux[i]=d>0?d:0; }   // 立ち上がり（正方向の変化）だけ
-  const onsets=[]; const wM=20;            // ±200ms の局所平均でしきい値を適応
+  const FFT=512, hop=320, half=FFT>>1;       // 32ms窓・20ms毎（4分でも~0.3秒で処理）
+  const nF=Math.floor((floats.length-FFT)/hop); if(nF<=4) return [];
+  const w=new Float32Array(half);            // 声の帯域(250〜4000Hz)を重視、低域(キック)は抑制
+  for(let b=0;b<half;b++){ const fr=b*sr/FFT; w[b]=(fr>=250&&fr<=4000)?1:(fr<250?0.12:0.5); }
+  const han=new Float32Array(FFT); for(let i=0;i<FFT;i++) han[i]=0.5-0.5*Math.cos(2*Math.PI*i/(FFT-1));
+  const prev=new Float32Array(half), flux=new Float32Array(nF);
+  const re=new Float32Array(FFT), im=new Float32Array(FFT);
+  for(let fi=0;fi<nF;fi++){
+    const off=fi*hop;
+    for(let i=0;i<FFT;i++){ re[i]=floats[off+i]*han[i]; im[i]=0; }
+    fftInplace(re,im);
+    let fl=0;
+    for(let b=0;b<half;b++){ const mag=Math.sqrt(re[b]*re[b]+im[b]*im[b]); const d=mag-prev[b]; if(d>0) fl+=d*w[b]; prev[b]=mag; }
+    flux[fi]=fl;
+  }
+  let mx=0; for(let i=0;i<nF;i++) if(flux[i]>mx) mx=flux[i]; if(mx<=0) return [];
+  const onsets=[]; const wM=Math.round(0.2*sr/hop);   // ±200ms 局所平均で適応しきい値
   for(let i=2;i<nF-1;i++){
     let m=0,c=0; for(let k=Math.max(0,i-wM);k<=Math.min(nF-1,i+wM);k++){ m+=flux[k]; c++; } m/=c;
-    if(flux[i]>flux[i-1] && flux[i]>=flux[i+1] && flux[i]>m*1.6 && flux[i]>0.08) onsets.push(i*hop/sr);  // ピーク＆十分強い
+    if(flux[i]>flux[i-1] && flux[i]>=flux[i+1] && flux[i]>m*1.5 && flux[i]>mx*0.08) onsets.push({t:i*hop/sr, s:flux[i]/mx});
   }
   return onsets;
 }
-// 予測時刻 t を、窓内で最も近いオンセットへスナップ（窓外なら据え置き）。
+// 予測時刻 t を窓内のオンセットへスナップ。近さだけでなく“強さ”も見て、近くの弱い誤検出より
+// 少し離れた強い歌い出し/打点を優先する（弱いノイズに吸い寄せられない）。
 function snapToOnset(t, onsets, win){
   if(!onsets||!onsets.length) return t;
-  let lo=0,hi=onsets.length-1;
-  while(lo<=hi){ const m=(lo+hi)>>1; if(onsets[m]<t) lo=m+1; else hi=m-1; }
-  let best=null,bd=win;
-  for(const idx of [hi,lo]){ if(idx>=0&&idx<onsets.length){ const d=Math.abs(onsets[idx]-t); if(d<bd){ bd=d; best=onsets[idx]; } } }
+  let best=null, bestScore=-1e9;
+  for(const o of onsets){ const d=Math.abs(o.t-t); if(d>win) continue; const score=o.s-0.9*(d/win); if(score>bestScore){ bestScore=score; best=o.t; } }
   return best!=null?best:t;
 }
 function applyAlignment(chunks, wordLevel, onsets){
@@ -1513,7 +1533,7 @@ function applyAlignment(chunks, wordLevel, onsets){
           let prevT=-Infinity;
           for(let li=0; li<N; li++){
             if(lineTime[li]==null) continue;
-            let t=lineTime[li]; const s=snapToOnset(t, onsets, 0.28);
+            let t=lineTime[li]; const s=snapToOnset(t, onsets, 0.32);
             if(s>prevT+0.08) t=s;                 // スナップ先が前行より後なら採用
             else if(t<=prevT) t=prevT+0.08;       // 採用しない時も順序だけは保つ
             lineTime[li]=t; prevT=t;
@@ -1565,7 +1585,9 @@ async function alignLyricsToAudio(){
     }
     alignProgress(true,'音声を解析中…',65);
     const floats=await decodeAudioTo16kHz();
-    const onsets=detectOnsets(floats,16000);   // 歌い出し・打点を検出してジャスト合わせに使う
+    alignProgress(true,'リズム（歌い出し・打点）を解析中…',68);
+    await new Promise(r=>setTimeout(r,30));      // メッセージを描画させてから解析
+    const onsets=detectOnsets(floats,16000);     // 声の帯域のスペクトル変化から歌い出しを検出→ジャスト合わせ
     alignProgress(true,'歌詞と音源を照合中…（数分かかる場合があります）',72);
     // まず単語レベルのタイムスタンプで精度を上げる。未対応/失敗ならチャンク単位にフォールバック
     let result;
