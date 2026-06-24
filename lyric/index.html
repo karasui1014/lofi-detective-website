@@ -228,7 +228,7 @@ details.adv[open]>summary::before{content:'▾';}
       <div class="logo-mark">🎬</div>
       <h1 class="hero-title">Lyric Telop Generator</h1>
       <div class="hero-rule" aria-hidden="true"></div>
-      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build40</div>
+      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build41</div>
     </div>
   </header>
 
@@ -1528,6 +1528,26 @@ function applyAlignment(chunks, wordLevel, onsets){
           lineTime[li]=Math.max(0, Tf(lineStartX[li]));        // 行頭の文字位置 → 歌い出し
           lineEnd[li]=Tf(lineEndX[li]+1);                      // 行末の次 → 歌い終わり目安
         }
+        const cnt=new Array(N).fill(0); for(const uj of xs) cnt[usr.lineOf[uj]]++;   // 各行の一致文字数
+        // 間奏に歌詞を食い込ませない：一致が無い行が「次の一致行まで大きく時間が空く(=間奏)」区間にある時、
+        // 前の行に続けて歌唱ペースで前詰めし、間奏は次の一致行（サビ等）の直前に残す。
+        // ペースは“局所スロープの中央値”を使う（間奏に引っぱられた平均だと間奏を見抜けない）。
+        const slopes=[]; for(let i=1;i<kx.length;i++){ const dx=kx[i]-kx[i-1]; if(dx>0) slopes.push((kt[i]-kt[i-1])/dx); }
+        slopes.sort((a,b)=>a-b);
+        let gRate=Math.min(0.8,Math.max(0.10, slopes.length?slopes[slopes.length>>1]:CHAR_DUR));
+        const matched=cnt.map(c=>c>0);
+        for(let a=0; a<N; ){
+          if(lineTime[a]==null || !matched[a]){ a++; continue; }
+          let b=a+1; while(b<N && (lineTime[b]==null || !matched[b])) b++;
+          if(b>=N) break;
+          let chars=0; for(let k=a;k<b;k++) if(lineTime[k]!=null) chars+=Math.max(0.3,(normLen(lineTexts[k])||0.3));
+          const span=lineTime[b]-lineTime[a], expect=chars*gRate;
+          if(span > expect*1.6 + 1.0){           // 歌唱想定より明らかに長い＝間奏あり → 未一致行を前詰め
+            let t=lineTime[a];
+            for(let k=a+1;k<b;k++){ if(lineTime[k]==null) continue; t+=Math.max(0.3,(normLen(lineTexts[k-1])||0.3))*gRate; lineTime[k]=Math.min(t, lineTime[b]-0.3); }
+          }
+          a=b;
+        }
         // 音のオンセットへスナップ＝Whisperの分解能を超えてジャストに（窓内のみ／順序は保つ）
         if(onsets && onsets.length){
           let prevT=-Infinity;
@@ -1540,7 +1560,6 @@ function applyAlignment(chunks, wordLevel, onsets){
           }
         }
         times=lineTime;
-        const cnt=new Array(N).fill(0); for(const uj of xs) cnt[usr.lineOf[uj]]++;
         keptAnchorIdx=[]; for(let li=0; li<N; li++) if(cnt[li]>=2) keptAnchorIdx.push(li);  // タップ合わせ用の信頼行
         console.log(`alignment(global): ${keptAnchorIdx.length}信頼行 / ${pairs.length}点 / wordLevel=${!!wordLevel}`);
       }
@@ -1550,9 +1569,11 @@ function applyAlignment(chunks, wordLevel, onsets){
   for(let i=0;i<N;i++){
     if(times[i]==null || !isFinite(times[i])) continue;
     lyrics[i].t=Math.max(0, times[i]-ALIGN_LEAD);
-    // 歌い終わり：ASR由来があれば使い、無ければ文字数から概算（間奏で消す判定に使う）
-    let te=(lineEnd && lineEnd[i]!=null && isFinite(lineEnd[i])) ? lineEnd[i] : null;
-    if(te==null || te<=lyrics[i].t) te=lyrics[i].t+Math.max(1.4,(normLen(lineTexts[i])||1)*0.42);
+    // 歌い終わり（間奏で消す判定に使う）。ASR由来があれば使うが、その行の歌唱分を超えて
+    // 伸ばさないよう上限を掛ける＝間奏に食い込んで「直前の歌詞が消えない」を防ぐ。
+    const singDur=Math.max(MIN_SING,(normLen(lineTexts[i])||1)*SING_RATE);
+    let te=(lineEnd && lineEnd[i]!=null && isFinite(lineEnd[i])) ? Math.min(lineEnd[i], lyrics[i].t+singDur*1.5) : (lyrics[i].t+singDur);
+    if(te<=lyrics[i].t) te=lyrics[i].t+singDur;
     lyrics[i].tEnd=te;
   }
   tapCursor=lyrics.filter(l=>l.t!=null).length;
