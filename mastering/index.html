@@ -4,9 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="referrer" content="no-referrer">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob: data:; connect-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; media-src 'self' blob:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests">
+<meta http-equiv="X-Content-Type-Options" content="nosniff">
 <title>Mastering Studio | Browser Mastering Console</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+PHJlY3QgeD0iMiIgeT0iMiIgd2lkdGg9IjYwIiBoZWlnaHQ9IjYwIiByeD0iMTQiIGZpbGw9IiMxNTE3MWIiLz48ZyBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS13aWR0aD0iMyIgZmlsbD0ibm9uZSI+PHBhdGggZD0iTTggNDAgQyAxOCA0MCAyMCAyMCAzMiAyMCBDIDQ0IDIwIDQ2IDM2IDU2IDM2IiBzdHJva2U9IiMzZmI2YTgiLz48L2c+PGcgZmlsbD0iI2U5ZWRmMiI+PGNpcmNsZSBjeD0iMzIiIGN5PSIyMCIgcj0iMy4yIi8+PC9nPjxnIGZpbGw9IiM3MTdiODYiPjxjaXJjbGUgY3g9IjE2IiBjeT0iMzAiIHI9IjIuMiIvPjxjaXJjbGUgY3g9IjQ4IiBjeT0iMzAuNSIgcj0iMi4yIi8+PC9nPjwvc3ZnPg==">
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="../favicon-16.png">
+<link rel="shortcut icon" href="../favicon.ico">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
 <meta name="theme-color" content="#15171b">
 <meta name="description" content="ブラウザだけで音源をマスタリング。10スタイル＋手動イコライザー、CD/YouTube向け、AI生成曲のノイズ低減。端末内で完結・24bit WAV書き出し。">
 <style>
@@ -48,17 +53,21 @@ header{position:relative;padding:1.5rem 0 1.1rem;margin-bottom:1.1rem;border-bot
 .card-title{font-size:.86rem;font-weight:700;color:var(--text);letter-spacing:.01em;}
 .card-title small{font-weight:400;color:var(--text3);font-size:.66rem;margin-left:.4rem;font-family:var(--mono);}
 
-/* Layout: section 2/3 left, player(4) right sticky */
-.workspace{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,0.9fr);gap:.9rem;align-items:start;margin-top:.9rem;}
-.ws-left{display:flex;flex-direction:column;gap:.9rem;min-width:0;}
-.ws-right{position:sticky;top:8px;min-width:0;}
-@media(max-width:920px){.workspace{grid-template-columns:1fr;}.ws-right{position:static;}}
+/* Layout: section 2(Style) | 4(Player) equal height; 3(EQ) full width below */
+.toprow{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:.9rem;align-items:stretch;margin:.9rem 0;}
+.toprow>.card{min-width:0;display:flex;flex-direction:column;}
+.toprow #styleCard .preset-grid{flex:0 0 auto;}
+.eqfull{margin-top:0;}
+@media(max-width:920px){.toprow{grid-template-columns:1fr;}}
 
 /* Drop zone */
 .drop-zone{border:1.4px dashed var(--line3);border-radius:var(--radius-sm);padding:1.1rem 1rem;text-align:center;cursor:pointer;transition:.2s;position:relative;background:var(--bg2);}
 .drop-zone:hover,.drop-zone.drag-over{border-color:var(--cyan);background:rgba(56,232,255,.05);}
-.drop-zone.loaded{border-color:var(--ok);border-style:solid;background:rgba(80,250,155,.05);}
-.drop-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;}
+.drop-zone.loaded{border-color:var(--line2);border-style:dashed;background:rgba(80,250,155,.035);}
+.drop-zone,.drop-zone:focus,.drop-zone:focus-within,.drop-zone:focus-visible{outline:none;}
+.drop-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;outline:none;-webkit-tap-highlight-color:transparent;}
+.drop-zone input[type=file]:focus,.drop-zone input[type=file]:focus-visible{outline:none;}
+.drop-zone input[type=file]::-webkit-file-upload-button{-webkit-appearance:none;display:none;}
 .drop-icon{font-size:1.4rem;opacity:.75;}
 .drop-zone h3{font-size:.85rem;margin:.25rem 0 .1rem;font-weight:600;}
 .drop-zone p{color:var(--text3);font-size:.72rem;}
@@ -89,7 +98,7 @@ header{position:relative;padding:1.5rem 0 1.1rem;margin-bottom:1.1rem;border-bot
 
 /* EQ */
 .eq-canvas-wrap{position:relative;background:linear-gradient(180deg,#0e1117,#0b0d11);border:1px solid var(--line2);border-radius:var(--radius-sm);overflow:hidden;}
-canvas#eqCanvas{display:block;width:100%;height:130px;}
+canvas#eqCanvas{display:block;width:100%;height:150px;}
 .eq-bands{display:flex;gap:.25rem;margin-top:.55rem;}
 .eq-band{flex:1;min-width:38px;display:flex;flex-direction:column;align-items:center;gap:.28rem;padding:.3rem .1rem .22rem;border-radius:7px;border:1px solid var(--line);}
 .eq-band .gv{font-size:.6rem;font-family:var(--mono);font-weight:700;min-height:.9em;}
@@ -177,55 +186,51 @@ canvas.wave{display:block;width:100%;height:74px;}
     </label>
   </div>
 
-  <div class="workspace">
-    <div class="ws-left">
-      <!-- 2: Style -->
-      <div class="card nb-green" id="styleCard">
-        <div class="card-head"><span class="step-num">02</span><span class="card-title">スタイル<small>10 modes</small></span></div>
-        <div class="preset-grid" id="presetGrid"></div>
-        <p id="styleNote">スタイルにカーソルを合わせると説明が出ます。選ぶとEQに点線で効きが表示されます。</p>
-        <div class="ctl-row">
-          <label for="intensity">かかり具合</label>
-          <input type="range" class="range" id="intensity" min="0" max="100" step="5" value="100">
-          <span class="ctl-val" id="intensityVal">100%</span>
-        </div>
-      </div>
-
-      <!-- 3: EQ -->
-      <div class="card nb-purple" id="eqCard">
-        <div class="card-head"><span class="step-num">03</span><span class="card-title">イコライザー<small>点線=スタイル / 実線=手動EQ</small></span></div>
-        <div class="eq-canvas-wrap"><canvas id="eqCanvas" width="900" height="130"></canvas></div>
-        <div class="eq-bands" id="eqBands"></div>
-        <div class="eq-foot">
-          <span class="note">各フェーダーを上下に動かして調整（±12dB）。</span>
-          <button class="btn btn-sm" id="eqReset">⤺ フラット</button>
-        </div>
+  <div class="toprow">
+    <!-- 2: Style -->
+    <div class="card nb-green" id="styleCard">
+      <div class="card-head"><span class="step-num">02</span><span class="card-title">スタイル<small>10 modes</small></span></div>
+      <div class="preset-grid" id="presetGrid"></div>
+      <p id="styleNote">スタイルにカーソルを合わせると説明が出ます。選ぶとEQに点線で効きが表示されます。</p>
+      <div class="ctl-row">
+        <label for="intensity">かかり具合</label>
+        <input type="range" class="range" id="intensity" min="0" max="100" step="5" value="100">
+        <span class="ctl-val" id="intensityVal">100%</span>
       </div>
     </div>
 
-    <div class="ws-right">
-      <!-- 4: Player -->
-      <div class="card nb-amber" id="playerCard">
-        <div class="card-head"><span class="step-num">04</span><span class="card-title">試聴・書き出し<small>原音 ⇄ マスター後</small></span></div>
-        <div id="playerInner" class="player-disabled">
-          <div class="wave-wrap"><span class="ab-flag flag-master" id="abFlag">● MASTERED</span><canvas class="wave" id="waveCanvas" width="900" height="74"></canvas></div>
-          <input type="range" class="seek" id="seek" min="0" max="1000" value="0">
-          <div class="timerow"><span id="curTime">0:00</span><span id="durTime">0:00</span></div>
-          <div class="transport" style="margin-top:.75rem">
-            <button class="btn-play" id="playBtn" title="再生 / 一時停止">▶</button>
-            <button class="btn btn-ab" id="abBtn" title="原音とマスター後を切り替え"><span class="on">マスター後</span></button>
-            <div style="flex:1"></div>
-            <button class="btn btn-primary" id="dlBtn" title="マスター後をWAVで保存">⬇ WAV</button>
-          </div>
-          <div id="meters" style="margin-top:.8rem"></div>
-          <div class="readout">
-            <div class="stat"><div class="v" id="stOrig">—</div><div class="k">原音 RMS</div></div>
-            <div class="stat master"><div class="v" id="stMaster">—</div><div class="k">マスター後</div></div>
-            <div class="stat"><div class="v" id="stPeak">—</div><div class="k">ピーク</div></div>
-          </div>
+    <!-- 4: Player -->
+    <div class="card nb-amber" id="playerCard">
+      <div class="card-head"><span class="step-num">04</span><span class="card-title">試聴・書き出し<small>原音 ⇄ マスター後</small></span></div>
+      <div id="playerInner" class="player-disabled">
+        <div class="wave-wrap"><span class="ab-flag flag-master" id="abFlag">● MASTERED</span><canvas class="wave" id="waveCanvas" width="900" height="74"></canvas></div>
+        <input type="range" class="seek" id="seek" min="0" max="1000" value="0">
+        <div class="timerow"><span id="curTime">0:00</span><span id="durTime">0:00</span></div>
+        <div class="transport" style="margin-top:.75rem">
+          <button class="btn-play" id="playBtn" title="再生 / 一時停止">▶</button>
+          <button class="btn btn-ab" id="abBtn" title="原音とマスター後を切り替え"><span class="on">マスター後</span></button>
+          <div style="flex:1"></div>
+          <button class="btn btn-primary" id="dlBtn" title="マスター後をWAVで保存">⬇ WAV</button>
         </div>
-        <p class="hint" id="playerPlaceholder">↑ 音源を読み込むと、ここで原音と聴き比べできます。<b style="color:var(--red)">CLIP</b>が点灯したら音割れの可能性。マスター後はリミッターで点灯しません。</p>
+        <div id="meters" style="margin-top:.8rem"></div>
+        <div class="readout">
+          <div class="stat"><div class="v" id="stOrig">—</div><div class="k">原音 RMS</div></div>
+          <div class="stat master"><div class="v" id="stMaster">—</div><div class="k">マスター後</div></div>
+          <div class="stat"><div class="v" id="stPeak">—</div><div class="k">ピーク</div></div>
+        </div>
       </div>
+      <p class="hint" id="playerPlaceholder">↑ 音源を読み込むと、ここで原音と聴き比べできます。<b style="color:var(--red)">CLIP</b>が点灯したら音割れの可能性。マスター後はリミッターで点灯しません。</p>
+    </div>
+  </div>
+
+  <!-- 3: EQ (full width) -->
+  <div class="card nb-purple eqfull" id="eqCard">
+    <div class="card-head"><span class="step-num">03</span><span class="card-title">イコライザー<small>点線=スタイル / 実線=手動EQ</small></span></div>
+    <div class="eq-canvas-wrap"><canvas id="eqCanvas" width="1600" height="150"></canvas></div>
+    <div class="eq-bands" id="eqBands"></div>
+    <div class="eq-foot">
+      <span class="note">各フェーダーを上下に動かして調整（±12dB）。低域から高域まで色分けしています。</span>
+      <button class="btn btn-sm" id="eqReset">⤺ フラット</button>
     </div>
   </div>
 
