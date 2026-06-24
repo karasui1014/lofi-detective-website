@@ -207,7 +207,7 @@ details.faq .body{font-size:.74rem;color:var(--text-sec);line-height:1.8;padding
     <div class="badge-row">
       <span class="badge">⚡ 端末内処理</span>
       <span class="badge">🔒 サーバー送信なし</span>
-      <span class="badge">🎧 24/16bit WAV書き出し</span>
+      <span class="badge">🎧 24bit WAV書き出し</span>
       <span class="badge">🆓 無料・無制限</span>
     </div>
   </div>
@@ -743,21 +743,27 @@ function toggleAB(){
 }
 
 /* ───────────────── WAV 書き出し ───────────────── */
-function bufferToWav(buf){
+function bufferToWav(buf, bitDepth=24){
   const numCh=buf.numberOfChannels, sr=buf.sampleRate, len=buf.length;
-  const blockAlign=numCh*2, dataLen=len*blockAlign;
+  const bytesPer=bitDepth/8, blockAlign=numCh*bytesPer, dataLen=len*blockAlign;
   const view=new DataView(new ArrayBuffer(44+dataLen));
   let p=0;
   const ws=s=>{ for(let i=0;i<s.length;i++) view.setUint8(p++,s.charCodeAt(i)); };
   const u32=v=>{ view.setUint32(p,v,true); p+=4; };
   const u16=v=>{ view.setUint16(p,v,true); p+=2; };
   ws('RIFF'); u32(36+dataLen); ws('WAVE'); ws('fmt '); u32(16); u16(1); u16(numCh);
-  u32(sr); u32(sr*blockAlign); u16(blockAlign); u16(16); ws('data'); u32(dataLen);
+  u32(sr); u32(sr*blockAlign); u16(blockAlign); u16(bitDepth); ws('data'); u32(dataLen);
   const ch=[]; for(let c=0;c<numCh;c++) ch.push(buf.getChannelData(c));
   for(let i=0;i<len;i++){
     for(let c=0;c<numCh;c++){
-      let s=clamp(ch[c][i],-1,1);
-      view.setInt16(p, s<0? s*0x8000 : s*0x7FFF, true); p+=2;
+      const s=clamp(ch[c][i],-1,1);
+      if(bitDepth===24){
+        let v=Math.round(s<0? s*0x800000 : s*0x7FFFFF);
+        v=clamp(v,-0x800000,0x7FFFFF); if(v<0) v+=0x1000000; // 2の補数(24bit)
+        view.setUint8(p++, v&0xFF); view.setUint8(p++, (v>>8)&0xFF); view.setUint8(p++, (v>>16)&0xFF);
+      }else{
+        view.setInt16(p, s<0? s*0x8000 : s*0x7FFF, true); p+=2;
+      }
     }
   }
   return new Blob([view.buffer],{type:'audio/wav'});
@@ -770,7 +776,7 @@ function downloadMaster(){
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click();
   a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1500);
-  toast('WAVを保存しました');
+  toast('24bit WAVを保存しました');
 }
 
 /* ───────────────── イベント結線 ───────────────── */
