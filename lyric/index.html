@@ -228,7 +228,7 @@ details.adv[open]>summary::before{content:'▾';}
       <div class="logo-mark">🎬</div>
       <h1 class="hero-title">Lyric Telop Generator</h1>
       <div class="hero-rule" aria-hidden="true"></div>
-      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build41</div>
+      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build42</div>
     </div>
   </header>
 
@@ -1520,15 +1520,22 @@ function applyAlignment(chunks, wordLevel, onsets){
         const keepI=longestNonDecreasing(ts);                                         // 逆転した誤マッチ点を除去
         const kx=keepI.map(i=>xs[i]), kt=isotonicNonDecreasing(keepI.map(i=>ts[i]));   // 残りをならして単調化
         const Tf=makeTimeFn(kx,kt);
-        const lineStartX=new Array(N).fill(-1), lineEndX=new Array(N).fill(-1);
-        for(let g=0; g<U; g++){ const li=usr.lineOf[g]; if(lineStartX[li]<0) lineStartX[li]=g; lineEndX[li]=g; }
+        const lineStartX=new Array(N).fill(-1);
+        for(let g=0; g<U; g++){ const li=usr.lineOf[g]; if(lineStartX[li]<0) lineStartX[li]=g; }
         const lineTime=new Array(N).fill(null); lineEnd=new Array(N).fill(null);
         for(let li=0; li<N; li++){
           if(lineStartX[li]<0) continue;                       // 空行
           lineTime[li]=Math.max(0, Tf(lineStartX[li]));        // 行頭の文字位置 → 歌い出し
-          lineEnd[li]=Tf(lineEndX[li]+1);                      // 行末の次 → 歌い終わり目安
         }
-        const cnt=new Array(N).fill(0); for(const uj of xs) cnt[usr.lineOf[uj]]++;   // 各行の一致文字数
+        // 歌い終わり(tEnd)は“実音”に基づく：その行で最後に一致した文字のASR時刻＝実際に歌っていた終端。
+        // 大域フィットの補間値だと間奏をまたいでサビまで伸び、「直前の歌詞が消えない」原因になる。
+        const cnt=new Array(N).fill(0);
+        for(const [ai,uj] of pairs){
+          const li=usr.lineOf[uj]; cnt[li]++;
+          const at=asr.times[ai];
+          if(at!=null && isFinite(at) && (lineEnd[li]==null || at>lineEnd[li])) lineEnd[li]=at;
+        }
+        for(let li=0; li<N; li++) if(lineEnd[li]!=null) lineEnd[li]+=0.4;   // 歌い終わりに少し余韻
         // 間奏に歌詞を食い込ませない：一致が無い行が「次の一致行まで大きく時間が空く(=間奏)」区間にある時、
         // 前の行に続けて歌唱ペースで前詰めし、間奏は次の一致行（サビ等）の直前に残す。
         // ペースは“局所スロープの中央値”を使う（間奏に引っぱられた平均だと間奏を見抜けない）。
