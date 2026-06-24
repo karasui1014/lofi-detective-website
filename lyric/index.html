@@ -228,7 +228,7 @@ details.adv[open]>summary::before{content:'▾';}
       <div class="logo-mark">🎬</div>
       <h1 class="hero-title">Lyric Telop Generator</h1>
       <div class="hero-rule" aria-hidden="true"></div>
-      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build44</div>
+      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build45</div>
     </div>
   </header>
 
@@ -1269,7 +1269,7 @@ function bindControls(){
   $('tapResetBtn').onclick=()=>{ resetTapSeq(); toast('1行目から合わせ直せます'); };
   $('copyTimesBtn').onclick=()=>{
     if(!lyrics.length){ toast('先に歌詞を入力してください'); return; }
-    const txt='build44  '+lyrics.map((l,i)=>`${i+1}. ${l.t!=null?fmt(l.t):'--'}  ${l.text||'(空)'}`).join('\n');
+    const txt='build45  '+lyrics.map((l,i)=>`${i+1}. ${l.t!=null?fmt(l.t):'--'}  ${l.text||'(空)'}`).join('\n');
     const done=()=>toast('コピーしました。チャットに貼り付けて教えてください');
     if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(done).catch(()=>fallbackCopy(txt,done)); }
     else fallbackCopy(txt,done);
@@ -1580,6 +1580,28 @@ function applyAlignment(chunks, wordLevel, onsets){
             else if(t<=prevT) t=prevT+0.08;       // 採用しない時も順序だけは保つ
             lineTime[li]=t; prevT=t;
           }
+        }
+        // 同じ語の繰り返し（サビの「Loop Loop…」等）で行が団子(0.x秒間隔)になったり、追従を失って
+        // 大ジャンプする区間を、空行で区切られたブロック単位で「先頭基準＋曲のペースで均等配置」して読めるようにする。
+        // 崩れているブロックだけ対象（うまく出ている所は触らない）。
+        for(let bi=0; bi<N; ){
+          if(lineTime[bi]==null || !(lineTexts[bi]||'').trim()){ bi++; continue; }
+          let bj=bi; while(bj+1<N && lineTime[bj+1]!=null && (lineTexts[bj+1]||'').trim()) bj++;
+          if(bj>bi){
+            let minG=Infinity, maxG=0;
+            for(let k=bi+1;k<=bj;k++){ const g=lineTime[k]-lineTime[k-1]; if(g<minG)minG=g; if(g>maxG)maxG=g; }
+            if(minG<0.5 || maxG>6){    // 団子 or 大ジャンプ＝この区間の自動追従は信用できない → 均等配置
+              let nb=bj+1; while(nb<N && (lineTime[nb]==null || !(lineTexts[nb]||'').trim())) nb++;
+              const capT = nb<N ? lineTime[nb]-0.3 : Infinity;
+              let t=lineTime[bi];
+              for(let k=bi+1;k<=bj;k++){ t += Math.max(0.6, (normLen(lineTexts[k-1])||1)*gRate); lineTime[k]=t; }
+              if(isFinite(capT) && lineTime[bj]>capT && lineTime[bj]>lineTime[bi]){   // 次ブロックへはみ出すなら収まるよう圧縮
+                const sc=(capT-lineTime[bi])/(lineTime[bj]-lineTime[bi]);
+                for(let k=bi+1;k<=bj;k++) lineTime[k]=lineTime[bi]+(lineTime[k]-lineTime[bi])*sc;
+              }
+            }
+          }
+          bi=bj+1;
         }
         times=lineTime;
         // 歌い終わり(tEnd)＝その行の“採用された一致文字”の最後の時刻（実音ベースだが誤マッチ除去済みで堅牢）。
