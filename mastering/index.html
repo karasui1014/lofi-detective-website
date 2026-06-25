@@ -61,9 +61,9 @@ header{position:relative;padding:1.5rem 0 1.1rem;margin-bottom:1.1rem;border-bot
 @media(max-width:920px){.toprow{grid-template-columns:1fr;}}
 
 /* Drop zone */
-.drop-zone{border:1.4px dashed var(--line3);border-radius:var(--radius-sm);padding:1.1rem 1rem;text-align:center;cursor:pointer;transition:.2s;position:relative;background:var(--bg2);}
+.drop-zone{border:1.4px solid var(--line3);border-radius:var(--radius-sm);padding:1.1rem 1rem;text-align:center;cursor:pointer;transition:.2s;position:relative;background:var(--bg2);}
 .drop-zone:hover,.drop-zone.drag-over{border-color:var(--cyan);background:rgba(56,232,255,.05);}
-.drop-zone.loaded{border-color:var(--line2);border-style:dashed;background:rgba(80,250,155,.035);}
+.drop-zone.loaded{border-color:var(--line2);background:rgba(80,250,155,.035);}
 .drop-zone,.drop-zone:focus,.drop-zone:focus-within,.drop-zone:focus-visible{outline:none;}
 .drop-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;outline:none;-webkit-tap-highlight-color:transparent;}
 .drop-zone input[type=file]:focus,.drop-zone input[type=file]:focus-visible{outline:none;}
