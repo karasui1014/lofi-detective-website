@@ -145,6 +145,7 @@ canvas#stage{display:block;width:100%;height:auto;}
   border-radius:6px;color:var(--accent2);font-family:monospace;font-size:.68rem;padding:.2rem .3rem;text-align:center;}
 .line-item .del{background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:.85rem;}
 .line-item .del:hover{color:var(--accent3);}
+.line-item .del:disabled{opacity:.22;cursor:not-allowed;}
 
 /* Font picker */
 .font-cat{font-size:.6rem;letter-spacing:.14em;color:var(--accent2);text-transform:uppercase;
@@ -229,7 +230,7 @@ details.adv[open]>summary::before{content:'▾';}
       <div class="logo-mark">🎬</div>
       <h1 class="hero-title">Lyric Telop Generator</h1>
       <div class="hero-rule" aria-hidden="true"></div>
-      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build46</div>
+      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build47</div>
     </div>
   </header>
 
@@ -300,7 +301,7 @@ details.adv[open]>summary::before{content:'▾';}
           <details class="adv" id="timesPanel" style="margin-top:.6rem;">
             <summary>📋 各行のタイミングを確認・修正（自動がズレた所だけ直せます）</summary>
             <div class="adv-body">
-              <div class="hint" style="margin-bottom:.5rem;line-height:1.7;">各行の出る時刻(mm:ss.s)です。<b>行をタップ</b>でその時間へ移動、時刻を<b>直接書き換え</b>もOK。空欄は<b>×</b>で削除できます。</div>
+              <div class="hint" style="margin-bottom:.5rem;line-height:1.7;">各行の出る時刻(mm:ss.s)です。<b>行をタップ</b>でその時間へ移動、時刻を<b>直接書き換え</b>もOK。<b>空欄行だけ</b>×で削除できます（誤操作防止のため文字がある行は×が無効。削除しても<b>↩ 元に戻す</b>で復元できます）。</div>
               <div id="manTapBox" style="background:var(--surface3);border:1px solid rgba(34,197,94,.32);border-radius:8px;padding:.65rem .75rem;margin-bottom:.6rem;">
                 <div style="font-size:.8rem;color:var(--ok);font-weight:700;margin-bottom:.25rem;">⏱ 手動でタイミングをつける（確実）</div>
                 <div class="hint" style="margin-bottom:.5rem;line-height:1.7;">▶で再生し、<b>各行を歌い始めた瞬間に「タップ」</b>を押すだけ。押すたびに自動で次の行へ進みます。間違えたら<b>⏮</b>で1つ戻す、頭からは<b>↺</b>。</div>
@@ -312,7 +313,10 @@ details.adv[open]>summary::before{content:'▾';}
                   <button class="btn" id="manResetBtn" title="最初から" style="flex:0 0 auto;padding:.55rem .7rem;">↺</button>
                 </div>
               </div>
-              <div class="row" style="margin-bottom:.5rem;"><button class="btn" id="copyTimesBtn" style="font-size:.75rem;padding:.4rem .75rem;">📋 全行のタイミングをコピー</button></div>
+              <div class="row" style="margin-bottom:.5rem;gap:.4rem;flex-wrap:wrap;">
+                <button class="btn" id="copyTimesBtn" style="font-size:.75rem;padding:.4rem .75rem;">📋 全行のタイミングをコピー</button>
+                <button class="btn" id="undoDelBtn" style="font-size:.75rem;padding:.4rem .75rem;" disabled>↩ 削除を元に戻す</button>
+              </div>
               <div id="linesList" style="max-height:340px;overflow-y:auto;display:flex;flex-direction:column;gap:.3rem;"></div>
             </div>
           </details>
@@ -523,6 +527,7 @@ let keptAnchorIdx = [];   // 自動生成で採用した信頼アンカーの行
 let firstTapCursor = 0;   // 「ここ！」で次にセットする行（序盤タップ合わせ用）
 let autoTimes = [];       // 直近の自動生成の各行時刻スナップショット（タップ後の再配置で相対間隔を保つのに使う）
 let manCursor = 0;        // 手動タップで次にセットする行（各行のタイミング一覧の「⏱タップ」用）
+let deletedLines = [];    // ×で削除した空欄行のスタック（↩ 元に戻すで復元するため）
 let bgImage = null;   // HTMLImageElement
 let hasBgVideo = false;
 
@@ -916,6 +921,7 @@ function applyLyrics(){
   firstTapCursor=0;   // 歌詞を編集したら行番号がずれるので、序盤タップ合わせは1行目に戻す
   manCursor=0;        // 手動タップも1行目に戻す
   autoTimes=[];       // 行がずれるので相対間隔の基準は破棄（次の自動生成で取り直す）
+  deletedLines=[];     // 行番号がずれるので削除の復元スタックも破棄
   tapCursor = lyrics.findIndex(l=>l.t==null); if(tapCursor<0) tapCursor=lyrics.length;
   $('lineCount').textContent = `${lyrics.length}行`;
   renderLines(); updateTapTarget(); draw();
@@ -932,13 +938,33 @@ function renderLines(){
       <div class="line-no">${i+1}</div>
       <div class="line-txt ${blank?'blank':''}" title="クリックでその時間へ">${blank?'（無表示）':escapeHtml(l.text)}</div>
       <input class="tm" value="${l.t!=null?fmt(l.t):'—'}" title="mm:ss.s で編集">
-      <button class="del" title="この行を削除">×</button>`;
+      <button class="del" title="${blank?'この空欄行を削除':'文字がある行は上の歌詞入力欄で編集・削除してください'}" ${blank?'':'disabled'}>×</button>`;
     row.querySelector('.line-txt').onclick=()=>{ previewIdx=i; if(l.t!=null){ audio.currentTime=l.t; } draw(); };
     row.querySelector('.tm').onchange=(e)=>{ l.t=parseTime(e.target.value); renderLines(); updateExportBtns(); };
-    row.querySelector('.del').onclick=()=>{ lyrics.splice(i,1); renderLines(); };
+    row.querySelector('.del').onclick=()=>{
+      if(!blank) return;   // 文字がある行は誤操作防止のため削除不可（歌詞入力欄を編集してください）
+      deletedLines.push({index:i, line:l});
+      lyrics.splice(i,1);
+      renderLines(); updateExportBtns();
+      toast('空欄行を削除しました（↩ 元に戻すで復元できます）');
+    };
     host.appendChild(row);
   });
   manUpdate();   // 手動タップの「次の行」ハイライト/ラベルを再適用
+  updateUndoBtn();
+}
+function updateUndoBtn(){
+  const b=$('undoDelBtn'); if(!b) return;
+  b.disabled = !deletedLines.length;
+  b.textContent = deletedLines.length>1 ? `↩ 削除を元に戻す（${deletedLines.length}）` : '↩ 削除を元に戻す';
+}
+function undoDelete(){
+  if(!deletedLines.length){ toast('元に戻せる削除はありません'); return; }
+  const {index,line}=deletedLines.pop();
+  const idx=Math.min(Math.max(0,index), lyrics.length);
+  lyrics.splice(idx,0,line);
+  renderLines(); updateExportBtns(); draw();
+  toast('削除を元に戻しました');
 }
 function refreshActiveRow(){
   const act=activeLineAt(audio.currentTime||0);
@@ -1312,9 +1338,10 @@ function bindControls(){
   $('tapFirstBtn').onclick=setFirstLineByTap;
   $('tapResetBtn').onclick=()=>{ resetTapSeq(); toast('1行目から合わせ直せます'); };
   $('manTapBtn').onclick=manTap; $('manPlayBtn').onclick=togglePlay; $('manBackBtn').onclick=manBack; $('manResetBtn').onclick=manReset;
+  $('undoDelBtn').onclick=undoDelete;
   $('copyTimesBtn').onclick=()=>{
     if(!lyrics.length){ toast('先に歌詞を入力してください'); return; }
-    const txt='build46  '+lyrics.map((l,i)=>`${i+1}. ${l.t!=null?fmt(l.t):'--'}  ${l.text||'(空)'}`).join('\n');
+    const txt='build47  '+lyrics.map((l,i)=>`${i+1}. ${l.t!=null?fmt(l.t):'--'}  ${l.text||'(空)'}`).join('\n');
     const done=()=>toast('コピーしました。チャットに貼り付けて教えてください');
     if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(done).catch(()=>fallbackCopy(txt,done)); }
     else fallbackCopy(txt,done);
