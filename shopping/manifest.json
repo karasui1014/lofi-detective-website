@@ -1,0 +1,27 @@
+{
+  "name": "おかいものメモ",
+  "short_name": "おかいもの",
+  "description": "毎日のお買い物がラクになる、可愛いお買い物リストアプリ。端末内保存・ログイン不要・オフライン対応。",
+  "lang": "ja",
+  "dir": "ltr",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#fff7f2",
+  "theme_color": "#ff9bb3",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

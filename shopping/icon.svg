@@ -1,0 +1,31 @@
+<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="おかいものメモ">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffe1ea"/>
+      <stop offset="1" stop-color="#ece8fb"/>
+    </linearGradient>
+  </defs>
+  <!-- maskable 用に全面塗り。中央80%に主役を配置 -->
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <ellipse cx="256" cy="430" rx="120" ry="20" fill="#000" opacity="0.05"/>
+  <!-- かご -->
+  <path d="M150 268h212l-22 132a26 26 0 0 1-26 22H198a26 26 0 0 1-26-22l-22-132z" fill="#ffd9e1" stroke="#ff9bb3" stroke-width="11"/>
+  <path d="M132 268h248" stroke="#ff9bb3" stroke-width="15" stroke-linecap="round"/>
+  <line x1="205" y1="285" x2="218" y2="405" stroke="#ff9bb3" stroke-width="8" stroke-linecap="round" opacity="0.7"/>
+  <line x1="256" y1="285" x2="256" y2="405" stroke="#ff9bb3" stroke-width="8" stroke-linecap="round" opacity="0.7"/>
+  <line x1="307" y1="285" x2="294" y2="405" stroke="#ff9bb3" stroke-width="8" stroke-linecap="round" opacity="0.7"/>
+  <!-- ねこ -->
+  <g>
+    <circle cx="220" cy="210" r="62" fill="#fff4ef" stroke="#caa89c" stroke-width="9"/>
+    <path d="M170 175l-12-38 42 22M270 175l12-38-42 22" fill="#fff4ef" stroke="#caa89c" stroke-width="9" stroke-linejoin="round"/>
+    <circle cx="200" cy="208" r="8" fill="#6b5560"/>
+    <circle cx="240" cy="208" r="8" fill="#6b5560"/>
+    <path d="M212 224q8 8 16 0" stroke="#6b5560" stroke-width="7" stroke-linecap="round" fill="none"/>
+    <circle cx="185" cy="222" r="10" fill="#ffb3c6" opacity="0.85"/>
+    <circle cx="255" cy="222" r="10" fill="#ffb3c6" opacity="0.85"/>
+    <path d="M255 200l26-6M255 212l26 2" stroke="#caa89c" stroke-width="5" stroke-linecap="round"/>
+    <path d="M185 200l-26-6M185 212l-26 2" stroke="#caa89c" stroke-width="5" stroke-linecap="round"/>
+  </g>
+  <!-- 仕上げのキラ -->
+  <path d="M330 150l6 16 16 6-16 6-6 16-6-16-16-6 16-6z" fill="#ffd86b"/>
+</svg>
