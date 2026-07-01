@@ -7,11 +7,10 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; media-src 'self' blob:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests">
 <meta http-equiv="X-Content-Type-Options" content="nosniff">
 <title>Mastering Studio | Browser Mastering Console</title>
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+PHJlY3QgeD0iMiIgeT0iMiIgd2lkdGg9IjYwIiBoZWlnaHQ9IjYwIiByeD0iMTQiIGZpbGw9IiMxNTE3MWIiLz48ZyBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS13aWR0aD0iMyIgZmlsbD0ibm9uZSI+PHBhdGggZD0iTTggNDAgQyAxOCA0MCAyMCAyMCAzMiAyMCBDIDQ0IDIwIDQ2IDM2IDU2IDM2IiBzdHJva2U9IiMzZmI2YTgiLz48L2c+PGcgZmlsbD0iI2U5ZWRmMiI+PGNpcmNsZSBjeD0iMzIiIGN5PSIyMCIgcj0iMy4yIi8+PC9nPjxnIGZpbGw9IiM3MTdiODYiPjxjaXJjbGUgY3g9IjE2IiBjeT0iMzAiIHI9IjIuMiIvPjxjaXJjbGUgY3g9IjQ4IiBjeT0iMzAuNSIgcj0iMi4yIi8+PC9nPjwvc3ZnPg==">
-<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="../favicon-16.png">
-<link rel="shortcut icon" href="../favicon.ico">
-<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=1">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png?v=1">
+<link rel="shortcut icon" href="favicon.ico?v=1">
+<link rel="apple-touch-icon" href="apple-touch-icon.png?v=1">
 <meta name="theme-color" content="#15171b">
 <meta name="description" content="ブラウザだけで音源をマスタリング。10スタイル＋手動イコライザー、CD/YouTube向け、AI生成曲のノイズ低減。端末内で完結・24bit WAV書き出し。">
 <style>
@@ -61,11 +60,11 @@ header{position:relative;padding:1.5rem 0 1.1rem;margin-bottom:1.1rem;border-bot
 @media(max-width:920px){.toprow{grid-template-columns:1fr;}}
 
 /* Drop zone */
-.drop-zone{border:1.4px solid var(--line3);border-radius:var(--radius-sm);padding:1.1rem 1rem;text-align:center;cursor:pointer;transition:.2s;position:relative;background:var(--bg2);}
+.drop-zone{display:flex;flex-direction:column;align-items:center;justify-content:center;border:1.4px solid var(--line3);border-radius:var(--radius-sm);padding:1.1rem 1rem;text-align:center;cursor:pointer;transition:.2s;position:relative;background:var(--bg2);}
 .drop-zone:hover,.drop-zone.drag-over{border-color:var(--cyan);background:rgba(56,232,255,.05);}
 .drop-zone.loaded{border-color:var(--line2);background:rgba(80,250,155,.035);}
 .drop-zone,.drop-zone:focus,.drop-zone:focus-within,.drop-zone:focus-visible{outline:none;}
-.drop-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;outline:none;-webkit-tap-highlight-color:transparent;}
+.drop-zone input[type=file]{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;outline:none;-webkit-tap-highlight-color:transparent;}
 .drop-zone input[type=file]:focus,.drop-zone input[type=file]:focus-visible{outline:none;}
 .drop-zone input[type=file]::-webkit-file-upload-button{-webkit-appearance:none;display:none;}
 .drop-icon{font-size:1.4rem;opacity:.75;}
@@ -161,8 +160,6 @@ canvas.wave{display:block;width:100%;height:74px;}
 @keyframes spin{to{transform:rotate(360deg);}}
 .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(20px);background:var(--panel3);color:var(--text);border:1px solid var(--line3);border-radius:10px;padding:.6rem 1rem;font-size:.76rem;opacity:0;pointer-events:none;transition:.25s;z-index:50;box-shadow:0 12px 36px -12px rgba(0,0,0,.7);}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
-.foot{text-align:center;font-size:.67rem;color:var(--text3);margin-top:1.4rem;}
-.foot a{color:var(--accent);text-decoration:none;}
 </style>
 </head>
 <body>
@@ -233,8 +230,6 @@ canvas.wave{display:block;width:100%;height:74px;}
       <button class="btn btn-sm" id="eqReset">⤺ フラット</button>
     </div>
   </div>
-
-  <p class="foot">Mastering Studio — Web Audio API · すべて端末内で処理 · <a href="../">← サイトトップへ</a></p>
 </div>
 
 <div class="toast" id="toast"></div>
