@@ -232,7 +232,7 @@ details.adv[open]>summary::before{content:'▾';}
       <div class="logo-mark">🎬</div>
       <h1 class="hero-title">Lyric Telop Generator</h1>
       <div class="hero-rule" aria-hidden="true"></div>
-      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build47</div>
+      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build48</div>
     </div>
   </header>
 
@@ -557,6 +557,17 @@ const SING_RATE=0.42;   // 1文字あたりの概算歌唱秒
 const MIN_SING=1.6;     // 最低限の歌唱秒
 const HOLD_TAIL=0.7;    // 歌い終わってからの余韻（短いほど間奏で早くフェードアウトする）
 
+// 歌い終わりの目安。ASR由来のtEndは「行の長さから見て妥当な範囲」でだけ採用する。
+// （サビ等への誤マッチでtEndが間奏の先まで伸びると、間奏でフェードアウトしない原因になる。
+//   逆に短すぎるtEndは歌っている途中で消える原因になるので、下限も設ける）
+function lineNatEnd(l){
+  const base=Math.max(MIN_SING, normLen(l.text)*SING_RATE);
+  if(l.tEnd!=null && isFinite(l.tEnd) && l.tEnd>l.t){
+    return Math.min(Math.max(l.tEnd, l.t+base*0.75), l.t+base*2.2+1.2);
+  }
+  return l.t+base;
+}
+
 function activeLineAt(t){
   t -= (state.offset||0);   // タイミング微調整（＋で遅く、−で早く出す）
   // 空行は無視。各行は「歌い終わり＋余韻」まで表示する。次行がすぐ続くならそのままバトンタッチし、
@@ -567,10 +578,8 @@ function activeLineAt(t){
     ? audio.duration : (timed[timed.length-1].t + 6);
   for(let k=0;k<timed.length;k++){
     const cur=timed[k], next=timed[k+1];
-    // この行が歌い終わる目安：ASR由来の終端があれば優先、無ければ文字数から概算
-    let natEnd = (cur.tEnd!=null && isFinite(cur.tEnd) && cur.tEnd>cur.t)
-      ? cur.tEnd : cur.t + Math.max(MIN_SING, normLen(cur.text)*SING_RATE);
-    natEnd += HOLD_TAIL;   // 余韻
+    // この行が歌い終わる目安（ASR終端は妥当な範囲に丸めて採用）＋余韻
+    let natEnd = lineNatEnd(cur) + HOLD_TAIL;
     let end, fadeOut;
     if(next){
       if(natEnd < next.t - 0.05){ end=natEnd; fadeOut=true; }   // 間奏：余韻のあとに消す
@@ -741,16 +750,42 @@ function fitHorizontal(text, baseFpx, maxW){
   const fpx = wide<=maxW ? baseFpx : Math.max(baseFpx*0.30, baseFpx*(maxW/wide)*0.99);
   return {lines:rows, fpx};
 }
-// 縦：手動 / とスペースで列に分割（語の途中では切らない）。列が高すぎる時だけ縮小。
-function colsBySpaceV(seg, fpx, maxH){
-  const words=seg.split(/[\s　]+/).filter(w=>w.length);
-  if(words.length<=1) return [[...seg]];
-  const cap=Math.max(1, Math.floor(maxH/(fpx*1.05)));
-  const cols=[]; let cur='';
-  for(const w of words){
-    if(cur && [...(cur+w)].length>cap){ cols.push([...cur]); cur=w; } else cur+=w;
+// 収まらない長い文字列を「句読点・助詞・語種の切れ目」で自然に分割（禁則処理つき・列の高さも揃える）。
+// 縦書きで熟語や単語の途中でブツ切りになるのを防ぐ。
+function splitColNatural(str, cap){
+  const chars=[...str];
+  if(chars.length<=cap) return [chars];
+  const nCols=Math.ceil(chars.length/cap);
+  const target=chars.length/nCols;
+  const out=[]; let start=0;
+  for(let c=1;c<nCols;c++){
+    const ideal=Math.round(target*c);
+    const lo=Math.max(start+1, Math.floor(ideal-target*0.45));
+    const hi=Math.min(chars.length-1, Math.ceil(ideal+target*0.45), start+cap);
+    let best=-1, bestScore=1e9;
+    for(let i=lo;i<=hi;i++){
+      if(KINSOKU_HEAD.test(chars[i]) || KINSOKU_TAIL.test(chars[i-1])) continue;   // 行頭・行末禁則
+      const score=breakCost(chars[i-1],chars[i]) + Math.abs(i-ideal)/Math.max(1,target)*1.6;  // 自然さ＋高さの揃い
+      if(score<bestScore){ bestScore=score; best=i; }
+    }
+    if(best<0) best=Math.min(start+cap, Math.max(start+1, ideal));   // 禁則で候補ゼロ→均等割り
+    out.push(chars.slice(start,best)); start=best;
   }
-  if(cur) cols.push([...cur]);
+  out.push(chars.slice(start));
+  return out;
+}
+// 縦：手動 / とスペースで列に分割。1列に収まらない語句は自然な切れ目（禁則考慮）で割る。
+function colsBySpaceV(seg, fpx, maxH){
+  const cap=Math.max(1, Math.floor(maxH/(fpx*1.05)));
+  const words=seg.split(/[\s　]+/).filter(w=>w.length);
+  if(!words.length) return [[...seg]];
+  const cols=[]; let cur='';
+  const flush=()=>{ if(cur){ cols.push(...splitColNatural(cur,cap)); cur=''; } };
+  for(const w of words){
+    if(cur && [...(cur+w)].length>cap){ flush(); cur=w; }
+    else cur+=w;
+  }
+  flush();
   return cols.length?cols:[[...seg]];
 }
 function fitVertical(text, baseFpx, maxH){
@@ -798,8 +833,12 @@ function drawHorizontal(text,W,H,baseFpx){
 function drawVertical(text,W,H,baseFpx){
   const margin=H*0.07, maxH=H-margin*2;
   const fit=fitVertical(text, baseFpx, maxH);      // 手動 / ＋スペースで列分割を内包
-  const cols=fit.cols, fpx=fit.fpx;
+  const cols=fit.cols; let fpx=fit.fpx;
   if(!cols.length) return;
+  // 列が多くて横にあふれる時は全体を縮小（画面外に見切れるのを防ぐ）
+  if(cols.length*fpx*1.5 > W-margin*2){
+    fpx=Math.max(baseFpx*0.24, (W-margin*2)/(cols.length*1.5));
+  }
   const chH=fpx*1.05, colW=fpx*1.5;
   ctx.font=`${state.weight} ${fpx}px '${state.font.fam}', sans-serif`;
   ctx.textAlign='center';
@@ -1124,8 +1163,7 @@ function timedLines(){ return lyrics.map((l,i)=>({...l,i})).filter(l=>l.t!=null)
 // 字幕の終了時刻：歌い終わり＋余韻まで。次行が近ければそこで切替、間奏なら余韻後に消す（プレビューと同じ挙動）
 function endTimeOf(l){
   const nx=timedLines().find(x=>x.t>l.t+0.001 && x.text.trim());
-  let natEnd=(l.tEnd!=null && isFinite(l.tEnd) && l.tEnd>l.t) ? l.tEnd : l.t+Math.max(MIN_SING, normLen(l.text)*SING_RATE);
-  natEnd+=HOLD_TAIL;
+  let natEnd=lineNatEnd(l)+HOLD_TAIL;
   if(nx) return Math.min(nx.t, natEnd);
   const songEnd=(audio.duration&&isFinite(audio.duration)&&audio.duration>0)?audio.duration:l.t+8;
   return Math.min(songEnd, natEnd);
@@ -1343,7 +1381,7 @@ function bindControls(){
   $('undoDelBtn').onclick=undoDelete;
   $('copyTimesBtn').onclick=()=>{
     if(!lyrics.length){ toast('先に歌詞を入力してください'); return; }
-    const txt='build47  '+lyrics.map((l,i)=>`${i+1}. ${l.t!=null?fmt(l.t):'--'}  ${l.text||'(空)'}`).join('\n');
+    const txt='build48  '+lyrics.map((l,i)=>`${i+1}. ${l.t!=null?fmt(l.t):'--'}  ${l.text||'(空)'}`).join('\n');
     const done=()=>toast('コピーしました。チャットに貼り付けて教えてください');
     if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(done).catch(()=>fallbackCopy(txt,done)); }
     else fallbackCopy(txt,done);
@@ -1632,6 +1670,43 @@ function applyAlignment(chunks, wordLevel, onsets){
         slopes.sort((a,b)=>a-b);
         let gRate=Math.min(0.8,Math.max(0.10, slopes.length?slopes[slopes.length>>1]:CHAR_DUR));
         const matched=cnt.map(c=>c>0);
+        // どの行が“確かな一致”か＝外れ値除去後に残った一致文字数で判定（rawのcntは誤マッチも数えてしまう）
+        const cntKept=new Array(N).fill(0);
+        for(const x of kx){ const li=usr.lineOf[x]; if(li!=null) cntKept[li]++; }
+        // 先頭アンカー自体の妥当性チェック：次の確実行までの間隔が「歌唱として説明できない」ほど
+        // 開いていたら、前奏中のAI幻聴（BGMを歌詞と誤認識）に一致した疑いが濃いので外す。
+        while(true){
+          let hA=-1; for(let li=0;li<N;li++){ if(lineTime[li]!=null && cntKept[li]>=2){ hA=li; break; } }
+          if(hA<0) break;
+          let nb=-1; for(let li=hA+1;li<N;li++){ if(lineTime[li]!=null && cntKept[li]>=2){ nb=li; break; } }
+          if(nb<0) break;
+          let chs=0; for(let k=hA;k<nb;k++){ if(lineTime[k]!=null) chs+=Math.max(1,(normLen(lineTexts[k])||1)); }
+          if(lineTime[nb]-lineTime[hA] > chs*gRate*2.5+6){ cntKept[hA]=0; continue; }
+          break;
+        }
+        // 前奏対策：先頭側の“確かでない”行は、最初の確実な行から曲のペースで逆算して置き直す。
+        // （先頭は外挿が暴れやすく、0秒付近＝前奏中に置かれて一瞬で消える→「1行目が出ない」の正体）
+        let headA=-1; for(let li=0;li<N;li++){ if(lineTime[li]!=null && cntKept[li]>=2){ headA=li; break; } }
+        if(headA>0){
+          let nt=lineTime[headA];
+          for(let li=headA-1; li>=0; li--){
+            if(lineTime[li]==null) continue;
+            if(cntKept[li]>=2){ nt=lineTime[li]; continue; }
+            nt=Math.max(0.1, nt-Math.max(0.7,(normLen(lineTexts[li])||1)*gRate));
+            lineTime[li]=nt;
+          }
+        }
+        // 曲尻対策：末尾側の“確かでない”行も、最後の確実な行から曲のペースで並べ直す（外挿の暴れ防止）
+        let tailA=-1; for(let li=N-1;li>=0;li--){ if(lineTime[li]!=null && cntKept[li]>=2){ tailA=li; break; } }
+        if(tailA>=0 && tailA<N-1){
+          let pt=lineTime[tailA], plen=Math.max(0.7,(normLen(lineTexts[tailA])||1)*gRate);
+          for(let li=tailA+1; li<N; li++){
+            if(lineTime[li]==null) continue;
+            if(cntKept[li]>=2){ pt=lineTime[li]; }
+            else{ pt+=plen; if(totalDur>2) pt=Math.min(pt, totalDur-1.0); lineTime[li]=pt; }
+            plen=Math.max(0.7,(normLen(lineTexts[li])||1)*gRate);
+          }
+        }
         for(let a=0; a<N; ){
           if(lineTime[a]==null || !matched[a]){ a++; continue; }
           let b=a+1; while(b<N && (lineTime[b]==null || !matched[b])) b++;
@@ -1669,7 +1744,7 @@ function applyAlignment(chunks, wordLevel, onsets){
               const capT = nb<N ? lineTime[nb]-0.3 : Infinity;
               let t=lineTime[bi];
               for(let k=bi+1;k<=bj;k++){ t += Math.max(0.6, (normLen(lineTexts[k-1])||1)*gRate); lineTime[k]=t; }
-              if(isFinite(capT) && lineTime[bj]>capT && lineTime[bj]>lineTime[bi]){   // 次ブロックへはみ出すなら収まるよう圧縮
+              if(isFinite(capT) && capT>lineTime[bi] && lineTime[bj]>capT && lineTime[bj]>lineTime[bi]){   // 次ブロックへはみ出すなら収まるよう圧縮（capが手前なら圧縮しない＝負スケール防止）
                 const sc=(capT-lineTime[bi])/(lineTime[bj]-lineTime[bi]);
                 for(let k=bi+1;k<=bj;k++) lineTime[k]=lineTime[bi]+(lineTime[k]-lineTime[bi])*sc;
               }
@@ -1677,12 +1752,15 @@ function applyAlignment(chunks, wordLevel, onsets){
           }
           bi=bj+1;
         }
+        // 最終保険：時刻の逆転・同時刻を残さない（「サビ前で歌詞が乱れる」＝表示順の乱れを根絶）
+        let pvT=-Infinity;
+        for(let i=0;i<N;i++){ if(lineTime[i]==null) continue; if(lineTime[i]<pvT+0.15) lineTime[i]=pvT+0.15; pvT=lineTime[i]; }
         times=lineTime;
         // 歌い終わり(tEnd)＝その行の“採用された一致文字”の最後の時刻（実音ベースだが誤マッチ除去済みで堅牢）。
         // 行自身の文字だけを見るので、間奏やサビへの誤マッチで終端がサビまで飛ぶことがない（＝直前行がちゃんと消える）。
         for(let j=0;j<kx.length;j++){ const li=usr.lineOf[kx[j]]; if(li!=null && (lineEnd[li]==null || kt[j]>lineEnd[li])) lineEnd[li]=kt[j]; }
         for(let li=0; li<N; li++) if(lineEnd[li]!=null) lineEnd[li]+=0.4;   // 歌い終わりに少し余韻
-        keptAnchorIdx=[]; for(let li=0; li<N; li++) if(cnt[li]>=2) keptAnchorIdx.push(li);  // タップ合わせ用の信頼行
+        keptAnchorIdx=[]; for(let li=0; li<N; li++) if(cntKept[li]>=2) keptAnchorIdx.push(li);  // タップ合わせ用の信頼行（外れ値除去後ベース）
         console.log(`alignment(global): ${keptAnchorIdx.length}信頼行 / ${pairs.length}点 / wordLevel=${!!wordLevel}`);
       }
     }
