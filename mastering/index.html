@@ -12,7 +12,7 @@
 <link rel="shortcut icon" href="favicon.ico?v=1">
 <link rel="apple-touch-icon" href="apple-touch-icon.png?v=1">
 <meta name="theme-color" content="#15171b">
-<meta name="description" content="ブラウザだけで音源をマスタリング。10スタイル＋手動イコライザー、CD/YouTube向け、AI生成曲のノイズ低減。端末内で完結・24bit WAV書き出し。">
+<meta name="description" content="ブラウザだけで音源をマスタリング。12スタイル＋9バンドEQ、LUFS自動調整・True Peak検出・スペクトラム表示、AI生成曲のノイズ低減。端末内で完結・24bit/16bit WAV書き出し。">
 <style>
 :root{
   --bg:#15171b; --bg2:#0f1115; --panel:#1c2026; --panel2:#232830; --panel3:#2b313a;
@@ -160,12 +160,42 @@ canvas.wave{display:block;width:100%;height:74px;}
 @keyframes spin{to{transform:rotate(360deg);}}
 .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(20px);background:var(--panel3);color:var(--text);border:1px solid var(--line3);border-radius:10px;padding:.6rem 1rem;font-size:.76rem;opacity:0;pointer-events:none;transition:.25s;z-index:50;box-shadow:0 12px 36px -12px rgba(0,0,0,.7);}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* ── v6 refinements ── */
+::selection{background:rgba(56,232,255,.28);}
+::-webkit-scrollbar{width:10px;height:8px;}
+::-webkit-scrollbar-thumb{background:var(--panel3);border-radius:5px;}
+::-webkit-scrollbar-track{background:var(--bg2);}
+.chips{margin-top:.55rem;display:flex;gap:.4rem;justify-content:center;flex-wrap:wrap;}
+.chip{font-family:var(--mono);font-size:.56rem;color:var(--text3);border:1px solid var(--line2);padding:.15rem .55rem;border-radius:999px;letter-spacing:.05em;background:rgba(255,255,255,.02);}
+.preset .ptag{position:absolute;top:.42rem;right:.48rem;font-family:var(--mono);font-size:.48rem;color:var(--text4);letter-spacing:.06em;text-transform:uppercase;}
+.preset.active .ptag{color:var(--text3);}
+.readout{grid-template-columns:repeat(4,1fr);}
+.stat .v small{font-size:.5rem;letter-spacing:.02em;}
+.stat.target .v{color:var(--cyan);}
+.stat .k b{font-weight:700;}
+.rendering .readout .stat{opacity:.55;transition:opacity .2s;}
+.sel{background:var(--panel2);color:var(--text);border:1px solid var(--line2);border-radius:8px;padding:.42rem .5rem;font-size:.7rem;font-family:inherit;cursor:pointer;}
+.sel:hover{border-color:var(--accent);}
+.chk{display:inline-flex;align-items:center;gap:.35rem;font-size:.68rem;color:var(--text2);cursor:pointer;user-select:none;white-space:nowrap;}
+.chk input{accent-color:var(--amber);cursor:pointer;}
+.shortcuts{display:flex;align-items:center;gap:.45rem;justify-content:center;margin-top:.65rem;font-size:.62rem;color:var(--text3);flex-wrap:wrap;}
+.shortcuts span{color:var(--text4);}
+kbd{font-family:var(--mono);font-size:.58rem;border:1px solid var(--line2);border-bottom-width:2px;border-radius:5px;padding:.05rem .4rem;color:var(--text2);background:var(--bg2);}
+.btn:active{transform:translateY(1px);}
+.btn-play:active{transform:scale(.96);}
+.preset:active{transform:scale(.985);}
+button:focus-visible,.sel:focus-visible,.chk input:focus-visible,input[type=range]:focus-visible{outline:2px solid var(--cyan);outline-offset:2px;}
+.drop-zone:has(input:focus-visible){box-shadow:0 0 0 2px rgba(56,232,255,.45);}
+@media(max-width:560px){.readout{grid-template-columns:repeat(2,1fr);}.btn-play{width:44px;height:44px;}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;}html{scroll-behavior:auto;}}
 </style>
 </head>
 <body>
 <header>
   <div class="brand"><span class="logo-dot">🎛️</span><h1 class="hero-title">Mastering <b>Studio</b></h1></div>
-  <div class="hero-sub">Browser Mastering Console · 端末内処理 · 24bit WAV</div>
+  <div class="hero-sub">Browser Mastering Console</div>
+  <div class="chips"><span class="chip">端末内処理・非アップロード</span><span class="chip">LUFS / True Peak</span><span class="chip">24bit WAV</span></div>
 </header>
 
 <div class="wrap">
@@ -191,7 +221,7 @@ canvas.wave{display:block;width:100%;height:74px;}
       <p id="styleNote">スタイルにカーソルを合わせると説明が出ます。選ぶとEQに点線で効きが表示されます。</p>
       <div class="ctl-row">
         <label for="intensity">かかり具合</label>
-        <input type="range" class="range" id="intensity" min="0" max="100" step="5" value="100">
+        <input type="range" class="range" id="intensity" min="0" max="100" step="5" value="100" aria-label="スタイルのかかり具合">
         <span class="ctl-val" id="intensityVal">100%</span>
       </div>
     </div>
@@ -201,20 +231,24 @@ canvas.wave{display:block;width:100%;height:74px;}
       <div class="card-head"><span class="step-num">04</span><span class="card-title">試聴・書き出し<small>原音 ⇄ マスター後</small></span></div>
       <div id="playerInner" class="player-disabled">
         <div class="wave-wrap"><span class="ab-flag flag-master" id="abFlag">● MASTERED</span><canvas class="wave" id="waveCanvas" width="900" height="74"></canvas></div>
-        <input type="range" class="seek" id="seek" min="0" max="1000" value="0">
+        <input type="range" class="seek" id="seek" min="0" max="1000" value="0" aria-label="再生位置">
         <div class="timerow"><span id="curTime">0:00</span><span id="durTime">0:00</span></div>
         <div class="transport" style="margin-top:.75rem">
-          <button class="btn-play" id="playBtn" title="再生 / 一時停止">▶</button>
-          <button class="btn btn-ab" id="abBtn" title="原音とマスター後を切り替え"><span class="on">マスター後</span></button>
+          <button class="btn-play" id="playBtn" title="再生 / 一時停止" aria-label="再生">▶</button>
+          <button class="btn btn-ab" id="abBtn" title="原音とマスター後を切り替え" aria-pressed="true"><span class="on">マスター後</span></button>
+          <label class="chk" title="ONにするとマスター後を原音と同じ音量で再生し、音質の違いだけを聴き比べられます"><input type="checkbox" id="lmatch">音量合わせ</label>
           <div style="flex:1"></div>
+          <select id="bitDepth" class="sel" aria-label="書き出しビット深度"><option value="24" selected>24-bit</option><option value="16">16-bit +ディザ</option></select>
           <button class="btn btn-primary" id="dlBtn" title="マスター後をWAVで保存">⬇ WAV</button>
         </div>
         <div id="meters" style="margin-top:.8rem"></div>
         <div class="readout">
-          <div class="stat"><div class="v" id="stOrig">—</div><div class="k">原音 RMS</div></div>
+          <div class="stat"><div class="v" id="stOrig">—</div><div class="k">原音ラウドネス</div></div>
           <div class="stat master"><div class="v" id="stMaster">—</div><div class="k">マスター後</div></div>
-          <div class="stat"><div class="v" id="stPeak">—</div><div class="k">ピーク</div></div>
+          <div class="stat"><div class="v" id="stPeak">—</div><div class="k">True Peak</div></div>
+          <div class="stat target"><div class="v" id="stTarget">—</div><div class="k" id="stTargetK">スタイル目標</div></div>
         </div>
+        <div class="shortcuts"><kbd>Space</kbd>再生/停止<span>·</span><kbd>A</kbd>原音⇄マスター<span>·</span><kbd>← →</kbd>5秒移動</div>
       </div>
       <p class="hint" id="playerPlaceholder">↑ 音源を読み込むと、ここで原音と聴き比べできます。<b style="color:var(--red)">CLIP</b>が点灯したら音割れの可能性。マスター後はリミッターで点灯しません。</p>
     </div>
@@ -232,14 +266,18 @@ canvas.wave{display:block;width:100%;height:74px;}
   </div>
 </div>
 
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
 "use strict";
-/* ════ Mastering Studio v5 ════
-   - 10スタイル / 手動9バンドEQ（スタイルEQを点線可視化）
-   - ルックアヘッド・リミッターで歪まない音圧（出力は天井以下＝音割れしない）
-   - L/R セグメントLEDメーター＋CLIP表示 */
+/* ════ Mastering Studio v6 ════
+   - 12スタイル / 手動9バンドEQ（スタイルEQを点線可視化）
+   - LUFS統合ラウドネス測定（ITU-R BS.1770 K特性＋ゲーティング）でスタイル目標に正規化
+   - True Peak検出（4xオーバーサンプル推定）＋天井超過の自動補正
+   - リアルタイム・スペクトラムアナライザー（EQカーブ背景）
+   - 音量合わせA/B（マスター後を原音ラウドネスで再生し音質だけ比較）
+   - ルックアヘッド・リミッターで歪まない音圧 / 24bit・16bit+TPDFディザ WAV書き出し
+   - L/R セグメントLEDメーター＋CLIP表示 / 設定自動保存 */
 const $ = id => document.getElementById(id);
 const dbToGain = db => Math.pow(10, db/20);
 const gainToDb = g => 20*Math.log10(Math.max(g,1e-9));
@@ -300,7 +338,7 @@ const PRESETS = [
 ];
 const DEFAULT_LIMITER = {lookaheadMs:3, attackMs:1, releaseMs:90};
 
-let originalBuf=null, masteredBuf=null, selectedId='clean', intensity=1.0, origLoudnessDb=null, renderToken=0;
+let originalBuf=null, masteredBuf=null, selectedId='clean', intensity=1.0, origLufs=null, masteredLufs=null, renderToken=0;
 const presetById = id => PRESETS.find(p=>p.id===id);
 
 function g(ctx,v){ const n=ctx.createGain(); n.gain.value=v; return n; }
@@ -351,6 +389,65 @@ function buildChain(ctx, source, P){
 function measure(buf){ let sumSq=0,peak=0,count=0;
   for(let ch=0;ch<buf.numberOfChannels;ch++){ const d=buf.getChannelData(ch); for(let i=0;i<d.length;i++){ const v=d[i]; sumSq+=v*v; const a=v<0?-v:v; if(a>peak)peak=a; } count+=d.length; }
   return { rms:Math.sqrt(sumSq/Math.max(1,count)), peak }; }
+
+/*LUFS-BEGIN*/
+/* ITU-R BS.1770-4: K特性フィルタ（De Manのバイリニア変換式・任意サンプルレートで48k公表係数と一致） */
+function kwShelfCoefs(fs){
+  const f0=1681.9744509555319, G=3.999843853973347, Q=0.7071752369554196;
+  const K=Math.tan(Math.PI*f0/fs), Vh=Math.pow(10,G/20), Vb=Math.pow(Vh,0.499666774155), a0=1+K/Q+K*K;
+  return [ (Vh+Vb*K/Q+K*K)/a0, 2*(K*K-Vh)/a0, (Vh-Vb*K/Q+K*K)/a0, 2*(K*K-1)/a0, (1-K/Q+K*K)/a0 ]; }
+function kwHighpassCoefs(fs){
+  const f0=38.13547087602444, Q=0.5003270373238773;
+  const K=Math.tan(Math.PI*f0/fs), a0=1+K/Q+K*K;
+  return [ 1, -2, 1, 2*(K*K-1)/a0, (1-K/Q+K*K)/a0 ]; }
+/* 統合ラウドネス（400msブロック75%オーバーラップ・-70絶対/-10相対ゲート） */
+function lufsIntegrated(buf){
+  const fs=buf.sampleRate, n=buf.length, nCh=Math.min(2,buf.numberOfChannels); if(!n) return -70;
+  const hs=kwShelfCoefs(fs), hp=kwHighpassCoefs(fs);
+  const hop=Math.max(1,Math.round(fs*0.1)), nHops=Math.max(1,Math.floor(n/hop));
+  const hopSq=new Float64Array(nHops);
+  for(let c=0;c<nCh;c++){ const d=buf.getChannelData(c);
+    let x1=0,x2=0,y1=0,y2=0,u1=0,u2=0,v1=0,v2=0;
+    for(let h=0;h<nHops;h++){ let acc=0; const s=h*hop, e=Math.min(n,s+hop);
+      for(let i=s;i<e;i++){ const x=d[i];
+        const y=hs[0]*x+hs[1]*x1+hs[2]*x2-hs[3]*y1-hs[4]*y2; x2=x1;x1=x;y2=y1;y1=y;
+        const z=hp[0]*y+hp[1]*u1+hp[2]*u2-hp[3]*v1-hp[4]*v2; u2=u1;u1=y;v2=v1;v1=z;
+        acc+=z*z; }
+      hopSq[h]+=acc; } }
+  const L=ms=>-0.691+10*Math.log10(Math.max(ms,1e-12));
+  const nB=nHops-3;
+  if(nB<1){ let tot=0; for(let h=0;h<nHops;h++)tot+=hopSq[h]; return L(tot/n); }
+  const blen=hop*4, blockMs=new Float64Array(nB);
+  for(let j=0;j<nB;j++) blockMs[j]=(hopSq[j]+hopSq[j+1]+hopSq[j+2]+hopSq[j+3])/blen;
+  let sum=0,cnt=0; for(let j=0;j<nB;j++){ if(L(blockMs[j])>-70){ sum+=blockMs[j]; cnt++; } }
+  if(!cnt) return -70;
+  const rel=L(sum/cnt)-10;
+  let s2=0,c2=0; for(let j=0;j<nB;j++){ const lj=L(blockMs[j]); if(lj>-70&&lj>rel){ s2+=blockMs[j]; c2++; } }
+  return c2?L(s2/c2):L(sum/cnt);
+}
+/* True Peak推定: 4x補間（12タップ窓付きsinc×3位相）— サンプルピーク近傍のみ評価 */
+let tpKernels=null;
+function makeTpKernels(){ if(tpKernels) return tpKernels;
+  tpKernels=[0.25,0.5,0.75].map(f=>{ const T=12, c=new Float32Array(T); let sum=0;
+    for(let k=0;k<T;k++){ const t=k-5-f, x=Math.PI*t, sinc=Math.abs(t)<1e-9?1:Math.sin(x)/x;
+      const w=0.5-0.5*Math.cos(2*Math.PI*(k+0.5)/T); c[k]=sinc*w; sum+=c[k]; }
+    for(let k=0;k<T;k++) c[k]/=sum; return c; });
+  return tpKernels; }
+function truePeak(buf){
+  const ks=makeTpKernels(), n=buf.length; let tp=0;
+  for(let c=0;c<buf.numberOfChannels;c++){ const d=buf.getChannelData(c);
+    for(let i=0;i<n;i++){ const a=d[i]<0?-d[i]:d[i]; if(a>tp)tp=a; } }
+  const thr=Math.max(0.3, tp*0.7);
+  for(let c=0;c<buf.numberOfChannels;c++){ const d=buf.getChannelData(c);
+    for(let i=0;i<n-1;i++){ const a=d[i]<0?-d[i]:d[i], b=d[i+1]<0?-d[i+1]:d[i+1]; if(a<thr&&b<thr) continue;
+      for(let p=0;p<3;p++){ const k=ks[p]; let v=0;
+        for(let t=0;t<12;t++){ let idx=i-5+t; if(idx<0)idx=0; else if(idx>=n)idx=n-1; v+=k[t]*d[idx]; }
+        const av=v<0?-v:v; if(av>tp)tp=av; } } }
+  return tp;
+}
+function applyGain(buf,gv){ if(Math.abs(gv-1)<1e-6) return;
+  for(let c=0;c<buf.numberOfChannels;c++){ const d=buf.getChannelData(c); for(let i=0;i<d.length;i++) d[i]*=gv; } }
+/*LUFS-END*/
 function brickwall(buf, ceilingDb, opt){
   const sr=buf.sampleRate, ceil=dbToGain(ceilingDb), n=buf.length, nCh=buf.numberOfChannels; if(n===0) return;
   const chs=[]; for(let c=0;c<nCh;c++) chs.push(buf.getChannelData(c));
@@ -365,36 +462,53 @@ function brickwall(buf, ceilingDb, opt){
   for(let c=0;c<nCh;c++){ const d=chs[c]; for(let i=0;i<n;i++){ let v=d[i]*env[i]; if(v>ceil)v=ceil; else if(v<-ceil)v=-ceil; d[i]=v; } }
 }
 function masterDynamics(buf, P){
-  const {rms}=measure(buf); let makeup = rms>1e-9 ? dbToGain(P.targetRmsDb)/rms : 1; makeup = clamp(makeup, dbToGain(-12), dbToGain(18));
-  for(let c=0;c<buf.numberOfChannels;c++){ const d=buf.getChannelData(c); for(let i=0;i<d.length;i++) d[i]*=makeup; }
-  brickwall(buf, P.ceilingDb, P.limiter); const fm=measure(buf);
-  return { rmsDb:gainToDb(fm.rms), peakDb:gainToDb(fm.peak) };
+  /* targetRmsDb はLUFS目標として解釈（プリセットの数値は配信基準のLUFS想定） */
+  const pre=lufsIntegrated(buf);
+  applyGain(buf, dbToGain(clamp(P.targetRmsDb-pre, -18, 18)));
+  brickwall(buf, P.ceilingDb, P.limiter);
+  const ceil=dbToGain(P.ceilingDb); let tp=truePeak(buf);
+  if(tp>ceil){ applyGain(buf, ceil/tp); tp=ceil; }
+  return { lufs:lufsIntegrated(buf), tpDb:gainToDb(tp) };
 }
 async function renderMaster(){
   if(!originalBuf) return; const myToken=++renderToken; const P=effective(presetById(selectedId), intensity);
-  const off=new OfflineAudioContext(2, originalBuf.length, originalBuf.sampleRate); const src=off.createBufferSource(); src.buffer=originalBuf;
-  buildChain(off, src, P).connect(off.destination); src.start();
-  const rendered=await off.startRendering(); if(myToken!==renderToken) return;
-  const stats=masterDynamics(rendered, P); masteredBuf=rendered;
-  player.replaceBuffer(abMode==='master'?masteredBuf:originalBuf); drawWave(masteredBuf);
-  $('stMaster').innerHTML=stats.rmsDb.toFixed(1)+'<small>dB</small>'; $('stPeak').innerHTML=stats.peakDb.toFixed(1)+'<small>dB</small>';
+  $('playerCard').classList.add('rendering');
+  try{
+    const off=new OfflineAudioContext(2, originalBuf.length, originalBuf.sampleRate); const src=off.createBufferSource(); src.buffer=originalBuf;
+    buildChain(off, src, P).connect(off.destination); src.start();
+    const rendered=await off.startRendering(); if(myToken!==renderToken) return;
+    const stats=masterDynamics(rendered, P); if(myToken!==renderToken) return;
+    masteredBuf=rendered; masteredLufs=stats.lufs;
+    player.replaceBuffer(abMode==='master'?masteredBuf:originalBuf); applyAbGain();
+    drawWave(abMode==='master'?masteredBuf:originalBuf);
+    $('stMaster').innerHTML=stats.lufs.toFixed(1)+'<small>LUFS</small>';
+    $('stPeak').innerHTML=stats.tpDb.toFixed(1)+'<small>dBTP</small>';
+    const tgt=P.targetRmsDb, delta=Math.round((stats.lufs-tgt)*10)/10, okd=Math.abs(delta)<=0.5;
+    $('stTarget').innerHTML=tgt.toFixed(1)+'<small>LUFS</small>';
+    $('stTargetK').innerHTML='目標との差 <b style="color:'+(okd?'var(--ok)':'var(--amber)')+'">'+(delta===0?'±0.0':(delta>0?'+':'')+delta.toFixed(1))+'</b>';
+  }finally{
+    if(myToken===renderToken) $('playerCard').classList.remove('rendering');
+  }
 }
 
 let abMode='master';
 class Player{
   constructor(){ this.ctx=null;this.src=null;this.buf=null;this.startTime=0;this.offset=0;this.playing=false;this.raf=null;this._swapping=false; }
   ensureCtx(){ if(this.ctx) return; this.ctx=new (window.AudioContext||window.webkitAudioContext)();
+    this.outGain=this.ctx.createGain(); this.outGain.connect(this.ctx.destination);
     const sp=this.ctx.createChannelSplitter(2); this.aL=this.ctx.createAnalyser(); this.aR=this.ctx.createAnalyser(); this.aL.fftSize=1024; this.aR.fftSize=1024;
     this.bL=new Float32Array(this.aL.fftSize); this.bR=new Float32Array(this.aR.fftSize);
-    this.meterIn=this.ctx.createGain(); this.meterIn.connect(sp); sp.connect(this.aL,0); sp.connect(this.aR,1); }
+    this.meterIn=this.ctx.createGain(); this.outGain.connect(this.meterIn); this.meterIn.connect(sp); sp.connect(this.aL,0); sp.connect(this.aR,1);
+    this.spec=this.ctx.createAnalyser(); this.spec.fftSize=4096; this.spec.smoothingTimeConstant=0.62; this.spec.minDecibels=-100; this.spec.maxDecibels=0;
+    this.meterIn.connect(this.spec); specBuf=new Float32Array(this.spec.frequencyBinCount); }
   get duration(){ return this.buf?this.buf.duration:0; }
   currentOffset(){ return !this.playing? this.offset : Math.min(this.duration, this.offset+(this.ctx.currentTime-this.startTime)); }
-  _startSource(off){ this.src=this.ctx.createBufferSource(); this.src.buffer=this.buf; this.src.connect(this.ctx.destination); this.src.connect(this.meterIn);
+  _startSource(off){ this.src=this.ctx.createBufferSource(); this.src.buffer=this.buf; this.src.connect(this.outGain);
     this.src.onended=()=>{ if(!this._swapping && this.playing && this.currentOffset()>=this.duration-0.05){ this.pause(); this.offset=0; updateTransport(); drawPlayhead(0); } };
     this.startTime=this.ctx.currentTime; this.offset=off; this.src.start(0, Math.min(off,Math.max(0,this.duration-0.01))); }
   _stopSource(){ if(this.src){ this._swapping=true; try{this.src.onended=null;this.src.stop();}catch(e){} this.src.disconnect(); this.src=null; this._swapping=false; } }
-  play(){ if(!this.buf) return; this.ensureCtx(); if(this.ctx.state==='suspended') this.ctx.resume(); if(this.playing) return; resetClip(); if(this.offset>=this.duration-0.02) this.offset=0; this._startSource(this.offset); this.playing=true; this._meterLoop(); }
-  pause(){ if(!this.playing) return; this.offset=this.currentOffset(); this.playing=false; this._stopSource(); if(this.raf)cancelAnimationFrame(this.raf); this.raf=null; resetMeters(); }
+  play(){ if(!this.buf) return; this.ensureCtx(); applyAbGain(); if(this.ctx.state==='suspended') this.ctx.resume(); if(this.playing) return; resetClip(); if(this.offset>=this.duration-0.02) this.offset=0; this._startSource(this.offset); this.playing=true; this._meterLoop(); }
+  pause(){ if(!this.playing) return; this.offset=this.currentOffset(); this.playing=false; this._stopSource(); if(this.raf)cancelAnimationFrame(this.raf); this.raf=null; resetMeters(); specLive=false; drawEqCurve(); }
   toggle(){ this.playing?this.pause():this.play(); updateTransport(); }
   seek(sec){ const w=this.playing; if(w)this._stopSource(); this.offset=clamp(sec,0,this.duration); if(w)this._startSource(this.offset); drawPlayhead(this.duration?this.offset/this.duration:0); }
   replaceBuffer(buf){ if(!buf||buf===this.buf) return; const pos=this.currentOffset(), w=this.playing; if(w)this._stopSource(); this.buf=buf; this.offset=Math.min(pos,this.duration); if(w)this._startSource(this.offset); updateTransport(); }
@@ -402,12 +516,19 @@ class Player{
       const lv=peakOf(this.bL), rv=peakOf(this.bR); peakHoldL=Math.max(peakHoldL-0.013, lv); peakHoldR=Math.max(peakHoldR-0.013, rv);
       paintMeter('vuL', lv, peakHoldL); paintMeter('vuR', rv, peakHoldR);
       if(lv>=0.985 && !clipL){ clipL=true; setClip('L',true); } if(rv>=0.985 && !clipR){ clipR=true; setClip('R',true); }
+      if(this.spec&&specBuf){ this.spec.getFloatFrequencyData(specBuf); specLive=true; drawEqCurve(); }
       const off=this.currentOffset(); drawPlayhead(this.duration?off/this.duration:0); $('curTime').textContent=fmtTime(off);
       if(!seeking) $('seek').value=this.duration?Math.round(off/this.duration*1000):0; this.raf=requestAnimationFrame(tick); };
     this.raf=requestAnimationFrame(tick); }
 }
 function peakOf(a){ let p=0; for(let i=0;i<a.length;i++){ const v=a[i]<0?-a[i]:a[i]; if(v>p)p=v; } return Math.min(1,p*1.06); }
 const player=new Player();
+let specBuf=null, specLive=false;
+/* 音量合わせA/B: ONの時マスター後を原音ラウドネスまで下げて再生（比較用・書き出しには影響しない） */
+function applyAbGain(){ if(!player.ctx||!player.outGain) return; let db=0;
+  const lm=$('lmatch');
+  if(lm&&lm.checked&&abMode==='master'&&origLufs!=null&&masteredLufs!=null) db=clamp(origLufs-masteredLufs,-24,0);
+  player.outGain.gain.setTargetAtTime(dbToGain(db), player.ctx.currentTime, 0.03); }
 
 /* L/R セグメントメーター＋CLIP */
 const SEG=24; let peakHoldL=0, peakHoldR=0, clipL=false, clipR=false;
@@ -445,7 +566,7 @@ function paintWave(progress){ if(!waveCache) return; const cv=$('waveCanvas'), c
 function drawPlayhead(p){ paintWave(p); }
 
 /* EQ：スタイル(点線) + 手動(実線) */
-let vizCtx=null, vizNodes=null, eqFreqs=null, eqMag=null, eqPhase=null, styleView=null, styleTarget=null, styleAnim=null;
+let vizCtx=null, vizNodes=null, eqFreqs=null, eqMag=null, eqPhase=null, styleView=null, styleTarget=null, styleAnim=null, manArr=null, manDirty=true;
 function ensureViz(){ if(vizCtx) return; vizCtx=new OfflineAudioContext(1,1,48000); vizNodes=BANDS.map(b=>biq(vizCtx,b.type,b.f,b.q,0));
   const N=240; eqFreqs=new Float32Array(N); eqMag=new Float32Array(N); eqPhase=new Float32Array(N); for(let i=0;i<N;i++) eqFreqs[i]=20*Math.pow(1000,i/(N-1)); }
 const fToX=(f,W)=> (Math.log(f/20)/Math.log(20000/20))*W;
@@ -469,9 +590,23 @@ function drawEqCurve(){
   ctx.clearRect(0,0,W,H); ctx.font='9px ui-monospace,monospace'; ctx.textBaseline='alphabetic';
   [-12,-6,0,6,12].forEach(db=>{ const y=dbToY(db); ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.strokeStyle= db===0?'rgba(184,198,214,.20)':'rgba(184,198,214,.07)'; ctx.lineWidth=1; ctx.stroke(); ctx.fillStyle='rgba(166,175,186,.45)'; ctx.fillText((db>0?'+':'')+db, 2, y-1); });
   [100,1000,10000].forEach(f=>{ const x=fToX(f,W); ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.strokeStyle='rgba(184,198,214,.06)'; ctx.stroke(); ctx.fillStyle='rgba(166,175,186,.45)'; ctx.fillText(f>=1000?(f/1000)+'k':f, x+2, H-3); });
+  /* リアルタイムスペクトラム（再生中のみ・K特性前の生スペクトル） */
+  if(specLive&&specBuf&&player.ctx){
+    const nyq=player.ctx.sampleRate/2, bins=specBuf.length;
+    ctx.beginPath(); ctx.moveTo(0,H); let last=0;
+    for(let x=0;x<=W;x+=3){
+      const f=20*Math.pow(1000,x/W); const bi=Math.min(bins-1,Math.max(1,Math.round(f/nyq*bins)));
+      let m=-140; for(let b=Math.min(bi,last+1);b<=bi;b++){ const v=specBuf[b]; if(v>m)m=v; } last=bi;
+      const yy=clamp(3+(-m)/90*(H-6), 3, H); ctx.lineTo(x,yy);
+    }
+    ctx.lineTo(W,H); ctx.closePath();
+    const sg=ctx.createLinearGradient(0,0,0,H); sg.addColorStop(0,'rgba(56,232,255,.30)'); sg.addColorStop(1,'rgba(56,232,255,.02)');
+    ctx.fillStyle=sg; ctx.fill();
+  }
   if(styleView){ ctx.beginPath(); ctx.moveTo(0,dbToY(styleView[0])); for(let i=1;i<N;i++) ctx.lineTo(fToX(eqFreqs[i],W),dbToY(styleView[i])); ctx.lineTo(W,midY); ctx.lineTo(0,midY); ctx.closePath(); ctx.globalAlpha=.12; ctx.fillStyle='#38e8ff'; ctx.fill(); ctx.globalAlpha=1;
     ctx.beginPath(); ctx.moveTo(0,dbToY(styleView[0])); for(let i=1;i<N;i++) ctx.lineTo(fToX(eqFreqs[i],W),dbToY(styleView[i])); ctx.strokeStyle='rgba(56,232,255,.9)'; ctx.lineWidth=1.5; ctx.setLineDash([5,4]); ctx.stroke(); ctx.setLineDash([]); }
-  const man=new Float32Array(N); for(let bi=0;bi<BANDS.length;bi++){ vizNodes[bi].gain.value=eqGains[bi]; vizNodes[bi].getFrequencyResponse(eqFreqs,eqMag,eqPhase); for(let i=0;i<N;i++) man[i]+=20*Math.log10(Math.max(eqMag[i],1e-7)); }
+  if(manDirty||!manArr){ manArr=new Float32Array(N); for(let bi=0;bi<BANDS.length;bi++){ vizNodes[bi].gain.value=eqGains[bi]; vizNodes[bi].getFrequencyResponse(eqFreqs,eqMag,eqPhase); for(let i=0;i<N;i++) manArr[i]+=20*Math.log10(Math.max(eqMag[i],1e-7)); } manDirty=false; }
+  const man=manArr;
   const grad=ctx.createLinearGradient(0,0,W,0); BANDS.forEach(b=>grad.addColorStop(clamp(fToX(b.f,W)/W,0,1),b.color));
   ctx.beginPath(); ctx.moveTo(0,dbToY(man[0])); for(let i=1;i<N;i++) ctx.lineTo(fToX(eqFreqs[i],W),dbToY(man[i])); ctx.strokeStyle=grad; ctx.lineWidth=2.2; ctx.stroke();
   BANDS.forEach((b,i)=>{ const x=fToX(b.f,W), y=dbToY(eqGains[i]); ctx.beginPath(); ctx.arc(x,y,4.2,0,6.2832); ctx.fillStyle=b.color; ctx.fill(); ctx.lineWidth=1.4; ctx.strokeStyle='rgba(11,13,17,.95)'; ctx.stroke(); });
@@ -481,35 +616,45 @@ function drawEqCurve(){
 function buildEqBands(){
   const wrap=$('eqBands'); wrap.innerHTML='';
   BANDS.forEach((b,i)=>{ const col=document.createElement('div'); col.className='eq-band'; col.style.borderColor=b.color+'33'; col.style.background=b.color+'12';
-    col.innerHTML=`<span class="gv" id="gv${i}" style="color:${b.color}">0</span><span class="slot"><input type="range" class="eq-vert" id="eq${i}" min="-12" max="12" step="0.5" value="0" style="accent-color:${b.color}"></span><span class="fl" style="color:${b.color}">${b.label}</span>`;
+    const gv=eqGains[i], gvTxt=(gv>0?'+':'')+gv;
+    col.innerHTML=`<span class="gv" id="gv${i}" style="color:${b.color}">${gv===0?'0':gvTxt}</span><span class="slot"><input type="range" class="eq-vert" id="eq${i}" min="-12" max="12" step="0.5" value="${gv}" style="accent-color:${b.color}" aria-label="${b.label} ゲイン"></span><span class="fl" style="color:${b.color}">${b.label}</span>`;
     wrap.appendChild(col); });
-  BANDS.forEach((b,i)=>{ const sl=$('eq'+i); sl.addEventListener('input',()=>{ eqGains[i]=parseFloat(sl.value); $('gv'+i).textContent=(eqGains[i]>0?'+':'')+eqGains[i]; drawEqCurve(); scheduleEqRender(); }); });
+  BANDS.forEach((b,i)=>{ const sl=$('eq'+i); sl.addEventListener('input',()=>{ eqGains[i]=parseFloat(sl.value); $('gv'+i).textContent=(eqGains[i]>0?'+':'')+eqGains[i]; manDirty=true; drawEqCurve(); scheduleEqRender(); saveSettings(); }); });
 }
 let eqTimer=null;
 function scheduleEqRender(){ if(!originalBuf) return; clearTimeout(eqTimer); eqTimer=setTimeout(()=>renderMaster().catch(()=>{}),140); }
-function resetEq(){ eqGains=BANDS.map(()=>0); BANDS.forEach((b,i)=>{ $('eq'+i).value=0; $('gv'+i).textContent='0'; }); drawEqCurve(); if(originalBuf) renderMaster().catch(()=>{}); }
+function resetEq(){ eqGains=BANDS.map(()=>0); BANDS.forEach((b,i)=>{ $('eq'+i).value=0; $('gv'+i).textContent='0'; }); manDirty=true; drawEqCurve(); saveSettings(); if(originalBuf) renderMaster().catch(()=>{}); }
 
 function fmtTime(s){ s=Math.max(0,s|0); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); }
 let toastTimer=null; function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('show'),2200); }
-function updateTransport(){ $('playBtn').textContent=player.playing?'❚❚':'▶'; $('durTime').textContent=fmtTime(player.duration); if(!player.playing) $('curTime').textContent=fmtTime(player.currentOffset()); }
+function updateTransport(){ const b=$('playBtn'); b.textContent=player.playing?'❚❚':'▶'; b.setAttribute('aria-label', player.playing?'一時停止':'再生'); $('durTime').textContent=fmtTime(player.duration); if(!player.playing) $('curTime').textContent=fmtTime(player.currentOffset()); }
+
+/* 設定の自動保存・復元 */
+const LS_KEY='masteringStudioV6';
+function saveSettings(){ try{ localStorage.setItem(LS_KEY, JSON.stringify({v:1, style:selectedId, intensity:Math.round(intensity*100), eq:eqGains})); }catch(e){} }
+function loadSettings(){ try{ const o=JSON.parse(localStorage.getItem(LS_KEY)||'null'); if(!o||o.v!==1) return;
+    if(presetById(o.style)) selectedId=o.style;
+    if(Number.isFinite(o.intensity)) intensity=clamp(o.intensity,0,100)/100;
+    if(Array.isArray(o.eq)&&o.eq.length===BANDS.length) eqGains=o.eq.map(x=>clamp(parseFloat(x)||0,-12,12));
+  }catch(e){} }
 
 function setStyleNote(p, processing){ $('styleNote').innerHTML='<b style="color:var(--green)">'+p.emoji+' '+p.name+'</b> — '+p.note+(processing?'<span class="spinner"></span>':''); }
 function buildPresetCards(){ const grid=$('presetGrid'); grid.innerHTML='';
   for(const p of PRESETS){ const el=document.createElement('button'); el.className='preset'+(p.special?' special':'')+(p.id===selectedId?' active':''); el.dataset.id=p.id; el.type='button'; el.disabled=true;
-    el.innerHTML=`<span class="pemoji">${p.emoji}</span><span class="pname">${p.name}</span>`;
+    el.innerHTML=`<span class="ptag">${p.tag}</span><span class="pemoji">${p.emoji}</span><span class="pname">${p.name}</span>`;
     el.addEventListener('click',()=>selectPreset(p.id));
     el.addEventListener('mouseenter',()=>setStyleNote(p)); el.addEventListener('mouseleave',()=>setStyleNote(presetById(selectedId)));
     grid.appendChild(el); } }
 function setPresetsEnabled(on){ document.querySelectorAll('.preset').forEach(e=>e.disabled=!on); }
 async function selectPreset(id){ selectedId=id; document.querySelectorAll('.preset').forEach(e=>e.classList.toggle('active', e.dataset.id===id));
-  const p=presetById(id); setStyleNote(p, !!originalBuf); updateStyleCurve(true);
+  const p=presetById(id); setStyleNote(p, !!originalBuf); updateStyleCurve(true); saveSettings();
   try{ await renderMaster(); setStyleNote(p,false); }catch(e){ console.error(e); toast('処理に失敗しました'); setStyleNote(p,false); } }
 
 async function handleFile(file){
   if(!file) return; if(file.size>250*1024*1024){ toast('ファイルが大きすぎます（250MBまで）'); return; }
   $('fname').style.display='block'; $('fmeta').style.display='block'; $('fname').textContent='⏳ '+file.name; $('fmeta').textContent='読み込み中…'; $('dropZone').classList.add('loaded');
   try{ const ab=await file.arrayBuffer(); const dc=new (window.AudioContext||window.webkitAudioContext)(); const decoded=await dc.decodeAudioData(ab); await dc.close();
-    originalBuf=toStereo(decoded); origLoudnessDb=gainToDb(measure(originalBuf).rms); $('stOrig').innerHTML=origLoudnessDb.toFixed(1)+'<small>dB</small>';
+    originalBuf=toStereo(decoded); origLufs=lufsIntegrated(originalBuf); masteredLufs=null; $('stOrig').innerHTML=origLufs.toFixed(1)+'<small>LUFS</small>';
     $('fname').textContent='🎵 '+file.name; $('fmeta').textContent=`${fmtTime(originalBuf.duration)} · ${originalBuf.sampleRate/1000}kHz · ${decoded.numberOfChannels===1?'モノラル':'ステレオ'}`;
     $('playerInner').classList.remove('player-disabled'); $('playerPlaceholder').style.display='none'; setPresetsEnabled(true); abMode='master'; setAbUI();
     player.replaceBuffer(originalBuf); $('seek').max=1000; await selectPreset(selectedId); toast('読み込み完了 — スタイルとEQで仕上げられます');
@@ -517,8 +662,8 @@ async function handleFile(file){
 }
 function toStereo(buf){ if(buf.numberOfChannels>=2) return buf; const ctx=new OfflineAudioContext(2, buf.length, buf.sampleRate); const out=ctx.createBuffer(2, buf.length, buf.sampleRate); const src=buf.getChannelData(0); out.copyToChannel(src,0); out.copyToChannel(src,1); return out; }
 
-function setAbUI(){ const on=abMode==='master'; $('abBtn').innerHTML = on ? '<span class="on">マスター後</span>' : '原音'; const flag=$('abFlag'); flag.textContent = on?'● MASTERED':'● ORIGINAL'; flag.className='ab-flag '+(on?'flag-master':'flag-original'); }
-function toggleAB(){ if(!originalBuf||!masteredBuf) return; abMode = abMode==='master'?'original':'master'; setAbUI(); player.replaceBuffer(abMode==='master'?masteredBuf:originalBuf); toast(abMode==='master'?'マスター後を再生':'原音を再生（CLIP点灯時は原音が音割れ）'); }
+function setAbUI(){ const on=abMode==='master'; $('abBtn').innerHTML = on ? '<span class="on">マスター後</span>' : '原音'; $('abBtn').setAttribute('aria-pressed', String(on)); const flag=$('abFlag'); flag.textContent = on?'● MASTERED':'● ORIGINAL'; flag.className='ab-flag '+(on?'flag-master':'flag-original'); }
+function toggleAB(){ if(!originalBuf||!masteredBuf) return; abMode = abMode==='master'?'original':'master'; setAbUI(); player.replaceBuffer(abMode==='master'?masteredBuf:originalBuf); applyAbGain(); drawWave(abMode==='master'?masteredBuf:originalBuf); toast(abMode==='master'?'マスター後を再生':'原音を再生（CLIP点灯時は原音が音割れ）'); }
 
 function bufferToWav(buf, bitDepth=24){
   const numCh=buf.numberOfChannels, sr=buf.sampleRate, len=buf.length; const bytesPer=bitDepth/8, blockAlign=numCh*bytesPer, dataLen=len*blockAlign;
@@ -527,15 +672,18 @@ function bufferToWav(buf, bitDepth=24){
   const ch=[]; for(let c=0;c<numCh;c++) ch.push(buf.getChannelData(c));
   for(let i=0;i<len;i++){ for(let c=0;c<numCh;c++){ const s=clamp(ch[c][i],-1,1);
     if(bitDepth===24){ let v=Math.round(s<0? s*0x800000 : s*0x7FFFFF); v=clamp(v,-0x800000,0x7FFFFF); if(v<0)v+=0x1000000; view.setUint8(p++,v&0xFF); view.setUint8(p++,(v>>8)&0xFF); view.setUint8(p++,(v>>16)&0xFF); }
-    else{ view.setInt16(p, s<0? s*0x8000 : s*0x7FFF, true); p+=2; } } }
+    else{ const dith=(Math.random()+Math.random()-1); let v=Math.round(s*32767+dith); v=clamp(v,-32768,32767); view.setInt16(p,v,true); p+=2; } } }
   return new Blob([view.buffer],{type:'audio/wav'});
 }
-function downloadMaster(){ if(!masteredBuf){ toast('先にスタイルを選んでください'); return; } const blob=bufferToWav(masteredBuf);
+function downloadMaster(){ if(!masteredBuf){ toast('先にスタイルを選んでください'); return; }
+  const bd=parseInt($('bitDepth').value,10)===16?16:24; const blob=bufferToWav(masteredBuf,bd);
   const base=($('fname').textContent.replace(/^[^\w぀-ヿ一-鿿]+/,'').replace(/\.[^.]+$/,'').trim())||'master';
-  const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`${base}_${presetById(selectedId).id}_mastered.wav`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1500); toast('24bit WAVを保存しました'); }
+  const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`${base}_${presetById(selectedId).id}_mastered_${bd}bit.wav`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1500); toast(bd===16?'16bit WAV（TPDFディザ）を保存しました':'24bit WAVを保存しました'); }
 
 let seeking=false;
 function wire(){
+  loadSettings();
+  $('intensity').value=Math.round(intensity*100); $('intensityVal').textContent=Math.round(intensity*100)+'%';
   buildPresetCards(); buildEqBands(); buildMeters(); updateStyleCurve(false); setStyleNote(presetById(selectedId));
   const dz=$('dropZone'), fi=$('fileInput');
   fi.addEventListener('change', e=>{ if(e.target.files[0]) handleFile(e.target.files[0]); });
@@ -548,9 +696,14 @@ function wire(){
   $('waveCanvas').addEventListener('click',e=>{ if(!player.duration) return; const r=e.currentTarget.getBoundingClientRect(); const ratio=clamp((e.clientX-r.left)/r.width,0,1); player.seek(ratio*player.duration); $('seek').value=Math.round(ratio*1000); });
   const inten=$('intensity'); let intenTimer=null;
   inten.addEventListener('input',()=>{ intensity=inten.value/100; $('intensityVal').textContent=inten.value+'%'; updateStyleCurve(false); });
-  inten.addEventListener('change',()=>{ if(!originalBuf) return; clearTimeout(intenTimer); intenTimer=setTimeout(()=>renderMaster().catch(()=>{}),60); });
-  document.addEventListener('keydown',e=>{ if(e.target.matches('input,textarea')) return; if(e.code==='Space'){ e.preventDefault(); if(player.buf) player.toggle(); } else if(e.key==='a'||e.key==='A'){ toggleAB(); } });
-  window.addEventListener('resize',()=>{ if(masteredBuf) drawWave(masteredBuf); drawEqCurve(); });
+  inten.addEventListener('change',()=>{ saveSettings(); if(!originalBuf) return; clearTimeout(intenTimer); intenTimer=setTimeout(()=>renderMaster().catch(()=>{}),60); });
+  $('lmatch').addEventListener('change',()=>{ applyAbGain(); toast($('lmatch').checked?'音量合わせON — マスター後を原音の音量で再生します':'音量合わせOFF'); });
+  document.addEventListener('keydown',e=>{ if(e.target.matches('input,textarea,select,button')) return;
+    if(e.code==='Space'){ e.preventDefault(); if(player.buf) player.toggle(); }
+    else if(e.key==='a'||e.key==='A'){ toggleAB(); }
+    else if(e.key==='ArrowLeft'||e.key==='ArrowRight'){ if(!player.buf) return; e.preventDefault();
+      player.seek(clamp(player.currentOffset()+(e.key==='ArrowRight'?5:-5),0,player.duration)); updateTransport(); } });
+  window.addEventListener('resize',()=>{ const b=abMode==='master'?masteredBuf:originalBuf; if(b) drawWave(b); drawEqCurve(); });
 }
 wire();
 </script>
