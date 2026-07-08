@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="description" content="スタイルプロンプト工房 ── 歌詞を入れて、ジャンル・ムード・BPM・調・拍子・楽器を選ぶだけ。Suno対応の高精度スタイルプロンプトを最適語順(前半重視)で自動生成する無料の非公式ツール。変拍子・キー指定・除外スタイルにも対応。">
+<meta name="theme-color" content="#0b0b0f">
+<meta property="og:title" content="スタイルプロンプト工房 | 選ぶだけで高精度スタイルプロンプト">
+<meta property="og:description" content="歌詞×選択式でAI音楽用のスタイルプロンプトを作り込む無料ツール(Suno対応・非公式)。前半重視の最適語順・BPM・調・変拍子・楽器指定に対応。">
+<meta property="og:type" content="website">
+<title>スタイルプロンプト工房 | Suno対応・選ぶだけで高精度スタイルプロンプト作成(非公式)</title>
+<link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
+<link rel="icon" href="icon-192.png" sizes="192x192" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <p class="header-badge">STYLE PROMPT BUILDER</p>
+    <h1 class="site-title">スタイルプロンプト工房</h1>
+    <p class="site-lead">
+      歌詞を入れて、ポチポチ選ぶだけ。<br>
+      AIが一番聴いてくれる語順で、スタイルプロンプトを組み上げます。<br>
+      <small>Suno対応・非公式のファン制作ツールです</small>
+    </p>
+  </div>
+</header>
+
+<main>
+
+  <!-- ══════════ レシピ ══════════ -->
+  <section class="panel" id="recipe-panel" aria-label="人気レシピ">
+    <h2 class="panel-title"><span class="step-num">0</span>人気レシピから始める<span class="opt">(任意・あとから調整OK)</span></h2>
+    <p class="panel-note">みんながSunoでよく使っている定番の組み合わせです。近いものを選んでから微調整すると速い!</p>
+    <div class="recipe-grid" id="recipe-cards"></div>
+  </section>
+
+  <!-- ══════════ 歌詞 ══════════ -->
+  <section class="panel" id="step-lyrics" aria-label="歌詞の入力">
+    <h2 class="panel-title"><span class="step-num">1</span>歌詞を入力<span class="opt">(任意)</span></h2>
+    <textarea id="lyrics-input" rows="7" placeholder="ここに歌詞を貼り付け(空行でブロックを分けておくとタグ付けがきれいになります)&#10;&#10;例:&#10;夜の街を歩いた&#10;君の影を探して&#10;&#10;もう戻れない日々に&#10;手を振った"></textarea>
+    <div class="btn-row">
+      <button type="button" id="analyze-btn" class="btn sub">🔍 歌詞から雰囲気を提案してもらう</button>
+      <button type="button" id="tag-lyrics-btn" class="btn sub">🏷️ セクションタグを自動で付ける</button>
+    </div>
+    <div id="lyrics-suggest" class="chip-row"></div>
+    <div id="lyrics-tagged-wrap" hidden>
+      <label for="lyrics-tagged">タグ付き歌詞(Sunoの歌詞欄へ)</label>
+      <textarea id="lyrics-tagged" rows="7" readonly></textarea>
+      <button type="button" id="copy-lyrics" class="btn sub">📋 タグ付き歌詞をコピー</button>
+    </div>
+  </section>
+
+  <!-- ══════════ ジャンル ══════════ -->
+  <section class="panel" id="step-genre" aria-label="ジャンルの選択">
+    <h2 class="panel-title"><span class="step-num">2</span>ジャンル<span class="opt">(最大2つ・最初に選んだ方が主軸)</span></h2>
+    <p class="panel-note">プロンプトの先頭=一番強く反映される場所。ここに入ります。</p>
+    <div class="chip-row" id="genre-chips"></div>
+  </section>
+
+  <!-- ══════════ ムード ══════════ -->
+  <section class="panel" id="step-mood" aria-label="ムードの選択">
+    <h2 class="panel-title"><span class="step-num">3</span>ムード・イメージ<span class="opt">(最大3つ)</span></h2>
+    <div class="chip-row" id="mood-chips"></div>
+  </section>
+
+  <!-- ══════════ ボーカル ══════════ -->
+  <section class="panel" id="step-vocal" aria-label="ボーカルの選択">
+    <h2 class="panel-title"><span class="step-num">4</span>ボーカル</h2>
+    <div class="chip-row" id="singer-chips"></div>
+    <div id="quality-row" style="display:none">
+      <p class="panel-note">声質:</p>
+      <div class="chip-row" id="quality-chips"></div>
+    </div>
+  </section>
+
+  <!-- ══════════ テンポ ══════════ -->
+  <section class="panel" id="step-tempo" aria-label="テンポとBPM">
+    <h2 class="panel-title"><span class="step-num">5</span>テンポ / BPM</h2>
+    <div class="chip-row" id="tempo-chips"></div>
+    <div class="bpm-line">
+      <label for="bpm-input">ピッタリ指定したい人はこちら:</label>
+      <input type="number" id="bpm-input" min="40" max="240" placeholder="例: 128">
+      <span class="bpm-unit">BPM</span>
+    </div>
+  </section>
+
+  <!-- ══════════ キー ══════════ -->
+  <section class="panel" id="step-key" aria-label="キー(調)の選択">
+    <h2 class="panel-title"><span class="step-num">6</span>キー(調)<span class="opt">(長調=明るい / 短調=切ない)</span></h2>
+    <div class="chip-row key-row" id="key-chips"></div>
+  </section>
+
+  <!-- ══════════ 拍子 ══════════ -->
+  <section class="panel" id="step-meter" aria-label="拍子の選択">
+    <h2 class="panel-title"><span class="step-num">7</span>拍子・グルーヴ<span class="opt">(変拍子もここ)</span></h2>
+    <div class="chip-row" id="meter-chips"></div>
+    <p class="panel-note">ノリの質感:</p>
+    <div class="chip-row" id="groove-chips"></div>
+  </section>
+
+  <!-- ══════════ 楽器 ══════════ -->
+  <section class="panel" id="step-inst" aria-label="楽器の選択">
+    <h2 class="panel-title"><span class="step-num">8</span>楽器<span class="opt">(最大5つ・未選択ならおまかせ)</span></h2>
+    <div id="inst-groups"></div>
+  </section>
+
+  <!-- ══════════ 仕上がり ══════════ -->
+  <section class="panel" id="step-prod" aria-label="仕上がりの選択">
+    <h2 class="panel-title"><span class="step-num">9</span>音の仕上がり・年代感・展開<span class="opt">(任意)</span></h2>
+    <p class="panel-note">仕上がり(プロダクション):</p>
+    <div class="chip-row" id="prod-chips"></div>
+    <p class="panel-note">年代感:</p>
+    <div class="chip-row" id="era-chips"></div>
+    <p class="panel-note">曲の展開:</p>
+    <div class="chip-row" id="dyn-chips"></div>
+    <p class="panel-note">自由に追加(英語推奨):</p>
+    <input type="text" id="extra-input" placeholder="例: saxophone solo in bridge, rain sound intro">
+  </section>
+
+  <!-- ══════════ 相談モード ══════════ -->
+  <section class="panel consult-panel" id="consult-panel" aria-label="相談モード">
+    <h2 class="panel-title"><span class="step-num">💬</span>相談モード<span class="opt">(迷ったらここ)</span></h2>
+    <p class="panel-note">5つの質問に答えると、足りない要素を自動で補います。</p>
+    <div id="consult-box"></div>
+  </section>
+
+  <!-- ══════════ 出力 ══════════ -->
+  <section class="panel output-panel" id="output-panel" aria-label="生成されたプロンプト">
+    <h2 class="panel-title"><span class="step-num">✨</span>完成スタイルプロンプト</h2>
+    <p id="pick-count" class="pick-count">まだ何も選ばれていません</p>
+
+    <div class="output-box">
+      <p id="style-output"><span class="placeholder">選んだら、下の「スタイルを生成」ボタンを押してください</span></p>
+    </div>
+    <p id="stale-note" class="stale-note" hidden>🔄 選択が変わりました。「スタイルを生成」を押すと反映されます</p>
+    <div class="meter-row">
+      <div class="char-gauge"><div id="char-gauge-fill"></div></div>
+      <span id="char-count">0 / 1000字</span>
+      <span id="tag-count">タグ 0個</span>
+    </div>
+    <p class="legend"><mark class="core-part">前半=コア(最重要)</mark> <span class="detail-part">後半=ディテール</span></p>
+
+    <div id="warnings" class="warnings" hidden></div>
+
+    <label class="autofill-label">
+      <input type="checkbox" id="autofill-toggle" checked>
+      おまかせ補完(BPM・楽器・仕上がりが未選択のとき、ジャンルの定番で埋める)
+    </label>
+
+    <div class="btn-row">
+      <button type="button" id="copy-style" class="btn main">📋 スタイルプロンプトをコピー</button>
+      <button type="button" id="save-history" class="btn sub">💾 履歴に保存</button>
+      <button type="button" id="reset-btn" class="btn sub danger">🗑 リセット</button>
+    </div>
+
+    <div class="exclude-wrap">
+      <label for="exclude-output">除外スタイル(SunoのExclude Styles欄へ・編集OK)</label>
+      <textarea id="exclude-output" rows="2" placeholder="ジャンルを選ぶと自動で提案されます"></textarea>
+      <button type="button" id="copy-exclude" class="btn sub">📋 除外スタイルをコピー</button>
+    </div>
+  </section>
+
+  <!-- ══════════ 履歴 ══════════ -->
+  <section class="panel" id="history-panel" aria-label="保存した履歴" hidden>
+    <h2 class="panel-title"><span class="step-num">📁</span>保存した履歴</h2>
+    <div id="history-list"></div>
+  </section>
+
+  <!-- ══════════ 使い方のコツ ══════════ -->
+  <section class="panel tips-panel" aria-label="使い方のコツ">
+    <h2 class="panel-title"><span class="step-num">💡</span>Sunoに効かせるコツ</h2>
+    <ul class="tips-list">
+      <li><strong>先頭が一番強い。</strong>Sunoはスタイル欄の前半(特に最初のタグ)を最重視します。このツールはジャンル→ムード→ボーカル→BPM→調→拍子の順で自動的に前寄せします。</li>
+      <li><strong>タグは5〜12個が最適。</strong>4個未満だとぼんやり、15個を超えると後半が無視されがちです。</li>
+      <li><strong>矛盾させない。</strong>「激しい×穏やか」のような相反ワードは打ち消し合います(ツールが警告します)。</li>
+      <li><strong>BPMは数字で。</strong>最新のSunoは「128 BPM」のような数字指定にかなり正確に追従します。</li>
+      <li><strong>変拍子は+グルーヴ語。</strong>「7/8 time」だけより「complex syncopated rhythm」を添えると成功率が上がります。</li>
+      <li><strong>除外スタイルを使う。</strong>意図しない要素(勝手なEDM化など)はExclude Stylesで止めるのが確実です。</li>
+      <li><strong>1回で決めない。</strong>同じプロンプトでも生成ごとに揺れます。2〜3回生成して、直したい要素を1つずつ変えるのがプロの回し方。</li>
+    </ul>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <p>スタイルプロンプト工房 ── 入力された歌詞や選択内容はすべて端末内で処理され、外部に送信されません。</p>
+  <p>本ツールは非公式のファン制作ツールであり、Suno, Inc.とは提携・承認・後援関係にありません。<br>「Suno」はSuno, Inc.の商標です。名称は互換性の説明のためにのみ使用しています。</p>
+</footer>
+
+<div class="generate-bar">
+  <button type="button" id="generate-btn" class="btn generate">✨ スタイルを生成</button>
+</div>
+
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
