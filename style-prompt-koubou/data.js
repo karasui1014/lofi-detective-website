@@ -266,8 +266,9 @@ const DB = {
       set:{ genres:["idol"], moods:["playful","euphoric"], singer:"girl", quality:"sweet", bpm:138, key:"emaj", meter:"44", groove:"straight", inst:["synthlead","fourfloor","glock"], prod:"polished", era:"modern", dyn:"explosive" } },
     { id:"showakayou", label:"🎤 昭和グルーヴ歌謡", desc:"ブラスが唸るレトロ歌謡ファンク",
       set:{ genres:["kayoukyoku"], moods:["nostalgic","playful"], singer:"male", quality:"soulful", bpm:116, key:"gmin", meter:"44", groove:"syncopated", inst:["brass","slapb","funkg"], prod:"analog", era:"70s", dyn:"steady" } },
-    { id:"progodd", label:"🌀 変拍子プログレ", desc:"7/8で疾走する知的カオス",
-      set:{ genres:["jrock"], moods:["mysterious","energetic"], singer:"inst", quality:null, bpm:150, key:"csmin", meter:"78", groove:"syncopated", inst:["distg","synthlead","punchyd"], prod:"punchy", era:"none", dyn:"build" } }
+    { id:"progodd", label:"🌀 変拍子プログレ", desc:"Bメロ7/8→サビ4/4の知的カオス",
+      set:{ genres:["jrock"], moods:["mysterious","energetic"], singer:"inst", quality:null, bpm:150, key:"csmin", meter:"44", groove:"syncopated", inst:["distg","synthlead","punchyd"], prod:"punchy", era:"none", dyn:"build",
+        sfx:{ prechorus:["meter78","build"], chorus:["meter44back","drop"] } } }
   ],
 
   /* ---------- 相談モード ---------- */
@@ -321,6 +322,36 @@ const DB = {
     { re:/神|祈|空|翼|永遠|奇跡/g, hint:"荘厳・祈り", apply:{ moods:["epic","hopeful"], genres:["orchestral","gospel"] } },
     { re:/踊|リズム|揺れ|グルーヴ|ビート/g, hint:"ダンス・ノリ", apply:{ moods:["energetic","playful"], genres:["funk","house"] } },
     { re:/コーヒー|カフェ|窓辺|午後|ひだまり/g, hint:"まったり日常", apply:{ moods:["cozy","chill"], genres:["bossa","acoustic"] } }
+  ],
+
+  /* ---------- 楽曲セクション(歌詞欄のタグに対応) ---------- */
+  sections: [
+    { id:"intro",     label:"イントロ",        tag:"Intro" },
+    { id:"verse",     label:"Aメロ (Verse)",   tag:"Verse" },
+    { id:"prechorus", label:"Bメロ (Pre-Chorus)", tag:"Pre-Chorus" },
+    { id:"chorus",    label:"サビ (Chorus)",   tag:"Chorus" },
+    { id:"bridge",    label:"Cメロ/間奏 (Bridge)", tag:"Bridge" },
+    { id:"outro",     label:"アウトロ",        tag:"Outro" }
+  ],
+
+  /* ---------- セクション演出(複数選択可・最大3つ/セクション) ---------- */
+  sectionFX: [
+    { id:"meter78",   label:"7/8に変拍子",     tag:"shift to 7/8 time, complex syncopated rhythm", group:"拍子" },
+    { id:"meter54",   label:"5/4に変拍子",     tag:"shift to 5/4 time, floating off-kilter groove", group:"拍子" },
+    { id:"meter34",   label:"3/4ワルツへ",     tag:"shift to 3/4 waltz time", group:"拍子" },
+    { id:"meter68",   label:"6/8のゆらぎへ",   tag:"shift to 6/8 flowing rhythm", group:"拍子" },
+    { id:"meter44back",label:"4/4に戻す",      tag:"return to steady 4/4 time", group:"拍子" },
+    { id:"keyup",     label:"転調↑(盛り上げ)", tag:"key change, modulate up for a lift", group:"転調" },
+    { id:"keydown",   label:"転調↓(沈み込み)", tag:"modulate down to a darker key", group:"転調" },
+    { id:"keyrel",    label:"平行調へ転調",     tag:"modulate to the relative key, shifting the mood", group:"転調" },
+    { id:"halftime",  label:"ハーフタイム",     tag:"half-time feel", group:"テンポ" },
+    { id:"doubletime",label:"ダブルタイム",     tag:"double-time drive", group:"テンポ" },
+    { id:"build",     label:"ビルドアップ",     tag:"rising tension, building energy", group:"展開" },
+    { id:"breakdown", label:"静寂ブレイク",     tag:"stripped-down quiet breakdown", group:"展開" },
+    { id:"drop",      label:"ドロップ爆発",     tag:"massive drop, full energy", group:"展開" },
+    { id:"solo",      label:"楽器ソロ",         tag:"expressive instrumental solo", group:"展開" },
+    { id:"acapella",  label:"アカペラ",         tag:"a cappella, vocals only", group:"展開" },
+    { id:"nodrums",   label:"ドラム抜き",       tag:"no drums, floating and airy", group:"展開" }
   ],
 
   /* ---------- ムード→おすすめキー(おまかせ補完用) ---------- */

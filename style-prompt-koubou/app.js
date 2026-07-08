@@ -22,8 +22,10 @@ const state = {
   extras: [],        // 相談モードで追加される文言
   autoFill: true,    // おまかせ補完
   generated: false,  // 生成ボタンを押したか
-  stale: false       // 生成後に選択が変わったか
+  stale: false,      // 生成後に選択が変わったか
+  sectionFX: {}      // セクションごとの演出 { verse:["meter78"], ... }
 };
+DB.sections.forEach(s => { state.sectionFX[s.id] = []; });
 
 const $  = (sel) => document.querySelector(sel);
 const $$ = (sel) => document.querySelectorAll(sel);
@@ -124,6 +126,35 @@ function init() {
     instBox.appendChild(wrap);
   });
 
+  // セクション演出
+  const secBox = $("#section-fx-rows");
+  DB.sections.forEach(sec => {
+    const wrap = document.createElement("div");
+    wrap.className = "section-fx-row";
+    const h = document.createElement("p");
+    h.className = "section-fx-title";
+    h.textContent = sec.label;
+    wrap.appendChild(h);
+    const row = document.createElement("div");
+    row.className = "chip-row";
+    DB.sectionFX.forEach(fx => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "chip";
+      b.dataset.sec = sec.id;
+      b.dataset.fx = fx.id;
+      b.innerHTML = `<span>${fx.label}</span>`;
+      b.addEventListener("click", () => {
+        if (!toggleArr(state.sectionFX[sec.id], fx.id, 3)) toast("演出は1セクション3つまで");
+        markStale();
+        render();
+      });
+      row.appendChild(b);
+    });
+    wrap.appendChild(row);
+    secBox.appendChild(wrap);
+  });
+
   // レシピ
   const recipeBox = $("#recipe-cards");
   DB.recipes.forEach(r => {
@@ -159,6 +190,7 @@ function init() {
     copyText($("#style-output").textContent, "スタイルプロンプトをコピーしました🎵");
   });
   $("#copy-exclude").addEventListener("click", () => copyText($("#exclude-output").value, "除外スタイルをコピーしました"));
+  $("#copy-styled-lyrics").addEventListener("click", () => copyText($("#styled-lyrics").value, "スタイル入り歌詞をコピーしました🎼"));
   $("#copy-lyrics").addEventListener("click", () => copyText($("#lyrics-tagged").value, "タグ付き歌詞をコピーしました"));
   $("#save-history").addEventListener("click", saveHistory);
   $("#analyze-btn").addEventListener("click", analyzeLyrics);
@@ -178,6 +210,8 @@ function resetState() {
   state.groove = "none"; state.inst = []; state.prod = "none"; state.era = "none";
   state.dyn = "none"; state.extras = [];
   state.generated = false; state.stale = false;
+  DB.sections.forEach(s => { state.sectionFX[s.id] = []; });
+  $("#styled-lyrics-wrap").hidden = true;
   $("#bpm-input").value = "";
   $("#extra-input").value = "";
   $$("#consult-box .chip").forEach(c => c.classList.remove("on"));
@@ -192,6 +226,7 @@ function applyRecipe(r) {
   state.bpm = s.bpm; state.tempoWord = null;
   state.key = s.key; state.meter = s.meter; state.groove = s.groove;
   state.inst = [...s.inst]; state.prod = s.prod; state.era = s.era; state.dyn = s.dyn;
+  DB.sections.forEach(sec => { state.sectionFX[sec.id] = (s.sfx && s.sfx[sec.id]) ? [...s.sfx[sec.id]] : []; });
   $("#bpm-input").value = s.bpm;
   toast(`レシピ「${r.label}」を読み込みました。ここから自由に調整OK!`);
   markStale();
@@ -391,6 +426,13 @@ function buildPrompt() {
   if (era && era.tag) detail.push(era.tag);
   const dyn = DB.dynamicsOpts.find(d => d.id === state.dyn);
   if (dyn && dyn.tag) detail.push(dyn.tag);
+
+  /* --- セクション演出のサマリーをスタイル欄にも反映 --- */
+  const allFX = Object.values(state.sectionFX).flat();
+  if (allFX.some(id => id.startsWith("meter"))) detail.push("mid-song time signature changes");
+  if (allFX.some(id => id.startsWith("key"))) detail.push("dramatic mid-song key change");
+  if (allFX.includes("halftime") || allFX.includes("doubletime")) detail.push("tempo feel shifts between sections");
+
   state.extras.forEach(x => detail.push(x));
   const extra = $("#extra-input").value.trim();
   if (extra) detail.push(extra);
@@ -455,9 +497,80 @@ function generate() {
   state.generated = true;
   state.stale = false;
   renderOutput(res);
+  buildStyledLyrics(res);
   render();
   $("#output-panel").scrollIntoView({ behavior: "smooth" });
   toast("スタイルプロンプトを生成しました✨");
+}
+
+/* ============================================================
+   スタイル入り歌詞([Style:]+セクションタグ演出込み)
+   ============================================================ */
+function fxTagsFor(secId) {
+  return state.sectionFX[secId]
+    .map(id => DB.sectionFX.find(f => f.id === id)?.tag)
+    .filter(Boolean);
+}
+
+function sectionTag(sunoName, secId) {
+  const fx = fxTagsFor(secId);
+  return fx.length ? `[${sunoName}: ${fx.join(", ")}]` : `[${sunoName}]`;
+}
+
+function buildStyledLyrics(res) {
+  const wrap = $("#styled-lyrics-wrap");
+  const text = $("#lyrics-input").value.trim();
+  if (!text) { wrap.hidden = true; return; }
+
+  const blocks = text.split(/\n\s*\n/).map(b => b.trim()).filter(Boolean);
+  const norm = (b) => b.replace(/\s+/g, "");
+  const counts = {};
+  blocks.forEach(b => { counts[norm(b)] = (counts[norm(b)] || 0) + 1; });
+
+  // サビ判定: 最も繰り返されているブロック(2回以上)
+  let chorusNorm = null, best = 1;
+  Object.entries(counts).forEach(([n, c]) => {
+    if (c > best || (c === best && c >= 2 && n.length > (chorusNorm?.length || 0))) {
+      if (c >= 2) { chorusNorm = n; best = c; }
+    }
+  });
+
+  const kinds = blocks.map(b => (norm(b) === chorusNorm ? "chorus" : null));
+  // Bメロ判定: サビの直前の非サビブロック(先頭以外)
+  kinds.forEach((k, i) => {
+    if (k === null && kinds[i + 1] === "chorus" && i > 0) kinds[i] = "prechorus";
+  });
+  // Cメロ判定: 一度サビが出た後の非サビ・非Bメロブロック(最終ブロック以外)
+  const firstChorus = kinds.indexOf("chorus");
+  kinds.forEach((k, i) => {
+    if (k === null && firstChorus >= 0 && i > firstChorus && i < blocks.length - 1) kinds[i] = "bridge";
+  });
+  // アウトロ判定: 最後の短いブロック
+  const last = blocks.length - 1;
+  if (kinds[last] === null && blocks.length >= 3 && blocks[last].split("\n").length <= 2) kinds[last] = "outro";
+
+  let verse = 0;
+  const lines = [];
+  lines.push(`[Style: ${res.coreStr}]`);
+  lines.push("");
+  lines.push(sectionTag("Intro", "intro"));
+  blocks.forEach((b, i) => {
+    lines.push("");
+    if (kinds[i] === "chorus")        lines.push(sectionTag("Chorus", "chorus"));
+    else if (kinds[i] === "prechorus") lines.push(sectionTag("Pre-Chorus", "prechorus"));
+    else if (kinds[i] === "bridge")    lines.push(sectionTag("Bridge", "bridge"));
+    else if (kinds[i] === "outro")     lines.push(sectionTag("Outro", "outro"));
+    else { verse += 1;                 lines.push(sectionTag(`Verse ${verse}`, "verse")); }
+    lines.push(b);
+  });
+  // 歌詞にアウトロが無い場合、演出指定があればタグだけ足す
+  if (!kinds.includes("outro") && fxTagsFor("outro").length) {
+    lines.push("");
+    lines.push(sectionTag("Outro", "outro"));
+  }
+
+  $("#styled-lyrics").value = lines.join("\n");
+  wrap.hidden = false;
 }
 
 function renderOutput(res) {
@@ -499,6 +612,7 @@ function render() {
   $$("#meter-chips .chip").forEach(c => c.classList.toggle("on", state.meter === c.dataset.id));
   $$("#groove-chips .chip").forEach(c => c.classList.toggle("on", state.groove === c.dataset.id));
   $$("#inst-groups .chip").forEach(c => c.classList.toggle("on", state.inst.includes(c.dataset.id)));
+  $$("#section-fx-rows .chip").forEach(c => c.classList.toggle("on", state.sectionFX[c.dataset.sec]?.includes(c.dataset.fx)));
   $$("#prod-chips .chip").forEach(c => c.classList.toggle("on", state.prod === c.dataset.id));
   $$("#era-chips .chip").forEach(c => c.classList.toggle("on", state.era === c.dataset.id));
   $$("#dyn-chips .chip").forEach(c => c.classList.toggle("on", state.dyn === c.dataset.id));
@@ -534,6 +648,8 @@ function renderSummary(res) {
   const meter = DB.meters.find(m => m.id === state.meter);
   if (meter && meter.tag) items.push(meter.label.split("(")[0]);
   state.inst.forEach(id => items.push(findInst(id).label));
+  const fxCount = Object.values(state.sectionFX).flat().length;
+  if (fxCount) items.push(`セクション演出×${fxCount}`);
   $("#pick-count").textContent = items.length ? `選択中: ${items.join(" / ")}` : "まだ何も選ばれていません";
 }
 

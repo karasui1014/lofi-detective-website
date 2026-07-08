@@ -291,6 +291,29 @@ label { display: block; margin: 12px 0 6px; font-size: .85rem; color: var(--text
 }
 .btn.generate:hover { box-shadow: 0 8px 32px rgba(63,196,178,.55); }
 
+/* ---------- セクション演出 ---------- */
+.section-fx-row {
+  padding: 12px 0;
+  border-bottom: 1px dashed var(--line-soft);
+}
+.section-fx-row:last-child { border-bottom: none; }
+.section-fx-title {
+  margin: 0 0 8px;
+  font-size: .85rem;
+  font-weight: 700;
+  color: var(--text);
+}
+.section-fx-row .chip { font-size: .78rem; padding: 6px 11px; }
+
+/* ---------- スタイル入り歌詞 ---------- */
+.styled-lyrics-wrap { margin-top: 18px; }
+.styled-lyrics-wrap textarea {
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-size: .85rem;
+  line-height: 1.7;
+}
+.styled-lyrics-wrap .btn { margin-top: 10px; }
+
 /* ---------- 相談モード ---------- */
 .consult-panel { border-color: rgba(167,139,250,.35); }
 .consult-q { margin-bottom: 14px; }

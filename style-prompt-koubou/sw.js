@@ -1,5 +1,5 @@
 /* スタイルプロンプト工房 Service Worker */
-const CACHE = "style-koubou-v1";
+const CACHE = "style-koubou-v2";
 const ASSETS = [
   "./",
   "./index.html",
