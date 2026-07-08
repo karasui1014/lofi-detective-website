@@ -38,6 +38,7 @@ header{position:relative;padding:1.5rem 0 1.1rem;margin-bottom:1.1rem;border-bot
 .hero-title{font-size:clamp(1.35rem,4.6vw,1.75rem);font-weight:700;color:var(--text);letter-spacing:.012em;}
 .hero-title b{color:var(--accent);}
 .hero-sub{font-size:.6rem;letter-spacing:.2em;color:var(--text3);text-transform:uppercase;font-family:var(--mono);margin-top:.45rem;}
+.header-warning{font-size:.7rem;color:#fca5a5;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.35);border-radius:6px;padding:.25rem .6rem;white-space:nowrap;letter-spacing:normal;text-transform:none;display:inline-block;margin-top:.55rem;}
 
 /* Cards */
 .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:1rem 1.05rem;box-shadow:var(--shadow);}
@@ -196,6 +197,7 @@ button:focus-visible,.sel:focus-visible,.chk input:focus-visible,input[type=rang
   <div class="brand"><span class="logo-dot">🎛️</span><h1 class="hero-title">Mastering <b>Studio</b></h1></div>
   <div class="hero-sub">Browser Mastering Console</div>
   <div class="chips"><span class="chip">端末内処理・非アップロード</span><span class="chip">LUFS / True Peak</span><span class="chip">24bit WAV</span></div>
+  <div><span class="header-warning">※第三者への無断譲渡・公開はNGです</span></div>
 </header>
 
 <div class="wrap">
@@ -264,8 +266,6 @@ button:focus-visible,.sel:focus-visible,.chk input:focus-visible,input[type=rang
       <button class="btn btn-sm" id="eqReset">⤺ フラット</button>
     </div>
   </div>
-
-  <p class="hint" style="text-align:center;margin-top:1rem;">※第三者への無断譲渡・公開はNGです</p>
 </div>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
