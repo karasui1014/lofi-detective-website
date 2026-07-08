@@ -63,6 +63,20 @@ body {
   background-clip: text;
   -webkit-text-fill-color: transparent;
 }
+.no-transfer-badge {
+  display: inline-block;
+  vertical-align: middle;
+  margin-left: 12px;
+  padding: 4px 12px;
+  border: 1px solid rgba(255,107,107,.45);
+  border-radius: 999px;
+  background: rgba(255,107,107,.08);
+  color: var(--danger);
+  font-size: .48em;
+  font-weight: 700;
+  letter-spacing: .02em;
+  -webkit-text-fill-color: var(--danger);
+}
 .site-lead {
   margin: 14px auto 0;
   max-width: 34em;
