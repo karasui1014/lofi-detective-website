@@ -334,24 +334,27 @@ const DB = {
     { id:"outro",     label:"アウトロ",        tag:"Outro" }
   ],
 
-  /* ---------- セクション演出(複数選択可・最大3つ/セクション) ---------- */
+  /* ---------- セクション演出(複数選択可・最大3つ/セクション) ----------
+     short: 歌詞欄のセクションタグに埋め込む短いキーワード(例: [Chorus | Key Change])
+            Sunoが「歌詞として歌ってしまう」事故を避けるため、短い認識されやすい語だけを使う
+     tag:   スタイル欄(Styleフィールド)側のサマリー生成に使う説明的な英語フレーズ */
   sectionFX: [
-    { id:"meter78",   label:"7/8に変拍子",     tag:"shift to 7/8 time, complex syncopated rhythm", group:"拍子" },
-    { id:"meter54",   label:"5/4に変拍子",     tag:"shift to 5/4 time, floating off-kilter groove", group:"拍子" },
-    { id:"meter34",   label:"3/4ワルツへ",     tag:"shift to 3/4 waltz time", group:"拍子" },
-    { id:"meter68",   label:"6/8のゆらぎへ",   tag:"shift to 6/8 flowing rhythm", group:"拍子" },
-    { id:"meter44back",label:"4/4に戻す",      tag:"return to steady 4/4 time", group:"拍子" },
-    { id:"keyup",     label:"転調↑(盛り上げ)", tag:"key change, modulate up for a lift", group:"転調" },
-    { id:"keydown",   label:"転調↓(沈み込み)", tag:"modulate down to a darker key", group:"転調" },
-    { id:"keyrel",    label:"平行調へ転調",     tag:"modulate to the relative key, shifting the mood", group:"転調" },
-    { id:"halftime",  label:"ハーフタイム",     tag:"half-time feel", group:"テンポ" },
-    { id:"doubletime",label:"ダブルタイム",     tag:"double-time drive", group:"テンポ" },
-    { id:"build",     label:"ビルドアップ",     tag:"rising tension, building energy", group:"展開" },
-    { id:"breakdown", label:"静寂ブレイク",     tag:"stripped-down quiet breakdown", group:"展開" },
-    { id:"drop",      label:"ドロップ爆発",     tag:"massive drop, full energy", group:"展開" },
-    { id:"solo",      label:"楽器ソロ",         tag:"expressive instrumental solo", group:"展開" },
-    { id:"acapella",  label:"アカペラ",         tag:"a cappella, vocals only", group:"展開" },
-    { id:"nodrums",   label:"ドラム抜き",       tag:"no drums, floating and airy", group:"展開" }
+    { id:"meter78",   label:"7/8に変拍子",     short:"Time Signature: 7/8", tag:"7/8 time section", group:"拍子" },
+    { id:"meter54",   label:"5/4に変拍子",     short:"Time Signature: 5/4", tag:"5/4 time section", group:"拍子" },
+    { id:"meter34",   label:"3/4ワルツへ",     short:"Waltz Time",          tag:"3/4 waltz section", group:"拍子" },
+    { id:"meter68",   label:"6/8のゆらぎへ",   short:"6/8 Time",            tag:"6/8 flowing section", group:"拍子" },
+    { id:"meter44back",label:"4/4に戻す",      short:"4/4 Time",            tag:"return to 4/4", group:"拍子" },
+    { id:"keyup",     label:"転調↑(盛り上げ)", short:"Key Change",          tag:"key change upward", group:"転調" },
+    { id:"keydown",   label:"転調↓(沈み込み)", short:"Key Change - Down",   tag:"key change downward", group:"転調" },
+    { id:"keyrel",    label:"平行調へ転調",     short:"Key Change - Relative", tag:"relative key change", group:"転調" },
+    { id:"halftime",  label:"ハーフタイム",     short:"Half-Time",           tag:"half-time feel", group:"テンポ" },
+    { id:"doubletime",label:"ダブルタイム",     short:"Double-Time",         tag:"double-time drive", group:"テンポ" },
+    { id:"build",     label:"ビルドアップ",     short:"Build-Up",            tag:"rising build", group:"展開" },
+    { id:"breakdown", label:"静寂ブレイク",     short:"Breakdown",           tag:"quiet breakdown", group:"展開" },
+    { id:"drop",      label:"ドロップ爆発",     short:"Drop",                tag:"massive drop", group:"展開" },
+    { id:"solo",      label:"楽器ソロ",         short:"Instrumental Solo",   tag:"instrumental solo", group:"展開" },
+    { id:"acapella",  label:"アカペラ",         short:"Acapella",            tag:"a cappella vocals", group:"展開" },
+    { id:"nodrums",   label:"ドラム抜き",       short:"No Drums",            tag:"no drums, airy", group:"展開" }
   ],
 
   /* ---------- ムード→おすすめキー(おまかせ補完用) ---------- */

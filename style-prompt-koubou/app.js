@@ -504,17 +504,52 @@ function generate() {
 }
 
 /* ============================================================
-   スタイル入り歌詞([Style:]+セクションタグ演出込み)
+   スタイル入り歌詞(冒頭メタタグ + セクションごとのパイプタグ)
+   Suno実例調査による表記ルール:
+   - 冒頭は [Mood: ] [Energy: ] [Instrumental: ] など短い個別タグを積む
+     (長い説明文の [Style: 〜] は歌詞として歌われる事故のリスクがあるため避ける)
+   - セクション内の局所変化は [Chorus | Key Change] のようにパイプ区切りの
+     短い認識語のみを使う(Build-Up / Breakdown / Drop / Key Change 等)
    ============================================================ */
-function fxTagsFor(secId) {
+function fxShortsFor(secId) {
   return state.sectionFX[secId]
-    .map(id => DB.sectionFX.find(f => f.id === id)?.tag)
+    .map(id => DB.sectionFX.find(f => f.id === id)?.short)
     .filter(Boolean);
 }
 
 function sectionTag(sunoName, secId) {
-  const fx = fxTagsFor(secId);
-  return fx.length ? `[${sunoName}: ${fx.join(", ")}]` : `[${sunoName}]`;
+  const fx = fxShortsFor(secId);
+  return fx.length ? `[${sunoName} | ${fx.join(", ")}]` : `[${sunoName}]`;
+}
+
+/* ムード+BPMから大まかなエネルギー感を推定 */
+function estimateEnergy(res) {
+  const HIGH = ["energetic", "euphoric", "aggressive", "triumphant"];
+  const LOW = ["peaceful", "chill", "cozy", "melancholic", "dreamy", "haunting"];
+  let score = 0;
+  state.moods.forEach(m => { if (HIGH.includes(m)) score += 1; if (LOW.includes(m)) score -= 1; });
+  if (res.bpm) { if (res.bpm >= 130) score += 1; else if (res.bpm < 85) score -= 1; }
+  if (score > 0) return "High";
+  if (score < 0) return "Low";
+  return "Medium";
+}
+
+function buildTopMetaTags(res) {
+  const lines = [];
+  if (res.gs.length) {
+    lines.push(`[Genre: ${res.gs.map(g => g.tag).join(", ")}]`);
+  }
+  if (res.ms.length) {
+    const moodWords = res.ms.map(m => m.tag.replace(/^\w/, c => c.toUpperCase()));
+    lines.push(`[Mood: ${moodWords.join(", ")}]`);
+  }
+  lines.push(`[Energy: ${estimateEnergy(res)}]`);
+  let instTags = state.inst.map(id => findInst(id)?.tag).filter(Boolean);
+  if (!instTags.length && res.gs.length) instTags = res.gs[0].inst;
+  instTags = instTags.slice(0, 3).map(t => t.replace(/^\w/, c => c.toUpperCase()));
+  if (instTags.length) lines.push(`[Instrument: ${instTags.join(", ")}]`);
+  if (state.singer === "inst") lines.push("[Instrumental]");
+  return lines;
 }
 
 function buildStyledLyrics(res) {
@@ -551,7 +586,7 @@ function buildStyledLyrics(res) {
 
   let verse = 0;
   const lines = [];
-  lines.push(`[Style: ${res.coreStr}]`);
+  buildTopMetaTags(res).forEach(l => lines.push(l));
   lines.push("");
   lines.push(sectionTag("Intro", "intro"));
   blocks.forEach((b, i) => {
@@ -564,7 +599,7 @@ function buildStyledLyrics(res) {
     lines.push(b);
   });
   // 歌詞にアウトロが無い場合、演出指定があればタグだけ足す
-  if (!kinds.includes("outro") && fxTagsFor("outro").length) {
+  if (!kinds.includes("outro") && fxShortsFor("outro").length) {
     lines.push("");
     lines.push(sectionTag("Outro", "outro"));
   }
