@@ -522,6 +522,11 @@ label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;
 .dl-btn.video-prompt:hover{background:rgba(139,92,246,.18);border-color:#a78bfa;color:#fff;}
 .dl-btn.loc-prompt{border-color:rgba(16,185,129,.35);color:#34d399;background:rgba(16,185,129,.07);}
 .dl-btn.loc-prompt:hover{background:rgba(16,185,129,.18);border-color:#34d399;color:#fff;}
+.dl-btn.seedance{display:none;border-color:rgba(56,232,255,.4);color:#38e8ff;background:rgba(56,232,255,.07);}
+.dl-btn.seedance:hover{background:rgba(56,232,255,.18);border-color:#38e8ff;color:#fff;}
+body.seedance-on .dl-btn.seedance{display:inline-flex;}
+.sd-toast{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%) translateY(20px);background:#0c1a24;color:#38e8ff;border:1px solid rgba(56,232,255,.5);border-radius:10px;padding:.6rem 1.2rem;font-size:.8rem;font-weight:700;z-index:9500;opacity:0;pointer-events:none;transition:.3s;box-shadow:0 0 24px -6px rgba(56,232,255,.6);}
+.sd-toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 
 /* ── Video Prompt Modal ── */
 .vp-overlay{position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:9000;display:flex;align-items:flex-start;justify-content:center;padding:2rem 1rem;overflow-y:auto;}
@@ -796,6 +801,7 @@ label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;
       <button class="dl-btn jpeg-merge" id="dl-merge-btn" onclick="mergeRangeJPEG()">🖼 1枚合成(〜10枚)</button>
       <button class="dl-btn video-prompt" id="dl-vidprompt-btn" onclick="openVideoPromptModal()">🎬 動画プロンプト生成(〜10枚)</button>
       <button class="dl-btn loc-prompt" id="dl-locprompt-btn" onclick="openLocationModal()">📍 ロケーション画像生成</button>
+      <button class="dl-btn seedance" id="dl-seedance-btn" onclick="openSeedanceModal()">🌊 Seedance連結プロンプト(〜10枚)</button>
     </div>
 
     <!-- Video Prompt Modal -->
@@ -846,6 +852,17 @@ label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;
           <button class="vp-close-btn" onclick="closeLocationModal()">✕</button>
         </div>
         <div class="vp-modal-body" id="loc-modal-body"></div>
+      </div>
+    </div>
+
+    <!-- Seedance FLF Chain Modal (secret: S×5 / logo×7) -->
+    <div class="vp-overlay hidden" id="sd-overlay" onclick="sdOverlayClose(event)">
+      <div class="vp-modal" id="sd-modal">
+        <div class="vp-modal-header">
+          <span class="vp-modal-title">🌊 Seedance 開始/終了フレーム連結プロンプト</span>
+          <button class="vp-close-btn" onclick="closeSeedanceModal()">✕</button>
+        </div>
+        <div class="vp-modal-body" id="sd-modal-body"></div>
       </div>
     </div>
 
@@ -6076,6 +6093,269 @@ function updateStampCountLabel() {
     }
   });
 })();
+
+// ─────────────────────────────────────────
+// Seedance FLF Chain Mode (secret: S×5 / logo tap×7 to toggle)
+// 開始フレーム＋終了フレームのペアで短いクリップを生成し、
+// 終了フレームを次カットの開始フレームに使い回して1本に連結するワークフロー
+// ─────────────────────────────────────────
+(function() {
+  function toggleSeedanceMode() {
+    const on = document.body.classList.toggle('seedance-on');
+    safeStore('set', 'sb_seedance_mode', on ? '1' : '');
+    sdToast(on ? '🌊 Seedanceモード ON — 絵コンテ生成後にボタンが出ます' : 'Seedanceモード OFF');
+  }
+  // 復元
+  if (safeStore('get', 'sb_seedance_mode') === '1') document.body.classList.add('seedance-on');
+
+  // PC: Sキー5連打（入力欄以外）
+  let _sbuf = 0;
+  document.addEventListener('keydown', e => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    if (e.key === 's' || e.key === 'S') {
+      _sbuf++;
+      if (_sbuf >= 5) { _sbuf = 0; toggleSeedanceMode(); }
+    } else {
+      _sbuf = 0;
+    }
+  });
+
+  // スマホ: ヘッダーの🎬ロゴを7回タップ（3秒以内の連打）
+  let _taps = 0, _tapTimer = null;
+  const logo = document.querySelector('.logo-mark');
+  if (logo) logo.addEventListener('click', () => {
+    _taps++;
+    clearTimeout(_tapTimer);
+    _tapTimer = setTimeout(() => { _taps = 0; }, 3000);
+    if (_taps >= 7) { _taps = 0; toggleSeedanceMode(); }
+  });
+})();
+
+function sdToast(msg) {
+  let el = document.getElementById('sd-toast');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'sd-toast';
+    el.className = 'sd-toast';
+    document.body.appendChild(el);
+  }
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), 2600);
+}
+
+// ── カットペア → Seedance FLF プロンプト一式 ──
+function generateSeedanceFLF(panelA, panelB, numA, numB) {
+  const shotA = panelA.shot || 'MS', shotB = panelB.shot || 'MS';
+  const vtA = panelA.visualType || 'character', vtB = panelB.visualType || 'character';
+  const poseB = panelB.pose || 'standing';
+  const bgA = panelA.bg || 'city', bgB = panelB.bg || 'city';
+  const hasChar = ['character','silhouette','crowd-wide'].includes(vtA) || ['character','silhouette','crowd-wide'].includes(vtB);
+
+  const SHOT_ORDER = { EWS:0, WS:1, MS:2, '2S':2, CU:3, ECU:4 };
+  const diff = (SHOT_ORDER[shotB] ?? 2) - (SHOT_ORDER[shotA] ?? 2);
+  const bgChange = bgA !== bgB;
+
+  // 推奨クリップ長: 変化が小さいほど短く（5秒）— 破綻しにくい
+  const bigChange = bgChange || Math.abs(diff) >= 3;
+  const durRec = bigChange ? 10 : 5;
+  // 両フレームが離れすぎている場合の警告
+  const warn = (bgChange && Math.abs(diff) >= 3)
+    ? '⚠ 開始と終了の差が大きいカットです。中間フレームを1枚挟んで2クリップに分けると破綻しにくくなります。'
+    : '';
+
+  const BG_EN = { city:'a neon-lit city street at night', rain:'a rain-soaked street corner', stars:'a field under a starry night sky', sakura:'a cherry blossom lane', festival:'a summer festival with paper lanterns', spotlight:'a stage under a single spotlight', sunset:'a horizon at sunset', underwater:'an underwater world', forest:'a deep forest', rooftop:'a building rooftop', room:'a dim bedroom at night', cafe:'a cafe by the window', station:'a train station platform', beach:'a shoreline at the water\'s edge' };
+  const BG_JA = { city:'夜の都市・ネオン', rain:'雨に濡れた街角', stars:'満天の星空', sakura:'桜並木', festival:'夏祭り・提灯', spotlight:'ステージのスポットライト', sunset:'夕暮れの地平線', underwater:'水中', forest:'深い森', rooftop:'ビルの屋上', room:'深夜の自室', cafe:'カフェの窓際', station:'駅のホーム', beach:'波打ち際' };
+  const POSE_EN = { standing:'stands quietly with subtle breathing motion', walking:'keeps walking slowly', running:'runs forward', sitting:'remains seated with only subtle movement', crying:'holds back tears, trembling slightly', reaching:'slowly reaches out a hand', lookingup:'slowly looks up toward the sky', love:'gazes tenderly ahead', action:'moves with powerful energy', dancing:'sways and dances to the music', crowd:'moves together with the crowd' };
+  const POSE_JA = { standing:'静かに佇む（呼吸の揺らぎのみ）', walking:'ゆっくり歩き続ける', running:'走り続ける', sitting:'座ったまま微かに動く', crying:'涙を堪えて微かに震える', reaching:'ゆっくり手を伸ばす', lookingup:'ゆっくり空を見上げる', love:'優しい眼差しで見つめる', action:'力強く動く', dancing:'音楽に身を委ねて踊る', crowd:'群衆とともに動く' };
+
+  const CAM_EN = {
+    '-4': 'the camera pulls back dramatically to reveal the entire scene',
+    '-3': 'the camera pulls back steadily, opening up the space',
+    '-2': 'the camera slowly dollies out',
+    '-1': 'the camera eases back slightly',
+    '0':  'the camera tracks laterally in one gentle continuous arc',
+    '1':  'the camera slowly moves closer',
+    '2':  'the camera steadily pushes in',
+    '3':  'the camera pushes in strongly toward the subject',
+    '4':  'the camera pushes in rapidly to an extreme close-up',
+  };
+  const CAM_JA = {
+    '-4': 'カメラは大きく引いて全景を開示する',
+    '-3': 'カメラは着実に引いて空間を開く',
+    '-2': 'カメラはゆっくりドリーアウトする',
+    '-1': 'カメラはわずかに引く',
+    '0':  'カメラは一定の横移動（緩やかなアーク）で追う',
+    '1':  'カメラはゆっくり近づく',
+    '2':  'カメラは着実にプッシュインする',
+    '3':  'カメラは被写体へ力強く迫る',
+    '4':  'カメラは超クローズアップへ一気に迫る',
+  };
+  const camKey = String(Math.max(-4, Math.min(4, diff)));
+
+  const subjEn = hasChar ? 'The same character, same outfit, same hairstyle throughout — no identity drift. ' : 'No people; the environment itself is the subject. ';
+  const subjJa = hasChar ? '同一人物・同一衣装・同一髪型を全編維持（キャラ崩れ禁止）。' : '無人。環境そのものが主役。';
+  const motionEn = hasChar ? `The character ${POSE_EN[poseB] || POSE_EN.standing}. ` : 'Only natural ambient motion: light, wind, drifting particles. ';
+  const motionJa = hasChar ? `人物は「${POSE_JA[poseB] || POSE_JA.standing}」の動作のみ。` : '光・風・粒子など環境の自然な動きのみ。';
+  const envEn = bgChange
+    ? `The environment gradually dissolves from ${BG_EN[bgA] || bgA} into ${BG_EN[bgB] || bgB}. `
+    : '';
+  const envJa = bgChange ? `背景は「${BG_JA[bgA] || bgA}」から「${BG_JA[bgB] || bgB}」へ緩やかに溶けるように転換。` : '';
+
+  const videoPromptEn =
+    `Smooth continuous transition from the first frame to the last frame, one single uninterrupted shot. ` +
+    subjEn + motionEn + `As this happens, ${CAM_EN[camKey] || CAM_EN['0']}. ` + envEn +
+    `Gradual, seamless, natural motion with cinematic pacing. No hard cuts, no flicker, no morphing artifacts. Consistent 2D anime style, ${durRec} seconds.`;
+
+  const videoPromptJa =
+    `開始フレームから終了フレームへ、ワンショットで滑らかに連続遷移。${subjJa}${motionJa}その間、${CAM_JA[camKey] || CAM_JA['0']}。${envJa}` +
+    `緩やかでシームレスな自然モーション・映画的ペーシング。ハードカット禁止・ちらつき禁止・モーフィング破綻禁止。一貫した2Dアニメスタイル・${durRec}秒。`;
+
+  return {
+    startPrompt: panelA.prompt || '',
+    endPrompt: panelB.prompt || '',
+    videoPromptJa, videoPromptEn, durRec, warn,
+  };
+}
+
+// ── モーダル ──
+function openSeedanceModal() {
+  if (!allPanels.length) { sdToast('先に絵コンテを生成してください'); return; }
+  const from = Math.max(1, parseInt(document.getElementById('dl-range-from').value) || 1);
+  const toRaw = Math.min(allPanels.length, parseInt(document.getElementById('dl-range-to').value) || allPanels.length);
+  const to = Math.min(toRaw, from + 10 - 1);
+  if (to - from < 1) { alert('Seedance連結プロンプトには2枚以上のパネルが必要です。'); return; }
+  document.getElementById('sd-overlay').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+  sdFillModal(from, to);
+}
+
+function closeSeedanceModal() {
+  document.getElementById('sd-overlay').classList.add('hidden');
+  document.body.style.overflow = '';
+}
+function sdOverlayClose(e) {
+  if (e.target === document.getElementById('sd-overlay')) closeSeedanceModal();
+}
+
+function sdCopyText(btn, text) {
+  navigator.clipboard.writeText(text).then(() => {
+    const orig = btn.textContent;
+    btn.textContent = '✓ コピー済み';
+    setTimeout(() => { btn.textContent = orig; }, 1800);
+  });
+}
+
+function sdFillModal(from, to) {
+  const body = document.getElementById('sd-modal-body');
+  body.innerHTML = '';
+
+  const CARD_S  = 'border:1px solid rgba(56,232,255,.25);border-radius:12px;overflow:hidden;margin-bottom:.75rem;';
+  const HEAD_S  = 'display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.55rem 1rem;background:rgba(56,232,255,.1);border-bottom:1px solid rgba(255,255,255,.08);flex-wrap:wrap;';
+  const LABEL_S = 'font-size:.72rem;font-weight:700;color:#38e8ff;';
+  const SUB_S   = 'font-size:.66rem;font-weight:700;color:#7dd3fc;padding:.45rem 1rem .2rem;';
+  const BTN_S   = 'padding:.26rem .7rem;border-radius:6px;border:1px solid rgba(56,232,255,.4);background:rgba(56,232,255,.08);color:#7dd3fc;cursor:pointer;font-size:.66rem;font-family:inherit;';
+  const TA_S    = 'display:block;width:100%;box-sizing:border-box;background:#0a121c;color:#d4e8f0;border:none;border-top:1px solid rgba(255,255,255,.05);padding:.7rem 1rem;font-size:.72rem;line-height:1.8;font-family:inherit;resize:vertical;outline:none;';
+
+  // ── 使い方ヘッダー ──
+  const guide = document.createElement('div');
+  guide.style.cssText = 'border:1.5px solid rgba(56,232,255,.4);border-radius:12px;padding:.8rem 1rem;background:rgba(56,232,255,.05);font-size:.72rem;line-height:1.9;color:#bae6fd;';
+  guide.innerHTML =
+    '<b style="color:#38e8ff;">🌊 Seedance 開始/終了フレーム連結ワークフロー</b><br>' +
+    '1. 各カットの<b>①開始フレーム／②終了フレーム</b>プロンプトで静止画を生成（同一キャラは参照画像を使うと一貫性UP）<br>' +
+    '2. Seedanceに2枚をアップロードし、<b>③動画プロンプト</b>を入力（推奨5秒・変化が大きい時だけ10秒）<br>' +
+    '3. <b>カットNの終了フレーム画像を、カットN+1の開始フレームにそのまま使う</b> → 全クリップが1本につながる<br>' +
+    '4. 生成クリップを編集ソフトで順に連結し、音源と同期<br>' +
+    '<span style="color:#7dd3fc;">コツ: 開始/終了フレームは「同じ被写体・同じスケール・近い構図」ほど破綻しない。各クリップは2〜3回生成して良いテイクを採用。</span>';
+  body.appendChild(guide);
+
+  const mergedParts = [];
+
+  for (let i = from - 1; i < to - 1; i++) {
+    const panelA = allPanels[i], panelB = allPanels[i + 1];
+    if (!panelA || !panelB) continue;
+    const numA = i + 1, numB = i + 2;
+    let sd;
+    try { sd = generateSeedanceFLF(panelA, panelB, numA, numB); }
+    catch(e) { continue; }
+
+    const isFirst = i === from - 1;
+    const chainNote = isFirst
+      ? '①のプロンプトで開始フレームを新規生成'
+      : `開始フレームは「カット ${numA - 1} → ${numA}」の終了フレーム画像を再利用（①は予備）`;
+
+    const card = document.createElement('div');
+    card.style.cssText = CARD_S;
+
+    const head = document.createElement('div');
+    head.style.cssText = HEAD_S;
+    const label = document.createElement('span');
+    label.style.cssText = LABEL_S;
+    label.textContent = `🌊 クリップ ${numA} → ${numB}（推奨 ${sd.durRec}秒）`;
+    const note = document.createElement('span');
+    note.style.cssText = 'font-size:.62rem;color:#67e8f9;opacity:.8;';
+    note.textContent = chainNote;
+    head.append(label, note);
+    card.appendChild(head);
+
+    if (sd.warn) {
+      const w = document.createElement('div');
+      w.style.cssText = 'padding:.45rem 1rem;font-size:.66rem;color:#fbbf24;background:rgba(251,191,36,.08);border-bottom:1px solid rgba(251,191,36,.2);';
+      w.textContent = sd.warn;
+      card.appendChild(w);
+    }
+
+    const sections = [
+      { sub: `① 開始フレーム画像プロンプト（カット${numA}）`, text: sd.startPrompt },
+      { sub: `② 終了フレーム画像プロンプト（カット${numB}）`, text: sd.endPrompt },
+      { sub: '③ Seedance動画プロンプト（日本語）', text: sd.videoPromptJa },
+      { sub: '③ Seedance video prompt (English)', text: sd.videoPromptEn },
+    ];
+    sections.forEach(sec => {
+      const subRow = document.createElement('div');
+      subRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:.5rem;';
+      const sub = document.createElement('div');
+      sub.style.cssText = SUB_S;
+      sub.textContent = sec.sub;
+      const cbtn = document.createElement('button');
+      cbtn.style.cssText = BTN_S + 'margin:.35rem 1rem 0 0;';
+      cbtn.textContent = '⧉ コピー';
+      cbtn.onclick = function(){ sdCopyText(this, sec.text); };
+      subRow.append(sub, cbtn);
+      const ta = document.createElement('textarea');
+      ta.readOnly = true;
+      ta.value = sec.text;
+      ta.rows = Math.min(Math.max(sec.text.split('\n').length + 1, 3), 12);
+      ta.style.cssText = TA_S;
+      card.append(subRow, ta);
+    });
+
+    body.appendChild(card);
+
+    mergedParts.push(
+      `【クリップ ${numA} → ${numB}】推奨${sd.durRec}秒${sd.warn ? '\n' + sd.warn : ''}\n` +
+      `${chainNote}\n` +
+      `① 開始フレーム:\n${sd.startPrompt}\n` +
+      `② 終了フレーム:\n${sd.endPrompt}\n` +
+      `③ 動画プロンプト(JA):\n${sd.videoPromptJa}\n` +
+      `③ Video prompt(EN):\n${sd.videoPromptEn}`
+    );
+  }
+
+  // ── まとめコピー ──
+  if (mergedParts.length) {
+    const mergedText =
+      `━━ Seedance 開始/終了フレーム連結ワークフロー（全${mergedParts.length}クリップ）━━\n` +
+      `手順: ①②で静止画生成 → Seedanceに開始/終了フレームをアップロード＋③を入力 → カットNの終了フレームをカットN+1の開始フレームに再利用 → 全クリップを編集ソフトで連結し音源に同期\n\n` +
+      mergedParts.join('\n\n──────────\n\n');
+    const mBtn = document.createElement('button');
+    mBtn.style.cssText = 'width:100%;padding:.6rem;border-radius:10px;border:1.5px solid rgba(56,232,255,.5);background:rgba(56,232,255,.12);color:#38e8ff;font-weight:700;cursor:pointer;font-size:.75rem;font-family:inherit;';
+    mBtn.textContent = '📋 全クリップまとめてコピー';
+    mBtn.onclick = function(){ sdCopyText(this, mergedText); };
+    body.appendChild(mBtn);
+  }
+}
 
 // localStorage can throw in private browsing / blocked-storage environments
 function safeStore(action, key, val) {

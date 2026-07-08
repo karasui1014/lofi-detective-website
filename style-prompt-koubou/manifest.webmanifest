@@ -1,0 +1,25 @@
+{
+  "name": "スタイルプロンプト工房",
+  "short_name": "スタイル工房",
+  "description": "歌詞×選択式でAI音楽用の高精度スタイルプロンプトを作る無料ツール(Suno対応・非公式)。前半重視の最適語順・BPM・調・変拍子・楽器指定に対応。",
+  "lang": "ja",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0b0b0f",
+  "theme_color": "#0b0b0f",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
