@@ -215,36 +215,13 @@ const CORE_SHOPS = [
     url: (q) => `https://wear.jp/search/coordinate/?q=${encodeURIComponent(q)}` },
 ];
 
-// 年代×テイスト別ブランド候補（ZOZOTOWNで「ブランド名 キーワード」検索）
-const BRAND_HINTS = [
-  // 10代
-  { name: "GU",           age: ["10s","20s"], style: ["casual","trend","feminine","natural"] },
-  { name: "GRL",          age: ["10s","20s"], style: ["trend","feminine","casual","street"] },
-  { name: "Kastane",      age: ["10s","20s"], style: ["casual","natural","feminine"] },
-  { name: "earth music",  age: ["10s","20s","30s"], style: ["casual","natural","feminine"] },
-  // 20代
-  { name: "ungrid",       age: ["20s"],       style: ["trend","kireime","casual"] },
-  { name: "Mila Owen",    age: ["20s","30s"], style: ["kireime","feminine","trend"] },
-  { name: "JILL STUART",  age: ["20s","30s"], style: ["feminine","kireime"] },
-  { name: "ROPE PICNIC",  age: ["20s","30s"], style: ["casual","kireime","natural"] },
-  { name: "BEAMS",        age: ["20s","30s"], style: ["kireime","trend","casual","street"] },
-  { name: "nano universe",age: ["20s","30s"], style: ["kireime","trend"] },
-  { name: "SNIDEL",       age: ["20s","30s"], style: ["feminine","trend","kireime"] },
-  { name: "Adam et Rope", age: ["20s","30s"], style: ["kireime","casual","natural"] },
-  // 30代
-  { name: "UNITED ARROWS",age: ["20s","30s","40s"], style: ["kireime","otona","casual"] },
-  { name: "Plage",        age: ["30s","40s"], style: ["kireime","otona","natural"] },
-  { name: "IENA",         age: ["30s","40s"], style: ["kireime","feminine","otona"] },
-  { name: "TOMORROWLAND", age: ["30s","40s"], style: ["kireime","otona"] },
-  { name: "Spick and Span",age: ["30s","40s"],style: ["kireime","casual","natural"] },
-  // 40代
-  { name: "Theory",       age: ["30s","40s"], style: ["otona","kireime"] },
-  { name: "23区",         age: ["40s"],       style: ["otona","kireime"] },
-  { name: "UNTITLED",     age: ["40s"],       style: ["otona","kireime"] },
-  { name: "INDIVI",       age: ["40s"],       style: ["otona","kireime","feminine"] },
-  { name: "ef-de",        age: ["40s"],       style: ["otona","feminine"] },
-  { name: "組曲",         age: ["40s"],       style: ["otona","feminine","kireime"] },
-];
+// 年代別・有名ブランド上位5社（ZOZOTOWNで「ブランド名 キーワード」検索）
+const AGE_BRANDS = {
+  "10s": ["GU", "WEGO", "SHEIN", "earth music&ecology", "GRL"],
+  "20s": ["BEAMS", "SNIDEL", "UNITED ARROWS", "nano・universe", "JILL STUART"],
+  "30s": ["IENA", "TOMORROWLAND", "Plage", "UNITED ARROWS", "Theory"],
+  "40s": ["23区", "UNTITLED", "組曲", "INDIVI", "ef-de"],
+};
 
 const shopFilter = { age: "20s" };
 
@@ -257,17 +234,12 @@ function enrichKeyword(rawQ, shopId) {
 }
 
 function selectShops(age) {
-  // 年代に合うブランドを最大3つ選び、ZOZOでのブランド検索リンクを追加
-  // テイストは画像から既に確定しているため絞り込まない
-  const ageForBrand = age === "40s" ? ["40s"] : [age];
-  const brandShops = BRAND_HINTS
-    .filter((b) => b.age.some((a) => ageForBrand.includes(a)))
-    .slice(0, 3)
-    .map((b) => ({
-      id: "brand",
-      name: b.name,
-      url: (q) => `https://zozo.jp/search/?p_keyv=${encodeURIComponent(b.name + " " + q + " レディース")}`,
-    }));
+  // 年代に合う有名ブランドを5社、ZOZOTOWNでのブランド検索リンクとして追加
+  const brandShops = (AGE_BRANDS[age] || AGE_BRANDS["20s"]).map((name) => ({
+    id: "brand",
+    name,
+    url: (q) => `https://zozo.jp/search/?p_keyv=${encodeURIComponent(name + " " + q + " レディース")}`,
+  }));
 
   return [...CORE_SHOPS, ...brandShops];
 }
