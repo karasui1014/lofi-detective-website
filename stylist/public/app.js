@@ -215,12 +215,14 @@ const CORE_SHOPS = [
     url: (q) => `https://wear.jp/search/coordinate/?q=${encodeURIComponent(q)}` },
 ];
 
-// 年代別・有名ブランド上位5社（ZOZOTOWNで「ブランド名 キーワード」検索）
+// 年代別・有名ブランド（ZOZOTOWNで「ブランド名 キーワード」検索）
 const AGE_BRANDS = {
   "10s": ["GU", "WEGO", "SHEIN", "earth music&ecology", "GRL"],
   "20s": ["BEAMS", "SNIDEL", "UNITED ARROWS", "nano・universe", "JILL STUART"],
-  "30s": ["IENA", "TOMORROWLAND", "Plage", "UNITED ARROWS", "Theory"],
-  "40s": ["23区", "UNTITLED", "組曲", "INDIVI", "ef-de"],
+  "30s": ["IENA", "TOMORROWLAND", "Plage", "UNITED ARROWS", "Theory",
+          "Spick and Span", "Deuxieme Classe", "Journal Standard"],
+  "40s": ["23区", "UNTITLED", "組曲", "INDIVI", "ef-de",
+          "ICB", "Anayi", "DoCLASSE"],
 };
 
 const shopFilter = { age: "20s" };
