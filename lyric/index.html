@@ -162,6 +162,7 @@ canvas#stage{display:block;width:100%;height:auto;}
 .font-chip.sel{border-color:var(--accent);background:rgba(124,58,237,.1);box-shadow:0 0 0 1px var(--accent) inset;}
 .font-chip .smp{font-size:1.05rem;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#ffffff;}
 .font-chip .nm{font-size:.58rem;color:var(--text-muted);margin-top:.15rem;}
+.btn.sel-motion{border-color:var(--accent2);background:rgba(6,182,212,.16);color:var(--accent2);box-shadow:0 0 0 1px var(--accent2) inset;}
 
 /* Controls */
 .ctrl{margin-bottom:.7rem;}
@@ -235,7 +236,7 @@ details.adv[open]>summary::before{content:'▾';}
       <div class="logo-mark">🎬</div>
       <h1 class="hero-title">Lyric Telop Generator</h1>
       <div class="hero-rule" aria-hidden="true"></div>
-      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build48</div>
+      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build49</div>
       <span class="header-warning">※第三者への無断譲渡・公開はNGです</span>
     </div>
   </header>
@@ -382,10 +383,22 @@ details.adv[open]>summary::before{content:'▾';}
               <div class="ctrl-label"><span>字間</span><b id="vTrack">0px</b></div>
               <input type="range" class="sl" id="track" min="-5" max="30" value="0">
             </div>
+
+            <div class="divider"></div>
+            <div class="ctrl-label" style="margin-bottom:.45rem;"><span>🎞 アニメーション（歌詞の動き）</span></div>
+            <div class="row" id="motionRow" style="margin-bottom:.6rem;gap:.35rem;"></div>
             <div class="ctrl">
-              <div class="ctrl-label"><span>フェード(行の出入り)</span><b id="vFade">0.25s</b></div>
+              <div class="ctrl-label"><span>動きの速さ（出入りにかける時間）</span><b id="vFade">0.25s</b></div>
               <input type="range" class="sl" id="fade" min="0" max="100" value="25">
             </div>
+            <div class="ctrl">
+              <div class="ctrl-label"><span>動きの強さ</span><b id="vMotionPower">100%</b></div>
+              <input type="range" class="sl" id="motionPower" min="0" max="150" value="100">
+            </div>
+            <div class="row" id="karaokeColorRow" style="margin:.1rem 0 .6rem;display:none;">
+              <label class="fld" style="margin:0;">カラオケ配色（歌った文字）</label><input type="color" id="karaokeColor" value="#ffd24d">
+            </div>
+            <div class="hint" style="line-height:1.7;">※アニメーションは<b>プレビュー</b>と<b>🎬完成動画(WebM)</b>に反映されます。透過PNG・字幕ファイル(.srt/.ass)は1コマ/固定タイミングのため対象外です。</div>
           </div>
         </details>
       </div>
@@ -525,7 +538,9 @@ const state = {
   strokeColor:'#000000', stroke:6, shadow:true, plate:false, plateColor:'#000000',
   vertical:false, pos:'bottom', align:'center', track:0, fade:0.25, offset:0,
   bg:'transparent', bgColor:'#101018', aspect:'16:9',
+  motion:'fade', motionPower:1, karaokeColor:'#ffd24d',
 };
+let _extraGlow=0;   // グローモーション用：paintTextが読む一時的な発光量（renderText冒頭で毎回0リセット）
 let lyrics = [];      // [{text, t:Number|null}]
 let tapCursor = 0;
 let previewIdx = 0;   // プレビューで表示する行（タイミング前の確認用）
@@ -600,6 +615,16 @@ function activeLineAt(t){
 const KINSOKU_HEAD=/[、。，．・：；！？!?）」』】〕〉》ぁぃぅぇぉっゃゅょゎァィゥェォッャュョーヽヾゝゞ々]/;
 const KINSOKU_TAIL=/[（「『【〔〈《]/;
 
+// モーション演出用の進行度をまとめて計算。enterP/exitPは0〜1の連続値で、行の登場・退場のどちらからも
+// 十分離れていれば自然に「効果なし」に収束する（=近くでだけ効く）ので、演出の種類ごとに個別の場合分けは不要。
+function computeMotion(act, now){
+  const dur=Math.max(0.001, state.fade||0.001);
+  const enterP=Math.max(0,Math.min(1,(now-act.start)/dur));
+  const exitP=act.fadeOut ? Math.max(0,Math.min(1,(act.end-now)/dur)) : 1;   // 1=退場演出なし
+  const tEndSing=(act.line.tEnd!=null && isFinite(act.line.tEnd) && act.line.tEnd>act.start) ? act.line.tEnd : act.end;
+  const sungFrac=Math.max(0,Math.min(1,(now-act.start)/Math.max(0.05,tEndSing-act.start)));
+  return { enterP, exitP, willFadeOut:!!act.fadeOut, sungFrac, tShown: now-act.start };
+}
 function draw(){
   const W=canvas.width, H=canvas.height;
   ctx.clearRect(0,0,W,H);
@@ -616,7 +641,7 @@ function draw(){
         a=Math.min(a, Math.max(0,Math.min(1,outA)));
       }
     }
-    renderText(act.line.text, a);
+    renderText(act.line.text, a, computeMotion(act, audio.currentTime||0));
     return;
   }
   // 確認用プレビュー：編集中／タイミング未設定／一時停止中だけ。
@@ -651,8 +676,9 @@ function drawBackground(W,H){
   else if(state.bg==='video' && hasBgVideo && bgVideo.readyState>=2){ drawCover(bgVideo,W,H); }
 }
 
-// 文字レイヤーのみ描画（背景なし＝書き出しでも再利用）
-function renderText(text, alpha){
+// 文字レイヤーのみ描画（背景なし＝書き出しでも再利用）。motionは省略可（静止画書き出し・編集中プレビューでは
+// タイミング情報が無いのでアニメーションなしの通常描画になる＝それで正しい）。
+function renderText(text, alpha, motion){
   if(!text.trim()) return;
   const W=canvas.width, H=canvas.height;
   const fpx = state.size * (H/1080); // 1080基準でスケール
@@ -660,10 +686,52 @@ function renderText(text, alpha){
   ctx.textBaseline='middle';
   if('letterSpacing' in ctx) ctx.letterSpacing = `${state.track*(H/1080)}px`;
   ctx.globalAlpha=alpha;
-  if(state.vertical) drawVertical(text, W, H, fpx);
-  else drawHorizontal(text, W, H, fpx);
+  _extraGlow=0;   // グロー演出の発光量。動きが無いフレームでは必ず0にする（前フレームの値が漏れて静止画書き出しに残らないように）
+  ctx.save();
+  if(motion) applyWholeLineMotion(motion, W, H);
+  if(state.vertical) drawVertical(text, W, H, fpx, motion);
+  else drawHorizontal(text, W, H, fpx, motion);
+  ctx.restore();
   ctx.globalAlpha=1;
   if('letterSpacing' in ctx) ctx.letterSpacing='0px';
+}
+// 行全体にかける演出（見た目の種類ごとに平行移動／拡大縮小／ぼかしのどれかをctxへ適用）。
+// 1文字ずつの制御が要る演出(タイプライター/カラオケ/ウェーブ)はここでは何もしない（drawHorizontal/drawVertical側で担当）。
+function posPivotY(H){ return state.pos==='top'? H*0.18 : state.pos==='middle'? H/2 : H*0.84; }
+function applyWholeLineMotion(motion, W, H){
+  const mkey=state.motion;
+  if(mkey==='typewriter'||mkey==='karaoke'||mkey==='wave') return;
+  const pw = state.motionPower!=null ? state.motionPower : 1;
+  const easeOut = p=>1-Math.pow(1-p,3);
+  const enterInfluence = 1-easeOut(motion.enterP);                          // 登場直後=1 → 定常時=0
+  const exitInfluence = motion.willFadeOut ? (1-motion.exitP) : 0;          // 退場直前だけ1に近づく
+  let tx=0, ty=0, sc=1;
+  const unitY=H*0.06*pw, unitX=W*0.07*pw;
+  if(mkey==='slideUp'){ ty += enterInfluence*unitY; ty -= exitInfluence*unitY*0.7; }
+  else if(mkey==='slideDown'){ ty -= enterInfluence*unitY; ty += exitInfluence*unitY*0.7; }
+  else if(mkey==='slideSide'){ tx -= enterInfluence*unitX*1.6; tx += exitInfluence*unitX*1.6; }
+  else if(mkey==='pop'){
+    const p=easeOut(motion.enterP), bounce=Math.sin(Math.min(1,motion.enterP*1.4)*Math.PI)*0.10*pw;
+    sc = (0.55+0.45*p+bounce) * (1-exitInfluence*0.35);
+  } else if(mkey==='blur'){
+    const b=Math.max(enterInfluence,exitInfluence)*14*pw;
+    if(b>0.05 && 'filter' in ctx) ctx.filter=`blur(${b.toFixed(1)}px)`;
+  } else if(mkey==='shake'){
+    const amp=2.4*pw*(H/1080)*Math.min(1,motion.tShown*3)*(1-exitInfluence*0.8);
+    tx += Math.sin(motion.tShown*36)*amp*0.5; ty += Math.cos(motion.tShown*27)*amp*0.4;
+  } else if(mkey==='glow'){
+    _extraGlow = (0.5+0.5*Math.sin(motion.tShown*3.4)) * Math.min(1,motion.tShown*3) * (1-exitInfluence*0.7);
+  }
+  if(tx||ty) ctx.translate(tx,ty);
+  if(sc!==1){ const cx=W/2, cy=posPivotY(H); ctx.translate(cx,cy); ctx.scale(sc,sc); ctx.translate(-cx,-cy); }
+}
+function smoothstep(x,e0,e1){ if(e0===e1) return x<e0?0:1; const t=Math.max(0,Math.min(1,(x-e0)/(e1-e0))); return t*t*(3-2*t); }
+function mixHex(a,b,t){
+  const pa=parseInt(a.slice(1),16), pb=parseInt(b.slice(1),16);
+  const r=Math.round((pa>>16&255)+((pb>>16&255)-(pa>>16&255))*t);
+  const g=Math.round((pa>>8&255)+((pb>>8&255)-(pa>>8&255))*t);
+  const bl=Math.round((pa&255)+((pb&255)-(pa&255))*t);
+  return `rgb(${r},${g},${bl})`;
 }
 
 function drawCover(media,W,H){
@@ -674,10 +742,17 @@ function drawCover(media,W,H){
   ctx.drawImage(media,(W-dw)/2,(H-dh)/2,dw,dh);
 }
 
-function paintText(str,x,y,fpx){
+function paintText(str,x,y,fpx,colorOverride){
   const H=canvas.height;
   fpx = fpx || state.size*(H/1080);
   const sw = (state.size>0 ? state.stroke/state.size : 0) * fpx * 2; // 縁取りも実サイズに連動
+  if(_extraGlow>0.02){   // グロー演出：本描画の下地にぼんやり光る同色を先に重ねる
+    ctx.save();
+    ctx.shadowColor=colorOverride||state.color; ctx.shadowBlur=fpx*0.85*_extraGlow;
+    ctx.fillStyle=colorOverride||state.color; ctx.globalAlpha*=0.95;
+    ctx.fillText(str,x,y); ctx.fillText(str,x,y);
+    ctx.restore();
+  }
   // 縁取り→影→塗り の順で潰れにくく
   if(state.stroke>0){
     if(state.shadow){ ctx.shadowColor='rgba(0,0,0,.6)'; ctx.shadowBlur=fpx*0.18; ctx.shadowOffsetY=fpx*0.06; }
@@ -687,7 +762,7 @@ function paintText(str,x,y,fpx){
   } else if(state.shadow){
     ctx.shadowColor='rgba(0,0,0,.7)'; ctx.shadowBlur=fpx*0.2; ctx.shadowOffsetY=fpx*0.07;
   }
-  ctx.fillStyle=state.color; ctx.fillText(str,x,y);
+  ctx.fillStyle=colorOverride||state.color; ctx.fillText(str,x,y);
   ctx.shadowColor='transparent'; ctx.shadowBlur=0; ctx.shadowOffsetY=0;
 }
 
@@ -803,17 +878,50 @@ function fitVertical(text, baseFpx, maxH){
 // 縦書きで回転すべき文字（括弧・長音・ダッシュ）と、右上に寄せる句読点
 const VERT_ROTATE=/[ー…―—‐－−〜～（）()「」『』【】〔〕〈〉《》｛｝\[\]{}｜|]/;
 const VERT_KUTEN=/[、。，．]/;
-function paintVChar(ch,x,y,fpx){
+function paintVChar(ch,x,y,fpx,colorOverride){
   if(VERT_ROTATE.test(ch)){
-    ctx.save(); ctx.translate(x,y); ctx.rotate(Math.PI/2); paintText(ch,0,0,fpx); ctx.restore();
+    ctx.save(); ctx.translate(x,y); ctx.rotate(Math.PI/2); paintText(ch,0,0,fpx,colorOverride); ctx.restore();
   } else if(VERT_KUTEN.test(ch)){
-    paintText(ch, x+fpx*0.34, y-fpx*0.40, fpx);   // 句読点は升目の右上へ
+    paintText(ch, x+fpx*0.34, y-fpx*0.40, fpx, colorOverride);   // 句読点は升目の右上へ
   } else {
-    paintText(ch,x,y,fpx);
+    paintText(ch,x,y,fpx,colorOverride);
   }
 }
 
-function drawHorizontal(text,W,H,baseFpx){
+// 1文字ずつ制御が要る演出（タイプライター／カラオケ／ウェーブ）専用の描画。
+// rowFracRange=[この行の開始位置, 終了位置]（行全体の文字数に対する0〜1の割合）で、
+// 複数行にまたがるタイプライター表示・カラオケ色分けの進み具合をつなげる。
+function paintRowAnimated(str, x, y, fpx, align, motion, rowFracRange){
+  const chars=[...str]; const n=chars.length; if(!n) return;
+  const trackPx = state.track*(canvas.height/1080);
+  const widths = chars.map(c=>measureAt(c,fpx));
+  const totalW = widths.reduce((a,b)=>a+b,0) + trackPx*(n-1);
+  const leftX = align==='left' ? x : align==='right' ? x-totalW : x-totalW/2;
+  const prevAlign=ctx.textAlign; ctx.textAlign='left';
+  const pw = state.motionPower!=null ? state.motionPower : 1;
+  let cx=leftX;
+  for(let i=0;i<n;i++){
+    const ch=chars[i], w=widths[i];
+    const gf = rowFracRange[0] + (rowFracRange[1]-rowFracRange[0])*((i+0.5)/n);
+    let a=1, dy=0, colorOverride=null;
+    if(state.motion==='typewriter'){
+      a = 1 - smoothstep(gf, motion.enterP-0.10, motion.enterP+0.10);   // gfが小さい(行の早い位置)ほど先に見える
+    } else if(state.motion==='karaoke'){
+      const t = 1 - smoothstep(gf, motion.sungFrac-0.035, motion.sungFrac+0.035);   // gfが小さい(=既に歌った側)ほど早く色が変わる
+      colorOverride = mixHex(state.color, state.karaokeColor, t);
+    } else if(state.motion==='wave'){
+      const amp=fpx*0.16*pw;
+      dy = Math.sin(motion.tShown*3.2 + i*0.75) * amp * Math.min(1,motion.enterP*3);
+    }
+    ctx.save();
+    ctx.globalAlpha *= Math.max(0,Math.min(1,a));
+    paintText(ch, cx, y+dy, fpx, colorOverride);
+    ctx.restore();
+    cx += w + trackPx;
+  }
+  ctx.textAlign=prevAlign;
+}
+function drawHorizontal(text,W,H,baseFpx,motion){
   const margin=H*0.07, maxW=W-margin*2;
   const fit=fitHorizontal(text, baseFpx, maxW);   // 手動 / ＋スペース折り返しを内包
   const rows=fit.lines, fpx=fit.fpx;
@@ -831,10 +939,18 @@ function drawHorizontal(text,W,H,baseFpx){
     const pad=fpx*0.4; const px=state.align==='left'?margin-pad : state.align==='right'?W-margin-mw-pad : W/2-mw/2-pad;
     roundRect(px, cy-lh/2-pad*0.3, mw+pad*2, blockH+pad*0.6, fpx*0.18, hexA(state.plateColor,0.55));
   }
-  rows.forEach((r,i)=>paintText(r, x, cy+i*lh, fpx));
+  const animated = motion && ['typewriter','karaoke','wave'].includes(state.motion);
+  if(!animated){ rows.forEach((r,i)=>paintText(r, x, cy+i*lh, fpx)); return; }
+  const rowLens=rows.map(r=>Math.max(1, normLen(r)||[...r].length));
+  const totalLen=rowLens.reduce((a,b)=>a+b,0)||1;
+  let acc=0;
+  rows.forEach((r,i)=>{
+    const from=acc/totalLen; acc+=rowLens[i]; const to=acc/totalLen;
+    paintRowAnimated(r, x, cy+i*lh, fpx, state.align, motion, [from,to]);
+  });
 }
 
-function drawVertical(text,W,H,baseFpx){
+function drawVertical(text,W,H,baseFpx,motion){
   const margin=H*0.07, maxH=H-margin*2;
   const fit=fitVertical(text, baseFpx, maxH);      // 手動 / ＋スペースで列分割を内包
   const cols=fit.cols; let fpx=fit.fpx;
@@ -847,6 +963,11 @@ function drawVertical(text,W,H,baseFpx){
   ctx.font=`${state.weight} ${fpx}px '${state.font.fam}', sans-serif`;
   ctx.textAlign='center';
   const startX = W - margin - colW/2; // 右→左
+  const animated = motion && ['typewriter','karaoke','wave'].includes(state.motion);
+  const colLens = cols.map(c=>c.length);
+  const totalLen = colLens.reduce((a,b)=>a+b,0)||1;
+  const pw = state.motionPower!=null ? state.motionPower : 1;
+  let acc=0;
   cols.forEach((col,ci)=>{
     const x=startX-ci*colW;
     const colH=col.length*chH;
@@ -854,7 +975,28 @@ function drawVertical(text,W,H,baseFpx){
     if(state.pos==='top') y0=margin+chH/2;
     else if(state.pos==='middle') y0=H/2-colH/2+chH/2;
     else y0=H-margin-colH+chH/2;
-    col.forEach((ch,i)=>paintVChar(ch, x, y0+i*chH, fpx));
+    if(!animated){
+      col.forEach((ch,i)=>paintVChar(ch, x, y0+i*chH, fpx));
+    } else {
+      col.forEach((ch,i)=>{
+        const gf=(acc+i+0.5)/totalLen;
+        let a=1, dx=0, colorOverride=null;
+        if(state.motion==='typewriter'){
+          a = 1 - smoothstep(gf, motion.enterP-0.10, motion.enterP+0.10);   // gfが小さい(行の早い位置)ほど先に見える
+        } else if(state.motion==='karaoke'){
+          const t = 1 - smoothstep(gf, motion.sungFrac-0.035, motion.sungFrac+0.035);   // gfが小さい(=既に歌った側)ほど早く色が変わる
+          colorOverride = mixHex(state.color, state.karaokeColor, t);
+        } else if(state.motion==='wave'){
+          const amp=fpx*0.16*pw;
+          dx = Math.sin(motion.tShown*3.2 + (acc+i)*0.75) * amp * Math.min(1,motion.enterP*3);
+        }
+        ctx.save();
+        ctx.globalAlpha *= Math.max(0,Math.min(1,a));
+        paintVChar(ch, x+dx, y0+i*chH, fpx, colorOverride);
+        ctx.restore();
+      });
+    }
+    acc += col.length;
   });
 }
 
@@ -931,8 +1073,47 @@ function syncUIFromState(){
   $('plateColor').style.display=state.plate?'inline-block':'none';
   segSet('posSeg','pos',state.pos); segSet('alignSeg','align',state.align);
   document.querySelectorAll('.font-chip').forEach(c=>c.classList.toggle('sel',c.dataset.fam===state.font.fam));
+  syncMotionUI();
 }
 function segSet(id,key,val){ $(id).querySelectorAll('button').forEach(b=>b.classList.toggle('on', b.dataset[key]===val)); }
+
+/* ════ モーション（歌詞の動き）════ */
+const MOTIONS=[
+  { key:'fade',       emoji:'🌫', label:'フェードのみ' },
+  { key:'slideUp',    emoji:'⬆️', label:'スライドアップ' },
+  { key:'slideDown',  emoji:'⬇️', label:'スライドダウン' },
+  { key:'slideSide',  emoji:'➡️', label:'スライドイン(横)' },
+  { key:'pop',        emoji:'🎈', label:'ポップ(弾む)' },
+  { key:'blur',       emoji:'💫', label:'ブラー' },
+  { key:'typewriter', emoji:'⌨️', label:'タイプライター' },
+  { key:'wave',       emoji:'🌊', label:'ウェーブ' },
+  { key:'karaoke',    emoji:'🎤', label:'カラオケ配色' },
+  { key:'shake',      emoji:'📳', label:'シェイク' },
+  { key:'glow',       emoji:'✨', label:'グロー' },
+];
+function buildMotionPicker(){
+  const host=$('motionRow'); if(!host) return; host.innerHTML='';
+  MOTIONS.forEach(m=>{
+    const b=document.createElement('button'); b.className='btn'+(state.motion===m.key?' sel-motion':'');
+    b.style.cssText='font-size:.72rem;padding:.4rem .65rem;'; b.dataset.motion=m.key;
+    b.textContent=`${m.emoji} ${m.label}`;
+    b.onclick=()=>{
+      state.motion=m.key;
+      document.querySelectorAll('#motionRow .btn').forEach(x=>x.classList.remove('sel-motion'));
+      b.classList.add('sel-motion');
+      const kr=$('karaokeColorRow'); if(kr) kr.style.display = m.key==='karaoke' ? 'flex' : 'none';
+      draw();
+    };
+    host.appendChild(b);
+  });
+}
+function syncMotionUI(){
+  $('motionPower').value=Math.round((state.motionPower!=null?state.motionPower:1)*100);
+  $('vMotionPower').textContent=$('motionPower').value+'%';
+  $('karaokeColor').value=state.karaokeColor;
+  document.querySelectorAll('#motionRow .btn').forEach(b=>b.classList.toggle('sel-motion', b.dataset.motion===state.motion));
+  const kr=$('karaokeColorRow'); if(kr) kr.style.display = state.motion==='karaoke' ? 'flex' : 'none';
+}
 
 /* ════ フォントUI ════ */
 function buildFontPicker(){
@@ -1385,7 +1566,7 @@ function bindControls(){
   $('undoDelBtn').onclick=undoDelete;
   $('copyTimesBtn').onclick=()=>{
     if(!lyrics.length){ toast('先に歌詞を入力してください'); return; }
-    const txt='build48  '+lyrics.map((l,i)=>`${i+1}. ${l.t!=null?fmt(l.t):'--'}  ${l.text||'(空)'}`).join('\n');
+    const txt='build49  '+lyrics.map((l,i)=>`${i+1}. ${l.t!=null?fmt(l.t):'--'}  ${l.text||'(空)'}`).join('\n');
     const done=()=>toast('コピーしました。チャットに貼り付けて教えてください');
     if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(done).catch(()=>fallbackCopy(txt,done)); }
     else fallbackCopy(txt,done);
@@ -1421,6 +1602,8 @@ function bindControls(){
   sl('track','track',v=>v+'px'); sl('fade','fade',v=>(v/100).toFixed(2)+'s');
   $('fade').oninput=e=>{ state.fade=+e.target.value/100; $('vFade').textContent=state.fade.toFixed(2)+'s'; draw(); };
   $('offset').oninput=e=>{ state.offset=+e.target.value/100; $('vOffset').textContent=(state.offset>=0?'+':'')+state.offset.toFixed(2)+'s'; draw(); };
+  $('motionPower').oninput=e=>{ state.motionPower=+e.target.value/100; $('vMotionPower').textContent=e.target.value+'%'; draw(); };
+  $('karaokeColor').oninput=e=>{ state.karaokeColor=e.target.value; draw(); };
   $('color').oninput=e=>{state.color=e.target.value;draw();};
   $('strokeColor').oninput=e=>{state.strokeColor=e.target.value;draw();};
   $('plateColor').oninput=e=>{state.plateColor=e.target.value;draw();};
@@ -1907,7 +2090,7 @@ function renderGuide(g){
 }
 
 /* ════ 起動 ════ */
-buildFontPicker(); buildPresets(); buildGuide(); bindControls(); applyAspect();
+buildFontPicker(); buildPresets(); buildMotionPicker(); buildGuide(); bindControls(); applyAspect();
 (async()=>{ await ensureFont(state.font); draw(); })();
 startLoop();
 </script>
