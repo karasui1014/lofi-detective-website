@@ -4729,7 +4729,7 @@ function vpFillModal(from, to) {
   const COPYBTN_S= 'padding:.28rem .75rem;border-radius:6px;border:1px solid rgba(139,92,246,.35);background:rgba(139,92,246,.1);color:#c4b5fd;cursor:pointer;font-size:.68rem;font-family:inherit;';
   const CHATBTN_S= 'padding:.28rem .75rem;border-radius:6px;border:1px solid rgba(6,182,212,.4);background:rgba(6,182,212,.08);color:#67e8f9;cursor:pointer;font-size:.68rem;font-family:inherit;';
   const BODY_S   = 'display:block;padding:.8rem 1rem;font-size:.73rem;line-height:1.9;color:#d4d4e8;white-space:pre-wrap;word-break:break-word;background:#13131e;border-radius:0 0 12px 12px;';
-  const PAIR_S   = 'border:1px solid rgba(255,255,255,.08);border-radius:12px;overflow:hidden;margin-bottom:.75rem;';
+  const PAIR_S   = 'border:1px solid rgba(255,255,255,.08);border-radius:12px;overflow:hidden;margin-bottom:.75rem;flex-shrink:0;';
 
   const allPromptTexts = [];
 
@@ -4779,7 +4779,7 @@ function vpFillModal(from, to) {
     const mergedText = buildMergedVideoPrompt(allPromptTexts);
     const mergeEl = document.createElement('div');
     mergeEl.id = 'vp-merged-block';
-    mergeEl.style.cssText = 'border:2px solid rgba(251,146,60,.4);border-radius:12px;overflow:hidden;margin-top:.5rem;';
+    mergeEl.style.cssText = 'border:2px solid rgba(251,146,60,.4);border-radius:12px;overflow:hidden;margin-top:.5rem;flex-shrink:0;';
 
     const mHead = document.createElement('div');
     mHead.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:.6rem 1rem;background:rgba(251,146,60,.12);border-bottom:1px solid rgba(251,146,60,.2);';
@@ -4988,7 +4988,7 @@ function openLocationModal() {
   // Build a single unified prompt covering all locations
   const promptText = generateAllLocationsPrompt(locationMap, locationOrder, scenarioRaw);
 
-  const WRAP_S = 'border:1px solid rgba(16,185,129,.25);border-radius:12px;overflow:hidden;';
+  const WRAP_S = 'border:1px solid rgba(16,185,129,.25);border-radius:12px;overflow:hidden;flex-shrink:0;';
   const HEAD_S = 'display:flex;align-items:center;justify-content:space-between;padding:.6rem 1rem;background:rgba(16,185,129,.1);border-bottom:1px solid rgba(16,185,129,.18);';
   const LABEL_S = 'font-size:.74rem;font-weight:700;color:#34d399;';
   const BTN_S = 'padding:.28rem .75rem;border-radius:8px;border:1px solid rgba(16,185,129,.35);background:transparent;color:#34d399;font-size:.66rem;cursor:pointer;font-family:inherit;';
@@ -6254,7 +6254,7 @@ function sdFillModal(from, to) {
   const body = document.getElementById('sd-modal-body');
   body.innerHTML = '';
 
-  const CARD_S  = 'border:1px solid rgba(56,232,255,.25);border-radius:12px;overflow:hidden;margin-bottom:.75rem;';
+  const CARD_S  = 'border:1px solid rgba(56,232,255,.25);border-radius:12px;overflow:hidden;margin-bottom:.75rem;flex-shrink:0;';
   const HEAD_S  = 'display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.55rem 1rem;background:rgba(56,232,255,.1);border-bottom:1px solid rgba(255,255,255,.08);flex-wrap:wrap;';
   const LABEL_S = 'font-size:.72rem;font-weight:700;color:#38e8ff;';
   const SUB_S   = 'font-size:.66rem;font-weight:700;color:#7dd3fc;padding:.45rem 1rem .2rem;';
@@ -6263,7 +6263,7 @@ function sdFillModal(from, to) {
 
   // ── 使い方ヘッダー ──
   const guide = document.createElement('div');
-  guide.style.cssText = 'border:1.5px solid rgba(56,232,255,.4);border-radius:12px;padding:.8rem 1rem;background:rgba(56,232,255,.05);font-size:.72rem;line-height:1.9;color:#bae6fd;';
+  guide.style.cssText = 'border:1.5px solid rgba(56,232,255,.4);border-radius:12px;padding:.8rem 1rem;background:rgba(56,232,255,.05);font-size:.72rem;line-height:1.9;color:#bae6fd;flex-shrink:0;';
   guide.innerHTML =
     '<b style="color:#38e8ff;">🌊 Seedance 開始/終了フレーム連結ワークフロー</b><br>' +
     '1. 各カットの<b>①開始フレーム／②終了フレーム</b>プロンプトで静止画を生成（同一キャラは参照画像を使うと一貫性UP）<br>' +
@@ -6358,7 +6358,7 @@ function sdFillModal(from, to) {
       `手順: ①②で静止画生成 → Seedanceに開始/終了フレームをアップロード＋③を入力 → カットNの終了フレームをカットN+1の開始フレームに再利用 → 全クリップを編集ソフトで連結し音源に同期\n\n` +
       mergedParts.join('\n\n──────────\n\n');
     const mBtn = document.createElement('button');
-    mBtn.style.cssText = 'width:100%;padding:.6rem;border-radius:10px;border:1.5px solid rgba(56,232,255,.5);background:rgba(56,232,255,.12);color:#38e8ff;font-weight:700;cursor:pointer;font-size:.75rem;font-family:inherit;';
+    mBtn.style.cssText = 'width:100%;padding:.6rem;border-radius:10px;border:1.5px solid rgba(56,232,255,.5);background:rgba(56,232,255,.12);color:#38e8ff;font-weight:700;cursor:pointer;font-size:.75rem;font-family:inherit;flex-shrink:0;';
     mBtn.textContent = '📋 全クリップまとめてコピー';
     mBtn.onclick = function(){ sdCopyText(this, mergedText); };
     body.appendChild(mBtn);
