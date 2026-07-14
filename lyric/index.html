@@ -236,7 +236,7 @@ details.adv[open]>summary::before{content:'▾';}
       <div class="logo-mark">🎬</div>
       <h1 class="hero-title">Lyric Telop Generator</h1>
       <div class="hero-rule" aria-hidden="true"></div>
-      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build49</div>
+      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build50</div>
       <span class="header-warning">※第三者への無断譲渡・公開はNGです</span>
     </div>
   </header>
@@ -343,7 +343,7 @@ details.adv[open]>summary::before{content:'▾';}
 
             <div class="ctrl">
               <div class="ctrl-label"><span>文字サイズ</span><b id="vSize">72px</b></div>
-              <input type="range" class="sl" id="size" min="24" max="180" value="72">
+              <input type="range" class="sl" id="size" min="24" max="320" value="72">
             </div>
             <div class="ctrl">
               <div class="ctrl-label"><span>太さ (Weight)</span><b id="vWeight">500</b></div>
@@ -397,6 +397,9 @@ details.adv[open]>summary::before{content:'▾';}
             </div>
             <div class="row" id="karaokeColorRow" style="margin:.1rem 0 .6rem;display:none;">
               <label class="fld" style="margin:0;">カラオケ配色（歌った文字）</label><input type="color" id="karaokeColor" value="#ffd24d">
+            </div>
+            <div class="row" id="highlightColorRow" style="margin:.1rem 0 .6rem;display:none;">
+              <label class="fld" style="margin:0;">マーカー色（ハイライト帯）</label><input type="color" id="highlightColor" value="#f5e400">
             </div>
             <div class="hint" style="line-height:1.7;">※アニメーションは<b>プレビュー</b>と<b>🎬完成動画(WebM)</b>に反映されます。透過PNG・字幕ファイル(.srt/.ass)は1コマ/固定タイミングのため対象外です。</div>
           </div>
@@ -538,7 +541,7 @@ const state = {
   strokeColor:'#000000', stroke:6, shadow:true, plate:false, plateColor:'#000000',
   vertical:false, pos:'bottom', align:'center', track:0, fade:0.25, offset:0,
   bg:'transparent', bgColor:'#101018', aspect:'16:9',
-  motion:'fade', motionPower:1, karaokeColor:'#ffd24d',
+  motion:'fade', motionPower:1, karaokeColor:'#ffd24d', highlightColor:'#f5e400',
 };
 let _extraGlow=0;   // グローモーション用：paintTextが読む一時的な発光量（renderText冒頭で毎回0リセット）
 let lyrics = [];      // [{text, t:Number|null}]
@@ -721,6 +724,14 @@ function applyWholeLineMotion(motion, W, H){
     tx += Math.sin(motion.tShown*36)*amp*0.5; ty += Math.cos(motion.tShown*27)*amp*0.4;
   } else if(mkey==='glow'){
     _extraGlow = (0.5+0.5*Math.sin(motion.tShown*3.4)) * Math.min(1,motion.tShown*3) * (1-exitInfluence*0.7);
+  } else if(mkey==='impact'){
+    // 大きく写ってから一気に定位置へ「叩き込む」演出（キネティックタイポグラフィ風）
+    const p=Math.min(1,motion.enterP*1.15), eased=1-Math.pow(1-p,4);
+    const overshoot=Math.sin(Math.min(1,motion.enterP*1.6)*Math.PI)*0.14*pw;
+    const big=2.0+0.6*pw;
+    sc = (big-(big-1)*eased+overshoot*(1-eased)) * (1-exitInfluence*0.5);
+    const b=enterInfluence*10*pw;
+    if(b>0.3 && 'filter' in ctx) ctx.filter=`blur(${b.toFixed(1)}px)`;
   }
   if(tx||ty) ctx.translate(tx,ty);
   if(sc!==1){ const cx=W/2, cy=posPivotY(H); ctx.translate(cx,cy); ctx.scale(sc,sc); ctx.translate(-cx,-cy); }
@@ -939,6 +950,17 @@ function drawHorizontal(text,W,H,baseFpx,motion){
     const pad=fpx*0.4; const px=state.align==='left'?margin-pad : state.align==='right'?W-margin-mw-pad : W/2-mw/2-pad;
     roundRect(px, cy-lh/2-pad*0.3, mw+pad*2, blockH+pad*0.6, fpx*0.18, hexA(state.plateColor,0.55));
   }
+  if(motion && state.motion==='highlight'){
+    // マーカーで塗ったようなハイライト帯が、行の登場に合わせて左（右揃えなら右）から伸びる
+    let mw=0; rows.forEach(r=>mw=Math.max(mw,ctx.measureText(r).width));
+    const pad=fpx*0.22;
+    const boxX = state.align==='left'?margin-pad : state.align==='right'?W-margin-mw-pad : W/2-mw/2-pad;
+    const boxW=mw+pad*2, boxH=blockH+pad*1.1, boxY=cy-lh/2-pad*0.55;
+    const sweep=1-Math.pow(1-Math.min(1,motion.enterP*1.3),3);
+    const revealW=boxW*Math.max(0,Math.min(1,sweep));
+    const rx = state.align==='right' ? boxX+boxW-revealW : boxX;
+    roundRect(rx, boxY, revealW, boxH, fpx*0.10, state.highlightColor);
+  }
   const animated = motion && ['typewriter','karaoke','wave'].includes(state.motion);
   if(!animated){ rows.forEach((r,i)=>paintText(r, x, cy+i*lh, fpx)); return; }
   const rowLens=rows.map(r=>Math.max(1, normLen(r)||[...r].length));
@@ -963,6 +985,21 @@ function drawVertical(text,W,H,baseFpx,motion){
   ctx.font=`${state.weight} ${fpx}px '${state.font.fam}', sans-serif`;
   ctx.textAlign='center';
   const startX = W - margin - colW/2; // 右→左
+  if(motion && state.motion==='highlight'){
+    // 縦書きは上から下へ伸びるハイライト帯（読む方向と揃える）
+    const maxColH=Math.max(...cols.map(c=>c.length))*chH;
+    const pad=fpx*0.22;
+    let by0;
+    if(state.pos==='top') by0=margin;
+    else if(state.pos==='middle') by0=H/2-maxColH/2;
+    else by0=H-margin-maxColH;
+    const boxY=by0-pad*0.5, boxH=maxColH+pad*1.1;
+    const rightX=startX+colW/2+pad, leftX=startX-(cols.length-1)*colW-colW/2-pad;
+    const boxW=rightX-leftX;
+    const sweep=1-Math.pow(1-Math.min(1,motion.enterP*1.3),3);
+    const revealH=boxH*Math.max(0,Math.min(1,sweep));
+    roundRect(leftX, boxY, boxW, revealH, fpx*0.10, state.highlightColor);
+  }
   const animated = motion && ['typewriter','karaoke','wave'].includes(state.motion);
   const colLens = cols.map(c=>c.length);
   const totalLen = colLens.reduce((a,b)=>a+b,0)||1;
@@ -1084,13 +1121,19 @@ const MOTIONS=[
   { key:'slideDown',  emoji:'⬇️', label:'スライドダウン' },
   { key:'slideSide',  emoji:'➡️', label:'スライドイン(横)' },
   { key:'pop',        emoji:'🎈', label:'ポップ(弾む)' },
+  { key:'impact',     emoji:'💥', label:'インパクト(巨大ズーム)' },
   { key:'blur',       emoji:'💫', label:'ブラー' },
   { key:'typewriter', emoji:'⌨️', label:'タイプライター' },
   { key:'wave',       emoji:'🌊', label:'ウェーブ' },
   { key:'karaoke',    emoji:'🎤', label:'カラオケ配色' },
+  { key:'highlight',  emoji:'🖍', label:'マーカー(ハイライト帯)' },
   { key:'shake',      emoji:'📳', label:'シェイク' },
   { key:'glow',       emoji:'✨', label:'グロー' },
 ];
+function updateMotionColorRows(key){
+  const kr=$('karaokeColorRow'); if(kr) kr.style.display = key==='karaoke' ? 'flex' : 'none';
+  const hr=$('highlightColorRow'); if(hr) hr.style.display = key==='highlight' ? 'flex' : 'none';
+}
 function buildMotionPicker(){
   const host=$('motionRow'); if(!host) return; host.innerHTML='';
   MOTIONS.forEach(m=>{
@@ -1101,7 +1144,7 @@ function buildMotionPicker(){
       state.motion=m.key;
       document.querySelectorAll('#motionRow .btn').forEach(x=>x.classList.remove('sel-motion'));
       b.classList.add('sel-motion');
-      const kr=$('karaokeColorRow'); if(kr) kr.style.display = m.key==='karaoke' ? 'flex' : 'none';
+      updateMotionColorRows(m.key);
       draw();
     };
     host.appendChild(b);
@@ -1111,8 +1154,9 @@ function syncMotionUI(){
   $('motionPower').value=Math.round((state.motionPower!=null?state.motionPower:1)*100);
   $('vMotionPower').textContent=$('motionPower').value+'%';
   $('karaokeColor').value=state.karaokeColor;
+  $('highlightColor').value=state.highlightColor;
   document.querySelectorAll('#motionRow .btn').forEach(b=>b.classList.toggle('sel-motion', b.dataset.motion===state.motion));
-  const kr=$('karaokeColorRow'); if(kr) kr.style.display = state.motion==='karaoke' ? 'flex' : 'none';
+  updateMotionColorRows(state.motion);
 }
 
 /* ════ フォントUI ════ */
@@ -1566,7 +1610,7 @@ function bindControls(){
   $('undoDelBtn').onclick=undoDelete;
   $('copyTimesBtn').onclick=()=>{
     if(!lyrics.length){ toast('先に歌詞を入力してください'); return; }
-    const txt='build49  '+lyrics.map((l,i)=>`${i+1}. ${l.t!=null?fmt(l.t):'--'}  ${l.text||'(空)'}`).join('\n');
+    const txt='build50  '+lyrics.map((l,i)=>`${i+1}. ${l.t!=null?fmt(l.t):'--'}  ${l.text||'(空)'}`).join('\n');
     const done=()=>toast('コピーしました。チャットに貼り付けて教えてください');
     if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(done).catch(()=>fallbackCopy(txt,done)); }
     else fallbackCopy(txt,done);
@@ -1604,6 +1648,7 @@ function bindControls(){
   $('offset').oninput=e=>{ state.offset=+e.target.value/100; $('vOffset').textContent=(state.offset>=0?'+':'')+state.offset.toFixed(2)+'s'; draw(); };
   $('motionPower').oninput=e=>{ state.motionPower=+e.target.value/100; $('vMotionPower').textContent=e.target.value+'%'; draw(); };
   $('karaokeColor').oninput=e=>{ state.karaokeColor=e.target.value; draw(); };
+  $('highlightColor').oninput=e=>{ state.highlightColor=e.target.value; draw(); };
   $('color').oninput=e=>{state.color=e.target.value;draw();};
   $('strokeColor').oninput=e=>{state.strokeColor=e.target.value;draw();};
   $('plateColor').oninput=e=>{state.plateColor=e.target.value;draw();};
