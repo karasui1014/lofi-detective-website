@@ -525,6 +525,8 @@ label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;
 .dl-btn.seedance{display:none;border-color:rgba(56,232,255,.4);color:#38e8ff;background:rgba(56,232,255,.07);}
 .dl-btn.seedance:hover{background:rgba(56,232,255,.18);border-color:#38e8ff;color:#fff;}
 body.seedance-on .dl-btn.seedance{display:inline-flex;}
+.panel-seedance-note{display:none;margin-top:.35rem;font-size:.62rem;line-height:1.6;color:#67e8f9;background:rgba(56,232,255,.08);border:1px solid rgba(56,232,255,.25);border-radius:6px;padding:.35rem .55rem;}
+body.seedance-on .panel-seedance-note{display:block;}
 .sd-toast{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%) translateY(20px);background:#0c1a24;color:#38e8ff;border:1px solid rgba(56,232,255,.5);border-radius:10px;padding:.6rem 1.2rem;font-size:.8rem;font-weight:700;z-index:9500;opacity:0;pointer-events:none;transition:.3s;box-shadow:0 0 24px -6px rgba(56,232,255,.6);}
 .sd-toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 
@@ -3693,6 +3695,7 @@ function buildPanelEl(p, displayNum) {
       <div class="panel-scene">${escapeHtml(p.jaDesc||p.lines?.join('\n')||'').replace(/\n/g,'<br>')}</div>
       <div class="panel-prompt-label">絵コンテプロンプト<button class="copy-inline-btn" onclick="copyPanelPrompt(this,'.panel-prompt')" title="このプロンプトをコピー">⧉ コピー</button></div>
       <div class="panel-prompt" data-ja="${escapeAttr(promptJa)}" data-en="${escapeAttr(promptEn)}">${escapeHtml(isEn ? promptEn : promptJa)}</div>
+      <div class="panel-seedance-note">🌊 Seedance用フレーム画像プロンプトはこれと同じです（このカットが開始フレームなら①、終了フレームなら②として使用）</div>
       <div class="panel-bg-label">背景プロンプト<button class="copy-inline-btn bg" onclick="copyPanelPrompt(this,'.panel-bg-prompt')" title="背景プロンプトをコピー">⧉ コピー</button></div>
       <div class="panel-bg-prompt" data-ja="${escapeAttr(bgJa)}" data-en="${escapeAttr(bgEn)}">${escapeHtml(isEn ? bgEn : bgJa)}</div>
       <label style="display:flex;align-items:center;gap:.4rem;margin-top:.4rem;font-size:.68rem;color:var(--text-muted);cursor:pointer;">
@@ -4726,7 +4729,7 @@ function vpFillModal(from, to) {
   const COPYBTN_S= 'padding:.28rem .75rem;border-radius:6px;border:1px solid rgba(139,92,246,.35);background:rgba(139,92,246,.1);color:#c4b5fd;cursor:pointer;font-size:.68rem;font-family:inherit;';
   const CHATBTN_S= 'padding:.28rem .75rem;border-radius:6px;border:1px solid rgba(6,182,212,.4);background:rgba(6,182,212,.08);color:#67e8f9;cursor:pointer;font-size:.68rem;font-family:inherit;';
   const BODY_S   = 'display:block;padding:.8rem 1rem;font-size:.73rem;line-height:1.9;color:#d4d4e8;white-space:pre-wrap;word-break:break-word;background:#13131e;border-radius:0 0 12px 12px;';
-  const PAIR_S   = 'border:1px solid rgba(255,255,255,.08);border-radius:12px;overflow:hidden;margin-bottom:.75rem;';
+  const PAIR_S   = 'border:1px solid rgba(255,255,255,.08);border-radius:12px;overflow:hidden;margin-bottom:.75rem;flex-shrink:0;';
 
   const allPromptTexts = [];
 
@@ -4776,7 +4779,7 @@ function vpFillModal(from, to) {
     const mergedText = buildMergedVideoPrompt(allPromptTexts);
     const mergeEl = document.createElement('div');
     mergeEl.id = 'vp-merged-block';
-    mergeEl.style.cssText = 'border:2px solid rgba(251,146,60,.4);border-radius:12px;overflow:hidden;margin-top:.5rem;';
+    mergeEl.style.cssText = 'border:2px solid rgba(251,146,60,.4);border-radius:12px;overflow:hidden;margin-top:.5rem;flex-shrink:0;';
 
     const mHead = document.createElement('div');
     mHead.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:.6rem 1rem;background:rgba(251,146,60,.12);border-bottom:1px solid rgba(251,146,60,.2);';
@@ -4985,7 +4988,7 @@ function openLocationModal() {
   // Build a single unified prompt covering all locations
   const promptText = generateAllLocationsPrompt(locationMap, locationOrder, scenarioRaw);
 
-  const WRAP_S = 'border:1px solid rgba(16,185,129,.25);border-radius:12px;overflow:hidden;';
+  const WRAP_S = 'border:1px solid rgba(16,185,129,.25);border-radius:12px;overflow:hidden;flex-shrink:0;';
   const HEAD_S = 'display:flex;align-items:center;justify-content:space-between;padding:.6rem 1rem;background:rgba(16,185,129,.1);border-bottom:1px solid rgba(16,185,129,.18);';
   const LABEL_S = 'font-size:.74rem;font-weight:700;color:#34d399;';
   const BTN_S = 'padding:.28rem .75rem;border-radius:8px;border:1px solid rgba(16,185,129,.35);background:transparent;color:#34d399;font-size:.66rem;cursor:pointer;font-family:inherit;';
@@ -6251,7 +6254,7 @@ function sdFillModal(from, to) {
   const body = document.getElementById('sd-modal-body');
   body.innerHTML = '';
 
-  const CARD_S  = 'border:1px solid rgba(56,232,255,.25);border-radius:12px;overflow:hidden;margin-bottom:.75rem;';
+  const CARD_S  = 'border:1px solid rgba(56,232,255,.25);border-radius:12px;overflow:hidden;margin-bottom:.75rem;flex-shrink:0;';
   const HEAD_S  = 'display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.55rem 1rem;background:rgba(56,232,255,.1);border-bottom:1px solid rgba(255,255,255,.08);flex-wrap:wrap;';
   const LABEL_S = 'font-size:.72rem;font-weight:700;color:#38e8ff;';
   const SUB_S   = 'font-size:.66rem;font-weight:700;color:#7dd3fc;padding:.45rem 1rem .2rem;';
@@ -6260,7 +6263,7 @@ function sdFillModal(from, to) {
 
   // ── 使い方ヘッダー ──
   const guide = document.createElement('div');
-  guide.style.cssText = 'border:1.5px solid rgba(56,232,255,.4);border-radius:12px;padding:.8rem 1rem;background:rgba(56,232,255,.05);font-size:.72rem;line-height:1.9;color:#bae6fd;';
+  guide.style.cssText = 'border:1.5px solid rgba(56,232,255,.4);border-radius:12px;padding:.8rem 1rem;background:rgba(56,232,255,.05);font-size:.72rem;line-height:1.9;color:#bae6fd;flex-shrink:0;';
   guide.innerHTML =
     '<b style="color:#38e8ff;">🌊 Seedance 開始/終了フレーム連結ワークフロー</b><br>' +
     '1. 各カットの<b>①開始フレーム／②終了フレーム</b>プロンプトで静止画を生成（同一キャラは参照画像を使うと一貫性UP）<br>' +
@@ -6282,8 +6285,8 @@ function sdFillModal(from, to) {
 
     const isFirst = i === from - 1;
     const chainNote = isFirst
-      ? '①のプロンプトで開始フレームを新規生成'
-      : `開始フレームは「カット ${numA - 1} → ${numA}」の終了フレーム画像を再利用（①は予備）`;
+      ? '🆕 ①のプロンプトで開始フレームを新規生成してください'
+      : `♻️ 開始フレームは新規生成しないでください。直前の「カット ${numA - 1} → ${numA}」で作った②終了フレーム画像を、そのままこのクリップの開始フレームとして使い回します（①は同一内容の参考再掲）`;
 
     const card = document.createElement('div');
     card.style.cssText = CARD_S;
@@ -6293,11 +6296,16 @@ function sdFillModal(from, to) {
     const label = document.createElement('span');
     label.style.cssText = LABEL_S;
     label.textContent = `🌊 クリップ ${numA} → ${numB}（推奨 ${sd.durRec}秒）`;
-    const note = document.createElement('span');
-    note.style.cssText = 'font-size:.62rem;color:#67e8f9;opacity:.8;';
-    note.textContent = chainNote;
-    head.append(label, note);
+    head.append(label);
     card.appendChild(head);
+
+    // 開始フレームの扱い（新規生成 or 使い回し）を強調バナーで明示
+    const chainBanner = document.createElement('div');
+    chainBanner.style.cssText = isFirst
+      ? 'padding:.5rem 1rem;font-size:.68rem;font-weight:700;line-height:1.7;color:#7dd3fc;background:rgba(56,232,255,.07);border-bottom:1px solid rgba(56,232,255,.15);'
+      : 'padding:.5rem 1rem;font-size:.68rem;font-weight:700;line-height:1.7;color:#86efac;background:rgba(34,197,94,.1);border-bottom:1px solid rgba(34,197,94,.25);';
+    chainBanner.textContent = chainNote;
+    card.appendChild(chainBanner);
 
     if (sd.warn) {
       const w = document.createElement('div');
@@ -6307,8 +6315,8 @@ function sdFillModal(from, to) {
     }
 
     const sections = [
-      { sub: `① 開始フレーム画像プロンプト（カット${numA}）`, text: sd.startPrompt },
-      { sub: `② 終了フレーム画像プロンプト（カット${numB}）`, text: sd.endPrompt },
+      { sub: isFirst ? `① 開始フレーム画像プロンプト（カット${numA}・新規生成）` : `① 開始フレーム画像プロンプト（カット${numA}・参考再掲＝前クリップの②と同一）`, text: sd.startPrompt },
+      { sub: `② 終了フレーム画像プロンプト（カット${numB}・新規生成）`, text: sd.endPrompt },
       { sub: '③ Seedance動画プロンプト（日本語）', text: sd.videoPromptJa },
       { sub: '③ Seedance video prompt (English)', text: sd.videoPromptEn },
     ];
@@ -6350,7 +6358,7 @@ function sdFillModal(from, to) {
       `手順: ①②で静止画生成 → Seedanceに開始/終了フレームをアップロード＋③を入力 → カットNの終了フレームをカットN+1の開始フレームに再利用 → 全クリップを編集ソフトで連結し音源に同期\n\n` +
       mergedParts.join('\n\n──────────\n\n');
     const mBtn = document.createElement('button');
-    mBtn.style.cssText = 'width:100%;padding:.6rem;border-radius:10px;border:1.5px solid rgba(56,232,255,.5);background:rgba(56,232,255,.12);color:#38e8ff;font-weight:700;cursor:pointer;font-size:.75rem;font-family:inherit;';
+    mBtn.style.cssText = 'width:100%;padding:.6rem;border-radius:10px;border:1.5px solid rgba(56,232,255,.5);background:rgba(56,232,255,.12);color:#38e8ff;font-weight:700;cursor:pointer;font-size:.75rem;font-family:inherit;flex-shrink:0;';
     mBtn.textContent = '📋 全クリップまとめてコピー';
     mBtn.onclick = function(){ sdCopyText(this, mergedText); };
     body.appendChild(mBtn);
