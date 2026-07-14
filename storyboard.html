@@ -525,6 +525,8 @@ label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;
 .dl-btn.seedance{display:none;border-color:rgba(56,232,255,.4);color:#38e8ff;background:rgba(56,232,255,.07);}
 .dl-btn.seedance:hover{background:rgba(56,232,255,.18);border-color:#38e8ff;color:#fff;}
 body.seedance-on .dl-btn.seedance{display:inline-flex;}
+.panel-seedance-note{display:none;margin-top:.35rem;font-size:.62rem;line-height:1.6;color:#67e8f9;background:rgba(56,232,255,.08);border:1px solid rgba(56,232,255,.25);border-radius:6px;padding:.35rem .55rem;}
+body.seedance-on .panel-seedance-note{display:block;}
 .sd-toast{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%) translateY(20px);background:#0c1a24;color:#38e8ff;border:1px solid rgba(56,232,255,.5);border-radius:10px;padding:.6rem 1.2rem;font-size:.8rem;font-weight:700;z-index:9500;opacity:0;pointer-events:none;transition:.3s;box-shadow:0 0 24px -6px rgba(56,232,255,.6);}
 .sd-toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 
@@ -3693,6 +3695,7 @@ function buildPanelEl(p, displayNum) {
       <div class="panel-scene">${escapeHtml(p.jaDesc||p.lines?.join('\n')||'').replace(/\n/g,'<br>')}</div>
       <div class="panel-prompt-label">絵コンテプロンプト<button class="copy-inline-btn" onclick="copyPanelPrompt(this,'.panel-prompt')" title="このプロンプトをコピー">⧉ コピー</button></div>
       <div class="panel-prompt" data-ja="${escapeAttr(promptJa)}" data-en="${escapeAttr(promptEn)}">${escapeHtml(isEn ? promptEn : promptJa)}</div>
+      <div class="panel-seedance-note">🌊 Seedance用フレーム画像プロンプトはこれと同じです（このカットが開始フレームなら①、終了フレームなら②として使用）</div>
       <div class="panel-bg-label">背景プロンプト<button class="copy-inline-btn bg" onclick="copyPanelPrompt(this,'.panel-bg-prompt')" title="背景プロンプトをコピー">⧉ コピー</button></div>
       <div class="panel-bg-prompt" data-ja="${escapeAttr(bgJa)}" data-en="${escapeAttr(bgEn)}">${escapeHtml(isEn ? bgEn : bgJa)}</div>
       <label style="display:flex;align-items:center;gap:.4rem;margin-top:.4rem;font-size:.68rem;color:var(--text-muted);cursor:pointer;">
@@ -6282,8 +6285,8 @@ function sdFillModal(from, to) {
 
     const isFirst = i === from - 1;
     const chainNote = isFirst
-      ? '①のプロンプトで開始フレームを新規生成'
-      : `開始フレームは「カット ${numA - 1} → ${numA}」の終了フレーム画像を再利用（①は予備）`;
+      ? '🆕 ①のプロンプトで開始フレームを新規生成してください'
+      : `♻️ 開始フレームは新規生成しないでください。直前の「カット ${numA - 1} → ${numA}」で作った②終了フレーム画像を、そのままこのクリップの開始フレームとして使い回します（①は同一内容の参考再掲）`;
 
     const card = document.createElement('div');
     card.style.cssText = CARD_S;
@@ -6293,11 +6296,16 @@ function sdFillModal(from, to) {
     const label = document.createElement('span');
     label.style.cssText = LABEL_S;
     label.textContent = `🌊 クリップ ${numA} → ${numB}（推奨 ${sd.durRec}秒）`;
-    const note = document.createElement('span');
-    note.style.cssText = 'font-size:.62rem;color:#67e8f9;opacity:.8;';
-    note.textContent = chainNote;
-    head.append(label, note);
+    head.append(label);
     card.appendChild(head);
+
+    // 開始フレームの扱い（新規生成 or 使い回し）を強調バナーで明示
+    const chainBanner = document.createElement('div');
+    chainBanner.style.cssText = isFirst
+      ? 'padding:.5rem 1rem;font-size:.68rem;font-weight:700;line-height:1.7;color:#7dd3fc;background:rgba(56,232,255,.07);border-bottom:1px solid rgba(56,232,255,.15);'
+      : 'padding:.5rem 1rem;font-size:.68rem;font-weight:700;line-height:1.7;color:#86efac;background:rgba(34,197,94,.1);border-bottom:1px solid rgba(34,197,94,.25);';
+    chainBanner.textContent = chainNote;
+    card.appendChild(chainBanner);
 
     if (sd.warn) {
       const w = document.createElement('div');
@@ -6307,8 +6315,8 @@ function sdFillModal(from, to) {
     }
 
     const sections = [
-      { sub: `① 開始フレーム画像プロンプト（カット${numA}）`, text: sd.startPrompt },
-      { sub: `② 終了フレーム画像プロンプト（カット${numB}）`, text: sd.endPrompt },
+      { sub: isFirst ? `① 開始フレーム画像プロンプト（カット${numA}・新規生成）` : `① 開始フレーム画像プロンプト（カット${numA}・参考再掲＝前クリップの②と同一）`, text: sd.startPrompt },
+      { sub: `② 終了フレーム画像プロンプト（カット${numB}・新規生成）`, text: sd.endPrompt },
       { sub: '③ Seedance動画プロンプト（日本語）', text: sd.videoPromptJa },
       { sub: '③ Seedance video prompt (English)', text: sd.videoPromptEn },
     ];
