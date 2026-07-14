@@ -236,7 +236,7 @@ details.adv[open]>summary::before{content:'▾';}
       <div class="logo-mark">🎬</div>
       <h1 class="hero-title">Lyric Telop Generator</h1>
       <div class="hero-rule" aria-hidden="true"></div>
-      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build51</div>
+      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build52</div>
       <span class="header-warning">※第三者への無断譲渡・公開はNGです</span>
     </div>
   </header>
@@ -387,8 +387,8 @@ details.adv[open]>summary::before{content:'▾';}
             <div class="divider"></div>
             <div class="ctrl-label" style="margin-bottom:.45rem;"><span>🎞 アニメーション（歌詞の動き）</span></div>
             <div id="autoDirectBox" style="background:var(--surface3);border:1px solid rgba(155,124,255,.4);border-radius:8px;padding:.6rem .75rem;margin-bottom:.6rem;">
-              <label class="toggle" style="font-weight:700;"><input type="checkbox" id="autoDirect">🎭 おまかせ演出（歌詞と曲に合わせて自動）</label>
-              <div class="hint" style="margin:.35rem 0 .5rem;line-height:1.7;">歌詞の内容と音源の強弱を解析して、<b>感情的な行・サビは大きく力強く</b>、<b>静かな行はそっと</b>、行ごとに文字サイズと動きを自動で変えます。下で選んだ動きは「普通の行」の基本の動きになります。</div>
+              <label class="toggle" style="font-weight:700;"><input type="checkbox" id="autoDirect">🎭 おまかせ演出（サビ・クライマックスだけ控えめに強調）</label>
+              <div class="hint" style="margin:.35rem 0 .5rem;line-height:1.7;">歌詞と音源を解析して、<b>サビにマーカー</b>・<b>クライマックスは少し大きくドンと</b>。普通の行は下で選んだ動きのままなので、全体の統一感は崩れません。</div>
               <div class="row" style="gap:.45rem;align-items:center;">
                 <button class="btn" id="fxAnalyzeBtn" style="font-size:.72rem;">🔍 歌詞・音源から演出を解析</button>
                 <span class="hint" id="fxStatus"></span>
@@ -595,7 +595,7 @@ const HOLD_TAIL=0.7;    // 歌い終わってからの余韻（短いほど間�
 function lineNatEnd(l){
   const base=Math.max(MIN_SING, normLen(l.text)*SING_RATE);
   if(l.tEnd!=null && isFinite(l.tEnd) && l.tEnd>l.t){
-    return Math.min(Math.max(l.tEnd, l.t+base*0.75), l.t+base*2.2+1.2);
+    return Math.min(Math.max(l.tEnd, l.t+base*0.75), l.t+base*2.6+1.5);   // 上限はゆるめ（バラードの伸ばしを尊重しつつ間奏跨ぎは防ぐ）
   }
   return l.t+base;
 }
@@ -726,7 +726,7 @@ function curMotionKey(){ return (state.autoDirect && _curFx && _curFx.motion) ? 
 function posPivotY(H){ return state.pos==='top'? H*0.18 : state.pos==='middle'? H/2 : H*0.84; }
 function applyWholeLineMotion(motion, W, H){
   const mkey=curMotionKey();
-  if(mkey==='typewriter'||mkey==='karaoke'||mkey==='wave'||mkey==='cinema') return;
+  if(PER_CHAR_MOTIONS.includes(mkey)||mkey==='cinema') return;
   const pw = state.motionPower!=null ? state.motionPower : 1;
   const easeOut = p=>1-Math.pow(1-p,3);
   const enterInfluence = 1-easeOut(motion.enterP);                          // 登場直後=1 → 定常時=0
@@ -760,6 +760,16 @@ function applyWholeLineMotion(motion, W, H){
   if(sc!==1){ const cx=W/2, cy=posPivotY(H); ctx.translate(cx,cy); ctx.scale(sc,sc); ctx.translate(-cx,-cy); }
 }
 function smoothstep(x,e0,e1){ if(e0===e1) return x<e0?0:1; const t=Math.max(0,Math.min(1,(x-e0)/(e1-e0))); return t*t*(3-2*t); }
+// 1文字ずつ動かす演出のキー一覧（行全体変形とは排他）と、そのタイミング計算
+const PER_CHAR_MOTIONS=['typewriter','karaoke','wave','charPop','charFloat','charScatter','charSpin'];
+// i番目の文字の登場進行度(0〜1)。文字ごとに少しずつ遅らせて「順番に登場」させる
+function charProg(motion, i, n){
+  const step=Math.min(0.06, 0.55/Math.max(1,n));                    // 行が長くても全体で~0.6秒以内に出揃う
+  const dur=Math.max(0.14, Math.min(0.34, state.fade||0.25));       // 1文字の動きの長さ（「動きの速さ」スライダー連動）
+  return Math.max(0, Math.min(1, (motion.tShown - i*step)/dur));
+}
+function easeOutBack(p){ const c1=1.70158, c3=c1+1, q=p-1; return 1+c3*q*q*q+c1*q*q; }   // 少し行き過ぎて戻る＝弾む
+function seededRand(seed){ const x=Math.sin(seed*127.1+311.7)*43758.5453; return x-Math.floor(x); }   // 毎フレーム同じ値（ちらつき防止）
 function mixHex(a,b,t){
   const pa=parseInt(a.slice(1),16), pb=parseInt(b.slice(1),16);
   const r=Math.round((pa>>16&255)+((pb>>16&255)-(pa>>16&255))*t);
@@ -938,7 +948,7 @@ function paintRowAnimated(str, x, y, fpx, align, motion, rowFracRange){
   for(let i=0;i<n;i++){
     const ch=chars[i], w=widths[i];
     const gf = rowFracRange[0] + (rowFracRange[1]-rowFracRange[0])*((i+0.5)/n);
-    let a=1, dy=0, colorOverride=null;
+    let a=1, dx=0, dy=0, rot=0, sc2=1, colorOverride=null;
     if(mk==='typewriter'){
       a = 1 - smoothstep(gf, motion.enterP-0.10, motion.enterP+0.10);   // gfが小さい(行の早い位置)ほど先に見える
     } else if(mk==='karaoke'){
@@ -947,10 +957,26 @@ function paintRowAnimated(str, x, y, fpx, align, motion, rowFracRange){
     } else if(mk==='wave'){
       const amp=fpx*0.16*pw;
       dy = Math.sin(motion.tShown*3.2 + i*0.75) * amp * Math.min(1,motion.enterP*3);
+    } else {
+      // 1文字ずつ順番に登場するコレオグラフィ系（弾む/ふわり/飛び込み/回転）
+      const p=charProg(motion,i,n), e=1-Math.pow(1-p,3);
+      a=Math.min(1,p*1.8);
+      if(mk==='charPop'){ sc2 = p<=0 ? 0.001 : easeOutBack(p); }
+      else if(mk==='charFloat'){ dy=(1-e)*fpx*0.55*pw; }
+      else if(mk==='charScatter'){
+        const s1=seededRand(ch.codePointAt(0)*0.917+i*3.71), s2=seededRand(i*12.9+n*4.7+ch.codePointAt(0)*0.311);
+        dx=(s1-0.5)*fpx*1.7*pw*(1-e); dy=(s2-0.5)*fpx*1.3*pw*(1-e); rot=(s1-0.5)*1.5*(1-e);
+      }
+      else if(mk==='charSpin'){ rot=(1-e)*((i%2)?1:-1)*1.1; sc2=0.55+0.45*e; }
     }
     ctx.save();
     ctx.globalAlpha *= Math.max(0,Math.min(1,a));
-    paintText(ch, cx, y+dy, fpx, colorOverride);
+    if(rot!==0 || sc2!==1){
+      ctx.translate(cx+w/2+dx, y+dy); ctx.rotate(rot); ctx.scale(sc2,sc2);
+      paintText(ch, -w/2, 0, fpx, colorOverride);
+    } else {
+      paintText(ch, cx+dx, y+dy, fpx, colorOverride);
+    }
     ctx.restore();
     cx += w + trackPx;
   }
@@ -985,7 +1011,7 @@ function drawHorizontal(text,W,H,baseFpx,motion){
     const rx = state.align==='right' ? boxX+boxW-revealW : boxX;
     roundRect(rx, boxY, revealW, boxH, fpx*0.10, state.highlightColor);
   }
-  const animated = motion && ['typewriter','karaoke','wave'].includes(curMotionKey());
+  const animated = motion && PER_CHAR_MOTIONS.includes(curMotionKey());
   if(!animated){ rows.forEach((r,i)=>paintText(r, x, cy+i*lh, fpx)); return; }
   const rowLens=rows.map(r=>Math.max(1, normLen(r)||[...r].length));
   const totalLen=rowLens.reduce((a,b)=>a+b,0)||1;
@@ -1025,7 +1051,7 @@ function drawVertical(text,W,H,baseFpx,motion){
     roundRect(leftX, boxY, boxW, revealH, fpx*0.10, state.highlightColor);
   }
   const mk = curMotionKey();
-  const animated = motion && ['typewriter','karaoke','wave'].includes(mk);
+  const animated = motion && PER_CHAR_MOTIONS.includes(mk);
   const colLens = cols.map(c=>c.length);
   const totalLen = colLens.reduce((a,b)=>a+b,0)||1;
   const pw = state.motionPower!=null ? state.motionPower : 1;
@@ -1041,8 +1067,9 @@ function drawVertical(text,W,H,baseFpx,motion){
       col.forEach((ch,i)=>paintVChar(ch, x, y0+i*chH, fpx));
     } else {
       col.forEach((ch,i)=>{
-        const gf=(acc+i+0.5)/totalLen;
-        let a=1, dx=0, colorOverride=null;
+        const gi=acc+i;                       // 行全体での文字番号（列をまたいで順番に登場させる）
+        const gf=(gi+0.5)/totalLen;
+        let a=1, dx=0, dy=0, rot=0, sc2=1, colorOverride=null;
         if(mk==='typewriter'){
           a = 1 - smoothstep(gf, motion.enterP-0.10, motion.enterP+0.10);   // gfが小さい(行の早い位置)ほど先に見える
         } else if(mk==='karaoke'){
@@ -1050,11 +1077,26 @@ function drawVertical(text,W,H,baseFpx,motion){
           colorOverride = mixHex(state.color, state.karaokeColor, t);
         } else if(mk==='wave'){
           const amp=fpx*0.16*pw;
-          dx = Math.sin(motion.tShown*3.2 + (acc+i)*0.75) * amp * Math.min(1,motion.enterP*3);
+          dx = Math.sin(motion.tShown*3.2 + gi*0.75) * amp * Math.min(1,motion.enterP*3);
+        } else {
+          const p=charProg(motion,gi,totalLen), e=1-Math.pow(1-p,3);
+          a=Math.min(1,p*1.8);
+          if(mk==='charPop'){ sc2 = p<=0 ? 0.001 : easeOutBack(p); }
+          else if(mk==='charFloat'){ dx=(1-e)*fpx*0.55*pw; }   // 縦書きは横からふわり（読み方向と直交）
+          else if(mk==='charScatter'){
+            const s1=seededRand(ch.codePointAt(0)*0.917+gi*3.71), s2=seededRand(gi*12.9+totalLen*4.7+ch.codePointAt(0)*0.311);
+            dx=(s1-0.5)*fpx*1.7*pw*(1-e); dy=(s2-0.5)*fpx*1.3*pw*(1-e); rot=(s1-0.5)*1.5*(1-e);
+          }
+          else if(mk==='charSpin'){ rot=(1-e)*((gi%2)?1:-1)*1.1; sc2=0.55+0.45*e; }
         }
         ctx.save();
         ctx.globalAlpha *= Math.max(0,Math.min(1,a));
-        paintVChar(ch, x+dx, y0+i*chH, fpx, colorOverride);
+        if(rot!==0 || sc2!==1){
+          ctx.translate(x+dx, y0+i*chH+dy); ctx.rotate(rot); ctx.scale(sc2,sc2);
+          paintVChar(ch, 0, 0, fpx, colorOverride);
+        } else {
+          paintVChar(ch, x+dx, y0+i*chH+dy, fpx, colorOverride);
+        }
         ctx.restore();
       });
     }
@@ -1106,6 +1148,10 @@ const PRESETS=[
   { name:'ポップ帯', emoji:'🍬', s:{ font:'M PLUS Rounded 1c', weight:800, size:80, color:'#ffffff', strokeColor:'#ff6b9d', stroke:0, shadow:false, plate:true, plateColor:'#ff6b9d', vertical:false, pos:'bottom', align:'center', track:0, fade:0.12 } },
   // Lo-Fi・レトロ（ドット）
   { name:'Lo-Fiドット', emoji:'🕹', s:{ font:'DotGothic16', weight:400, size:46, color:'#9be7ff', strokeColor:'#04121f', stroke:5, shadow:true, plate:false, vertical:false, pos:'bottom', align:'center', track:3, fade:0.1 } },
+  // キネティックタイポ（参考MV風＝画面中央にドカンと大きく・インパクト登場）
+  { name:'キネティック', emoji:'💥', s:{ font:'Dela Gothic One', weight:400, size:150, color:'#ffe600', strokeColor:'#000000', stroke:0, shadow:true, plate:false, vertical:false, pos:'middle', align:'center', track:2, fade:0.16, motion:'impact', motionPower:1.2 } },
+  // 1文字ずつ弾んで登場する楽しい系
+  { name:'ぽんぽん', emoji:'🍿', s:{ font:'M PLUS Rounded 1c', weight:800, size:88, color:'#ffffff', strokeColor:'#ff6b9d', stroke:6, shadow:true, plate:false, vertical:false, pos:'middle', align:'center', track:1, fade:0.3, motion:'charPop', motionPower:1 } },
 ];
 function buildPresets(){
   const host=$('presetRow'); host.innerHTML='';
@@ -1155,6 +1201,10 @@ const MOTIONS=[
   { key:'shake',      emoji:'📳', label:'シェイク' },
   { key:'glow',       emoji:'✨', label:'グロー' },
   { key:'cinema',     emoji:'🎬', label:'シネマ(字間)' },
+  { key:'charPop',    emoji:'🍿', label:'ぽんぽん文字' },
+  { key:'charFloat',  emoji:'🪶', label:'ふわり文字' },
+  { key:'charScatter',emoji:'🎲', label:'飛び込み文字' },
+  { key:'charSpin',   emoji:'🌀', label:'くるり文字' },
 ];
 
 /* ── 🎭 おまかせ演出：歌詞の内容＋音源の強弱を解析して、行ごとに文字サイズと動きを自動で決める ── */
@@ -1210,16 +1260,18 @@ function buildFx(){
     const a=analyzeLineText(l.text);
     const hook=(counts[normKey(l.text)]||0)>=2;   // 同じ行が2回以上＝サビ/フック
     let intensity = (l.energy!=null) ? a.score*0.55 + l.energy*0.45 : a.score;
-    if(hook) intensity+=0.12;
+    if(hook) intensity+=0.10;
     intensity=Math.max(0,Math.min(1,intensity));
-    // 行の性格に合わせた動き（nullなら下で選んだ“基本の動き”のまま）
+    // “やりすぎない”のがコツ：大きさは3段階に量子化（行ごとにバラバラだと安っぽく見える）。
+    // 動きの上書きもクライマックスとサビだけ。普通の行は選んだ基本の動きで統一感を保つ。
+    let size=1.0;
+    if(intensity>=0.74) size=1.18;
+    else if(intensity>=0.56) size=1.09;
+    else if(a.quiet && intensity<0.34) size=0.96;
     let motion=null;
-    if(intensity>=0.72) motion='impact';                    // 熱量MAX＝ドンと出す
-    else if(hook && intensity>=0.5) motion='highlight';     // サビ＝マーカーで強調
-    else if(a.quiet && intensity<0.4) motion='blur';        // 静けさ＝ふわっと
-    else if(a.emo) motion='glow';                           // 情感＝ほのかに光る
-    else if(a.playful && intensity>=0.45) motion='pop';     // リズミカル＝弾む
-    l.fx={ size:+(0.94+intensity*0.62).toFixed(3), motion, intensity:+intensity.toFixed(3) };
+    if(intensity>=0.78) motion='impact';                    // クライマックスだけドンと出す
+    else if(hook && intensity>=0.52) motion='highlight';    // サビはマーカーで強調
+    l.fx={ size, motion, intensity:+intensity.toFixed(3) };
   });
 }
 // 「🔍 解析」ボタン：音源が読み込み済み＆タイミング付きなら音量も解析して反映
@@ -1733,7 +1785,7 @@ function bindControls(){
   $('undoDelBtn').onclick=undoDelete;
   $('copyTimesBtn').onclick=()=>{
     if(!lyrics.length){ toast('先に歌詞を入力してください'); return; }
-    const txt='build51  '+lyrics.map((l,i)=>`${i+1}. ${l.t!=null?fmt(l.t):'--'}  ${l.text||'(空)'}`).join('\n');
+    const txt='build52  '+lyrics.map((l,i)=>`${i+1}. ${l.t!=null?fmt(l.t):'--'}  ${l.text||'(空)'}`).join('\n');
     const done=()=>toast('コピーしました。チャットに貼り付けて教えてください');
     if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(done).catch(()=>fallbackCopy(txt,done)); }
     else fallbackCopy(txt,done);
@@ -2034,17 +2086,8 @@ function applyAlignment(chunks, wordLevel, onsets){
         // どの行が“確かな一致”か＝外れ値除去後に残った一致文字数で判定（rawのcntは誤マッチも数えてしまう）
         const cntKept=new Array(N).fill(0);
         for(const x of kx){ const li=usr.lineOf[x]; if(li!=null) cntKept[li]++; }
-        // 先頭アンカー自体の妥当性チェック：次の確実行までの間隔が「歌唱として説明できない」ほど
-        // 開いていたら、前奏中のAI幻聴（BGMを歌詞と誤認識）に一致した疑いが濃いので外す。
-        while(true){
-          let hA=-1; for(let li=0;li<N;li++){ if(lineTime[li]!=null && cntKept[li]>=2){ hA=li; break; } }
-          if(hA<0) break;
-          let nb=-1; for(let li=hA+1;li<N;li++){ if(lineTime[li]!=null && cntKept[li]>=2){ nb=li; break; } }
-          if(nb<0) break;
-          let chs=0; for(let k=hA;k<nb;k++){ if(lineTime[k]!=null) chs+=Math.max(1,(normLen(lineTexts[k])||1)); }
-          if(lineTime[nb]-lineTime[hA] > chs*gRate*2.5+6){ cntKept[hA]=0; continue; }
-          break;
-        }
+        // ※以前あった「先頭アンカーの幻聴疑いデモーション」は撤去。確かな証拠のある行を推測で動かすと、
+        //   イントロで一節歌う曲などで1行目が大幅に遅れる誤爆があった（実測の証拠は常に推測より優先する）。
         // 前奏対策：先頭側の“確かでない”行は、最初の確実な行から曲のペースで逆算して置き直す。
         // （先頭は外挿が暴れやすく、0秒付近＝前奏中に置かれて一瞬で消える→「1行目が出ない」の正体）
         let headA=-1; for(let li=0;li<N;li++){ if(lineTime[li]!=null && cntKept[li]>=2){ headA=li; break; } }
