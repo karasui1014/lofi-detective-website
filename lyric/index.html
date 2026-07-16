@@ -236,7 +236,7 @@ details.adv[open]>summary::before{content:'▾';}
       <div class="logo-mark">🎬</div>
       <h1 class="hero-title">Lyric Telop Generator</h1>
       <div class="hero-rule" aria-hidden="true"></div>
-      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build55</div>
+      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build56</div>
       <span class="header-warning">※第三者への無断譲渡・公開はNGです</span>
     </div>
   </header>
@@ -403,10 +403,12 @@ details.adv[open]>summary::before{content:'▾';}
               <button class="btn" id="scatterBtn">🗯 ちらし配置（画面全体に散らす）</button>
             </div>
             <div id="scatterOpts" style="display:none;background:var(--surface3);border:1px solid var(--border);border-radius:8px;padding:.5rem .7rem;margin-bottom:.6rem;">
+              <div class="hint" style="margin:.05rem 0 .3rem;">ちらし方（配置パターン）</div>
+              <div class="row" id="scatterLayoutRow" style="margin-bottom:.5rem;gap:.35rem;"></div>
+              <div class="hint" style="margin:.05rem 0 .3rem;">出た後の動き（もう一度押すと解除）</div>
+              <div class="row" id="scatterAfterRow" style="margin-bottom:.5rem;gap:.35rem;"></div>
               <div class="row" style="gap:.8rem;align-items:center;flex-wrap:wrap;">
                 <label class="toggle"><input type="checkbox" id="scatterKeep">前の歌詞をうっすら残す（コラージュ）</label>
-                <label class="toggle"><input type="checkbox" id="scatterAccent" checked>アクセント帯</label>
-                <input type="color" id="highlightColor" value="#3a5bff" title="アクセント帯の色">
               </div>
               <div class="hint" style="margin-top:.3rem;line-height:1.6;">ちらし配置は位置・揃え・縦書きを使わず画面全体に自動レイアウト。①の出方と組み合わせOK（歌詞内の<b> / </b>で語句の切れ目を指定可）。</div>
             </div>
@@ -565,7 +567,8 @@ const state = {
   motion:'fade', deco:'none', motionPower:1, karaokeColor:'#ffd24d', highlightColor:'#3a5bff',
   scatter:false,       // 配置：ちらし配置（画面全体に散らす）。出方・飾りと独立に組み合わせられる
   scatterKeep:false,   // ちらし配置で直前の歌詞をうっすら残す（コラージュ風）
-  scatterAccent:true,  // ちらし配置で一部の語句にアクセント帯を敷く
+  scatterLayout:'zigzag',   // ちらし方（配置パターン）
+  scatterAfter:'none',      // ちらし語句が出た後の動き（じわ拡大・ゆっくり回転など）
   autoDirect:false,   // おまかせ演出：歌詞の内容・曲の強弱から行ごとに文字サイズと動きを自動で変える
 };
 let _extraGlow=0;   // グローモーション用：paintTextが読む一時的な発光量（renderText冒頭で毎回0リセット）
@@ -1190,14 +1193,43 @@ function drawFreeform(text,W,H,baseFpx,motion){
   const chunks=scatterChunks(text);
   const K=chunks.length; if(!K) return;
   const seed0=[...text].reduce((a,c)=>a+c.codePointAt(0),0)%100000;
+  const pat=state.scatterLayout||'zigzag';
+  // ランダム配置用：3×3のマスをシード付きシャッフルして重なりを避ける
+  const cells=[0,1,2,3,4,5,6,7,8];
+  for(let i=cells.length-1;i>0;i--){ const j=Math.floor(seededRand(seed0+i*7.7)*(i+1)); const t=cells[i]; cells[i]=cells[j]; cells[j]=t; }
   const items=chunks.map((s,k)=>{
     const r1=seededRand(seed0+k*17.3), r2=seededRand(seed0*1.7+k*29.1), r3=seededRand(seed0*2.3+k*7.7);
     const cs=[...s];
     const kanji=cs.filter(c=>/[一-鿿]/.test(c)).length/Math.max(1,cs.length);
     let sizeK=(0.72 + kanji*0.5 + (cs.length<=2?0.5:0)) * (0.85+r3*0.3);
     sizeK=Math.min(1.9, sizeK);
-    const fx=Math.min(0.88, Math.max(0.12, 0.12+0.76*((k+0.5)/K)+(r1-0.5)*0.16));   // 左→右のジグザグの流れ
-    const fy=Math.min(0.82, Math.max(0.18, 0.50+((k%2)?1:-1)*(0.10+r2*0.14)+(r1-0.5)*0.08));
+    // ちらし方（配置パターン）ごとに語句の置き場所を決める
+    let fx, fy;
+    if(pat==='diagonal'){          // 左上→右下へ流れる
+      fx=0.15+0.70*((k+0.5)/K)+(r1-0.5)*0.10;
+      fy=0.22+0.56*((k+0.5)/K)+(r2-0.5)*0.10;
+    } else if(pat==='vertical'){   // 上→下へ流し、左右に振る
+      fy=0.18+0.64*((k+0.5)/K)+(r2-0.5)*0.06;
+      fx=0.50+((k%2)?1:-1)*(0.08+r1*0.18);
+    } else if(pat==='circle'){     // 円を描くように並べる
+      const ang=-Math.PI/2 + (k/Math.max(1,K))*Math.PI*2 + (r1-0.5)*0.3;
+      fx=0.5+Math.cos(ang)*0.30*1.12;
+      fy=0.5+Math.sin(ang)*0.26;
+    } else if(pat==='random'){     // マス目シャッフル（毎行ちがう散らばり・重なりにくい）
+      const c=cells[k%9];
+      fx=(c%3)*0.30+0.20+(r1-0.5)*0.12;
+      fy=Math.floor(c/3)*0.28+0.24+(r2-0.5)*0.10;
+    } else if(pat==='center'){     // 最初の語句を主役として中央にドン、残りを周囲へ
+      if(k===0){ fx=0.5; fy=0.48; sizeK=Math.min(2.1, sizeK*1.45); }
+      else{
+        const ang=-Math.PI/2 + ((k-1)/Math.max(1,K-1))*Math.PI*2 + (r1-0.5)*0.4;
+        fx=0.5+Math.cos(ang)*0.33; fy=0.5+Math.sin(ang)*0.27; sizeK*=0.8;
+      }
+    } else {                       // zigzag（標準）：左→右のジグザグの流れ
+      fx=0.12+0.76*((k+0.5)/K)+(r1-0.5)*0.16;
+      fy=0.50+((k%2)?1:-1)*(0.10+r2*0.14)+(r1-0.5)*0.08;
+    }
+    fx=Math.min(0.90, Math.max(0.10, fx)); fy=Math.min(0.84, Math.max(0.16, fy));
     const rot=(r2-0.5)*0.16;   // 約±4.5度のさりげない傾き
     return {s, sizeK, fx, fy, rot};
   });
@@ -1212,6 +1244,7 @@ function drawFreeform(text,W,H,baseFpx,motion){
   const prevAlign=ctx.textAlign; ctx.textAlign='center';
   const ek=curMotionKey(), dk=curDecoKey();
   const pw=state.motionPower!=null?state.motionPower:1;
+  const after=state.scatterAfter||'none';
   items.forEach((it,k)=>{
     const px=baseFpx*it.sizeK*fitScale;
     let a=1, tx=0, ty=0, rot=it.rot, sc=1, blur=0, colorOverride=null;
@@ -1233,6 +1266,31 @@ function drawFreeform(text,W,H,baseFpx,motion){
       }
       else if(ek==='charSpin'){ rot+=(1-e)*((k%2)?1:-1)*0.5; sc=0.8+0.2*e; }
       // fade / cinema / typewriter / charDissolve は順番フェードのみ（自然に出る）
+      // ── 出た後の動き：登場が終わった語句に、表示中ずっとかかる小さな動き ──
+      if(after!=='none' && p>=1){
+        const at=Math.max(0, motion.tShown-(k*step+dur));        // 出終わってからの経過秒
+        const settle=Math.min(1, at*2);                          // 出た直後から滑らかに効き始める
+        const dir=(k%2)?1:-1;
+        if(after==='grow')        sc*=1+Math.min(0.38, at*0.05*pw);                        // じわじわ大きく
+        else if(after==='shrink') sc*=Math.max(0.78, 1-at*0.035*pw);                        // じわじわ小さく
+        else if(after==='spin')   rot+=Math.min(0.6, at*0.12*pw)*dir;                       // ゆっくり傾いていく（読める範囲で止まる）
+        else if(after==='sway')   rot+=Math.sin(at*1.8+k*1.3)*0.05*pw*settle;               // ゆらゆら
+        else if(after==='rise')   ty-=Math.min(H*0.07, at*H*0.012*pw);                      // ふわっと上昇
+        else if(after==='spread'){                                                          // 画面の外へじわっと広がる
+          const ddx=it.fx-0.5, ddy=it.fy-0.5, len=Math.max(0.08, Math.hypot(ddx,ddy));
+          const d=Math.min(W*0.06, at*W*0.010*pw);
+          tx+=ddx/len*d; ty+=ddy/len*d;
+        }
+        else if(after==='pulse')  sc*=1+Math.sin(at*2.4+k*0.9)*0.03*pw*settle;              // 呼吸するように伸縮
+        else if(after==='jitter'){                                                          // 手ブレフィルム風の小刻み
+          const amp=1.6*(H/1080)*pw*settle;
+          tx+=Math.sin(at*13+k*5.1)*amp; ty+=Math.cos(at*11+k*3.7)*amp;
+        }
+        else if(after==='flicker'){                                                         // ネオンの明滅
+          const f=seededRand(Math.floor(at*8)*3.7+k*7.3);
+          if(f<0.14) a*=0.55;
+        }
+      }
       // 飾り：カラオケ配色は語句単位で歌の進みに合わせて色が変わる
       if(dk==='karaoke'){
         const gf=(k+0.5)/K;
@@ -1245,13 +1303,6 @@ function drawFreeform(text,W,H,baseFpx,motion){
     if(blur>0.3 && 'filter' in ctx) ctx.filter=`blur(${blur.toFixed(1)}px)`;
     ctx.translate(W*it.fx+tx, H*it.fy+ty); ctx.rotate(rot); ctx.scale(sc,sc);
     ctx.font=`${state.weight} ${px}px '${state.font.fam}', sans-serif`;
-    if(state.scatterAccent && seededRand(seed0*3.1+k*11.7)<0.3){
-      // 一部の語句にアクセント帯（マーカーで貼ったようなタグ感＝コラージュの見せ場）
-      const w=measureAt(it.s, px);
-      ctx.fillStyle=hexA(state.highlightColor,0.92);
-      ctx.fillRect(-w/2-px*0.16, -px*0.60, w+px*0.32, px*1.2);
-      ctx.font=`${state.weight} ${px}px '${state.font.fam}', sans-serif`;   // measureAtがfontを変えるので戻す
-    }
     paintText(it.s, 0, 0, px, colorOverride);
     ctx.restore();
   });
@@ -1305,11 +1356,11 @@ const PRESETS=[
   { name:'キネティック', emoji:'💥', s:{ font:'Dela Gothic One', weight:400, size:150, color:'#ffe600', strokeColor:'#000000', stroke:0, shadow:true, plate:false, vertical:false, pos:'middle', align:'center', track:2, fade:0.16, motion:'impact', deco:'none', scatter:false, motionPower:1.2 } },
   // 1文字ずつ弾んで登場する楽しい系
   // 参考MV風：文字を画面全体に散らしてネオン発光（瞬く光の中で…のイメージ）
-  { name:'ネオン配置', emoji:'🌌', s:{ font:'Zen Kaku Gothic New', weight:700, size:96, color:'#dffbff', strokeColor:'#0a2a3a', stroke:2, shadow:true, plate:false, vertical:false, pos:'middle', align:'center', track:0, fade:0.3, motion:'blur', deco:'none', scatter:true, scatterKeep:false, scatterAccent:false, motionPower:1 } },
+  { name:'ネオン配置', emoji:'🌌', s:{ font:'Zen Kaku Gothic New', weight:700, size:96, color:'#dffbff', strokeColor:'#0a2a3a', stroke:2, shadow:true, plate:false, vertical:false, pos:'middle', align:'center', track:0, fade:0.3, motion:'blur', deco:'none', scatter:true, scatterKeep:false, scatterLayout:'zigzag', scatterAfter:'grow', motionPower:1 } },
   // 手書き風の散らしレタリング（コミック・ギャグMV系）
-  { name:'手書き散らし', emoji:'✍️', s:{ font:'Yusei Magic', weight:400, size:92, color:'#fff8ec', strokeColor:'#221a10', stroke:5, shadow:true, plate:false, vertical:false, pos:'middle', align:'center', track:0, fade:0.3, motion:'fade', deco:'none', scatter:true, scatterKeep:false, scatterAccent:false, motionPower:1 } },
+  { name:'手書き散らし', emoji:'✍️', s:{ font:'Yusei Magic', weight:400, size:92, color:'#fff8ec', strokeColor:'#221a10', stroke:5, shadow:true, plate:false, vertical:false, pos:'middle', align:'center', track:0, fade:0.3, motion:'fade', deco:'none', scatter:true, scatterKeep:false, scatterLayout:'random', scatterAfter:'sway', motionPower:1 } },
   // 参考MV風コラージュ：前の歌詞が画面にうっすら残り、一部の語句に青いアクセント帯
-  { name:'コラージュ(重ね)', emoji:'🧩', s:{ font:'Shippori Mincho B1', weight:600, size:64, color:'#e9edff', strokeColor:'#000000', stroke:0, shadow:true, plate:false, vertical:false, pos:'middle', align:'center', track:1, fade:0.35, motion:'charDissolve', deco:'none', scatter:true, scatterKeep:true, scatterAccent:true, highlightColor:'#3a5bff', motionPower:1 } },
+  { name:'コラージュ(重ね)', emoji:'🧩', s:{ font:'Shippori Mincho B1', weight:600, size:64, color:'#e9edff', strokeColor:'#000000', stroke:0, shadow:true, plate:false, vertical:false, pos:'middle', align:'center', track:1, fade:0.35, motion:'charDissolve', deco:'none', scatter:true, scatterKeep:true, scatterLayout:'random', scatterAfter:'none', motionPower:1 } },
 ];
 function buildPresets(){
   const host=$('presetRow'); host.innerHTML='';
@@ -1364,6 +1415,26 @@ const MOTIONS=[   // ①出方（弾む系は廃止。同じボタンをもう�
 const DECOS=[     // ②飾り（カラオケ配色のみ。もう一度押すと解除）
   { key:'none',       emoji:'➖', label:'なし' },
   { key:'karaoke',    emoji:'🎤', label:'カラオケ配色' },
+];
+const SCATTER_LAYOUTS=[   // ちらし方（配置パターン）
+  { key:'zigzag',   emoji:'〰️', label:'ジグザグ' },
+  { key:'diagonal', emoji:'↘️', label:'ななめ' },
+  { key:'vertical', emoji:'⬇️', label:'たて流し' },
+  { key:'circle',   emoji:'⭕', label:'円形' },
+  { key:'random',   emoji:'🎲', label:'ランダム' },
+  { key:'center',   emoji:'🎯', label:'中央主役' },
+];
+const SCATTER_AFTERS=[    // ちらし語句が出た後の動き
+  { key:'none',    emoji:'➖', label:'なし' },
+  { key:'grow',    emoji:'🔍', label:'じわ拡大' },
+  { key:'shrink',  emoji:'🔎', label:'じわ縮小' },
+  { key:'spin',    emoji:'🌀', label:'ゆっくり回転' },
+  { key:'sway',    emoji:'🍃', label:'ゆらゆら' },
+  { key:'rise',    emoji:'🎈', label:'ふわ上昇' },
+  { key:'spread',  emoji:'💨', label:'じわ広がり' },
+  { key:'pulse',   emoji:'💓', label:'呼吸' },
+  { key:'jitter',  emoji:'🎞', label:'手ブレ風' },
+  { key:'flicker', emoji:'⚡', label:'明滅' },
 ];
 
 /* ── 🎭 おまかせ演出：歌詞の内容＋音源の強弱を解析して、行ごとに文字サイズと動きを自動で決める ── */
@@ -1489,20 +1560,39 @@ function buildMotionPicker(){
   const sb=$('scatterBtn');
   if(sb) sb.onclick=()=>{ state.scatter=!state.scatter; syncMotionUI(); draw(); };   // トグル＝2度押しで解除
   const sk=$('scatterKeep'); if(sk) sk.onchange=e=>{ state.scatterKeep=e.target.checked; draw(); };
-  const sa=$('scatterAccent'); if(sa) sa.onchange=e=>{ state.scatterAccent=e.target.checked; draw(); };
+  const lhost=$('scatterLayoutRow');
+  if(lhost){ lhost.innerHTML='';
+    SCATTER_LAYOUTS.forEach(m=>{
+      const b=document.createElement('button'); b.className='btn';
+      b.style.cssText='font-size:.72rem;padding:.4rem .65rem;'; b.dataset.slayout=m.key;
+      b.textContent=`${m.emoji} ${m.label}`;
+      b.onclick=()=>{ state.scatterLayout=(state.scatterLayout===m.key && m.key!=='zigzag')?'zigzag':m.key; syncMotionUI(); draw(); };
+      lhost.appendChild(b);
+    });
+  }
+  const ahost=$('scatterAfterRow');
+  if(ahost){ ahost.innerHTML='';
+    SCATTER_AFTERS.forEach(m=>{
+      const b=document.createElement('button'); b.className='btn';
+      b.style.cssText='font-size:.72rem;padding:.4rem .65rem;'; b.dataset.safter=m.key;
+      b.textContent=`${m.emoji} ${m.label}`;
+      b.onclick=()=>{ state.scatterAfter=(state.scatterAfter===m.key && m.key!=='none')?'none':m.key; syncMotionUI(); draw(); };
+      ahost.appendChild(b);
+    });
+  }
 }
 function syncMotionUI(){
   $('motionPower').value=Math.round((state.motionPower!=null?state.motionPower:1)*100);
   $('vMotionPower').textContent=$('motionPower').value+'%';
   $('karaokeColor').value=state.karaokeColor;
-  const hc=$('highlightColor'); if(hc) hc.value=state.highlightColor;
   document.querySelectorAll('#motionRow .btn').forEach(b=>b.classList.toggle('sel-motion', b.dataset.motion===state.motion));
   document.querySelectorAll('#decoRow .btn').forEach(b=>b.classList.toggle('sel-motion', b.dataset.deco===state.deco));
+  document.querySelectorAll('#scatterLayoutRow .btn').forEach(b=>b.classList.toggle('sel-motion', b.dataset.slayout===(state.scatterLayout||'zigzag')));
+  document.querySelectorAll('#scatterAfterRow .btn').forEach(b=>b.classList.toggle('sel-motion', b.dataset.safter===(state.scatterAfter||'none')));
   updateMotionColorRows(state.deco);
   const sb=$('scatterBtn'); if(sb) sb.classList.toggle('sel-motion', !!state.scatter);
   const so=$('scatterOpts'); if(so) so.style.display = state.scatter ? 'block' : 'none';
   const sk=$('scatterKeep'); if(sk) sk.checked=!!state.scatterKeep;
-  const sa=$('scatterAccent'); if(sa) sa.checked=!!state.scatterAccent;
   const ad=$('autoDirect'); if(ad) ad.checked=!!state.autoDirect;
   updateFxStatus();
 }
@@ -1961,7 +2051,7 @@ function bindControls(){
   $('undoDelBtn').onclick=undoDelete;
   $('copyTimesBtn').onclick=()=>{
     if(!lyrics.length){ toast('先に歌詞を入力してください'); return; }
-    const txt='build55  '+lyrics.map((l,i)=>`${i+1}. ${l.t!=null?fmt(l.t):'--'}  ${l.text||'(空)'}`).join('\n');
+    const txt='build56  '+lyrics.map((l,i)=>`${i+1}. ${l.t!=null?fmt(l.t):'--'}  ${l.text||'(空)'}`).join('\n');
     const done=()=>toast('コピーしました。チャットに貼り付けて教えてください');
     if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(done).catch(()=>fallbackCopy(txt,done)); }
     else fallbackCopy(txt,done);
@@ -1999,7 +2089,6 @@ function bindControls(){
   $('offset').oninput=e=>{ state.offset=+e.target.value/100; $('vOffset').textContent=(state.offset>=0?'+':'')+state.offset.toFixed(2)+'s'; draw(); };
   $('motionPower').oninput=e=>{ state.motionPower=+e.target.value/100; $('vMotionPower').textContent=e.target.value+'%'; draw(); };
   $('karaokeColor').oninput=e=>{ state.karaokeColor=e.target.value; draw(); };
-  $('highlightColor').oninput=e=>{ state.highlightColor=e.target.value; draw(); };
   $('autoDirect').onchange=e=>{
     state.autoDirect=e.target.checked;
     if(state.autoDirect && !lyrics.some(l=>l&&l.fx)){ buildFx(); }   // 初回ONは即席のテキスト解析（音源解析はボタンから）
