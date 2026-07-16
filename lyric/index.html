@@ -236,7 +236,7 @@ details.adv[open]>summary::before{content:'▾';}
       <div class="logo-mark">🎬</div>
       <h1 class="hero-title">Lyric Telop Generator</h1>
       <div class="hero-rule" aria-hidden="true"></div>
-      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build53</div>
+      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build54</div>
       <span class="header-warning">※第三者への無断譲渡・公開はNGです</span>
     </div>
   </header>
@@ -412,7 +412,7 @@ details.adv[open]>summary::before{content:'▾';}
             <div class="row" id="highlightColorRow" style="margin:.1rem 0 .6rem;display:none;">
               <label class="fld" style="margin:0;">マーカー色（ハイライト帯）</label><input type="color" id="highlightColor" value="#f5e400">
             </div>
-            <div class="hint" style="line-height:1.7;">※アニメーションは<b>プレビュー</b>と<b>🎬完成動画(WebM)</b>に反映されます。透過PNG・字幕ファイル(.srt/.ass)は1コマ/固定タイミングのため対象外です。</div>
+            <div class="hint" style="line-height:1.7;">※アニメーションは<b>プレビュー</b>と<b>🎬完成動画(WebM)</b>に反映されます。透過PNG・字幕ファイル(.srt/.ass)は1コマ/固定タイミングのため対象外です。<br>※<b>ちらし配置</b>は位置・揃え・縦書きの設定を使わず画面全体に自動レイアウトします（歌詞内の<b> / </b>区切りで語句の切れ目を指定可）。<b>ビート/火花</b>はタイミング自動生成後に拍へ同期します。</div>
           </div>
         </details>
       </div>
@@ -473,6 +473,7 @@ details.adv[open]>summary::before{content:'▾';}
           </div>
           <input type="color" id="bgColor" value="#101018" style="display:none;">
           <label class="btn" id="bgFileBtn" style="display:none;">ファイル選択<input type="file" id="bgFile" accept="image/*,video/*" style="display:none;"></label>
+          <label class="toggle" title="フチを暗くして中央に視線を集める"><input type="checkbox" id="vignette">ビネット</label>
           <select id="aspect" style="margin-left:auto;">
             <option value="16:9">16:9 横</option>
             <option value="9:16">9:16 縦(Shorts)</option>
@@ -551,7 +552,7 @@ const state = {
   font: ALL_FONTS[0], weight:500, size:72, color:'#ffffff',
   strokeColor:'#000000', stroke:6, shadow:true, plate:false, plateColor:'#000000',
   vertical:false, pos:'bottom', align:'center', track:0, fade:0.25, offset:0,
-  bg:'transparent', bgColor:'#101018', aspect:'16:9',
+  bg:'transparent', bgColor:'#101018', aspect:'16:9', vignette:false,
   motion:'fade', deco:'none', motionPower:1, karaokeColor:'#ffd24d', highlightColor:'#f5e400',
   autoDirect:false,   // おまかせ演出：歌詞の内容・曲の強弱から行ごとに文字サイズと動きを自動で変える
 };
@@ -660,6 +661,7 @@ function draw(){
       }
     }
     _curFx = state.autoDirect ? (act.line.fx||null) : null;   // おまかせ演出：この行の自動サイズ・動きを反映
+    if(curDecoKey()==='particle' && !audio.paused) drawBeatParticles(W,H);   // 火花は背景の上・文字の下
     renderText(act.line.text, a, computeMotion(act, nowL));
     return;
   }
@@ -694,6 +696,11 @@ function drawBackground(W,H){
   if(state.bg==='solid'){ ctx.fillStyle=state.bgColor; ctx.fillRect(0,0,W,H); }
   else if(state.bg==='image' && bgImage){ drawCover(bgImage,W,H); }
   else if(state.bg==='video' && hasBgVideo && bgVideo.readyState>=2){ drawCover(bgVideo,W,H); }
+  if(state.vignette){   // ビネット(周辺減光)：画面のフチを暗くして中央の歌詞に視線を集める
+    const g=ctx.createRadialGradient(W/2,H/2,Math.min(W,H)*0.42, W/2,H/2,Math.max(W,H)*0.72);
+    g.addColorStop(0,'rgba(0,0,0,0)'); g.addColorStop(1,'rgba(0,0,0,0.55)');
+    ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+  }
 }
 
 // 文字レイヤーのみ描画（背景なし＝書き出しでも再利用）。motionは省略可（静止画書き出し・編集中プレビューでは
@@ -718,7 +725,8 @@ function renderText(text, alpha, motion){
   _extraGlow=0;   // グロー演出の発光量。動きが無いフレームでは必ず0にする（前フレームの値が漏れて静止画書き出しに残らないように）
   ctx.save();
   if(motion) applyWholeLineMotion(motion, W, H);
-  if(state.vertical) drawVertical(text, W, H, fpx, motion);
+  if(curMotionKey()==='freeform') drawFreeform(text, W, H, fpx, motion);   // ちらし配置は縦横設定に依らない自由構図
+  else if(state.vertical) drawVertical(text, W, H, fpx, motion);
   else drawHorizontal(text, W, H, fpx, motion);
   ctx.restore();
   ctx.globalAlpha=1;
@@ -738,6 +746,31 @@ function beatPulse(){
   const d=t-songOnsets[idx].t;
   if(d>0.4) return 0;
   return Math.exp(-d*10)*Math.min(1, songOnsets[idx].s*1.5);
+}
+// ビート火花：打点のたびに小さな光の粒が舞う（背景の上・文字の下に描く）。
+// 粒の位置・大きさはオンセット番号から決定論的に決まるので、同じフレームは常に同じ絵＝録画も安定。
+function drawBeatParticles(W,H){
+  if(!songOnsets.length) return;
+  const t=audio.currentTime||0;
+  let lo=0, hi=songOnsets.length-1, idx=-1;
+  while(lo<=hi){ const m=(lo+hi)>>1; if(songOnsets[m].t<=t){ idx=m; lo=m+1; } else hi=m-1; }
+  if(idx<0) return;
+  const pw=state.motionPower!=null?state.motionPower:1;
+  for(let j=idx; j>=0 && j>idx-3; j--){          // 直近3拍ぶんの粒を重ねる
+    const o=songOnsets[j]; const age=t-o.t;
+    if(age>0.7) break;
+    const life=1-age/0.7;
+    for(let i=0;i<7;i++){
+      const r1=seededRand(j*13.7+i*3.1), r2=seededRand(j*7.9+i*11.3), r3=seededRand(j*3.3+i*5.7);
+      const cx=W*(0.12+0.76*r1), cy=H*(0.16+0.66*r2) - age*H*0.05;   // ゆっくり上へ流れる
+      const rad=(2.2+r3*3.4)*(H/1080)*(1+age*2.2)*Math.max(0.4,pw);
+      ctx.save();
+      ctx.globalAlpha=life*0.5*Math.min(1,o.s*1.6);
+      ctx.fillStyle=state.karaokeColor||'#ffd24d';
+      ctx.beginPath(); ctx.arc(cx,cy,rad,0,Math.PI*2); ctx.fill();
+      ctx.restore();
+    }
+  }
 }
 // 行全体にかける演出。①出方（スライド/ポップ/インパクト等の登場変形）と
 // ②飾り（シェイク/グロー/ビート等のずっとかかる効果）を独立に重ねがけできる。
@@ -779,6 +812,8 @@ function applyWholeLineMotion(motion, W, H){
     _extraGlow = (0.5+0.5*Math.sin(motion.tShown*3.4)) * Math.min(1,motion.tShown*3) * (1-exitInfluence*0.7);
   } else if(dk==='beat'){
     sc *= 1 + beatPulse()*0.06*pw;   // 打点でトンッと弾む（タイミング自動生成済みの曲で有効）
+  } else if(dk==='particle'){
+    sc *= 1 + beatPulse()*0.035*pw;  // 火花のときも文字がほんの少しだけ拍に乗る
   }
   if(tx||ty) ctx.translate(tx,ty);
   if(sc!==1){ const cx=W/2, cy=posPivotY(H); ctx.translate(cx,cy); ctx.scale(sc,sc); ctx.translate(-cx,-cy); }
@@ -1134,6 +1169,69 @@ function drawVertical(text,W,H,baseFpx,motion){
   });
 }
 
+/* ── 🗯 ちらし配置：文字を画面全体に散らしてMVの1カットのような構図を作る ──
+   手動 / 区切り＞スペース＞自然な切れ目 の順で行を語句に分け、ジグザグの流れ＋
+   決定論的な揺らぎで配置。漢字が多い・短い語句ほど大きくして視線を作る。 */
+function scatterChunks(text){
+  let segs=manualRows(text);                                   // ユーザーの / 区切りを最優先
+  if(segs.length<=1){
+    const words=String(text).split(/[\s　]+/).filter(w=>w);
+    if(words.length>=2) segs=words;
+    else{
+      const chars=[...String(text).trim()], n=chars.length;
+      const target=Math.min(6, Math.max(2, Math.round(n/2.2)));   // 6文字→3語句、9文字→4語句くらいの散らし
+      segs=splitColNatural(String(text).trim(), Math.max(1,Math.ceil(n/target))).map(c=>c.join(''));
+    }
+  }
+  if(segs.length>8){                                           // 語句が多すぎたら8束に畳む（文字は落とさない）
+    const per=Math.ceil(segs.length/8), g=[];
+    for(let i=0;i<segs.length;i+=per) g.push(segs.slice(i,i+per).join(' '));
+    segs=g;
+  }
+  return segs.filter(s=>s.length);
+}
+function drawFreeform(text,W,H,baseFpx,motion){
+  const chunks=scatterChunks(text);
+  const K=chunks.length; if(!K) return;
+  const seed0=[...text].reduce((a,c)=>a+c.codePointAt(0),0)%100000;
+  const items=chunks.map((s,k)=>{
+    const r1=seededRand(seed0+k*17.3), r2=seededRand(seed0*1.7+k*29.1), r3=seededRand(seed0*2.3+k*7.7);
+    const cs=[...s];
+    const kanji=cs.filter(c=>/[一-鿿]/.test(c)).length/Math.max(1,cs.length);
+    let sizeK=(0.72 + kanji*0.5 + (cs.length<=2?0.5:0)) * (0.85+r3*0.3);
+    sizeK=Math.min(1.9, sizeK);
+    const fx=Math.min(0.88, Math.max(0.12, 0.12+0.76*((k+0.5)/K)+(r1-0.5)*0.16));   // 左→右のジグザグの流れ
+    const fy=Math.min(0.82, Math.max(0.18, 0.50+((k%2)?1:-1)*(0.10+r2*0.14)+(r1-0.5)*0.08));
+    const rot=(r2-0.5)*0.16;   // 約±4.5度のさりげない傾き
+    return {s, sizeK, fx, fy, rot};
+  });
+  // 収まりチェック：長い語句があれば全体を縮小
+  let fitScale=1;
+  for(const it of items){
+    const px=baseFpx*it.sizeK;
+    const w=measureAt(it.s, px);
+    const maxW=W*0.36;
+    if(w>maxW) fitScale=Math.min(fitScale, maxW/w);
+  }
+  const prevAlign=ctx.textAlign; ctx.textAlign='center';
+  items.forEach((it,k)=>{
+    const px=baseFpx*it.sizeK*fitScale;
+    let a=1, sc=1;
+    if(motion){   // 語句ごとに順番にポップイン（静止画書き出し時は完成形）
+      const step=0.11, dur=Math.max(0.16, Math.min(0.4, state.fade||0.25));
+      const p=Math.max(0, Math.min(1, (motion.tShown - k*step)/dur));
+      a=Math.min(1, p*1.7);
+      sc=p<=0 ? 0.001 : easeOutBack(p);
+    }
+    ctx.save();
+    ctx.globalAlpha*=Math.max(0,Math.min(1,a));
+    ctx.translate(W*it.fx, H*it.fy); ctx.rotate(it.rot); ctx.scale(sc,sc);
+    ctx.font=`${state.weight} ${px}px '${state.font.fam}', sans-serif`;
+    paintText(it.s, 0, 0, px);
+    ctx.restore();
+  });
+  ctx.textAlign=prevAlign;
+}
 function roundRect(x,y,w,h,r,fill){
   ctx.beginPath();
   ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
@@ -1182,6 +1280,10 @@ const PRESETS=[
   { name:'キネティック', emoji:'💥', s:{ font:'Dela Gothic One', weight:400, size:150, color:'#ffe600', strokeColor:'#000000', stroke:0, shadow:true, plate:false, vertical:false, pos:'middle', align:'center', track:2, fade:0.16, motion:'impact', deco:'beat', motionPower:1.2 } },
   // 1文字ずつ弾んで登場する楽しい系
   { name:'ぽんぽん', emoji:'🍿', s:{ font:'M PLUS Rounded 1c', weight:800, size:88, color:'#ffffff', strokeColor:'#ff6b9d', stroke:6, shadow:true, plate:false, vertical:false, pos:'middle', align:'center', track:1, fade:0.3, motion:'charPop', deco:'beat', motionPower:1 } },
+  // 参考MV風：文字を画面全体に散らしてネオン発光（瞬く光の中で…のイメージ）
+  { name:'ネオン配置', emoji:'🌌', s:{ font:'Zen Kaku Gothic New', weight:700, size:96, color:'#dffbff', strokeColor:'#0a2a3a', stroke:2, shadow:true, plate:false, vertical:false, pos:'middle', align:'center', track:0, fade:0.3, motion:'freeform', deco:'glow', motionPower:1 } },
+  // 手書き風の散らしレタリング（コミック・ギャグMV系）
+  { name:'手書き散らし', emoji:'✍️', s:{ font:'Yusei Magic', weight:400, size:92, color:'#fff8ec', strokeColor:'#221a10', stroke:5, shadow:true, plate:false, vertical:false, pos:'middle', align:'center', track:0, fade:0.22, motion:'freeform', deco:'beat', motionPower:1.1 } },
 ];
 function buildPresets(){
   const host=$('presetRow'); host.innerHTML='';
@@ -1208,6 +1310,7 @@ function syncUIFromState(){
   $('offset').value=Math.round(state.offset*100); $('vOffset').textContent=(state.offset>=0?'+':'')+state.offset.toFixed(2)+'s';
   $('color').value=state.color; $('strokeColor').value=state.strokeColor; $('plateColor').value=state.plateColor;
   $('shadow').checked=state.shadow; $('vertical').checked=state.vertical; $('plate').checked=state.plate;
+  const vg=$('vignette'); if(vg) vg.checked=!!state.vignette;
   $('plateColor').style.display=state.plate?'inline-block':'none';
   segSet('posSeg','pos',state.pos); segSet('alignSeg','align',state.align);
   document.querySelectorAll('.font-chip').forEach(c=>c.classList.toggle('sel',c.dataset.fam===state.font.fam));
@@ -1232,10 +1335,12 @@ const MOTIONS=[   // ①出方
   { key:'charFloat',  emoji:'🪶', label:'ふわり文字' },
   { key:'charScatter',emoji:'🎲', label:'飛び込み文字' },
   { key:'charSpin',   emoji:'🌀', label:'くるり文字' },
+  { key:'freeform',   emoji:'🗯', label:'ちらし配置(MV風)' },
 ];
 const DECOS=[     // ②飾り（重ねがけ）
   { key:'none',       emoji:'➖', label:'なし' },
   { key:'beat',       emoji:'🥁', label:'ビート(拍で弾む)' },
+  { key:'particle',   emoji:'🎇', label:'ビート火花' },
   { key:'wave',       emoji:'🌊', label:'ウェーブ' },
   { key:'karaoke',    emoji:'🎤', label:'カラオケ配色' },
   { key:'highlight',  emoji:'🖍', label:'マーカー(ハイライト帯)' },
@@ -1364,7 +1469,7 @@ function buildMotionPicker(){
       document.querySelectorAll('#decoRow .btn').forEach(x=>x.classList.remove('sel-motion'));
       b.classList.add('sel-motion');
       updateMotionColorRows(m.key);
-      if(m.key==='beat' && !songOnsets.length) toast('ビートは「タイミング自動生成」を実行すると拍に同期します');
+      if((m.key==='beat'||m.key==='particle') && !songOnsets.length) toast('ビート系は「タイミング自動生成」を実行すると拍に同期します');
       draw();
     };
     dhost.appendChild(b);
@@ -1836,7 +1941,7 @@ function bindControls(){
   $('undoDelBtn').onclick=undoDelete;
   $('copyTimesBtn').onclick=()=>{
     if(!lyrics.length){ toast('先に歌詞を入力してください'); return; }
-    const txt='build53  '+lyrics.map((l,i)=>`${i+1}. ${l.t!=null?fmt(l.t):'--'}  ${l.text||'(空)'}`).join('\n');
+    const txt='build54  '+lyrics.map((l,i)=>`${i+1}. ${l.t!=null?fmt(l.t):'--'}  ${l.text||'(空)'}`).join('\n');
     const done=()=>toast('コピーしました。チャットに貼り付けて教えてください');
     if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(done).catch(()=>fallbackCopy(txt,done)); }
     else fallbackCopy(txt,done);
@@ -1898,6 +2003,7 @@ function bindControls(){
     draw();
   });
   $('bgColor').oninput=e=>{state.bgColor=e.target.value;draw();};
+  $('vignette').onchange=e=>{state.vignette=e.target.checked;draw();};
   $('bgFile').onchange=e=>loadBg(e.target.files[0]);
   $('aspect').onchange=e=>{state.aspect=e.target.value;applyAspect();};
 
