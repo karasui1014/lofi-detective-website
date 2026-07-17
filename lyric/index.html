@@ -236,7 +236,7 @@ details.adv[open]>summary::before{content:'▾';}
       <div class="logo-mark">🎬</div>
       <h1 class="hero-title">Lyric Telop Generator</h1>
       <div class="hero-rule" aria-hidden="true"></div>
-      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build56</div>
+      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build57</div>
       <span class="header-warning">※第三者への無断譲渡・公開はNGです</span>
     </div>
   </header>
@@ -2022,18 +2022,77 @@ function exportWebM(){
   recChunks=[]; recorder=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:8_000_000});
   recorder.ondataavailable=e=>{ if(e.data.size) recChunks.push(e.data); };
   recorder.onstop=()=>{
+    releaseWakeLock();
+    if(bgDrawTimer!=null){ clearInterval(bgDrawTimer); bgDrawTimer=null; }
     downloadBlob(new Blob(recChunks,{type:mime}),'lyric-telop.webm');
     $('recBtn').textContent='🎬 完成動画を作る（編集ソフト不要・音楽つき）'; $('recBtn').classList.remove('btn-primary');
     toast('完成動画を書き出しました');
   };
   audio.currentTime=0; if(state.bg==='video'&&hasBgVideo)bgVideo.currentTime=0;
   audio.play(); if(state.bg==='video'&&hasBgVideo)bgVideo.play();
+  acquireWakeLock();   // 録画中は画面をスリープさせない（スマホで録画が途切れる対策）
   recorder.start();
   $('recBtn').textContent='■ 録画中…（曲が終わると自動で完了／押すと停止）'; $('recBtn').classList.add('btn-primary');
   audio.onended=()=>{ if(recorder&&recorder.state==='recording')recorder.stop(); };
 }
 function downloadBlob(blob,name){ const u=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=u; a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(u),1000); }
 function fallbackCopy(txt,done){ const ta=document.createElement('textarea'); ta.value=txt; ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.focus(); ta.select(); try{ document.execCommand('copy'); done&&done(); }catch(_){ toast('コピーできませんでした。一覧を手で送ってください'); } ta.remove(); }
+
+/* ════ 作業内容の自動保存・復元 ════
+   タブを離れている間にブラウザ（特にスマホ）がページを破棄すると、戻ったとき再読み込みで
+   全部消えて「バグった」ように見える。歌詞・タイミング・スタイル設定を自動でlocalStorageへ
+   保存し、開き直したとき自動復元する（音源ファイルだけは容量的に保存できないので再読み込み）。 */
+const SAVE_KEY='lyricTelopSave_v1';
+let _lastSaved='';
+function serializeWork(){
+  try{
+    const st={...state, font:(state.font&&state.font.fam)||null};
+    return JSON.stringify({
+      v:1,
+      ta: $('lyricsInput') ? $('lyricsInput').value : '',
+      lyrics: lyrics.map(l=>({ text:l.text, t:(typeof l.t==='number')?l.t:null, tEnd:(typeof l.tEnd==='number')?l.tEnd:null, energy:(typeof l.energy==='number')?l.energy:null })),
+      state: st,
+    });
+  }catch(_){ return null; }
+}
+function saveWork(force){
+  const s=serializeWork(); if(s==null) return;
+  if(!force && s===_lastSaved) return;
+  try{ localStorage.setItem(SAVE_KEY, s); _lastSaved=s; }catch(_){ /* 容量超過やプライベートモードでは黙って諦める */ }
+}
+function restoreWork(){
+  let d=null;
+  try{ d=JSON.parse(localStorage.getItem(SAVE_KEY)||'null'); }catch(_){ return false; }
+  if(!d || d.v!==1 || !d.ta || !d.ta.trim()) return false;
+  const ta=$('lyricsInput'); if(!ta) return false;
+  ta.value=d.ta;
+  lyrics=(Array.isArray(d.lyrics)?d.lyrics:[]).map(l=>({
+    text:String(l&&l.text||''),
+    t:(l&&typeof l.t==='number')?l.t:null,
+    tEnd:(l&&typeof l.tEnd==='number')?l.tEnd:null,
+    energy:(l&&typeof l.energy==='number')?l.energy:null,
+  }));
+  const raw=d.ta.split('\n');   // 行数が合わない保存データでもtextarea基準で安全に揃える
+  if(lyrics.length!==raw.length) lyrics=raw.map((text,i)=>({ text, t:lyrics[i]?lyrics[i].t:null, tEnd:lyrics[i]?lyrics[i].tEnd:null, energy:lyrics[i]?lyrics[i].energy:null }));
+  if(d.state && typeof d.state==='object'){
+    const s2={...d.state}; const fam=s2.font; delete s2.font;
+    for(const k of Object.keys(s2)){ if(k in state && typeof s2[k]===typeof state[k]) state[k]=s2[k]; }
+    const f=ALL_FONTS.find(x=>x.fam===fam); if(f){ state.font=f; ensureFont(f).then(draw); }
+  }
+  tapCursor=lyrics.filter(l=>l.t!=null).length;
+  $('lineCount').textContent=`${lyrics.length}行`;
+  if(state.autoDirect){ try{ buildFx(); }catch(_){} }
+  syncUIFromState(); applyAspect(); renderLines(); updateTapTarget(); updateExportBtns(); draw();
+  _lastSaved=serializeWork()||'';
+  return true;
+}
+
+/* ── 録画をタブ移動・画面スリープから守る ── */
+let wakeLock=null, bgDrawTimer=null;
+async function acquireWakeLock(){
+  try{ if('wakeLock' in navigator) wakeLock=await navigator.wakeLock.request('screen'); }catch(_){ wakeLock=null; }
+}
+function releaseWakeLock(){ try{ if(wakeLock) wakeLock.release(); }catch(_){} wakeLock=null; }
 
 /* ════ イベント結線 ════ */
 function bindControls(){
@@ -2051,7 +2110,7 @@ function bindControls(){
   $('undoDelBtn').onclick=undoDelete;
   $('copyTimesBtn').onclick=()=>{
     if(!lyrics.length){ toast('先に歌詞を入力してください'); return; }
-    const txt='build56  '+lyrics.map((l,i)=>`${i+1}. ${l.t!=null?fmt(l.t):'--'}  ${l.text||'(空)'}`).join('\n');
+    const txt='build57  '+lyrics.map((l,i)=>`${i+1}. ${l.t!=null?fmt(l.t):'--'}  ${l.text||'(空)'}`).join('\n');
     const done=()=>toast('コピーしました。チャットに貼り付けて教えてください');
     if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(done).catch(()=>fallbackCopy(txt,done)); }
     else fallbackCopy(txt,done);
@@ -2076,10 +2135,26 @@ function bindControls(){
   });
 
   // タブ復帰・bfcache・canvasコンテキスト喪失からの自動復帰（黒画面→要リロードを防止）
-  document.addEventListener('visibilitychange',()=>{ if(!document.hidden) recoverView(); });
+  document.addEventListener('visibilitychange',()=>{
+    if(document.hidden){
+      saveWork(true);   // タブを離れる瞬間に必ず保存（ページ破棄されても作業が残る）
+      if(recorder && recorder.state==='recording' && bgDrawTimer==null){
+        // バックグラウンドでは描画ループが止まるので、低頻度でも描き続けて録画の完全フリーズを防ぐ
+        bgDrawTimer=setInterval(()=>{ try{ draw(); }catch(_){} }, 500);
+      }
+    } else {
+      if(bgDrawTimer!=null){ clearInterval(bgDrawTimer); bgDrawTimer=null; }
+      recoverView();
+      if(recorder && recorder.state==='recording'){ acquireWakeLock(); toast('録画中です。録画が終わるまでこのタブに留まってください'); }
+    }
+  });
   window.addEventListener('pageshow', recoverView);
+  window.addEventListener('pagehide', ()=>saveWork(true));
+  document.addEventListener('freeze', ()=>saveWork(true));    // モバイルのページ凍結直前にも保存
+  document.addEventListener('resume', recoverView);           // 凍結からの復帰で描画を立て直す
   canvas.addEventListener('contextlost', e=>{ e.preventDefault(); });
   canvas.addEventListener('contextrestored', recoverView);
+  setInterval(()=>saveWork(false), 2500);                     // 変化があった時だけ定期保存（軽量）
 
   // スタイル系
   const sl=(id,key,fmt2,after)=>{ $(id).oninput=e=>{ state[key]=+e.target.value; if(fmt2)$('v'+id[0].toUpperCase()+id.slice(1)).textContent=fmt2(state[key]); if(after)after(); draw(); }; };
@@ -2577,6 +2652,10 @@ function renderGuide(g){
 
 /* ════ 起動 ════ */
 buildFontPicker(); buildPresets(); buildMotionPicker(); buildGuide(); bindControls(); applyAspect();
+try{
+  // 前回の作業（歌詞・タイミング・スタイル）を自動復元。タブ破棄や誤リロードでも消えない
+  if(restoreWork()) toast('前回の作業を復元しました（音源はもう一度読み込んでください）');
+}catch(e){ console.warn('復元スキップ:', e); }
 (async()=>{ await ensureFont(state.font); draw(); })();
 startLoop();
 </script>
