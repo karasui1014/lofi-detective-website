@@ -236,7 +236,7 @@ details.adv[open]>summary::before{content:'▾';}
       <div class="logo-mark">🎬</div>
       <h1 class="hero-title">Lyric Telop Generator</h1>
       <div class="hero-rule" aria-hidden="true"></div>
-      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build57</div>
+      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build58</div>
       <span class="header-warning">※第三者への無断譲渡・公開はNGです</span>
     </div>
   </header>
@@ -2024,9 +2024,14 @@ function exportWebM(){
   recorder.onstop=()=>{
     releaseWakeLock();
     if(bgDrawTimer!=null){ clearInterval(bgDrawTimer); bgDrawTimer=null; }
-    downloadBlob(new Blob(recChunks,{type:mime}),'lyric-telop.webm');
+    const blob=new Blob(recChunks,{type:mime});
     $('recBtn').textContent='🎬 完成動画を作る（編集ソフト不要・音楽つき）'; $('recBtn').classList.remove('btn-primary');
-    toast('完成動画を書き出しました');
+    if(document.hidden){
+      pendingRec={blob, name:'lyric-telop.webm'};   // 裏にいる間はダウンロードが失敗しやすい→戻った瞬間に保存する
+    } else {
+      downloadBlob(blob,'lyric-telop.webm');
+      toast('完成動画を書き出しました');
+    }
   };
   audio.currentTime=0; if(state.bg==='video'&&hasBgVideo)bgVideo.currentTime=0;
   audio.play(); if(state.bg==='video'&&hasBgVideo)bgVideo.play();
@@ -2087,8 +2092,49 @@ function restoreWork(){
   return true;
 }
 
+/* ── 音源・背景ファイルの保存（IndexedDB）──
+   localStorageに入らない大きなファイルもここに保存しておき、別ページへ移動して
+   戻ってきた（＝再読み込みされた）ときに自動で読み込み直す。これで「ページを離れると
+   音源が消えて何もできなくなる」が根本的になくなる。 */
+const IDB_NAME='lyricTelopFiles', IDB_STORE='files', IDB_MAX=150*1024*1024;
+function idbOpen(){
+  return new Promise((res,rej)=>{
+    const rq=indexedDB.open(IDB_NAME,1);
+    rq.onupgradeneeded=()=>{ rq.result.createObjectStore(IDB_STORE); };
+    rq.onsuccess=()=>res(rq.result); rq.onerror=()=>rej(rq.error);
+  });
+}
+async function idbPut(key,val){
+  try{
+    const db=await idbOpen();
+    await new Promise((res,rej)=>{ const tx=db.transaction(IDB_STORE,'readwrite'); tx.objectStore(IDB_STORE).put(val,key); tx.oncomplete=res; tx.onerror=()=>rej(tx.error); });
+    db.close();
+  }catch(_){ /* 容量不足・プライベートモードでは黙って諦める（動作には影響なし） */ }
+}
+async function idbGet(key){
+  try{
+    const db=await idbOpen();
+    const v=await new Promise((res,rej)=>{ const tx=db.transaction(IDB_STORE,'readonly'); const rq=tx.objectStore(IDB_STORE).get(key); rq.onsuccess=()=>res(rq.result); rq.onerror=()=>rej(rq.error); });
+    db.close(); return v;
+  }catch(_){ return null; }
+}
+async function restoreFilesFromIdb(){
+  const a=await idbGet('audio');
+  if(a && a.blob && !audioFile){
+    try{
+      const f=new File([a.blob], a.name||'audio', {type:a.type||a.blob.type||'audio/mpeg'});
+      loadAudio(f, true);
+      toast('音源も復元しました。そのまま▶で再生できます');
+    }catch(_){}
+  }
+  const g=await idbGet('bg');
+  if(g && g.blob){
+    try{ loadBg(new File([g.blob], g.name||'bg', {type:g.type||g.blob.type||''}), true); }catch(_){}
+  }
+}
+
 /* ── 録画をタブ移動・画面スリープから守る ── */
-let wakeLock=null, bgDrawTimer=null;
+let wakeLock=null, bgDrawTimer=null, pendingRec=null;
 async function acquireWakeLock(){
   try{ if('wakeLock' in navigator) wakeLock=await navigator.wakeLock.request('screen'); }catch(_){ wakeLock=null; }
 }
@@ -2110,7 +2156,7 @@ function bindControls(){
   $('undoDelBtn').onclick=undoDelete;
   $('copyTimesBtn').onclick=()=>{
     if(!lyrics.length){ toast('先に歌詞を入力してください'); return; }
-    const txt='build57  '+lyrics.map((l,i)=>`${i+1}. ${l.t!=null?fmt(l.t):'--'}  ${l.text||'(空)'}`).join('\n');
+    const txt='build58  '+lyrics.map((l,i)=>`${i+1}. ${l.t!=null?fmt(l.t):'--'}  ${l.text||'(空)'}`).join('\n');
     const done=()=>toast('コピーしました。チャットに貼り付けて教えてください');
     if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(done).catch(()=>fallbackCopy(txt,done)); }
     else fallbackCopy(txt,done);
@@ -2146,6 +2192,8 @@ function bindControls(){
       if(bgDrawTimer!=null){ clearInterval(bgDrawTimer); bgDrawTimer=null; }
       recoverView();
       if(recorder && recorder.state==='recording'){ acquireWakeLock(); toast('録画中です。録画が終わるまでこのタブに留まってください'); }
+      if(transRunning) acquireWakeLock();   // 解析中に戻ってきたらスリープ防止を取り直す（隠れた時に自動解除されるため）
+      if(pendingRec){ downloadBlob(pendingRec.blob, pendingRec.name); toast('録画した動画を保存しました'); pendingRec=null; }
     }
   });
   window.addEventListener('pageshow', recoverView);
@@ -2532,6 +2580,7 @@ async function alignLyricsToAudio(){
   transRunning=true; $('alignBtn').disabled=true;
   $('alignWarn').style.display='block';   // ⚠ ページを離れない＋数分かかる、を処理中ずっと表示
   toast('処理には数分かかります。終わるまでページを離れないでください');
+  acquireWakeLock();   // 解析中に画面がスリープして処理が凍結・中断されるのを防ぐ（スマホ対策）
   alignProgress(true,'準備中…',0);
   let wordLevel=false;
   try{
@@ -2571,10 +2620,14 @@ async function alignLyricsToAudio(){
     try{ computeLineEnergies(floats); buildFx(); updateFxStatus(); }catch(fxErr){ console.warn('fx解析スキップ:', fxErr); }
     toast('タイミングを付けました！ ズレを感じたら「⏱出るタイミング微調整」で合わせられます。');
   }catch(e){ console.error(e); toast('エラー: '+e.message); whisperPipe=null; }
-  finally{ transRunning=false; updateExportBtns(); alignProgress(false); $('alignWarn').style.display='none'; }
+  finally{
+    transRunning=false; updateExportBtns(); alignProgress(false); $('alignWarn').style.display='none';
+    if(!(recorder && recorder.state==='recording')) releaseWakeLock();   // 録画中でなければスリープ防止を解除
+    saveWork(true);   // 解析でついたタイミングを即保存（直後にページを離れても消えない）
+  }
 }
 
-function loadAudio(file){
+function loadAudio(file, fromRestore){
   if(!file)return;
   audioFile = file;
   audio.src=URL.createObjectURL(file);
@@ -2582,8 +2635,10 @@ function loadAudio(file){
   ['playBtn2','seek','recBtn'].forEach(id=>$(id).disabled=false);
   updateExportBtns();   // 歌詞が既にあれば「タイミング照合」ボタンを有効化
   audio.onloadedmetadata=updateTransport;
+  // ページを離れて戻っても音源が消えないよう保存（復元で読み込んだ時は再保存しない）
+  if(!fromRestore && file.size<=IDB_MAX) idbPut('audio', {blob:file, name:file.name, type:file.type});
 }
-function loadBg(file){
+function loadBg(file, fromRestore){
   if(!file)return;
   const url=URL.createObjectURL(file);
   if(file.type.startsWith('video')){
@@ -2592,7 +2647,10 @@ function loadBg(file){
   }else{
     bgImage=new Image(); bgImage.onload=draw; bgImage.src=url;
   }
-  toast('背景を読み込みました');
+  if(!fromRestore){
+    toast('背景を読み込みました');
+    if(file.size<=IDB_MAX) idbPut('bg', {blob:file, name:file.name, type:file.type});
+  }
 }
 
 /* ════ 差し込みガイド（ソフト別の簡単手順） ════ */
@@ -2654,8 +2712,10 @@ function renderGuide(g){
 buildFontPicker(); buildPresets(); buildMotionPicker(); buildGuide(); bindControls(); applyAspect();
 try{
   // 前回の作業（歌詞・タイミング・スタイル）を自動復元。タブ破棄や誤リロードでも消えない
-  if(restoreWork()) toast('前回の作業を復元しました（音源はもう一度読み込んでください）');
+  if(restoreWork()) toast('前回の作業を復元しました');
 }catch(e){ console.warn('復元スキップ:', e); }
+// 音源・背景ファイルも復元（別ページへ移動して戻ってきても、そのまま再生・書き出しできる）
+restoreFilesFromIdb().catch(e=>console.warn('ファイル復元スキップ:', e));
 (async()=>{ await ensureFont(state.font); draw(); })();
 startLoop();
 </script>
