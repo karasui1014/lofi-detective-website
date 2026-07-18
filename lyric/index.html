@@ -236,7 +236,7 @@ details.adv[open]>summary::before{content:'▾';}
       <div class="logo-mark">🎬</div>
       <h1 class="hero-title">Lyric Telop Generator</h1>
       <div class="hero-rule" aria-hidden="true"></div>
-      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build58</div>
+      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build59</div>
       <span class="header-warning">※第三者への無断譲渡・公開はNGです</span>
     </div>
   </header>
@@ -2133,6 +2133,27 @@ async function restoreFilesFromIdb(){
   }
 }
 
+/* ── AI解析（タイミング自動生成）を「ページごと破棄されても自動で再開」できるようにする印 ──
+   タブの切替だけならWorkerが裏で進み続けるので実は困らないが、ページそのものが破棄・再読み込み
+   されるケース（実際に別ページへ移動する／モバイルOSがタブを強制終了する）ではWorkerも道連れに
+   消えてしまう。そこで「解析中だった」という印をつけておき、次に開いたとき音源が復元できていれば
+   ユーザーの操作なしに解析を自動で再開する＝「戻ったら終わっている」に一番近い体験にする。 */
+const ALIGN_FLAG_KEY='lyricTelopAlignInProgress_v1';
+function markAlignInProgress(on){
+  try{ if(on) localStorage.setItem(ALIGN_FLAG_KEY,'1'); else localStorage.removeItem(ALIGN_FLAG_KEY); }catch(_){}
+}
+function wasAlignInProgress(){
+  try{ return localStorage.getItem(ALIGN_FLAG_KEY)==='1'; }catch(_){ return false; }
+}
+// 起動時：前回「解析中」のまま終わっていて、音源とタイミング未済みの歌詞が両方復元できていれば自動再開
+async function maybeAutoResumeAlign(){
+  if(!wasAlignInProgress()) return;
+  markAlignInProgress(false);   // 使い捨て（再開に失敗してもループしないように先に消す）
+  if(!audioFile || !lyrics.some(l=>l.text.trim())) return;
+  toast('前回中断した解析を自動的に再開します…');
+  try{ await alignLyricsToAudio(); }catch(e){ console.warn('自動再開に失敗:', e); }
+}
+
 /* ── 録画をタブ移動・画面スリープから守る ── */
 let wakeLock=null, bgDrawTimer=null, pendingRec=null;
 async function acquireWakeLock(){
@@ -2156,7 +2177,7 @@ function bindControls(){
   $('undoDelBtn').onclick=undoDelete;
   $('copyTimesBtn').onclick=()=>{
     if(!lyrics.length){ toast('先に歌詞を入力してください'); return; }
-    const txt='build58  '+lyrics.map((l,i)=>`${i+1}. ${l.t!=null?fmt(l.t):'--'}  ${l.text||'(空)'}`).join('\n');
+    const txt='build59  '+lyrics.map((l,i)=>`${i+1}. ${l.t!=null?fmt(l.t):'--'}  ${l.text||'(空)'}`).join('\n');
     const done=()=>toast('コピーしました。チャットに貼り付けて教えてください');
     if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(done).catch(()=>fallbackCopy(txt,done)); }
     else fallbackCopy(txt,done);
@@ -2250,13 +2271,53 @@ function segBind(id,key){ $(id).querySelectorAll('button').forEach(b=>b.onclick=
 
 /* ════ Whisper ブラウザ内文字起こし ════ */
 let audioFile = null;
-let whisperPipe = null;
 let transRunning = false;
 
-// AIライブラリ(transformers.js)を複数CDNから順に読み込み（jsdelivrの+esm版で出る
-// "registerBackend" エラー対策。esm.sh を優先、ダメなら jsdelivr 通常版にフォールバック）
+/* ════════════════════════════════════════════════════════════
+   🧵 解析はWeb Workerで実行する。
+   タブを切り替えて他のことをしていても、AI文字起こし（数分かかる）が main thread の
+   可視性（visibility）に左右されず裏側で最後まで走り続けるようにするため。
+   （requestAnimationFrame・タイマーはタブが裏に回ると間引かれるが、Workerの中で
+   　メッセージ駆動・同期的に進む計算はその制約を受けない＝タブ切替中も進み続ける）
+   decodeAudioTo16kHz（AudioContext/OfflineAudioContextが要る）だけはWorkerで使えないため
+   main threadのまま。それ以外（オンセット検出・Whisper文字起こし）は全部Worker側で行う。
+   ════════════════════════════════════════════════════════════ */
+const ALIGN_WORKER_SRC = String.raw`
+let whisperPipe = null, currentModelId = null;
+function fftInplace(re, im){
+  const n=re.length;
+  for(let i=1,j=0;i<n;i++){ let bit=n>>1; for(;j&bit;bit>>=1) j^=bit; j^=bit; if(i<j){ let t=re[i];re[i]=re[j];re[j]=t; t=im[i];im[i]=im[j];im[j]=t; } }
+  for(let len=2;len<=n;len<<=1){ const ang=-2*Math.PI/len, wr=Math.cos(ang), wi=Math.sin(ang);
+    for(let i=0;i<n;i+=len){ let cr=1,ci=0;
+      for(let k=0;k<len>>1;k++){ const a=i+k,b=a+(len>>1); const vr=re[b]*cr-im[b]*ci, vi=re[b]*ci+im[b]*cr; re[b]=re[a]-vr;im[b]=im[a]-vi; re[a]+=vr;im[a]+=vi; const ncr=cr*wr-ci*wi; ci=cr*wi+ci*wr; cr=ncr; }
+    }
+  }
+}
+function detectOnsets(floats, sr){
+  const FFT=512, hop=320, half=FFT>>1;
+  const nF=Math.floor((floats.length-FFT)/hop); if(nF<=4) return [];
+  const w=new Float32Array(half);
+  for(let b=0;b<half;b++){ const fr=b*sr/FFT; w[b]=(fr>=250&&fr<=4000)?1:(fr<250?0.12:0.5); }
+  const han=new Float32Array(FFT); for(let i=0;i<FFT;i++) han[i]=0.5-0.5*Math.cos(2*Math.PI*i/(FFT-1));
+  const prev=new Float32Array(half), flux=new Float32Array(nF);
+  const re=new Float32Array(FFT), im=new Float32Array(FFT);
+  for(let fi=0;fi<nF;fi++){
+    const off=fi*hop;
+    for(let i=0;i<FFT;i++){ re[i]=floats[off+i]*han[i]; im[i]=0; }
+    fftInplace(re,im);
+    let fl=0;
+    for(let b=0;b<half;b++){ const mag=Math.sqrt(re[b]*re[b]+im[b]*im[b]); const d=mag-prev[b]; if(d>0) fl+=d*w[b]; prev[b]=mag; }
+    flux[fi]=fl;
+  }
+  let mx=0; for(let i=0;i<nF;i++) if(flux[i]>mx) mx=flux[i]; if(mx<=0) return [];
+  const onsets=[]; const wM=Math.round(0.2*sr/hop);
+  for(let i=2;i<nF-1;i++){
+    let m=0,c=0; for(let k=Math.max(0,i-wM);k<=Math.min(nF-1,i+wM);k++){ m+=flux[k]; c++; } m/=c;
+    if(flux[i]>flux[i-1] && flux[i]>=flux[i+1] && flux[i]>m*1.5 && flux[i]>mx*0.08) onsets.push({t:i*hop/sr, s:flux[i]/mx});
+  }
+  return onsets;
+}
 async function loadTransformers(){
-  // v3(自己完結バンドル)を最優先 → ダメなら順にフォールバック
   const sources = [
     'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3',
     'https://esm.sh/@huggingface/transformers@3',
@@ -2264,13 +2325,74 @@ async function loadTransformers(){
   ];
   let lastErr;
   for(const url of sources){
-    try{
-      const m = await import(url);
-      if(m && m.pipeline && m.env) return m;
-      lastErr = new Error('moduleの形式が不正: '+url);
-    }catch(e){ console.warn('transformers load failed:', url, e); lastErr = e; }
+    try{ const m = await import(url); if(m && m.pipeline && m.env) return m; lastErr = new Error('moduleの形式が不正: '+url); }
+    catch(e){ lastErr = e; }
   }
   throw lastErr || new Error('AIライブラリを読み込めませんでした');
+}
+self.onmessage = async (ev)=>{
+  const d = ev.data||{}; if(d.cmd!=='run') return;
+  const jobId=d.jobId, modelId=d.modelId, sr=d.sr;
+  try{
+    const floats = new Float32Array(d.floatsBuf);
+    postMessage({type:'phase', jobId, msg:'リズム（歌い出し・打点）を解析中…', pct:8});
+    const onsets = detectOnsets(floats, sr);
+    postMessage({type:'onsets', jobId, onsets});
+    if(!whisperPipe || currentModelId!==modelId){
+      postMessage({type:'phase', jobId, msg:'AIライブラリを準備中…', pct:12});
+      const {pipeline, env} = await loadTransformers();
+      env.allowLocalModels=false; env.useBrowserCache=true;
+      try{ env.backends.onnx.wasm.numThreads=1; }catch(_){}
+      postMessage({type:'phase', jobId, msg:'モデルをダウンロード中（初回のみ）…', pct:12});
+      whisperPipe = await pipeline('automatic-speech-recognition', modelId, {
+        dtype:'q8',
+        progress_callback(p){ if(p.status==='progress'&&p.total){ const pct=Math.round(p.loaded/p.total*100); postMessage({type:'phase', jobId, msg:'ダウンロード中… '+pct+'%', pct:12+pct*0.5}); } }
+      });
+      currentModelId = modelId;
+    }
+    postMessage({type:'phase', jobId, msg:'歌詞と音源を照合中…（数分かかる場合があります）', pct:70});
+    let result, wordLevel=false;
+    try{
+      result = await whisperPipe(floats, {language:'japanese', task:'transcribe', return_timestamps:'word', chunk_length_s:30, stride_length_s:5});
+      if(!result || !result.chunks || !result.chunks.length) throw new Error('no word-level chunks');
+      wordLevel=true;
+    }catch(werr){
+      result = await whisperPipe(floats, {language:'japanese', task:'transcribe', return_timestamps:true, chunk_length_s:30, stride_length_s:5});
+      wordLevel=false;
+    }
+    const chunks=(result.chunks||[]).filter(c=>c.timestamp && c.timestamp[0]!=null).map(c=>({text:c.text, timestamp:[c.timestamp[0], c.timestamp[1]??c.timestamp[0]]}));
+    postMessage({type:'done', jobId, chunks, wordLevel});
+  }catch(e){
+    whisperPipe=null; currentModelId=null;   // 失敗した状態を持ち越さない（次回は作り直す）
+    postMessage({type:'error', jobId, message:(e&&e.message)||String(e)});
+  }
+};
+`;
+let alignWorker=null, alignJobSeq=0;
+function getAlignWorker(){
+  if(alignWorker) return alignWorker;
+  const blob=new Blob([ALIGN_WORKER_SRC], {type:'text/javascript'});
+  alignWorker=new Worker(URL.createObjectURL(blob));
+  return alignWorker;
+}
+// floats・音声解析・Whisper文字起こしをWorkerに投げて実行。onPhaseで進捗、onOnsetsでオンセット取得時に通知。
+function runAlignInWorker(floats, sr, modelId, onPhase, onOnsets){
+  return new Promise((resolve, reject)=>{
+    let w; try{ w=getAlignWorker(); }catch(e){ reject(e); return; }
+    const jobId=++alignJobSeq;
+    const onMsg=(ev)=>{
+      const d=ev.data; if(!d || d.jobId!==jobId) return;
+      if(d.type==='phase') onPhase&&onPhase(d.msg, d.pct);
+      else if(d.type==='onsets') onOnsets&&onOnsets(d.onsets||[]);
+      else if(d.type==='done'){ cleanup(); resolve({chunks:d.chunks||[], wordLevel:!!d.wordLevel}); }
+      else if(d.type==='error'){ cleanup(); reject(new Error(d.message||'Worker解析エラー')); }
+    };
+    const onErr=(e)=>{ cleanup(); reject(e && e.message ? e : new Error('Workerでエラーが発生しました')); };
+    function cleanup(){ w.removeEventListener('message', onMsg); w.removeEventListener('error', onErr); }
+    w.addEventListener('message', onMsg); w.addEventListener('error', onErr);
+    const buf=floats.buffer.slice(0);   // コピーを転送＝呼び出し元のfloatsはこの後も使えるまま
+    w.postMessage({cmd:'run', jobId, modelId, sr, floatsBuf:buf}, [buf]);
+  });
 }
 
 async function decodeAudioTo16kHz(){
@@ -2382,42 +2504,7 @@ function proportionalTimes(lineTexts, chunks, totalDur){
 }
 const ALIGN_LEAD = 0.12;  // Whisperはわずかに遅れがちなので、少し早めに出してジャスト感を出す
 const CHAR_DUR  = 0.22;   // 1文字(モーラ)あたりの概算秒（外挿用）
-// 反復基数2 FFT（in-place）。スペクトル変化からオンセットを取るために使う。
-function fftInplace(re, im){
-  const n=re.length;
-  for(let i=1,j=0;i<n;i++){ let bit=n>>1; for(;j&bit;bit>>=1) j^=bit; j^=bit; if(i<j){ let t=re[i];re[i]=re[j];re[j]=t; t=im[i];im[i]=im[j];im[j]=t; } }
-  for(let len=2;len<=n;len<<=1){ const ang=-2*Math.PI/len, wr=Math.cos(ang), wi=Math.sin(ang);
-    for(let i=0;i<n;i+=len){ let cr=1,ci=0;
-      for(let k=0;k<len>>1;k++){ const a=i+k,b=a+(len>>1); const vr=re[b]*cr-im[b]*ci, vi=re[b]*ci+im[b]*cr; re[b]=re[a]-vr;im[b]=im[a]-vi; re[a]+=vr;im[a]+=vi; const ncr=cr*wr-ci*wi; ci=cr*wi+ci*wr; cr=ncr; }
-    }
-  }
-}
-// オンセット（歌い出し・打点）を“声の帯域を重視したスペクトルフラックス”で検出。{t,s}=時刻と強さ。
-// 単なる音量変化(キック等)より、声・音符の立ち上がりに反応しやすく、ジャスト合わせの精度が上がる。
-function detectOnsets(floats, sr){
-  const FFT=512, hop=320, half=FFT>>1;       // 32ms窓・20ms毎（4分でも~0.3秒で処理）
-  const nF=Math.floor((floats.length-FFT)/hop); if(nF<=4) return [];
-  const w=new Float32Array(half);            // 声の帯域(250〜4000Hz)を重視、低域(キック)は抑制
-  for(let b=0;b<half;b++){ const fr=b*sr/FFT; w[b]=(fr>=250&&fr<=4000)?1:(fr<250?0.12:0.5); }
-  const han=new Float32Array(FFT); for(let i=0;i<FFT;i++) han[i]=0.5-0.5*Math.cos(2*Math.PI*i/(FFT-1));
-  const prev=new Float32Array(half), flux=new Float32Array(nF);
-  const re=new Float32Array(FFT), im=new Float32Array(FFT);
-  for(let fi=0;fi<nF;fi++){
-    const off=fi*hop;
-    for(let i=0;i<FFT;i++){ re[i]=floats[off+i]*han[i]; im[i]=0; }
-    fftInplace(re,im);
-    let fl=0;
-    for(let b=0;b<half;b++){ const mag=Math.sqrt(re[b]*re[b]+im[b]*im[b]); const d=mag-prev[b]; if(d>0) fl+=d*w[b]; prev[b]=mag; }
-    flux[fi]=fl;
-  }
-  let mx=0; for(let i=0;i<nF;i++) if(flux[i]>mx) mx=flux[i]; if(mx<=0) return [];
-  const onsets=[]; const wM=Math.round(0.2*sr/hop);   // ±200ms 局所平均で適応しきい値
-  for(let i=2;i<nF-1;i++){
-    let m=0,c=0; for(let k=Math.max(0,i-wM);k<=Math.min(nF-1,i+wM);k++){ m+=flux[k]; c++; } m/=c;
-    if(flux[i]>flux[i-1] && flux[i]>=flux[i+1] && flux[i]>m*1.5 && flux[i]>mx*0.08) onsets.push({t:i*hop/sr, s:flux[i]/mx});
-  }
-  return onsets;
-}
+// ※fftInplace/detectOnsets は Worker側(ALIGN_WORKER_SRC内)で実行するため、main threadには置かない。
 // 予測時刻 t を窓内のオンセットへスナップ。近さだけでなく“強さ”も見て、近くの弱い誤検出より
 // 少し離れた強い歌い出し/打点を優先する（弱いノイズに吸い寄せられない）。
 function snapToOnset(t, onsets, win){
@@ -2578,50 +2665,27 @@ async function alignLyricsToAudio(){
   applyLyrics();  // テキストエリアの最新内容を取り込む
   if(!lyrics.some(l=>l.text.trim())){ toast('先に正しい歌詞を入力して「歌詞を反映」してください'); return; }
   transRunning=true; $('alignBtn').disabled=true;
-  $('alignWarn').style.display='block';   // ⚠ ページを離れない＋数分かかる、を処理中ずっと表示
-  toast('処理には数分かかります。終わるまでページを離れないでください');
+  $('alignWarn').style.display='block';   // ⚠ 処理中ずっと表示（Workerで動くので実際はタブを離れても大丈夫）
+  toast('解析を開始しました。裏側で進むので他のタブに移動しても大丈夫です');
   acquireWakeLock();   // 解析中に画面がスリープして処理が凍結・中断されるのを防ぐ（スマホ対策）
-  alignProgress(true,'準備中…',0);
-  let wordLevel=false;
+  markAlignInProgress(true);   // 途中でページごと破棄されても、戻ってきたら自動で再開できるように印をつける
+  alignProgress(true,'音声を解析中…',5);
   try{
-    if(!whisperPipe){
-      alignProgress(true,'AIライブラリを準備中…',3);
-      const modelId=`Xenova/whisper-${$('whisperModel').value}`;
-      const {pipeline, env}=await loadTransformers();
-      env.allowLocalModels=false; env.useBrowserCache=true;
-      try{ env.backends.onnx.wasm.numThreads=1; }catch(_){}
-      alignProgress(true,'モデルをダウンロード中（初回のみ）…',5);
-      whisperPipe=await pipeline('automatic-speech-recognition', modelId, {
-        dtype:'q8',
-        progress_callback(p){ if(p.status==='progress'&&p.total){ const pct=Math.round(p.loaded/p.total*100); alignProgress(true,`ダウンロード中… ${pct}%`,pct*0.6);} }
-      });
-    }
-    alignProgress(true,'音声を解析中…',65);
-    const floats=await decodeAudioTo16kHz();
-    alignProgress(true,'リズム（歌い出し・打点）を解析中…',68);
-    await new Promise(r=>setTimeout(r,30));      // メッセージを描画させてから解析
-    const onsets=detectOnsets(floats,16000);     // 声の帯域のスペクトル変化から歌い出しを検出→ジャスト合わせ
-    songOnsets=onsets||[];                       // 「ビート」飾りの拍同期にも使う
-    alignProgress(true,'歌詞と音源を照合中…（数分かかる場合があります）',72);
-    // まず単語レベルのタイムスタンプで精度を上げる。未対応/失敗ならチャンク単位にフォールバック
-    let result;
-    try{
-      result=await whisperPipe(floats,{ language:'japanese', task:'transcribe', return_timestamps:'word', chunk_length_s:30, stride_length_s:5 });
-      if(!result || !result.chunks || !result.chunks.length) throw new Error('no word-level chunks');
-      wordLevel=true;
-    }catch(werr){
-      console.warn('word-level timestamps unavailable, fallback to chunk-level:', werr);
-      result=await whisperPipe(floats,{ language:'japanese', task:'transcribe', return_timestamps:true, chunk_length_s:30, stride_length_s:5 });
-      wordLevel=false;
-    }
-    const chunks=(result.chunks||[]).filter(c=>c.timestamp && c.timestamp[0]!=null);
-    applyAlignment(chunks, wordLevel, onsets);
+    const modelId=`Xenova/whisper-${$('whisperModel').value}`;
+    const floats=await decodeAudioTo16kHz();   // これだけはWorkerで使えないためmain thread側で実行（数秒で終わる）
+    // オンセット検出とWhisper文字起こしはWorker側で実行＝タブが裏に回っても最後まで進む
+    const {chunks, wordLevel} = await runAlignInWorker(floats, 16000, modelId,
+      (msg,pct)=>alignProgress(true,msg,pct),
+      (onsets)=>{ songOnsets=onsets||[]; }   // 「ビート」飾りの拍同期に使う
+    );
+    applyAlignment(chunks, wordLevel, songOnsets);
     // タイミングが付いたので、各行の音量(強弱)も測っておく → おまかせ演出で「盛り上がり＝大きく」ができる
     try{ computeLineEnergies(floats); buildFx(); updateFxStatus(); }catch(fxErr){ console.warn('fx解析スキップ:', fxErr); }
     toast('タイミングを付けました！ ズレを感じたら「⏱出るタイミング微調整」で合わせられます。');
-  }catch(e){ console.error(e); toast('エラー: '+e.message); whisperPipe=null; }
+  }catch(e){ console.error(e); toast('エラー: '+e.message); }
   finally{
     transRunning=false; updateExportBtns(); alignProgress(false); $('alignWarn').style.display='none';
+    markAlignInProgress(false);
     if(!(recorder && recorder.state==='recording')) releaseWakeLock();   // 録画中でなければスリープ防止を解除
     saveWork(true);   // 解析でついたタイミングを即保存（直後にページを離れても消えない）
   }
@@ -2715,7 +2779,7 @@ try{
   if(restoreWork()) toast('前回の作業を復元しました');
 }catch(e){ console.warn('復元スキップ:', e); }
 // 音源・背景ファイルも復元（別ページへ移動して戻ってきても、そのまま再生・書き出しできる）
-restoreFilesFromIdb().catch(e=>console.warn('ファイル復元スキップ:', e));
+restoreFilesFromIdb().then(maybeAutoResumeAlign).catch(e=>console.warn('ファイル復元スキップ:', e));
 (async()=>{ await ensureFont(state.font); draw(); })();
 startLoop();
 </script>
