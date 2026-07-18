@@ -236,7 +236,7 @@ details.adv[open]>summary::before{content:'▾';}
       <div class="logo-mark">🎬</div>
       <h1 class="hero-title">Lyric Telop Generator</h1>
       <div class="hero-rule" aria-hidden="true"></div>
-      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build59</div>
+      <div class="hero-sub">歌詞テロップ生成 · Lo-Fi Detective Tools · build60</div>
       <span class="header-warning">※第三者への無断譲渡・公開はNGです</span>
     </div>
   </header>
@@ -362,6 +362,7 @@ details.adv[open]>summary::before{content:'▾';}
               <label class="toggle"><input type="checkbox" id="plate">座布団(帯)</label>
               <input type="color" id="plateColor" value="#000000" style="display:none;">
               <label class="toggle"><input type="checkbox" id="vertical">縦書き</label>
+              <label class="toggle" title="明るい背景でも読めるよう、影を持たないソフトな黒ハローを敷きます"><input type="checkbox" id="readGuard">可読性ガード</label>
             </div>
 
             <div class="divider"></div>
@@ -481,6 +482,7 @@ details.adv[open]>summary::before{content:'▾';}
             <button data-bg="solid">単色</button>
             <button data-bg="image">画像</button>
             <button data-bg="video">動画</button>
+            <button data-bg="gen">生成</button>
           </div>
           <input type="color" id="bgColor" value="#101018" style="display:none;">
           <label class="btn" id="bgFileBtn" style="display:none;">ファイル選択<input type="file" id="bgFile" accept="image/*,video/*" style="display:none;"></label>
@@ -491,6 +493,25 @@ details.adv[open]>summary::before{content:'▾';}
             <option value="1:1">1:1 正方形</option>
           </select>
         </div>
+        <div class="row" id="genBgRow" style="margin-top:.5rem;display:none;">
+          <span style="font-size:.66rem;color:var(--text-sec);">生成の種類:</span>
+          <div class="seg" id="genBgSeg">
+            <button data-genbg="starfield" class="on">静かな星空</button>
+            <button data-genbg="ring">漂うリング</button>
+          </div>
+        </div>
+        <div class="row" style="margin-top:.5rem;">
+          <span style="font-size:.66rem;color:var(--text-sec);">スペクトラム:</span>
+          <div class="seg" id="spectrumSeg">
+            <button data-spectrum="none" class="on">なし</button>
+            <button data-spectrum="neonBar">ネオンバー</button>
+            <button data-spectrum="mirror">ミラーライン</button>
+            <button data-spectrum="aura">オーラリング</button>
+            <button data-spectrum="wave">ウェーブ</button>
+          </div>
+          <input type="color" id="spectrumColor" value="#3ad6ff" style="display:none;">
+        </div>
+        <div class="hint" style="margin-top:.4rem;line-height:1.6;">帯域ごとに音量で伸縮するビジュアライザーを、歌詞の背後に重ねます（曲の書き出しにも反映されます）。</div>
       </div>
     </div>
   </div>
@@ -564,6 +585,9 @@ const state = {
   strokeColor:'#000000', stroke:6, shadow:true, plate:false, plateColor:'#000000',
   vertical:false, pos:'bottom', align:'center', track:0, fade:0.25, offset:0,
   bg:'transparent', bgColor:'#101018', aspect:'16:9', vignette:false,
+  genBg:'starfield',     // 生成背景（曲を通して表示・bg==='gen'のときの種類）
+  spectrum:'none', spectrumColor:'#3ad6ff',   // スペクトラム（音に反応する背景ビジュアライザー）
+  readGuard:false,       // 文字の可読性ガード：明るい背景でも読めるよう柔らかい黒ハローを敷く
   motion:'fade', deco:'none', motionPower:1, karaokeColor:'#ffd24d', highlightColor:'#3a5bff',
   scatter:false,       // 配置：ちらし配置（画面全体に散らす）。出方・飾りと独立に組み合わせられる
   scatterKeep:false,   // ちらし配置で直前の歌詞をうっすら残す（コラージュ風）
@@ -573,7 +597,7 @@ const state = {
 };
 let _extraGlow=0;   // グローモーション用：paintTextが読む一時的な発光量（renderText冒頭で毎回0リセット）
 let _curFx=null;    // いま描画中の行の自動演出データ({size,motion,deco,intensity})。描画直前に毎回セットされる
-let songOnsets=[];  // 直近の自動タイミング生成で検出した打点（ビート飾りの拍同期に使う）
+let songOnsets=[];  // 直近の自動タイミング生成で検出した打点（歌い出しを打点にスナップして精度を上げるのに使う）
 let lyrics = [];      // [{text, t:Number|null}]
 let tapCursor = 0;
 let previewIdx = 0;   // プレビューで表示する行（タイミング前の確認用）
@@ -656,7 +680,7 @@ function computeMotion(act, now){
   const exitP=act.fadeOut ? Math.max(0,Math.min(1,(act.end-now)/dur)) : 1;   // 1=退場演出なし
   const tEndSing=(act.line.tEnd!=null && isFinite(act.line.tEnd) && act.line.tEnd>act.start) ? act.line.tEnd : act.end;
   const sungFrac=Math.max(0,Math.min(1,(now-act.start)/Math.max(0.05,tEndSing-act.start)));
-  return { enterP, exitP, willFadeOut:!!act.fadeOut, sungFrac, tShown: now-act.start };
+  return { enterP, exitP, willFadeOut:!!act.fadeOut, sungFrac, tShown: now-act.start, totalSpan: Math.max(0.3, act.end-act.start) };
 }
 function draw(){
   const W=canvas.width, H=canvas.height;
@@ -716,11 +740,88 @@ function drawBackground(W,H){
   if(state.bg==='solid'){ ctx.fillStyle=state.bgColor; ctx.fillRect(0,0,W,H); }
   else if(state.bg==='image' && bgImage){ drawCover(bgImage,W,H); }
   else if(state.bg==='video' && hasBgVideo && bgVideo.readyState>=2){ drawCover(bgVideo,W,H); }
+  else if(state.bg==='gen'){ drawGenBackground(W,H); }
+  if(state.spectrum && state.spectrum!=='none') drawSpectrum(W,H);   // 音に反応するビジュアライザー（背景の上・歌詞の下）
   if(state.vignette){   // ビネット(周辺減光)：画面のフチを暗くして中央の歌詞に視線を集める
     const g=ctx.createRadialGradient(W/2,H/2,Math.min(W,H)*0.42, W/2,H/2,Math.max(W,H)*0.72);
     g.addColorStop(0,'rgba(0,0,0,0)'); g.addColorStop(1,'rgba(0,0,0,0.55)');
     ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
   }
+}
+// 生成背景：曲を通してずっとゆっくり動き続けるアンビエント背景（audio.currentTime駆動＝録画時も同じ絵になる）
+function drawGenBackground(W,H){
+  const t=audio.currentTime||0;
+  if(state.genBg==='ring'){
+    ctx.save();
+    ctx.fillStyle='#05060c'; ctx.fillRect(0,0,W,H);
+    const base=Math.min(W,H);
+    for(let i=0;i<4;i++){
+      const rr=base*0.14 + ((t*base*0.055 + i*base*0.24) % (base*0.62));
+      const a=Math.max(0, 0.24*(1-rr/(base*0.78)));
+      ctx.beginPath(); ctx.arc(W/2,H/2,rr,0,Math.PI*2);
+      ctx.strokeStyle=`rgba(150,190,255,${a.toFixed(3)})`; ctx.lineWidth=Math.max(1,base*0.0022); ctx.stroke();
+    }
+    ctx.restore();
+  } else {   // starfield（静かな星空）：既定
+    ctx.save();
+    const g=ctx.createLinearGradient(0,0,0,H);
+    g.addColorStop(0,'#05051a'); g.addColorStop(1,'#0d1330');
+    ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+    const N=90;
+    for(let i=0;i<N;i++){
+      const sx=seededRand(i*17.3)*W, sy=seededRand(i*29.7+7)*H*0.9;
+      const tw=0.5+0.5*Math.sin(t*0.9 + i*1.7);
+      const r=(0.6+seededRand(i*3.1)*1.7)*(H/1080);
+      ctx.globalAlpha=Math.max(0.12, tw);
+      ctx.fillStyle='#ffffff'; ctx.beginPath(); ctx.arc(sx,sy,r,0,Math.PI*2); ctx.fill();
+    }
+    ctx.globalAlpha=1;
+    ctx.restore();
+  }
+}
+// スペクトラム：Web Audio Analyserの周波数データを帯域ごとの伸縮で可視化。
+let analyserNode=null, _specData=null;
+function drawSpectrum(W,H){
+  if(!audio.src) return;
+  if(!recAudioCtx) ensureAudioGraph();
+  if(!analyserNode) return;
+  if(!_specData || _specData.length!==analyserNode.frequencyBinCount) _specData=new Uint8Array(analyserNode.frequencyBinCount);
+  analyserNode.getByteFrequencyData(_specData);
+  const n=_specData.length, style=state.spectrum, col=state.spectrumColor||'#3ad6ff';
+  ctx.save();
+  if(style==='neonBar'){
+    const bars=Math.min(48,n), bw=W/bars;
+    for(let i=0;i<bars;i++){
+      const v=_specData[Math.floor(i*n/bars)]/255, h=v*H*0.32;
+      ctx.fillStyle=hexA(col, 0.16+v*0.5); ctx.shadowColor=col; ctx.shadowBlur=14*v;
+      ctx.fillRect(i*bw+bw*0.15, H-h, bw*0.7, h);
+    }
+  } else if(style==='mirror'){
+    const bars=Math.min(64,n), bw=W/bars, midY=H*0.5;
+    for(let i=0;i<bars;i++){
+      const v=_specData[Math.floor(i*n/bars)]/255, h=v*H*0.22;
+      ctx.fillStyle=hexA(col, 0.14+v*0.4);
+      ctx.fillRect(i*bw+bw*0.2, midY-h, bw*0.6, h*2);
+    }
+  } else if(style==='aura'){
+    let sum=0; for(let i=0;i<n;i++) sum+=_specData[i]; const avg=sum/n/255;
+    const rBase=Math.min(W,H)*0.30;
+    for(let ring=0; ring<3; ring++){
+      const rr=rBase*(0.7+ring*0.22)*(0.85+avg*0.5);
+      ctx.beginPath(); ctx.arc(W/2,H/2,rr,0,Math.PI*2);
+      ctx.strokeStyle=hexA(col, Math.max(0,0.10+avg*0.22-ring*0.03)); ctx.lineWidth=2+avg*6;
+      ctx.shadowColor=col; ctx.shadowBlur=18*avg; ctx.stroke();
+    }
+  } else if(style==='wave'){
+    ctx.beginPath();
+    const midY=H*0.62;
+    for(let i=0;i<n;i++){
+      const x=W*(i/(n-1)), v=(_specData[i]/255-0.5)*H*0.3;
+      if(i===0) ctx.moveTo(x, midY+v); else ctx.lineTo(x, midY+v);
+    }
+    ctx.strokeStyle=hexA(col,0.55); ctx.lineWidth=2.5; ctx.shadowColor=col; ctx.shadowBlur=10; ctx.stroke();
+  }
+  ctx.restore();
 }
 
 // 文字レイヤーのみ描画（背景なし＝書き出しでも再利用）。motionは省略可（静止画書き出し・編集中プレビューでは
@@ -745,7 +846,8 @@ function renderText(text, alpha, motion){
   _extraGlow=0;   // グロー演出の発光量。動きが無いフレームでは必ず0にする（前フレームの値が漏れて静止画書き出しに残らないように）
   ctx.save();
   if(motion) applyWholeLineMotion(motion, W, H);
-  if(state.scatter) drawFreeform(text, W, H, fpx, motion);   // ちらし配置は縦横設定に依らない自由構図（出方は語句ごとに適用）
+  if(motion && curMotionKey()==='charStamp') drawCharStamp(text, W, H, fpx, motion);   // 一文字ずつ画面いっぱいにスタンプ（位置・揃え・ちらし配置より優先）
+  else if(state.scatter) drawFreeform(text, W, H, fpx, motion);   // ちらし配置は縦横設定に依らない自由構図（出方は語句ごとに適用）
   else if(state.vertical) drawVertical(text, W, H, fpx, motion);
   else drawHorizontal(text, W, H, fpx, motion);
   ctx.restore();
@@ -756,42 +858,6 @@ function renderText(text, alpha, motion){
 function curMotionKey(){ return (state.autoDirect && _curFx && _curFx.motion) ? _curFx.motion : state.motion; }
 // いま描画中の行に効かせる「飾り」（ずっとかかる演出）。サビ行のマーカー等、行ごとの上書きあり。
 function curDecoKey(){ return (state.autoDirect && _curFx && _curFx.deco) ? _curFx.deco : (state.deco||'none'); }
-// 直近の打点（ビート）に合わせた0〜1のパルス。打点直後に1→すっと減衰（DECO系の“拍で弾む”表現）
-function beatPulse(){
-  if(!songOnsets.length) return 0;
-  const t=audio.currentTime||0;
-  let lo=0, hi=songOnsets.length-1, idx=-1;
-  while(lo<=hi){ const m=(lo+hi)>>1; if(songOnsets[m].t<=t){ idx=m; lo=m+1; } else hi=m-1; }
-  if(idx<0) return 0;
-  const d=t-songOnsets[idx].t;
-  if(d>0.4) return 0;
-  return Math.exp(-d*10)*Math.min(1, songOnsets[idx].s*1.5);
-}
-// ビート火花：打点のたびに小さな光の粒が舞う（背景の上・文字の下に描く）。
-// 粒の位置・大きさはオンセット番号から決定論的に決まるので、同じフレームは常に同じ絵＝録画も安定。
-function drawBeatParticles(W,H){
-  if(!songOnsets.length) return;
-  const t=audio.currentTime||0;
-  let lo=0, hi=songOnsets.length-1, idx=-1;
-  while(lo<=hi){ const m=(lo+hi)>>1; if(songOnsets[m].t<=t){ idx=m; lo=m+1; } else hi=m-1; }
-  if(idx<0) return;
-  const pw=state.motionPower!=null?state.motionPower:1;
-  for(let j=idx; j>=0 && j>idx-3; j--){          // 直近3拍ぶんの粒を重ねる
-    const o=songOnsets[j]; const age=t-o.t;
-    if(age>0.7) break;
-    const life=1-age/0.7;
-    for(let i=0;i<7;i++){
-      const r1=seededRand(j*13.7+i*3.1), r2=seededRand(j*7.9+i*11.3), r3=seededRand(j*3.3+i*5.7);
-      const cx=W*(0.12+0.76*r1), cy=H*(0.16+0.66*r2) - age*H*0.05;   // ゆっくり上へ流れる
-      const rad=(2.2+r3*3.4)*(H/1080)*(1+age*2.2)*Math.max(0.4,pw);
-      ctx.save();
-      ctx.globalAlpha=life*0.5*Math.min(1,o.s*1.6);
-      ctx.fillStyle=state.karaokeColor||'#ffd24d';
-      ctx.beginPath(); ctx.arc(cx,cy,rad,0,Math.PI*2); ctx.fill();
-      ctx.restore();
-    }
-  }
-}
 // 行全体にかける「出方」の変形（スライド/インパクト/ブラー）。弾む系は廃止＝すべて減速で自然に着地する。
 // ちらし配置中は語句ごとに出方を適用するため、ここでは何もしない。
 function posPivotY(H){ return state.pos==='top'? H*0.18 : state.pos==='middle'? H/2 : H*0.84; }
@@ -804,7 +870,7 @@ function applyWholeLineMotion(motion, W, H){
   const exitInfluence = motion.willFadeOut ? (1-motion.exitP) : 0;          // 退場直前だけ1に近づく
   let tx=0, ty=0, sc=1;
   const unitY=H*0.06*pw, unitX=W*0.07*pw;
-  if(!PER_CHAR_ENTRANCES.includes(mkey) && mkey!=='cinema'){
+  if(!PER_CHAR_ENTRANCES.includes(mkey) && mkey!=='cinema' && mkey!=='charStamp'){
     if(mkey==='slideUp'){ ty += enterInfluence*unitY; ty -= exitInfluence*unitY*0.7; }
     else if(mkey==='slideDown'){ ty -= enterInfluence*unitY; ty += exitInfluence*unitY*0.7; }
     else if(mkey==='slideSide'){ tx -= enterInfluence*unitX*1.6; tx += exitInfluence*unitX*1.6; }
@@ -825,7 +891,7 @@ function applyWholeLineMotion(motion, W, H){
 }
 function smoothstep(x,e0,e1){ if(e0===e1) return x<e0?0:1; const t=Math.max(0,Math.min(1,(x-e0)/(e1-e0))); return t*t*(3-2*t); }
 // 「出方」のうち1文字ずつ動かすもの（行全体変形とは排他）。karaokeは「飾り」側の1文字演出。
-const PER_CHAR_ENTRANCES=['typewriter','charDissolve','charFloat','charScatter','charSpin'];
+const PER_CHAR_ENTRANCES=['typewriter','charDissolve','charFloat','charScatter','charSpin','charDrip'];
 // i番目の文字の登場進行度(0〜1)。文字ごとに少しずつ遅らせて「順番に登場」させる
 function charProg(motion, i, n){
   const step=Math.min(0.06, 0.55/Math.max(1,n));                    // 行が長くても全体で~0.6秒以内に出揃う
@@ -854,6 +920,16 @@ function paintText(str,x,y,fpx,colorOverride){
   const H=canvas.height;
   fpx = fpx || state.size*(H/1080);
   const sw = (state.size>0 ? state.stroke/state.size : 0) * fpx * 2; // 縁取りも実サイズに連動
+  if(state.readGuard){
+    // 文字の可読性ガード：向きのある影ではなく全方向のぼんやり黒ハローを下地に敷き、
+    // 明るい/ごちゃついた背景の上でも文字の輪郭が沈まないようにする（影・縁取りの設定に関わらず効く）。
+    // ここで塗る黒い文字形そのものは、直後の本描画(縁取り→塗り)が同じ位置に重なって完全に覆い隠す。
+    ctx.save();
+    ctx.shadowColor='rgba(0,0,0,.9)'; ctx.shadowBlur=fpx*0.16; ctx.shadowOffsetX=0; ctx.shadowOffsetY=0;
+    ctx.fillStyle='rgba(0,0,0,.8)';
+    ctx.fillText(str,x,y); ctx.fillText(str,x,y); ctx.fillText(str,x,y);
+    ctx.restore();
+  }
   if(_extraGlow>0.02){   // グロー演出：本描画の下地にぼんやり光る同色を先に重ねる
     ctx.save();
     ctx.shadowColor=colorOverride||state.color; ctx.shadowBlur=fpx*0.85*_extraGlow;
@@ -1012,7 +1088,7 @@ function paintRowAnimated(str, x, y, fpx, align, motion, rowFracRange){
   for(let i=0;i<n;i++){
     const ch=chars[i], w=widths[i];
     const gf = rowFracRange[0] + (rowFracRange[1]-rowFracRange[0])*((i+0.5)/n);
-    let a=1, dx=0, dy=0, rot=0, sc2=1, colorOverride=null;
+    let a=1, dx=0, dy=0, rot=0, sc2=1, scY=1, colorOverride=null;
     // ① 出方（1文字ずつの登場アニメ）
     if(mk==='typewriter'){
       a = 1 - smoothstep(gf, motion.enterP-0.10, motion.enterP+0.10);   // gfが小さい(行の早い位置)ほど先に見える
@@ -1026,7 +1102,11 @@ function paintRowAnimated(str, x, y, fpx, align, motion, rowFracRange){
         const s1=seededRand(ch.codePointAt(0)*0.917+i*3.71), s2=seededRand(i*12.9+n*4.7+ch.codePointAt(0)*0.311);
         dx=(s1-0.5)*fpx*1.7*pw*(1-e); dy=(s2-0.5)*fpx*1.3*pw*(1-e); rot=(s1-0.5)*1.5*(1-e);
       }
-      else if(mk==='charSpin'){ rot=(1-e)*((i%2)?1:-1)*1.1; sc2=0.55+0.45*e; }
+      else if(mk==='charSpin'){ rot=(1-e)*((i%2)?1:-1)*1.1; sc2=0.55+0.45*e; scY=sc2; }
+      else if(mk==='charDrip'){
+        // 上から滴ってきて、着地とともに縦の伸びが元へ戻る＝したたる/溶ける質感（弾まない）
+        sc2=1-(1-e)*0.30*pw; scY=1+(1-e)*1.7*pw; dy=-(1-e)*fpx*0.30*pw;
+      }
     }
     // ② 飾り（1文字ずつ系）：出方と重ねがけできる
     if(dk==='karaoke'){
@@ -1035,8 +1115,8 @@ function paintRowAnimated(str, x, y, fpx, align, motion, rowFracRange){
     }
     ctx.save();
     ctx.globalAlpha *= Math.max(0,Math.min(1,a));
-    if(rot!==0 || sc2!==1){
-      ctx.translate(cx+w/2+dx, y+dy); ctx.rotate(rot); ctx.scale(sc2,sc2);
+    if(rot!==0 || sc2!==1 || scY!==1){
+      ctx.translate(cx+w/2+dx, y+dy); ctx.rotate(rot); ctx.scale(sc2,scY);
       paintText(ch, -w/2, 0, fpx, colorOverride);
     } else {
       paintText(ch, cx+dx, y+dy, fpx, colorOverride);
@@ -1133,7 +1213,7 @@ function drawVertical(text,W,H,baseFpx,motion){
       col.forEach((ch,i)=>{
         const gi=acc+i;                       // 行全体での文字番号（列をまたいで順番に登場させる）
         const gf=(gi+0.5)/totalLen;
-        let a=1, dx=0, dy=0, rot=0, sc2=1, colorOverride=null;
+        let a=1, dx=0, dy=0, rot=0, sc2=1, scY=1, colorOverride=null;
         // ① 出方（1文字ずつの登場アニメ）
         if(mk==='typewriter'){
           a = 1 - smoothstep(gf, motion.enterP-0.10, motion.enterP+0.10);   // gfが小さい(行の早い位置)ほど先に見える
@@ -1146,7 +1226,11 @@ function drawVertical(text,W,H,baseFpx,motion){
             const s1=seededRand(ch.codePointAt(0)*0.917+gi*3.71), s2=seededRand(gi*12.9+totalLen*4.7+ch.codePointAt(0)*0.311);
             dx=(s1-0.5)*fpx*1.7*pw*(1-e); dy=(s2-0.5)*fpx*1.3*pw*(1-e); rot=(s1-0.5)*1.5*(1-e);
           }
-          else if(mk==='charSpin'){ rot=(1-e)*((gi%2)?1:-1)*1.1; sc2=0.55+0.45*e; }
+          else if(mk==='charSpin'){ rot=(1-e)*((gi%2)?1:-1)*1.1; sc2=0.55+0.45*e; scY=sc2; }
+          else if(mk==='charDrip'){
+            // 縦書きは読み方向(上→下)そのままに滴る＝一番自然に馴染む向き
+            sc2=1-(1-e)*0.30*pw; scY=1+(1-e)*1.7*pw; dy=-(1-e)*fpx*0.30*pw;
+          }
         }
         // ② 飾り（1文字ずつ系）：出方と重ねがけできる
         if(dk==='karaoke'){
@@ -1155,8 +1239,8 @@ function drawVertical(text,W,H,baseFpx,motion){
         }
         ctx.save();
         ctx.globalAlpha *= Math.max(0,Math.min(1,a));
-        if(rot!==0 || sc2!==1){
-          ctx.translate(x+dx, y0+i*chH+dy); ctx.rotate(rot); ctx.scale(sc2,sc2);
+        if(rot!==0 || sc2!==1 || scY!==1){
+          ctx.translate(x+dx, y0+i*chH+dy); ctx.rotate(rot); ctx.scale(sc2,scY);
           paintVChar(ch, 0, 0, fpx, colorOverride);
         } else {
           paintVChar(ch, x+dx, y0+i*chH+dy, fpx, colorOverride);
@@ -1308,6 +1392,31 @@ function drawFreeform(text,W,H,baseFpx,motion){
   });
   ctx.textAlign=prevAlign;
 }
+// 🎯 一文字スタンプ：行の文字を1つずつ、画面いっぱいの大きさで順番に見せる（同時に写るのは常に1文字だけ）。
+// 各文字の持ち時間は行の表示時間を文字数で均等割り。弾まない素早い着地でスタンプらしい「トンッ」を出す。
+function drawCharStamp(text,W,H,baseFpx,motion){
+  const chars=[...String(text).trim()]; const n=chars.length; if(!n) return;
+  const totalSpan=Math.max(0.6, motion.totalSpan||1.6);
+  const perChar=Math.max(0.30, totalSpan/n);
+  const idx=Math.max(0, Math.min(n-1, Math.floor(motion.tShown/perChar)));
+  const localT=motion.tShown - idx*perChar;
+  const pw=state.motionPower!=null?state.motionPower:1;
+  const p=Math.max(0,Math.min(1, localT/0.15));
+  const e=1-Math.pow(1-p,3);                 // 素早く減速して定位置へ＝弾まない
+  const sc=(1+ (1-e)*0.34*pw);                // 少し大きめから収まる（跳ね返りなし）
+  const px=baseFpx*2.05;
+  const cx=W/2, cy=H*(state.pos==='top'?0.30:state.pos==='bottom'?0.70:0.5);
+  ctx.save();
+  ctx.translate(cx,cy); ctx.scale(sc,sc);
+  ctx.font=`${state.weight} ${px}px '${state.font.fam}', sans-serif`;
+  const ch=chars[idx];
+  const w=measureAt(ch,px);
+  const boxW=Math.max(w,px)*1.32, boxH=px*1.5;
+  ctx.strokeStyle=state.color; ctx.lineWidth=Math.max(2,px*0.018);
+  ctx.strokeRect(-boxW/2,-boxH/2,boxW,boxH);
+  paintText(ch,0,0,px);
+  ctx.restore();
+}
 function roundRect(x,y,w,h,r,fill){
   ctx.beginPath();
   ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
@@ -1388,8 +1497,15 @@ function syncUIFromState(){
   $('color').value=state.color; $('strokeColor').value=state.strokeColor; $('plateColor').value=state.plateColor;
   $('shadow').checked=state.shadow; $('vertical').checked=state.vertical; $('plate').checked=state.plate;
   const vg=$('vignette'); if(vg) vg.checked=!!state.vignette;
+  const rg=$('readGuard'); if(rg) rg.checked=!!state.readGuard;
   $('plateColor').style.display=state.plate?'inline-block':'none';
   segSet('posSeg','pos',state.pos); segSet('alignSeg','align',state.align);
+  segSet('bgSeg','bg',state.bg); segSet('genBgSeg','genbg',state.genBg); segSet('spectrumSeg','spectrum',state.spectrum);
+  $('bgColor').style.display=state.bg==='solid'?'inline-block':'none';
+  $('bgFileBtn').style.display=(state.bg==='image'||state.bg==='video')?'inline-flex':'none';
+  $('genBgRow').style.display=state.bg==='gen'?'flex':'none';
+  $('spectrumColor').value=state.spectrumColor;
+  $('spectrumColor').style.display=state.spectrum==='none'?'none':'inline-block';
   document.querySelectorAll('.font-chip').forEach(c=>c.classList.toggle('sel',c.dataset.fam===state.font.fam));
   syncMotionUI();
 }
@@ -1411,6 +1527,8 @@ const MOTIONS=[   // ①出方（弾む系は廃止。同じボタンをもう�
   { key:'charFloat',  emoji:'🪶', label:'ふわり文字' },
   { key:'charScatter',emoji:'🎲', label:'飛び込み文字' },
   { key:'charSpin',   emoji:'🌀', label:'くるり文字' },
+  { key:'charDrip',   emoji:'💧', label:'したたる文字' },
+  { key:'charStamp',  emoji:'🎯', label:'一文字スタンプ' },
 ];
 const DECOS=[     // ②飾り（カラオケ配色のみ。もう一度押すと解除）
   { key:'none',       emoji:'➖', label:'なし' },
@@ -1999,17 +2117,28 @@ function pickMime(){
   const c=['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'];
   return c.find(m=>MediaRecorder.isTypeSupported(m))||'';
 }
+// audio要素につながるWeb Audioグラフを1度だけ作る（録画用の出力とスペクトラム解析用のAnalyserを両方ぶら下げる）。
+// createMediaElementSourceは同じ<audio>に対して一度しか呼べないため、録画・可視化のどちらから
+// 先に必要になっても必ずこの1箇所だけを通す。
+function ensureAudioGraph(){
+  if(recAudioCtx) return recAudioCtx;
+  try{
+    recAudioCtx=new (window.AudioContext||window.webkitAudioContext)();
+    mediaSrcNode=recAudioCtx.createMediaElementSource(audio);
+    audioDestNode=recAudioCtx.createMediaStreamDestination();
+    analyserNode=recAudioCtx.createAnalyser();
+    analyserNode.fftSize=256; analyserNode.smoothingTimeConstant=0.75;
+    mediaSrcNode.connect(audioDestNode);
+    mediaSrcNode.connect(recAudioCtx.destination); // スピーカーでも聞こえるように
+    mediaSrcNode.connect(analyserNode);
+  }catch(e){ console.warn('音声グラフを作成できません:', e); }
+  return recAudioCtx;
+}
 // 映像(canvas)＋音声(audio要素)を1つのストリームにまとめる → 音楽入り動画になる
 function getRecStream(){
   const vid=canvas.captureStream(30);
   try{
-    if(!recAudioCtx){
-      recAudioCtx=new (window.AudioContext||window.webkitAudioContext)();
-      mediaSrcNode=recAudioCtx.createMediaElementSource(audio);
-      audioDestNode=recAudioCtx.createMediaStreamDestination();
-      mediaSrcNode.connect(audioDestNode);
-      mediaSrcNode.connect(recAudioCtx.destination); // スピーカーでも聞こえるように
-    }
+    ensureAudioGraph();
     if(recAudioCtx.state==='suspended') recAudioCtx.resume();
     return new MediaStream([...vid.getVideoTracks(), ...audioDestNode.stream.getAudioTracks()]);
   }catch(e){ console.warn('音声合成不可・映像のみ:',e); return vid; }
@@ -2177,7 +2306,7 @@ function bindControls(){
   $('undoDelBtn').onclick=undoDelete;
   $('copyTimesBtn').onclick=()=>{
     if(!lyrics.length){ toast('先に歌詞を入力してください'); return; }
-    const txt='build59  '+lyrics.map((l,i)=>`${i+1}. ${l.t!=null?fmt(l.t):'--'}  ${l.text||'(空)'}`).join('\n');
+    const txt='build60  '+lyrics.map((l,i)=>`${i+1}. ${l.t!=null?fmt(l.t):'--'}  ${l.text||'(空)'}`).join('\n');
     const done=()=>toast('コピーしました。チャットに貼り付けて教えてください');
     if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(done).catch(()=>fallbackCopy(txt,done)); }
     else fallbackCopy(txt,done);
@@ -2245,6 +2374,7 @@ function bindControls(){
   $('shadow').onchange=e=>{state.shadow=e.target.checked;draw();};
   $('vertical').onchange=e=>{state.vertical=e.target.checked;draw();};
   $('plate').onchange=e=>{state.plate=e.target.checked;$('plateColor').style.display=e.target.checked?'inline-block':'none';draw();};
+  $('readGuard').onchange=e=>{state.readGuard=e.target.checked;draw();};
 
   segBind('posSeg','pos'); segBind('alignSeg','align');
   // 背景
@@ -2253,12 +2383,25 @@ function bindControls(){
     state.bg=b.dataset.bg;
     $('bgColor').style.display=state.bg==='solid'?'inline-block':'none';
     $('bgFileBtn').style.display=(state.bg==='image'||state.bg==='video')?'inline-flex':'none';
+    $('genBgRow').style.display=state.bg==='gen'?'flex':'none';
     draw();
   });
   $('bgColor').oninput=e=>{state.bgColor=e.target.value;draw();};
   $('vignette').onchange=e=>{state.vignette=e.target.checked;draw();};
   $('bgFile').onchange=e=>loadBg(e.target.files[0]);
   $('aspect').onchange=e=>{state.aspect=e.target.value;applyAspect();};
+  $('genBgSeg').querySelectorAll('button').forEach(b=>b.onclick=()=>{
+    $('genBgSeg').querySelectorAll('button').forEach(x=>x.classList.remove('on')); b.classList.add('on');
+    state.genBg=b.dataset.genbg; draw();
+  });
+  $('spectrumSeg').querySelectorAll('button').forEach(b=>b.onclick=()=>{
+    $('spectrumSeg').querySelectorAll('button').forEach(x=>x.classList.remove('on')); b.classList.add('on');
+    state.spectrum=b.dataset.spectrum;
+    $('spectrumColor').style.display=state.spectrum==='none'?'none':'inline-block';
+    if(state.spectrum!=='none' && audio.src) ensureAudioGraph();   // 音源が既にあるなら即座にAnalyserを準備
+    draw();
+  });
+  $('spectrumColor').oninput=e=>{state.spectrumColor=e.target.value;draw();};
 
   $('recBtn').onclick=exportWebM; $('pngBtn').onclick=exportPNG; $('lrcBtn').onclick=exportLRC;
   $('zipBtn').onclick=exportAssets; $('assBtn').onclick=exportASS; $('srtBtn').onclick=exportSRT;
@@ -2676,7 +2819,7 @@ async function alignLyricsToAudio(){
     // オンセット検出とWhisper文字起こしはWorker側で実行＝タブが裏に回っても最後まで進む
     const {chunks, wordLevel} = await runAlignInWorker(floats, 16000, modelId,
       (msg,pct)=>alignProgress(true,msg,pct),
-      (onsets)=>{ songOnsets=onsets||[]; }   // 「ビート」飾りの拍同期に使う
+      (onsets)=>{ songOnsets=onsets||[]; }   // 歌い出しを打点にスナップして精度を上げるのに使う
     );
     applyAlignment(chunks, wordLevel, songOnsets);
     // タイミングが付いたので、各行の音量(強弱)も測っておく → おまかせ演出で「盛り上がり＝大きく」ができる
