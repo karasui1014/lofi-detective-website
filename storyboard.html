@@ -6197,37 +6197,8 @@ function updateStampCountLabel() {
 // 開始フレーム＋終了フレームのペアで短いクリップを生成し、
 // 終了フレームを次カットの開始フレームに使い回して1本に連結するワークフロー
 // ─────────────────────────────────────────
-(function() {
-  function toggleSeedanceMode() {
-    const on = document.body.classList.toggle('seedance-on');
-    safeStore('set', 'sb_seedance_mode', on ? '1' : '');
-    sdToast(on ? '🌊 Seedanceモード ON — 絵コンテ生成後にボタンが出ます' : 'Seedanceモード OFF');
-  }
-  // 復元
-  if (safeStore('get', 'sb_seedance_mode') === '1') document.body.classList.add('seedance-on');
-
-  // PC: Sキー5連打（入力欄以外）
-  let _sbuf = 0;
-  document.addEventListener('keydown', e => {
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-    if (e.key === 's' || e.key === 'S') {
-      _sbuf++;
-      if (_sbuf >= 5) { _sbuf = 0; toggleSeedanceMode(); }
-    } else {
-      _sbuf = 0;
-    }
-  });
-
-  // スマホ: ヘッダーの🎬ロゴを7回タップ（3秒以内の連打）
-  let _taps = 0, _tapTimer = null;
-  const logo = document.querySelector('.logo-mark');
-  if (logo) logo.addEventListener('click', () => {
-    _taps++;
-    clearTimeout(_tapTimer);
-    _tapTimer = setTimeout(() => { _taps = 0; }, 3000);
-    if (_taps >= 7) { _taps = 0; toggleSeedanceMode(); }
-  });
-})();
+// Seedanceモードは常時ON（絵コンテ生成後に🌊ボタン・カットバッジが常に表示される）
+document.body.classList.add('seedance-on');
 
 function sdToast(msg) {
   let el = document.getElementById('sd-toast');
@@ -6345,6 +6316,288 @@ function sdCopyText(btn, text) {
   });
 }
 
+// ─────────────────────────────────────────
+// Codex 一括生成ZIP — 選択カットのプロンプト一式 + エージェント指示書を
+// 依存ライブラリ無し（store方式）でZIP化する。CodexにこのZIPを渡すと
+// AGENTS.md の指示に従って画像・動画素材の生成を開始できる。
+// ─────────────────────────────────────────
+function _sbCrc32(bytes) {
+  let table = _sbCrc32._t;
+  if (!table) {
+    table = _sbCrc32._t = new Uint32Array(256);
+    for (let n = 0; n < 256; n++) {
+      let c = n;
+      for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1;
+      table[n] = c >>> 0;
+    }
+  }
+  let crc = 0xFFFFFFFF;
+  for (let i = 0; i < bytes.length; i++) crc = (crc >>> 8) ^ table[(crc ^ bytes[i]) & 0xFF];
+  return (crc ^ 0xFFFFFFFF) >>> 0;
+}
+function _sbMakeZip(files) {
+  const enc = new TextEncoder();
+  const chunks = [], central = [];
+  let offset = 0;
+  const p16 = (a, v) => a.push(v & 0xff, (v >>> 8) & 0xff);
+  const p32 = (a, v) => a.push(v & 0xff, (v >>> 8) & 0xff, (v >>> 16) & 0xff, (v >>> 24) & 0xff);
+  for (const f of files) {
+    const nameBytes = enc.encode(f.name);
+    const dataBytes = enc.encode(f.content);
+    const crc = _sbCrc32(dataBytes);
+    const local = [];
+    p32(local, 0x04034b50); p16(local, 20); p16(local, 0x0800); p16(local, 0);
+    p16(local, 0); p16(local, 0);                 // mod time / date
+    p32(local, crc); p32(local, dataBytes.length); p32(local, dataBytes.length);
+    p16(local, nameBytes.length); p16(local, 0);
+    const localHead = Uint8Array.from(local);
+    chunks.push(localHead, nameBytes, dataBytes);
+    const c = [];
+    p32(c, 0x02014b50); p16(c, 20); p16(c, 20); p16(c, 0x0800); p16(c, 0);
+    p16(c, 0); p16(c, 0);
+    p32(c, crc); p32(c, dataBytes.length); p32(c, dataBytes.length);
+    p16(c, nameBytes.length); p16(c, 0); p16(c, 0);
+    p16(c, 0); p16(c, 0); p32(c, 0);
+    p32(c, offset);
+    central.push({ head: Uint8Array.from(c), name: nameBytes });
+    offset += localHead.length + nameBytes.length + dataBytes.length;
+  }
+  const centralStart = offset;
+  let centralSize = 0;
+  for (const cr of central) { chunks.push(cr.head, cr.name); centralSize += cr.head.length + cr.name.length; }
+  const eocd = [];
+  p32(eocd, 0x06054b50); p16(eocd, 0); p16(eocd, 0);
+  p16(eocd, central.length); p16(eocd, central.length);
+  p32(eocd, centralSize); p32(eocd, centralStart); p16(eocd, 0);
+  chunks.push(Uint8Array.from(eocd));
+  return new Blob(chunks, { type: 'application/zip' });
+}
+function _sbDownloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1500);
+}
+
+const _sbAgentsMd = (m) => `# AGENTS.md — Seedance ストーリーボード自動生成タスク
+
+あなた（コーディングエージェント / Codex）は、このバンドルを受け取ったら
+以下のタスクを実行してください。追加の指示が無くても、この手順に従って
+絵コンテ素材の生成を開始して構いません。
+
+## ゴール
+manifest.json に定義された ${m.frame_count} 枚のフレーム画像と、
+それらを連結する ${m.clip_count} 本の動画クリップ（Seedance 等の image-to-video）を生成し、
+最終的に 1 本の MV 映像素材 out/final.mp4 を出力する。
+
+- スタイル: ${m.style}
+- 想定尺: 約 ${Math.round(m.total_duration_sec)} 秒
+
+## データ構成
+- manifest.json … フレームとクリップの定義（これが正）
+- prompts/frames/frame-XX.ja.txt / .en.txt … 各静止画の生成プロンプト（日本語 / 英語）
+- prompts/clips/clip-XX.video.ja.txt / .en.txt … 各クリップの動画プロンプト
+- generate.py … 生成パイプラインの雛形（TODO を埋めて実行する）
+
+## 手順
+1. manifest.json を読み込む。
+2. frames[] を順に処理し、image_prompt から静止画を生成して frames/XX.png に保存する。
+   同一キャラクターの一貫性のため、最初のフレームを参照画像として後続へ渡すこと。
+3. clips[] を順に処理する。各クリップは from_frame と to_frame の 2 枚を
+   「開始フレーム」「終了フレーム」として image-to-video モデルに渡し、
+   video_prompt を指示、duration_sec を尺として動画を生成し out/XX.mp4 に保存する。
+4. 連結ルール（重要）: clip N の to_frame は clip N+1 の from_frame と同一画像である。
+   フレームは ${m.frame_count} 枚だけ生成し、隣接クリップで共有すること
+   （manifest 側で既にこのチェーンが表現されている）。
+5. out/XX.mp4 を番号順に結合し out/final.mp4 を出力する。
+
+## 実装メモ
+- generate.py の generate_image() / generate_video() が TODO。
+  利用可能な画像生成 API・image-to-video API に合わせて実装し、実行すること。
+- API キーは環境変数 IMAGE_API_KEY / VIDEO_API_KEY から読む。
+- 破綻を避けるため、開始 / 終了フレームは同一被写体・同一スケール・近い構図を保つ。
+- 日本語 / 英語のプロンプトが両方ある。使用モデルに適した方を選ぶ。
+
+## 実行
+
+    python generate.py --dry-run     # まず計画を表示
+    python generate.py --step all    # フレーム→クリップ→結合を実行
+`;
+
+const _sbReadmeMd = (m) => `# Seedance ストーリーボード素材バンドル
+
+MV 絵コンテ生成ツールで選択したカットを、Seedance（開始 / 終了フレーム連結方式）で
+映像化するための素材一式です。フレーム ${m.frame_count} 枚・クリップ ${m.clip_count} 本。
+
+## 使い方 A: Codex（コーディングエージェント）に任せる
+このフォルダごと（またはこの ZIP を）Codex に渡してください。
+Codex は AGENTS.md を読み、画像・動画の生成パイプラインを組んで実行します。
+画像 / 動画生成 API のキー（IMAGE_API_KEY / VIDEO_API_KEY）が必要です。
+
+## 使い方 B: 手動で Seedance を使う
+1. prompts/frames/frame-01 … の各プロンプトで静止画を生成する。
+2. Seedance に「開始フレーム = frame-N」「終了フレーム = frame-(N+1)」をアップロードし、
+   prompts/clips/clip-N.video … のプロンプトを入力してクリップを生成する。
+3. clip N の終了フレーム画像を clip N+1 の開始フレームに使い回すと 1 本につながる。
+4. 全クリップを編集ソフトで順に連結し、音源に同期する。
+
+## 中身
+- manifest.json … 全フレーム / クリップの構造化データ
+- AGENTS.md … Codex 向けの実行指示書
+- generate.py … 生成パイプラインの雛形
+- prompts/ … 各フレーム・各クリップのプロンプト（日本語 / 英語）
+`;
+
+const _sbGeneratePy = () => `#!/usr/bin/env python3
+"""Seedance storyboard batch generator (scaffold).
+
+Reads manifest.json, generates frame images, then image-to-video clips,
+then concatenates them into out/final.mp4.
+
+Fill in generate_image() and generate_video() with your image / video API,
+set IMAGE_API_KEY / VIDEO_API_KEY, then run:  python generate.py --step all
+"""
+import argparse, json, pathlib
+
+ROOT = pathlib.Path(__file__).parent
+MANIFEST = json.loads((ROOT / "manifest.json").read_text(encoding="utf-8"))
+
+def read_prompt(rel):
+    p = ROOT / rel
+    return p.read_text(encoding="utf-8") if p.exists() else ""
+
+def generate_image(prompt, out_path, ref_image=None):
+    # TODO: call your image-generation API (use IMAGE_API_KEY) and save PNG to out_path.
+    raise NotImplementedError("Implement generate_image(): save an image to " + str(out_path))
+
+def generate_video(start_frame, end_frame, prompt, duration_sec, out_path):
+    # TODO: call your image-to-video API (Seedance etc.) with start_frame + end_frame.
+    raise NotImplementedError("Implement generate_video(): save a clip to " + str(out_path))
+
+def step_frames():
+    (ROOT / "frames").mkdir(exist_ok=True)
+    ref = None
+    for fr in MANIFEST["frames"]:
+        prompt = read_prompt("prompts/frames/%s.ja.txt" % fr["id"]) or fr.get("image_prompt_ja", "")
+        out = ROOT / fr["file"]
+        print("frame", fr["id"], "->", out)
+        generate_image(prompt, out, ref_image=ref)
+        if ref is None:
+            ref = out  # keep first frame as identity reference
+
+def step_clips():
+    (ROOT / "out").mkdir(exist_ok=True)
+    frame_file = {f["id"]: ROOT / f["file"] for f in MANIFEST["frames"]}
+    for cl in MANIFEST["clips"]:
+        prompt = read_prompt("prompts/clips/%s.video.ja.txt" % cl["id"]) or cl.get("video_prompt_ja", "")
+        print("clip", cl["id"], cl["from_frame"], "->", cl["to_frame"], "(%ss)" % cl["duration_sec"])
+        generate_video(frame_file[cl["from_frame"]], frame_file[cl["to_frame"]], prompt,
+                       cl["duration_sec"], ROOT / cl["output"])
+
+def step_concat():
+    outs = [str(ROOT / c["output"]) for c in MANIFEST["clips"]]
+    print("concatenate", len(outs), "clips -> out/final.mp4")
+    # TODO: concatenate the clips in order with ffmpeg (concat demuxer).
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--step", choices=["frames", "clips", "concat", "all"], default="all")
+    ap.add_argument("--dry-run", action="store_true")
+    a = ap.parse_args()
+    print("frames:", MANIFEST["frame_count"], "clips:", MANIFEST["clip_count"])
+    if a.dry_run:
+        for f in MANIFEST["frames"]:
+            print("  FRAME", f["id"], f.get("section", ""), f.get("time_sec", ""))
+        for c in MANIFEST["clips"]:
+            print("  CLIP ", c["id"], c["from_frame"], "->", c["to_frame"], c["duration_sec"], "s")
+        return
+    if a.step in ("frames", "all"): step_frames()
+    if a.step in ("clips", "all"): step_clips()
+    if a.step in ("concat", "all"): step_concat()
+
+if __name__ == "__main__":
+    main()
+`;
+
+function buildCodexBundle(from, to) {
+  const panels = allPanels.slice(from - 1, to);
+  const styleKey = savedState?.styleKey || panels[0]?.styleKey || 'story';
+  const styleLabel = (MV_STYLES[styleKey] && MV_STYLES[styleKey].label) || styleKey;
+
+  const pad = n => String(n).padStart(2, '0');
+  const frames = panels.map((p, i) => ({
+    id: 'frame-' + pad(i + 1),
+    index: i + 1,
+    panel_number: (p.idx ?? (from - 1 + i)) + 1,
+    section: p.isIntro ? 'intro' : p.isOutro ? 'outro' : p.isInterlude ? 'interlude' : (p.section || ''),
+    time_sec: Math.round((p.time || 0) * 10) / 10,
+    image_prompt_ja: p.prompt || '',
+    image_prompt_en: p.promptEn || p.prompt || '',
+    file: 'frames/' + pad(i + 1) + '.png',
+  }));
+
+  const clips = [];
+  for (let i = 0; i < panels.length - 1; i++) {
+    let sd;
+    try { sd = generateSeedanceFLF(panels[i], panels[i + 1], i + 1, i + 2); } catch (e) { continue; }
+    clips.push({
+      id: 'clip-' + pad(i + 1),
+      index: i + 1,
+      from_frame: frames[i].id,
+      to_frame: frames[i + 1].id,
+      duration_sec: sd.durRec,
+      video_prompt_ja: sd.videoPromptJa,
+      video_prompt_en: sd.videoPromptEn,
+      note: sd.warn || '',
+      output: 'out/' + pad(i + 1) + '.mp4',
+    });
+  }
+
+  const manifest = {
+    project: 'MV Storyboard - Seedance chain',
+    style: styleLabel,
+    song_title: savedState?.artist || '',
+    total_duration_sec: savedState?.duration || 0,
+    frame_count: frames.length,
+    clip_count: clips.length,
+    chain_rule: 'clip N の to_frame は clip N+1 の from_frame と同一画像。フレームは frame_count 枚のみ生成し隣接クリップで共有する。',
+    frames,
+    clips,
+  };
+
+  const files = [];
+  files.push({ name: 'manifest.json', content: JSON.stringify(manifest, null, 2) });
+  files.push({ name: 'AGENTS.md', content: _sbAgentsMd(manifest) });
+  files.push({ name: 'README.md', content: _sbReadmeMd(manifest) });
+  files.push({ name: 'generate.py', content: _sbGeneratePy() });
+  frames.forEach(f => {
+    files.push({ name: 'prompts/frames/' + f.id + '.ja.txt', content: f.image_prompt_ja });
+    files.push({ name: 'prompts/frames/' + f.id + '.en.txt', content: f.image_prompt_en });
+  });
+  clips.forEach(c => {
+    files.push({ name: 'prompts/clips/' + c.id + '.video.ja.txt', content: c.video_prompt_ja });
+    files.push({ name: 'prompts/clips/' + c.id + '.video.en.txt', content: c.video_prompt_en });
+  });
+  return { files, manifest };
+}
+
+function sdDownloadCodexZip() {
+  if (!allPanels.length) { sdToast('先に絵コンテを生成してください'); return; }
+  const from = Math.max(1, parseInt(document.getElementById('dl-range-from').value) || 1);
+  const toRaw = Math.min(allPanels.length, parseInt(document.getElementById('dl-range-to').value) || allPanels.length);
+  const to = Math.min(toRaw, from + 10 - 1);
+  if (to - from < 1) { sdToast('2カット以上を選択してください'); return; }
+  try {
+    const { files, manifest } = buildCodexBundle(from, to);
+    const blob = _sbMakeZip(files);
+    _sbDownloadBlob(blob, 'seedance-storyboard-' + from + '-' + to + '.zip');
+    sdToast('📦 ' + manifest.frame_count + 'フレーム / ' + manifest.clip_count + 'クリップのZIPを生成しました');
+  } catch (e) {
+    sdToast('ZIP生成エラー: ' + e.message);
+  }
+}
+
 function sdFillModal(from, to) {
   const body = document.getElementById('sd-modal-body');
   body.innerHTML = '';
@@ -6457,6 +6710,17 @@ function sdFillModal(from, to) {
     mBtn.textContent = '📋 全クリップまとめてコピー';
     mBtn.onclick = function(){ sdCopyText(this, mergedText); };
     body.appendChild(mBtn);
+
+    // ── Codex一括生成ZIP ──
+    const zipBtn = document.createElement('button');
+    zipBtn.style.cssText = 'width:100%;margin-top:.5rem;padding:.6rem;border-radius:10px;border:1.5px solid rgba(52,211,153,.55);background:rgba(52,211,153,.12);color:#34d399;font-weight:700;cursor:pointer;font-size:.75rem;font-family:inherit;flex-shrink:0;';
+    zipBtn.textContent = '📦 Codex一括生成ZIPをダウンロード（選択カット）';
+    zipBtn.onclick = function(){ sdDownloadCodexZip(); };
+    body.appendChild(zipBtn);
+    const zipHint = document.createElement('div');
+    zipHint.style.cssText = 'margin-top:.4rem;font-size:.64rem;line-height:1.7;color:#7dd3fc;text-align:center;flex-shrink:0;';
+    zipHint.textContent = 'ZIPをCodex（コーディングエージェント）に渡すと、同梱のAGENTS.mdの指示に沿って選択カットの画像・動画素材の生成を開始します。';
+    body.appendChild(zipHint);
   }
 }
 
