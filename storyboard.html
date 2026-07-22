@@ -379,6 +379,7 @@ label{display:block;font-size:.68rem;color:var(--text-sec);letter-spacing:.04em;
 .sb-panel:hover{border-color:var(--border-hi);box-shadow:0 6px 24px rgba(0,0,0,.4);transform:translateY(-2px);}
 .sb-panel.intro-panel{border-color:rgba(6,182,212,.2);}
 .sb-panel.outro-panel{border-color:rgba(244,63,94,.2);}
+.sb-panel.interlude-panel{border-color:rgba(129,140,248,.25);}
 @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 
 .panel-top{
@@ -931,6 +932,8 @@ const MV_STYLES = {
     bgs: ['city','spotlight','city','spotlight'],
     pace: 0.8,
     introDesc: ['バンドがステージに登場', '照明が一斉に点灯', 'ギターを手にした主人公', 'ドラムのカウントイン'],
+    interludeDesc: ['ギターソロに合わせて照明が激しく明滅', 'ドラムフィルで客席が沸き立つ', '楽器隊がソロを回すステージ全景', '汗が飛び散るスローモーション'],
+    outroDesc: ['最後のコードが鳴り響き照明が落ちる', '演奏を終え荒い息をつくメンバー', 'ステージに残るスモークと静寂', '観客の拍手に包まれる後ろ姿'],
     hint: 'ロックバンドMV。ライブ演奏、バンドメンバーのパフォーマンス、激しいカット割り。強いコントラスト、ハードな照明'
   },
   ballad: {
@@ -941,6 +944,8 @@ const MV_STYLES = {
     bgs: ['rain','stars','nature','stars'],
     pace: 1.6,
     introDesc: ['夕暮れの街並みのロングショット', '窓の外を見つめる後ろ姿', '降り始めた雨', '揺れるカーテンと光'],
+    interludeDesc: ['ピアノの旋律だけが静かに流れる部屋', '雨粒が窓を伝う様子のクローズアップ', '目を閉じて音に浸る横顔', '揺れる灯りと長い静寂'],
+    outroDesc: ['遠ざかる後ろ姿のロングショット', '静かに消えていく灯り', '雨上がりの空を見上げる', '余韻を残したまま暗転していく街並み'],
     hint: 'バラードMV。ゆっくりとしたカメラワーク、感情的な表情のクローズアップ。柔らかい自然光、淡い色調'
   },
   emotional: {
@@ -951,6 +956,8 @@ const MV_STYLES = {
     bgs: ['nature','rain','stars','nature'],
     pace: 1.4,
     introDesc: ['朝焼けの空の全景', '主人公が一人で歩く路地', '思い出の場所へ向かう足元', '風で揺れる木の葉'],
+    interludeDesc: ['過ぎ去った日々を振り返るような静かな街並み', '手の中の思い出の品のクローズアップ', '風に揺れる木漏れ日の中に立つ後ろ姿', '静止したような時間の中の空の色'],
+    outroDesc: ['夕日に染まる道を歩き去る後ろ姿', '涙の跡が乾いていく穏やかな表情', '光の中に溶けていくような余韻のカット', '静かに微笑みながら空を見上げる'],
     hint: '感動系MV。人物の感情変化を丁寧に追う。涙・希望・再生のテーマ。温かみのある光、セピアと鮮やかさの対比'
   },
   mysterious: {
@@ -961,6 +968,8 @@ const MV_STYLES = {
     bgs: ['stars','default','stars','rain'],
     pace: 1.5,
     introDesc: ['霧に包まれた幻想的な空間', '鏡の中から現れる光', '時間が止まったような街', '空中に浮かぶ光の粒子'],
+    interludeDesc: ['浮遊する光の粒子だけが漂う無音の空間', '万華鏡のように色が反転する景色', '止まった時計と静止した街の全景', '鏡の中で揺らぐもう一つの世界'],
+    outroDesc: ['光の粒子となって溶けていく風景', '霧の向こうへ消えていくシルエット', '夢から覚めるように色彩が薄れていく', '静寂の中に残る一筋の光'],
     hint: '幻想的・不思議系MV。シュールな映像表現、非現実的な空間構成。夢と現実の境界、ファンタジー的な色使い'
   },
   performance: {
@@ -971,6 +980,8 @@ const MV_STYLES = {
     bgs: ['spotlight','city','spotlight','spotlight'],
     pace: 0.9,
     introDesc: ['ステージ全景の壮大なロングショット', 'スポットライトが灯る瞬間', 'ダンサーたちが定位置につく', 'イントロのビートに合わせた静のポーズ'],
+    interludeDesc: ['ダンスブレイクで隊列が入れ替わる俯瞰ショット', 'フォーメーションが切り替わる瞬間のワイドショット', 'ソロダンサーにスポットが当たる', '楽器隊のインストゥルメンタルパートを捉えるカット'],
+    outroDesc: ['最後のフォーメーションで静止するダンサーたち', '照明が絞られていく中でのフィニッシュポーズ', '荒い息のまま見せる決めのカット', 'ステージに残る光と静寂'],
     hint: 'パフォーマンスMV。ダンス・歌唱シーンを中心に構成。振り付けの見せ場、アーティストの表情・ボディランゲージを重視'
   },
   story: {
@@ -981,6 +992,8 @@ const MV_STYLES = {
     bgs: ['city','nature','rain','city'],
     pace: 1.3,
     introDesc: ['街の夜景の俯瞰ショット', '主人公が歩く路地裏', '鍵となるアイテムのクローズアップ', '出会いの予感を感じさせる交差点'],
+    interludeDesc: ['物語の転換点を示す無人の風景ショット', '時間経過を感じさせる空模様の移り変わり', '主人公不在のまま流れる街の情景', '次の展開を予感させる象徴的なカット'],
+    outroDesc: ['物語が静かに幕を閉じる遠景ショット', '歩き去る主人公の後ろ姿', '始まりの場所に戻ってくるカメラワーク', '余韻を残すエンドロール風のロングショット'],
     hint: '短編映画風MV。明確なキャラクターと物語構造、起承転結を意識した演出。シネマティックな映像美、映画的な色彩設計'
   },
   concept: {
@@ -991,6 +1004,8 @@ const MV_STYLES = {
     bgs: ['stars','spotlight','default','stars'],
     pace: 1.2,
     introDesc: ['コンセプトカラーに染まる抽象空間', 'アーティストのシルエット', '象徴的なモチーフのクローズアップ', '繰り返すビジュアルパターン'],
+    interludeDesc: ['コンセプトカラーが反転・変容していく抽象映像', '象徴モチーフが分解・再構築される様子', 'パターンが連続的に変化するビジュアルループ', '色彩だけで感情を語る無人のカット'],
+    outroDesc: ['コンセプトカラーが一色に収束していく', 'モチーフが静止し画面が余白に還る', 'シルエットが淡く消えていく', '統一されたビジュアル世界が静かに閉じる'],
     hint: 'コンセプチュアルMV。強烈なビジュアルコンセプト、色彩・構図の統一感。アート性の高い映像表現、視覚的な一貫性'
   },
   liveshow: {
@@ -1001,6 +1016,8 @@ const MV_STYLES = {
     bgs: ['spotlight','city','spotlight','spotlight'],
     pace: 0.85,
     introDesc: ['アリーナ全景の壮大なロングショット', '観客が埋め尽くしたスタジアム', 'ステージ袖で待機するアーティスト', '本番直前の静寂と高鳴り'],
+    interludeDesc: ['バンドソロで盛り上がる客席の俯瞰ショット', 'MC・煽りに応える観客のクローズアップ', 'ペンライトが波打つアリーナ全景', '楽器隊にスポットが移るステージカット'],
+    outroDesc: ['最後の一音とともに照明が落ちるステージ', '観客の拍手と歓声に包まれるアーティスト', 'アンコールを求める客席のワイドショット', 'ステージに残る余韻とスモーク'],
     hint: 'ライブコンサートMV。実際のステージ照明、観客の熱狂、ライブならではの躍動感。汗・熱気・一体感の表現。カメラワークは積極的に動かし、ハンドヘルド・クレーン・オービット・ウィップパンを多用してライブの臨場感を最大化'
   },
   bizarre: {
@@ -1011,6 +1028,8 @@ const MV_STYLES = {
     bgs: ['abstract','stars','default','abstract'],
     pace: 1.1,
     introDesc: ['抽象的な幾何学模様が広がる空間', '色彩が溢れ出す境界のない世界', '芸術家の脳内を覗いたような光景', '常識を超えた非線形な空間'],
+    interludeDesc: ['幾何学模様が予測不能に変形し続ける空間', '重力を無視して漂うオブジェクト群', '色彩が渦を巻いて溶け合う非現実的な光景', '時間軸が歪んだような映像のループ'],
+    outroDesc: ['すべての形が一点に収束していく', '色彩が徐々に単色へと還元されていく', '非現実的な空間が静かに閉じていく', '常識の外側から現実へ戻るような余韻'],
     hint: '奇想天外・シュールアートMV。ダリやマグリットを思わせる非現実的な映像。強烈な色彩対比、デザイン主導の演出、芸術的な視覚体験。人物よりもビジュアルそのものが主役'
   }
 };
@@ -2602,6 +2621,21 @@ function styleColor(styleKey, idx) {
   return palette[idx % palette.length];
 }
 
+// セクション名から intro/interlude/outro を判定（ユーザーが手入力した見出しを優先的に尊重する）
+function sectionKind(name) {
+  const n = (name || '').toLowerCase();
+  if (/intro|前奏|イントロ/.test(n)) return 'intro';
+  if (/outro|アウトロ|後奏|エンディング|ending/.test(n)) return 'outro';
+  if (/interlude|間奏|instrumental|ブレイク|break|inst\b/.test(n)) return 'interlude';
+  return null;
+}
+// 「（前奏部分）」のような中身のない仮テキストかどうかを判定
+// ─ 短い・記号だけのラベルなら仮テキストとして扱い、スタイル標準の描写に差し替える
+function isPlaceholderText(s) {
+  const stripped = (s || '').replace(/[（）()「」『』・:：\-—―\s♪]/g, '');
+  return stripped.length <= 6;
+}
+
 // ─────────────────────────────────────────
 // Lyrics → scenes (with intro/outro)
 // ─────────────────────────────────────────
@@ -2664,60 +2698,112 @@ function parseLyrics(raw, panelCount, duration, styleKey, stampBoundaries) {
   }
   if (buffer.length) lyricScenes.push({ section: sectionName, lines: buffer });
 
-  // Calculate intro/outro panel counts from actual audio content
-  // audioFeatures is a global; introEndSec=0 means song starts immediately
+  // ── ユーザーが歌詞欄に明示した [Intro]/[Outro] 見出しを検出 ──
+  // 先頭から連続する Intro 見出し・末尾から連続する Outro 見出しを、そのユーザー入力を
+  // 正として扱う（未入力の場合のみ、下の音声解析ベースの自動検出にフォールバックする）
+  let leadCut = 0;
+  while (leadCut < lyricScenes.length && sectionKind(lyricScenes[leadCut].section) === 'intro') leadCut++;
+  const explicitIntroScenes = lyricScenes.slice(0, leadCut);
+
+  let tailCut = lyricScenes.length;
+  while (tailCut > leadCut && sectionKind(lyricScenes[tailCut - 1].section) === 'outro') tailCut--;
+  const explicitOutroScenes = lyricScenes.slice(tailCut);
+
+  // 中間セクションのうち [Interlude]/間奏 見出しには isInterlude フラグを付与
+  // （プレースホルダーのみの行はスタイル標準の間奏描写に差し替える）
+  let interludeCounter = 0;
+  const middleScenes = lyricScenes.slice(leadCut, tailCut).map(s => {
+    if (sectionKind(s.section) !== 'interlude') return s;
+    const placeholder = isPlaceholderText(s.lines.join(''));
+    const descs = style.interludeDesc || style.introDesc;
+    const lines = placeholder ? [descs[interludeCounter % descs.length]] : s.lines;
+    interludeCounter++;
+    return { ...s, lines, isInterlude: true };
+  });
+
+  // Audio content (silence-detection) — used for timing, and as a fallback
+  // when the user didn't write an explicit [Intro]/[Outro] section at all.
   const introEndSec   = audioFeatures?.introEndSec   ?? 0;
   const outroStartSec = audioFeatures?.outroStartSec ?? duration;
   const outroDuration = Math.max(0, duration - outroStartSec);
 
-  const introPanelCount = introEndSec < 2
-    ? 0
-    : Math.min(8, Math.max(3, Math.round((introEndSec / duration) * panelCount)));
-  const outroPanelCount = outroDuration < 3
-    ? 0
-    : Math.min(4, Math.max(1, Math.round((outroDuration / duration) * panelCount)));
-  const lyricPanelCount = Math.max(1, panelCount - introPanelCount - outroPanelCount);
+  const introDescs = style.introDesc;
+  let introScenes;
+  if (explicitIntroScenes.length > 0) {
+    // ユーザー入力を正とする。音声解析でイントロ長が取れていればそれを使い、
+    // 取れていなければ楽曲尺から妥当な長さを見積もる
+    const introSpanEnd = introEndSec >= 2 ? introEndSec : Math.min(duration * 0.12, 20);
+    const n = explicitIntroScenes.length;
+    introScenes = explicitIntroScenes.map((s, i) => ({
+      section: s.section || 'INTRO',
+      lines: isPlaceholderText(s.lines.join('')) ? [introDescs[i % introDescs.length]] : s.lines,
+      stampTime: (introSpanEnd / n) * i,
+      stampEnd:  (introSpanEnd / n) * (i + 1),
+      isIntro: true
+    }));
+  } else {
+    const introPanelCount = introEndSec < 2
+      ? 0
+      : Math.min(8, Math.max(3, Math.round((introEndSec / duration) * panelCount)));
+    introScenes = Array.from({ length: introPanelCount }, (_, i) => ({
+      section: 'INTRO',
+      lines: [introDescs[i % introDescs.length]],
+      stampTime: introPanelCount > 0 ? (introEndSec / introPanelCount) * i : 0,
+      stampEnd:  introPanelCount > 0 ? (introEndSec / introPanelCount) * (i + 1) : introEndSec,
+      isIntro: true
+    }));
+  }
 
-  // Timing helpers
-  const lyricStart = introEndSec;
-  const lyricEnd   = outroStartSec;
+  const outroDescs = style.outroDesc || ['フェードアウト、余韻を残すエンディングショット'];
+  let outroScenes;
+  if (explicitOutroScenes.length > 0) {
+    const estOutroDur = outroDuration >= 3 ? outroDuration : Math.min(duration * 0.1, 15);
+    const outroSpanStart = Math.max(0, duration - estOutroDur);
+    const n = explicitOutroScenes.length;
+    outroScenes = explicitOutroScenes.map((s, j) => ({
+      section: s.section || 'OUTRO',
+      lines: isPlaceholderText(s.lines.join('')) ? [outroDescs[j % outroDescs.length]] : s.lines,
+      stampTime: outroSpanStart + (estOutroDur / n) * j,
+      stampEnd:  outroSpanStart + (estOutroDur / n) * (j + 1),
+      isOutro: true
+    }));
+  } else {
+    const outroPanelCount = outroDuration < 3
+      ? 0
+      : Math.min(4, Math.max(1, Math.round((outroDuration / duration) * panelCount)));
+    outroScenes = Array.from({ length: outroPanelCount }, (_, j) => ({
+      section: 'OUTRO',
+      lines: [outroDescs[j % outroDescs.length]],
+      stampTime: outroDuration > 0 ? outroStartSec + (outroDuration / outroPanelCount) * j : outroStartSec,
+      stampEnd:  outroDuration > 0 ? outroStartSec + (outroDuration / outroPanelCount) * (j + 1) : duration,
+      isOutro: true
+    }));
+  }
+
+  const lyricPanelCount = Math.max(1, panelCount - introScenes.length - outroScenes.length);
+
+  // Timing helpers — the lyric body spans from where the (explicit or auto) intro
+  // ends to where the (explicit or auto) outro begins
+  const lyricStart = introScenes.length ? introScenes[introScenes.length - 1].stampEnd : introEndSec;
+  const lyricEnd   = outroScenes.length ? outroScenes[0].stampTime : outroStartSec;
   const lyricDur   = Math.max(1, lyricEnd - lyricStart);
 
-  // Build intro panels
-  const introDescs = style.introDesc;
-  const introScenes = Array.from({ length: introPanelCount }, (_, i) => ({
-    section: 'INTRO',
-    lines: [introDescs[i % introDescs.length]],
-    stampTime: introPanelCount > 0 ? (introEndSec / introPanelCount) * i : 0,
-    stampEnd:  introPanelCount > 0 ? (introEndSec / introPanelCount) * (i + 1) : introEndSec,
-    isIntro: true
-  }));
-
   // Trim lyric scenes to fit, assigning audio-accurate timestamps
-  const trimmedLyric = lyricScenes.slice(0, lyricPanelCount).map((s, i) => ({
+  const trimmedLyric = middleScenes.slice(0, lyricPanelCount).map((s, i) => ({
     ...s,
     stampTime: lyricStart + (lyricDur / Math.max(1, lyricPanelCount)) * i,
     stampEnd:  lyricStart + (lyricDur / Math.max(1, lyricPanelCount)) * (i + 1),
   }));
   // Pad if fewer lyric scenes than needed
-  while (trimmedLyric.length < lyricPanelCount && lyricScenes.length > 0) {
+  while (trimmedLyric.length < lyricPanelCount && middleScenes.length > 0) {
     const j = trimmedLyric.length;
-    const src = lyricScenes[j % lyricScenes.length];
+    const src = middleScenes[j % middleScenes.length];
     trimmedLyric.push({
       ...src, section: src.section + ' (reprise)',
       stampTime: lyricStart + (lyricDur / Math.max(1, lyricPanelCount)) * j,
       stampEnd:  lyricStart + (lyricDur / Math.max(1, lyricPanelCount)) * (j + 1),
     });
   }
-
-  // Build outro panels
-  const outroScenes = Array.from({ length: outroPanelCount }, (_, j) => ({
-    section: 'OUTRO',
-    lines: ['フェードアウト、余韻を残すエンディングショット'],
-    stampTime: outroDuration > 0 ? outroStartSec + (outroDuration / outroPanelCount) * j : outroStartSec,
-    stampEnd:  outroDuration > 0 ? outroStartSec + (outroDuration / outroPanelCount) * (j + 1) : duration,
-    isOutro: true
-  }));
 
   return [...introScenes, ...trimmedLyric, ...outroScenes].slice(0, panelCount);
 }
@@ -2735,10 +2821,10 @@ function buildPanel(scene, idx, total, duration, styleKey, lyricsContext) {
 
   let shot, pose, bg, color;
 
-  if (scene.isIntro || scene.isOutro) {
-    // Intro/outro: use cinematic arc defaults
+  if (scene.isIntro || scene.isOutro || scene.isInterlude) {
+    // Intro/interlude/outro: use cinematic arc defaults (no vocals — atmosphere over character)
     const arc = cinematicArc(idx, total, styleKey, seed);
-    shot = scene.isIntro ? (idx < 2 ? 'EWS' : 'WS') : 'EWS';
+    shot = scene.isIntro ? (idx < 2 ? 'EWS' : 'WS') : scene.isOutro ? 'EWS' : arc.shot;
     pose = arc.pose;
     bg   = arc.bg;
     color = styleColor(styleKey, idx);
@@ -2784,7 +2870,7 @@ function buildPanel(scene, idx, total, duration, styleKey, lyricsContext) {
 
   // Determine visual type
   const hasKw = !!detectLyricsOverride(scene.lines.join(' '));
-  let visualType = getVisualType(idx, styleKey, hasKw, !!scene.isIntro, !!scene.isOutro, seqOffset);
+  let visualType = getVisualType(idx, styleKey, hasKw, !!scene.isIntro, !!scene.isOutro || !!scene.isInterlude, seqOffset);
 
   // ── 最優先: ユーザー要望欄の内容を反映 ──
   const userReqHints = lyricsContext?.userReqHints || null;
@@ -2795,7 +2881,7 @@ function buildPanel(scene, idx, total, duration, styleKey, lyricsContext) {
     if (userReqHints.pose)       pose       = userReqHints.pose;
   }
 
-  const jaDesc = scene.isIntro || scene.isOutro
+  const jaDesc = scene.isIntro || scene.isOutro || scene.isInterlude
     ? scene.lines[0]
     : scene.lines.join('\n');
 
@@ -2813,7 +2899,7 @@ function buildPanel(scene, idx, total, duration, styleKey, lyricsContext) {
   // ── Tone key (needed for both intro/outro and verse sections) ──
   const toneKey = lyricsContext?.lyricsAnalysis?.tone || 'neutral';
 
-  if (!scene.isIntro && !scene.isOutro) {
+  if (!scene.isIntro && !scene.isOutro && !scene.isInterlude) {
     // ── Timestamp ──
     const ts = formatTime(t);
     const tsEnd = (scene.stampEnd !== undefined) ? formatTime(scene.stampEnd) : '';
@@ -2873,11 +2959,14 @@ function buildPanel(scene, idx, total, duration, styleKey, lyricsContext) {
     if (imagery.ja.length) finalBgJa = `${imgJa}${finalBgJa}`;
     if (imagery.en.length) finalBgEn = `${imgEn}${finalBgEn}`;
   } else {
-    // Intro/outro get their narrative role + tone atmosphere
+    // Intro/interlude/outro get their narrative role + tone atmosphere
+    // (interlude also keeps a timestamp since — unlike intro/outro — it can sit anywhere mid-song)
     const atmo = toneAtmosphere(toneKey);
-    const role = emotionRole(scene.section, !!scene.isIntro, !!scene.isOutro);
-    finalPromptJa = `${role.ja}　${atmo.ja}　${finalPromptJa}`;
-    finalPromptEn = `${role.en}, ${atmo.en}, ${finalPromptEn}`;
+    const role = emotionRole(scene.section, !!scene.isIntro, !!scene.isOutro, !!scene.isInterlude);
+    const timeTagJa = scene.isInterlude ? `【タイム】${formatTime(t)}　` : '';
+    const timeTagEn = scene.isInterlude ? `[time: ${formatTime(t)}] ` : '';
+    finalPromptJa = `${timeTagJa}${role.ja}　${atmo.ja}　${finalPromptJa}`;
+    finalPromptEn = `${timeTagEn}${role.en}, ${atmo.en}, ${finalPromptEn}`;
   }
 
   return { shot, pose, bg, color, idx, time: t, lines: scene.lines, section: scene.section,
@@ -2885,7 +2974,7 @@ function buildPanel(scene, idx, total, duration, styleKey, lyricsContext) {
            prompt: finalPromptJa, promptEn: finalPromptEn,
            bgPrompt: finalBgJa, bgPromptEn: finalBgEn,
            visualType, styleKey,
-           isIntro: !!scene.isIntro, isOutro: !!scene.isOutro,
+           isIntro: !!scene.isIntro, isOutro: !!scene.isOutro, isInterlude: !!scene.isInterlude,
            stampDriven: !!lyricsContext?.stampDriven,
            _scene: scene, _svgVariant: svgVariant, _regenCount: 0,
            _userReqHints: userReqHints || null };
@@ -2926,14 +3015,14 @@ function diversifyPanels(panels, styleKey) {
     const prev = i > 0 ? panels[i-1] : null;
     const prev2 = i > 1 ? panels[i-2] : null;
 
-    // Skip intro/outro tweaks
-    if (cur.isIntro || cur.isOutro) {
+    // Skip intro/interlude/outro tweaks
+    if (cur.isIntro || cur.isOutro || cur.isInterlude) {
       consecChar = 0;
       continue;
     }
 
     // Rule 1: same visualType+pose as previous → vary pose
-    if (prev && !prev.isIntro && !prev.isOutro &&
+    if (prev && !prev.isIntro && !prev.isOutro && !prev.isInterlude &&
         cur.visualType === prev.visualType && cur.pose === prev.pose) {
       const alts = POSE_ALT[cur.pose] || [];
       if (alts.length) cur.pose = alts[i % alts.length];
@@ -3094,7 +3183,7 @@ function toneAtmosphere(tone) {
 }
 
 // Section position → emotional narrative role (implements 感情曲線 from director templates)
-function emotionRole(section, isIntro, isOutro) {
+function emotionRole(section, isIntro, isOutro, isInterlude) {
   if (isIntro) return {
     ja: '【役割】世界観の提示・期待感の醸成・MV全体の感情の下地を作る導入部',
     en: '[narrative role] establish world and tone, build anticipation, lay emotional foundation for the entire MV',
@@ -3102,6 +3191,10 @@ function emotionRole(section, isIntro, isOutro) {
   if (isOutro) return {
     ja: '【役割】感情の着地・余韻の残像・MV全体の感情を静かに閉じるエンディング',
     en: '[narrative role] emotional resolution, lingering afterglow, quiet closing of the full emotional arc',
+  };
+  if (isInterlude) return {
+    ja: '【役割】歌詞を離れ演奏・情景そのものに委ねる間奏部・感情を一度静めて次の展開への呼吸を作る',
+    en: '[narrative role] instrumental interlude — step away from the lyrics into pure performance/scenery, a breath before the next section',
   };
   const s = (section || '').toLowerCase();
   if (/chorus|サビ|ref/.test(s)) return {
@@ -3392,7 +3485,8 @@ function renderPanelSVG(panel) {
 
   const overlay = panel.isIntro
     ? `<rect width="${W}" height="${H}" fill="rgba(0,60,140,.025)"/>`
-    : panel.isOutro ? `<rect width="${W}" height="${H}" fill="rgba(140,30,30,.025)"/>` : '';
+    : panel.isOutro ? `<rect width="${W}" height="${H}" fill="rgba(140,30,30,.025)"/>`
+    : panel.isInterlude ? `<rect width="${W}" height="${H}" fill="rgba(90,80,220,.025)"/>` : '';
 
   let defs = roughDef + bgFiltDef + hatchPreDef + hatchDef + xhatchDef + vignetteDef + dofDef;
   let innerSVG = '';
@@ -3637,19 +3731,19 @@ function repairJSON(raw) {
 // ─────────────────────────────────────────
 const _STL_JA = {
   intro:'イントロ', verse:'Aメロ', pre_chorus:'Bメロ', chorus:'サビ',
-  bridge:'ブリッジ', outro:'アウトロ',
+  bridge:'ブリッジ', interlude:'間奏', outro:'アウトロ',
 };
 const _STL_CLR = {
   intro:'#06b6d4', verse:'#60a5fa', pre_chorus:'#a78bfa', chorus:'#f59e0b',
-  bridge:'#34d399', outro:'#f43f5e',
+  bridge:'#34d399', interlude:'#818cf8', outro:'#f43f5e',
 };
 function songPositionHtml(p) {
   const totalDur = savedState?.duration || 0;
   const t = p.time || 0;
   const pct = totalDur > 0 ? Math.min(99.5, (t / totalDur) * 100) : 0;
   const sec = (p.section || '').toLowerCase();
-  const sectionJa = _STL_JA[sec] || (p.isIntro ? 'イントロ' : p.isOutro ? 'アウトロ' : (p.section || '').toUpperCase() || '—');
-  const clr = _STL_CLR[sec] || (p.isIntro ? '#06b6d4' : p.isOutro ? '#f43f5e' : '#94a3b8');
+  const sectionJa = _STL_JA[sec] || (p.isIntro ? 'イントロ' : p.isOutro ? 'アウトロ' : p.isInterlude ? '間奏' : (p.section || '').toUpperCase() || '—');
+  const clr = _STL_CLR[sec] || (p.isIntro ? '#06b6d4' : p.isOutro ? '#f43f5e' : p.isInterlude ? '#818cf8' : '#94a3b8');
   const lyricLines = (p.lines || []).filter(l => l && !/^\[/.test(l));
   const lyricsHtml = lyricLines.length
     ? `<div class="stl-lyrics">${escapeHtml(lyricLines.slice(0, 3).join('　／　'))}</div>`
@@ -3673,7 +3767,7 @@ function songPositionHtml(p) {
 // ─────────────────────────────────────────
 function buildPanelEl(p, displayNum) {
   const el = document.createElement('div');
-  el.className = 'sb-panel' + (p.isIntro ? ' intro-panel' : p.isOutro ? ' outro-panel' : '');
+  el.className = 'sb-panel' + (p.isIntro ? ' intro-panel' : p.isOutro ? ' outro-panel' : p.isInterlude ? ' interlude-panel' : '');
   el.dataset.panelIdx = p.idx ?? (displayNum - 1);
   const shotLabel = SHOT_LABELS[p.shot] || p.shot;
   const artSVG = renderPanelSVG(p);
@@ -3943,7 +4037,7 @@ function generateScenario(panels, lyrics, lyricsAnalysis, seed, userRequest) {
   const secGroups = [];
   let cur = null;
   panels.forEach(p => {
-    const name = p.section || (p.isIntro ? 'INTRO' : p.isOutro ? 'OUTRO' : 'SCENE');
+    const name = p.section || (p.isIntro ? 'INTRO' : p.isOutro ? 'OUTRO' : p.isInterlude ? 'INTERLUDE' : 'SCENE');
     if (!cur || cur.name !== name) { cur = { name, panels: [], t0: p.time }; secGroups.push(cur); }
     cur.panels.push(p); cur.t1 = p.time;
   });
@@ -3953,6 +4047,7 @@ function generateScenario(panels, lyrics, lyricsAnalysis, seed, userRequest) {
     const n = (name||'').toLowerCase();
     if (/intro|前奏|イントロ/.test(n))       return 'intro';
     if (/outro|アウトロ|後奏/.test(n))        return 'outro';
+    if (/interlude|間奏|instrumental|ブレイク/.test(n)) return 'interlude';
     if (/chorus|サビ|ref/.test(n))            return 'chorus';
     if (/bridge|ブリッジ|cメロ|c-melo/.test(n)) return 'bridge';
     return 'verse';
@@ -4542,7 +4637,7 @@ async function regeneratePanel(btn) {
     const lyricsContext = { seed: newSeed, lyricsAnalysis: lyricsAnalysis || analyzeFullLyrics(lyrics), userReqHints };
     const total = allPanels.length;
 
-    const scene = panel._scene || { lines: panel.lines, section: panel.section, isIntro: panel.isIntro, isOutro: panel.isOutro };
+    const scene = panel._scene || { lines: panel.lines, section: panel.section, isIntro: panel.isIntro, isOutro: panel.isOutro, isInterlude: panel.isInterlude };
 
     // Build base panel then apply pattern overrides for guaranteed distinctness
     const newPanel = buildPanel(scene, idx, total, duration, styleKey, lyricsContext);
@@ -5095,7 +5190,7 @@ function generateAllLocationsPrompt(locationMap, locationOrder, scenarioRaw) {
     const picked = pickIdx.map(i => panels[Math.min(i, total - 1)]);
 
     const callouts = picked.map((p, i) => {
-      const sec = p.isIntro ? 'イントロ' : p.isOutro ? 'アウトロ' : (SECTION_LABEL[(p.section||'').toLowerCase()] || p.section || '');
+      const sec = p.isIntro ? 'イントロ' : p.isOutro ? 'アウトロ' : p.isInterlude ? '間奏' : (SECTION_LABEL[(p.section||'').toLowerCase()] || p.section || '');
       const ts  = p.time != null ? formatTime(p.time) + '〜' : '';
       let desc  = (p.jaDesc || (p.lines || []).join('／')).replace(/【[^】]*】/g, '').trim();
       if (desc.length > 26) desc = desc.substring(0, 26) + '…';
@@ -5103,7 +5198,7 @@ function generateAllLocationsPrompt(locationMap, locationOrder, scenarioRaw) {
     });
 
     const calloutsEn = picked.map((p, i) => {
-      const sec = p.isIntro ? 'intro' : p.isOutro ? 'outro' : (p.section || '').toLowerCase();
+      const sec = p.isIntro ? 'intro' : p.isOutro ? 'outro' : p.isInterlude ? 'interlude' : (p.section || '').toLowerCase();
       const desc = (p.jaDesc || '').replace(/【[^】]*】/g, '').trim().substring(0, 18);
       return `${CIRCLE[i]} ${sec ? sec + ': ' : ''}${desc || `scene ${p.idx + 1}`}`;
     }).join(', ');
@@ -5201,7 +5296,7 @@ function generateLocationImagePrompt(bgKey, lyricLines, scenarioRaw, panels) {
 
   const callouts = pickedPanels.map((p, i) => {
     const num = CIRCLE[i] || `(${i+1})`;
-    const sec = p.isIntro ? 'イントロ' : p.isOutro ? 'アウトロ' : (SECTION_LABEL[p.section] || p.section || '');
+    const sec = p.isIntro ? 'イントロ' : p.isOutro ? 'アウトロ' : p.isInterlude ? '間奏' : (SECTION_LABEL[p.section] || p.section || '');
     const ts  = p.time != null ? `${formatTime(p.time)}〜` : '';
     // Use jaDesc if it looks like a scene description (not just lyrics)
     let desc = (p.jaDesc || (p.lines || []).join('／')).replace(/【[^】]*】/g, '').trim();
@@ -5223,7 +5318,7 @@ function generateLocationImagePrompt(bgKey, lyricLines, scenarioRaw, panels) {
 
   // ── 英語プロンプト（統合版） ──────────────────────────────────────────
   const calloutsEn = pickedPanels.map((p, i) => {
-    const sec = p.isIntro ? 'intro' : p.isOutro ? 'outro' : (p.section || '').toLowerCase();
+    const sec = p.isIntro ? 'intro' : p.isOutro ? 'outro' : p.isInterlude ? 'interlude' : (p.section || '').toLowerCase();
     const desc = (p.jaDesc || '').replace(/【[^】]*】/g, '').trim().substring(0, 20);
     return `${CIRCLE[i]} ${sec ? sec + ': ' : ''}${desc || 'scene ' + (p.idx + 1)}`;
   }).join(', ');
@@ -6102,37 +6197,8 @@ function updateStampCountLabel() {
 // 開始フレーム＋終了フレームのペアで短いクリップを生成し、
 // 終了フレームを次カットの開始フレームに使い回して1本に連結するワークフロー
 // ─────────────────────────────────────────
-(function() {
-  function toggleSeedanceMode() {
-    const on = document.body.classList.toggle('seedance-on');
-    safeStore('set', 'sb_seedance_mode', on ? '1' : '');
-    sdToast(on ? '🌊 Seedanceモード ON — 絵コンテ生成後にボタンが出ます' : 'Seedanceモード OFF');
-  }
-  // 復元
-  if (safeStore('get', 'sb_seedance_mode') === '1') document.body.classList.add('seedance-on');
-
-  // PC: Sキー5連打（入力欄以外）
-  let _sbuf = 0;
-  document.addEventListener('keydown', e => {
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-    if (e.key === 's' || e.key === 'S') {
-      _sbuf++;
-      if (_sbuf >= 5) { _sbuf = 0; toggleSeedanceMode(); }
-    } else {
-      _sbuf = 0;
-    }
-  });
-
-  // スマホ: ヘッダーの🎬ロゴを7回タップ（3秒以内の連打）
-  let _taps = 0, _tapTimer = null;
-  const logo = document.querySelector('.logo-mark');
-  if (logo) logo.addEventListener('click', () => {
-    _taps++;
-    clearTimeout(_tapTimer);
-    _tapTimer = setTimeout(() => { _taps = 0; }, 3000);
-    if (_taps >= 7) { _taps = 0; toggleSeedanceMode(); }
-  });
-})();
+// Seedanceモードは常時ON（絵コンテ生成後に🌊ボタン・カットバッジが常に表示される）
+document.body.classList.add('seedance-on');
 
 function sdToast(msg) {
   let el = document.getElementById('sd-toast');
@@ -6250,6 +6316,288 @@ function sdCopyText(btn, text) {
   });
 }
 
+// ─────────────────────────────────────────
+// Codex 一括生成ZIP — 選択カットのプロンプト一式 + エージェント指示書を
+// 依存ライブラリ無し（store方式）でZIP化する。CodexにこのZIPを渡すと
+// AGENTS.md の指示に従って画像・動画素材の生成を開始できる。
+// ─────────────────────────────────────────
+function _sbCrc32(bytes) {
+  let table = _sbCrc32._t;
+  if (!table) {
+    table = _sbCrc32._t = new Uint32Array(256);
+    for (let n = 0; n < 256; n++) {
+      let c = n;
+      for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1;
+      table[n] = c >>> 0;
+    }
+  }
+  let crc = 0xFFFFFFFF;
+  for (let i = 0; i < bytes.length; i++) crc = (crc >>> 8) ^ table[(crc ^ bytes[i]) & 0xFF];
+  return (crc ^ 0xFFFFFFFF) >>> 0;
+}
+function _sbMakeZip(files) {
+  const enc = new TextEncoder();
+  const chunks = [], central = [];
+  let offset = 0;
+  const p16 = (a, v) => a.push(v & 0xff, (v >>> 8) & 0xff);
+  const p32 = (a, v) => a.push(v & 0xff, (v >>> 8) & 0xff, (v >>> 16) & 0xff, (v >>> 24) & 0xff);
+  for (const f of files) {
+    const nameBytes = enc.encode(f.name);
+    const dataBytes = enc.encode(f.content);
+    const crc = _sbCrc32(dataBytes);
+    const local = [];
+    p32(local, 0x04034b50); p16(local, 20); p16(local, 0x0800); p16(local, 0);
+    p16(local, 0); p16(local, 0);                 // mod time / date
+    p32(local, crc); p32(local, dataBytes.length); p32(local, dataBytes.length);
+    p16(local, nameBytes.length); p16(local, 0);
+    const localHead = Uint8Array.from(local);
+    chunks.push(localHead, nameBytes, dataBytes);
+    const c = [];
+    p32(c, 0x02014b50); p16(c, 20); p16(c, 20); p16(c, 0x0800); p16(c, 0);
+    p16(c, 0); p16(c, 0);
+    p32(c, crc); p32(c, dataBytes.length); p32(c, dataBytes.length);
+    p16(c, nameBytes.length); p16(c, 0); p16(c, 0);
+    p16(c, 0); p16(c, 0); p32(c, 0);
+    p32(c, offset);
+    central.push({ head: Uint8Array.from(c), name: nameBytes });
+    offset += localHead.length + nameBytes.length + dataBytes.length;
+  }
+  const centralStart = offset;
+  let centralSize = 0;
+  for (const cr of central) { chunks.push(cr.head, cr.name); centralSize += cr.head.length + cr.name.length; }
+  const eocd = [];
+  p32(eocd, 0x06054b50); p16(eocd, 0); p16(eocd, 0);
+  p16(eocd, central.length); p16(eocd, central.length);
+  p32(eocd, centralSize); p32(eocd, centralStart); p16(eocd, 0);
+  chunks.push(Uint8Array.from(eocd));
+  return new Blob(chunks, { type: 'application/zip' });
+}
+function _sbDownloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1500);
+}
+
+const _sbAgentsMd = (m) => `# AGENTS.md — Seedance ストーリーボード自動生成タスク
+
+あなた（コーディングエージェント / Codex）は、このバンドルを受け取ったら
+以下のタスクを実行してください。追加の指示が無くても、この手順に従って
+絵コンテ素材の生成を開始して構いません。
+
+## ゴール
+manifest.json に定義された ${m.frame_count} 枚のフレーム画像と、
+それらを連結する ${m.clip_count} 本の動画クリップ（Seedance 等の image-to-video）を生成し、
+最終的に 1 本の MV 映像素材 out/final.mp4 を出力する。
+
+- スタイル: ${m.style}
+- 想定尺: 約 ${Math.round(m.total_duration_sec)} 秒
+
+## データ構成
+- manifest.json … フレームとクリップの定義（これが正）
+- prompts/frames/frame-XX.ja.txt / .en.txt … 各静止画の生成プロンプト（日本語 / 英語）
+- prompts/clips/clip-XX.video.ja.txt / .en.txt … 各クリップの動画プロンプト
+- generate.py … 生成パイプラインの雛形（TODO を埋めて実行する）
+
+## 手順
+1. manifest.json を読み込む。
+2. frames[] を順に処理し、image_prompt から静止画を生成して frames/XX.png に保存する。
+   同一キャラクターの一貫性のため、最初のフレームを参照画像として後続へ渡すこと。
+3. clips[] を順に処理する。各クリップは from_frame と to_frame の 2 枚を
+   「開始フレーム」「終了フレーム」として image-to-video モデルに渡し、
+   video_prompt を指示、duration_sec を尺として動画を生成し out/XX.mp4 に保存する。
+4. 連結ルール（重要）: clip N の to_frame は clip N+1 の from_frame と同一画像である。
+   フレームは ${m.frame_count} 枚だけ生成し、隣接クリップで共有すること
+   （manifest 側で既にこのチェーンが表現されている）。
+5. out/XX.mp4 を番号順に結合し out/final.mp4 を出力する。
+
+## 実装メモ
+- generate.py の generate_image() / generate_video() が TODO。
+  利用可能な画像生成 API・image-to-video API に合わせて実装し、実行すること。
+- API キーは環境変数 IMAGE_API_KEY / VIDEO_API_KEY から読む。
+- 破綻を避けるため、開始 / 終了フレームは同一被写体・同一スケール・近い構図を保つ。
+- 日本語 / 英語のプロンプトが両方ある。使用モデルに適した方を選ぶ。
+
+## 実行
+
+    python generate.py --dry-run     # まず計画を表示
+    python generate.py --step all    # フレーム→クリップ→結合を実行
+`;
+
+const _sbReadmeMd = (m) => `# Seedance ストーリーボード素材バンドル
+
+MV 絵コンテ生成ツールで選択したカットを、Seedance（開始 / 終了フレーム連結方式）で
+映像化するための素材一式です。フレーム ${m.frame_count} 枚・クリップ ${m.clip_count} 本。
+
+## 使い方 A: Codex（コーディングエージェント）に任せる
+このフォルダごと（またはこの ZIP を）Codex に渡してください。
+Codex は AGENTS.md を読み、画像・動画の生成パイプラインを組んで実行します。
+画像 / 動画生成 API のキー（IMAGE_API_KEY / VIDEO_API_KEY）が必要です。
+
+## 使い方 B: 手動で Seedance を使う
+1. prompts/frames/frame-01 … の各プロンプトで静止画を生成する。
+2. Seedance に「開始フレーム = frame-N」「終了フレーム = frame-(N+1)」をアップロードし、
+   prompts/clips/clip-N.video … のプロンプトを入力してクリップを生成する。
+3. clip N の終了フレーム画像を clip N+1 の開始フレームに使い回すと 1 本につながる。
+4. 全クリップを編集ソフトで順に連結し、音源に同期する。
+
+## 中身
+- manifest.json … 全フレーム / クリップの構造化データ
+- AGENTS.md … Codex 向けの実行指示書
+- generate.py … 生成パイプラインの雛形
+- prompts/ … 各フレーム・各クリップのプロンプト（日本語 / 英語）
+`;
+
+const _sbGeneratePy = () => `#!/usr/bin/env python3
+"""Seedance storyboard batch generator (scaffold).
+
+Reads manifest.json, generates frame images, then image-to-video clips,
+then concatenates them into out/final.mp4.
+
+Fill in generate_image() and generate_video() with your image / video API,
+set IMAGE_API_KEY / VIDEO_API_KEY, then run:  python generate.py --step all
+"""
+import argparse, json, pathlib
+
+ROOT = pathlib.Path(__file__).parent
+MANIFEST = json.loads((ROOT / "manifest.json").read_text(encoding="utf-8"))
+
+def read_prompt(rel):
+    p = ROOT / rel
+    return p.read_text(encoding="utf-8") if p.exists() else ""
+
+def generate_image(prompt, out_path, ref_image=None):
+    # TODO: call your image-generation API (use IMAGE_API_KEY) and save PNG to out_path.
+    raise NotImplementedError("Implement generate_image(): save an image to " + str(out_path))
+
+def generate_video(start_frame, end_frame, prompt, duration_sec, out_path):
+    # TODO: call your image-to-video API (Seedance etc.) with start_frame + end_frame.
+    raise NotImplementedError("Implement generate_video(): save a clip to " + str(out_path))
+
+def step_frames():
+    (ROOT / "frames").mkdir(exist_ok=True)
+    ref = None
+    for fr in MANIFEST["frames"]:
+        prompt = read_prompt("prompts/frames/%s.ja.txt" % fr["id"]) or fr.get("image_prompt_ja", "")
+        out = ROOT / fr["file"]
+        print("frame", fr["id"], "->", out)
+        generate_image(prompt, out, ref_image=ref)
+        if ref is None:
+            ref = out  # keep first frame as identity reference
+
+def step_clips():
+    (ROOT / "out").mkdir(exist_ok=True)
+    frame_file = {f["id"]: ROOT / f["file"] for f in MANIFEST["frames"]}
+    for cl in MANIFEST["clips"]:
+        prompt = read_prompt("prompts/clips/%s.video.ja.txt" % cl["id"]) or cl.get("video_prompt_ja", "")
+        print("clip", cl["id"], cl["from_frame"], "->", cl["to_frame"], "(%ss)" % cl["duration_sec"])
+        generate_video(frame_file[cl["from_frame"]], frame_file[cl["to_frame"]], prompt,
+                       cl["duration_sec"], ROOT / cl["output"])
+
+def step_concat():
+    outs = [str(ROOT / c["output"]) for c in MANIFEST["clips"]]
+    print("concatenate", len(outs), "clips -> out/final.mp4")
+    # TODO: concatenate the clips in order with ffmpeg (concat demuxer).
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--step", choices=["frames", "clips", "concat", "all"], default="all")
+    ap.add_argument("--dry-run", action="store_true")
+    a = ap.parse_args()
+    print("frames:", MANIFEST["frame_count"], "clips:", MANIFEST["clip_count"])
+    if a.dry_run:
+        for f in MANIFEST["frames"]:
+            print("  FRAME", f["id"], f.get("section", ""), f.get("time_sec", ""))
+        for c in MANIFEST["clips"]:
+            print("  CLIP ", c["id"], c["from_frame"], "->", c["to_frame"], c["duration_sec"], "s")
+        return
+    if a.step in ("frames", "all"): step_frames()
+    if a.step in ("clips", "all"): step_clips()
+    if a.step in ("concat", "all"): step_concat()
+
+if __name__ == "__main__":
+    main()
+`;
+
+function buildCodexBundle(from, to) {
+  const panels = allPanels.slice(from - 1, to);
+  const styleKey = savedState?.styleKey || panels[0]?.styleKey || 'story';
+  const styleLabel = (MV_STYLES[styleKey] && MV_STYLES[styleKey].label) || styleKey;
+
+  const pad = n => String(n).padStart(2, '0');
+  const frames = panels.map((p, i) => ({
+    id: 'frame-' + pad(i + 1),
+    index: i + 1,
+    panel_number: (p.idx ?? (from - 1 + i)) + 1,
+    section: p.isIntro ? 'intro' : p.isOutro ? 'outro' : p.isInterlude ? 'interlude' : (p.section || ''),
+    time_sec: Math.round((p.time || 0) * 10) / 10,
+    image_prompt_ja: p.prompt || '',
+    image_prompt_en: p.promptEn || p.prompt || '',
+    file: 'frames/' + pad(i + 1) + '.png',
+  }));
+
+  const clips = [];
+  for (let i = 0; i < panels.length - 1; i++) {
+    let sd;
+    try { sd = generateSeedanceFLF(panels[i], panels[i + 1], i + 1, i + 2); } catch (e) { continue; }
+    clips.push({
+      id: 'clip-' + pad(i + 1),
+      index: i + 1,
+      from_frame: frames[i].id,
+      to_frame: frames[i + 1].id,
+      duration_sec: sd.durRec,
+      video_prompt_ja: sd.videoPromptJa,
+      video_prompt_en: sd.videoPromptEn,
+      note: sd.warn || '',
+      output: 'out/' + pad(i + 1) + '.mp4',
+    });
+  }
+
+  const manifest = {
+    project: 'MV Storyboard - Seedance chain',
+    style: styleLabel,
+    song_title: savedState?.artist || '',
+    total_duration_sec: savedState?.duration || 0,
+    frame_count: frames.length,
+    clip_count: clips.length,
+    chain_rule: 'clip N の to_frame は clip N+1 の from_frame と同一画像。フレームは frame_count 枚のみ生成し隣接クリップで共有する。',
+    frames,
+    clips,
+  };
+
+  const files = [];
+  files.push({ name: 'manifest.json', content: JSON.stringify(manifest, null, 2) });
+  files.push({ name: 'AGENTS.md', content: _sbAgentsMd(manifest) });
+  files.push({ name: 'README.md', content: _sbReadmeMd(manifest) });
+  files.push({ name: 'generate.py', content: _sbGeneratePy() });
+  frames.forEach(f => {
+    files.push({ name: 'prompts/frames/' + f.id + '.ja.txt', content: f.image_prompt_ja });
+    files.push({ name: 'prompts/frames/' + f.id + '.en.txt', content: f.image_prompt_en });
+  });
+  clips.forEach(c => {
+    files.push({ name: 'prompts/clips/' + c.id + '.video.ja.txt', content: c.video_prompt_ja });
+    files.push({ name: 'prompts/clips/' + c.id + '.video.en.txt', content: c.video_prompt_en });
+  });
+  return { files, manifest };
+}
+
+function sdDownloadCodexZip() {
+  if (!allPanels.length) { sdToast('先に絵コンテを生成してください'); return; }
+  const from = Math.max(1, parseInt(document.getElementById('dl-range-from').value) || 1);
+  const toRaw = Math.min(allPanels.length, parseInt(document.getElementById('dl-range-to').value) || allPanels.length);
+  const to = Math.min(toRaw, from + 10 - 1);
+  if (to - from < 1) { sdToast('2カット以上を選択してください'); return; }
+  try {
+    const { files, manifest } = buildCodexBundle(from, to);
+    const blob = _sbMakeZip(files);
+    _sbDownloadBlob(blob, 'seedance-storyboard-' + from + '-' + to + '.zip');
+    sdToast('📦 ' + manifest.frame_count + 'フレーム / ' + manifest.clip_count + 'クリップのZIPを生成しました');
+  } catch (e) {
+    sdToast('ZIP生成エラー: ' + e.message);
+  }
+}
+
 function sdFillModal(from, to) {
   const body = document.getElementById('sd-modal-body');
   body.innerHTML = '';
@@ -6362,6 +6710,17 @@ function sdFillModal(from, to) {
     mBtn.textContent = '📋 全クリップまとめてコピー';
     mBtn.onclick = function(){ sdCopyText(this, mergedText); };
     body.appendChild(mBtn);
+
+    // ── Codex一括生成ZIP ──
+    const zipBtn = document.createElement('button');
+    zipBtn.style.cssText = 'width:100%;margin-top:.5rem;padding:.6rem;border-radius:10px;border:1.5px solid rgba(52,211,153,.55);background:rgba(52,211,153,.12);color:#34d399;font-weight:700;cursor:pointer;font-size:.75rem;font-family:inherit;flex-shrink:0;';
+    zipBtn.textContent = '📦 Codex一括生成ZIPをダウンロード（選択カット）';
+    zipBtn.onclick = function(){ sdDownloadCodexZip(); };
+    body.appendChild(zipBtn);
+    const zipHint = document.createElement('div');
+    zipHint.style.cssText = 'margin-top:.4rem;font-size:.64rem;line-height:1.7;color:#7dd3fc;text-align:center;flex-shrink:0;';
+    zipHint.textContent = 'ZIPをCodex（コーディングエージェント）に渡すと、同梱のAGENTS.mdの指示に沿って選択カットの画像・動画素材の生成を開始します。';
+    body.appendChild(zipHint);
   }
 }
 
