@@ -1,0 +1,1663 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lo-Fi Detective | ローファイ探偵</title>
+    <meta name="description" content="Lo-Fi Detective - ローファイ探偵。音楽で謎を解く、AI音楽プロジェクト。Melody is the Key to the Truth.">
+    <meta name="keywords" content="ローファイ探偵, Lo-Fi Detective, Suno AI, AI音楽, AI Music, ミステリー, サイバーパンク, Karasui">
+    
+    <!-- Favicon & Mobile Icons -->
+    <link rel="icon" type="image/png" href="assets/favicon.png">
+    <link rel="apple-touch-icon" href="assets/favicon.png">
+    <meta name="apple-mobile-web-app-title" content="Lo-Fi探偵">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+
+    <!-- Open Graph / SNS Thumbnail -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://karasui1014.github.io/lofi-detective-website/">
+    <meta property="og:title" content="Lo-Fi Detective | ローファイ探偵">
+    <meta property="og:description" content="メロディが真実の鍵を握る。Suno AIによる最先端のAI音楽プロジェクト。">
+    <meta property="og:image" content="https://karasui1014.github.io/lofi-detective-website/assets/hero_karasui.jpg">
+
+    <!-- Twitter Card -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://karasui1014.github.io/lofi-detective-website/">
+    <meta property="twitter:title" content="Lo-Fi Detective | ローファイ探偵">
+    <meta property="twitter:description" content="メロディが真実の鍵を握る。Suno AIによる最先端のAI音楽プロジェクト。">
+    <meta property="twitter:image" content="https://karasui1014.github.io/lofi-detective-website/assets/hero_karasui.jpg">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@300;400;600&family=Zen+Kaku+Gothic+New:wght@300;400;500&family=Cinzel:wght@400;700&display=swap"
+        rel="stylesheet">
+    <style>
+        /* ===== CSS Variables ===== */
+        :root {
+            --bg-color: #050508;
+            --text-color: #f0f0f0;
+            --accent-color: #8a2be2;
+            --secondary-accent: #00d4ff;
+            --tertiary-accent: #ff6b9d;
+            --glass-bg: rgba(12, 12, 22, 0.65);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+            --font-serif: 'Noto Serif JP', serif;
+            --font-sans: 'Zen Kaku Gothic New', sans-serif;
+            --font-display: 'Cinzel', serif;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: var(--font-sans);
+            line-height: 1.8;
+            overflow-x: hidden;
+        }
+
+        /* ===== Background Effects ===== */
+        .bg-image-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -2;
+            background-image: url('assets/bg_main.jpg');
+            background-size: cover;
+            background-position: center;
+            opacity: 0.25;
+            filter: blur(3px) saturate(1.2);
+        }
+
+        .bg-orbs {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            overflow: hidden;
+            pointer-events: none;
+        }
+
+        .orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(100px);
+            opacity: 0.3;
+            animation: float 25s infinite ease-in-out;
+        }
+
+        .orb-1 {
+            width: 500px;
+            height: 500px;
+            background: var(--accent-color);
+            top: -150px;
+            left: -150px;
+        }
+
+        .orb-2 {
+            width: 350px;
+            height: 350px;
+            background: var(--secondary-accent);
+            bottom: -100px;
+            right: -100px;
+            animation-delay: -7s;
+        }
+
+        .orb-3 {
+            width: 250px;
+            height: 250px;
+            background: var(--tertiary-accent);
+            top: 40%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            animation-delay: -12s;
+            opacity: 0.15;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            25% { transform: translate(60px, 60px) scale(1.05); }
+            50% { transform: translate(-40px, 90px) scale(0.95); }
+            75% { transform: translate(-70px, -30px) scale(1.02); }
+        }
+
+        .noise-overlay {
+            position: fixed;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: url('data:image/svg+xml;utf8,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22n%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%221.2%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23n)%22 opacity=%220.015%22/%3E%3C/svg%3E');
+            pointer-events: none;
+            z-index: 998;
+            mix-blend-mode: overlay;
+            animation: noise-shift 0.8s steps(4) infinite;
+        }
+
+        @keyframes noise-shift {
+            0% { transform: translate(0, 0); }
+            25% { transform: translate(-2px, -2px); }
+            50% { transform: translate(2px, 2px); }
+            75% { transform: translate(-1px, 1px); }
+        }
+
+        .scanline {
+            width: 100%;
+            height: 8px;
+            z-index: 998;
+            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(138,43,226,0.05), rgba(0,212,255,0.03), rgba(255,255,255,0));
+            position: fixed;
+            bottom: 100%;
+            animation: scanline 16s linear infinite;
+            pointer-events: none;
+        }
+
+        @keyframes scanline {
+            0% { bottom: 100%; }
+            100% { bottom: -10px; }
+        }
+
+        .vhs-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(ellipse at center, transparent 40%, rgba(0, 0, 0, 0.3) 80%, rgba(0, 0, 0, 0.6) 100%);
+            z-index: 997;
+            pointer-events: none;
+        }
+
+        /* ===== Intro Screen ===== */
+        #intro-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            z-index: 99999;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: var(--secondary-accent);
+            font-family: var(--font-display);
+            transition: opacity 1s ease-out;
+            cursor: pointer;
+        }
+
+        .intro-content { text-align: center; width: 300px; }
+
+        .intro-logo {
+            font-size: 2rem;
+            letter-spacing: 0.5em;
+            margin-bottom: 0.5rem;
+            text-shadow: 0 0 15px rgba(0, 212, 255, 0.6), 0 0 40px rgba(0, 212, 255, 0.2);
+        }
+
+        .intro-sub {
+            font-size: 0.8rem;
+            letter-spacing: 0.2em;
+            opacity: 0.6;
+            margin-bottom: 2rem;
+        }
+
+        .loading-bar {
+            width: 100%;
+            height: 2px;
+            background: rgba(0, 212, 255, 0.15);
+            position: relative;
+            overflow: hidden;
+            border-radius: 2px;
+        }
+
+        .loading-progress {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, var(--secondary-accent), var(--accent-color));
+            animation: loadProgress 2s ease-in-out forwards;
+        }
+
+        @keyframes loadProgress {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(0); }
+        }
+
+        .intro-terminal {
+            margin-top: 1.5rem;
+            text-align: left;
+            font-family: monospace;
+            font-size: 0.65rem;
+            color: #fff;
+            opacity: 0.5;
+        }
+
+        .blink { animation: blink 1s infinite; }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+
+        .skip-hint {
+            margin-top: 2rem;
+            font-size: 0.55rem;
+            opacity: 0.3;
+            letter-spacing: 0.15em;
+        }
+
+        .fade-out {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        /* ===== Header ===== */
+        header {
+            padding: 1.5rem 4rem;
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 100;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            backdrop-filter: blur(12px);
+            background: rgba(5, 5, 8, 0.4);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        }
+
+        .logo {
+            font-family: var(--font-display);
+            font-weight: 700;
+            font-size: 1.1rem;
+            letter-spacing: 0.2em;
+            color: #fff;
+            text-shadow: 0 0 12px rgba(138, 43, 226, 0.7);
+        }
+
+        .nav-links {
+            list-style: none;
+            display: flex;
+            gap: 2.5rem;
+        }
+
+        .nav-links a {
+            color: rgba(255, 255, 255, 0.6);
+            text-decoration: none;
+            font-family: var(--font-display);
+            font-size: 0.8rem;
+            letter-spacing: 0.12em;
+            position: relative;
+            transition: color 0.3s;
+        }
+
+        .nav-links a::after {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 1px;
+            bottom: -5px;
+            left: 0;
+            background: linear-gradient(90deg, var(--secondary-accent), var(--accent-color));
+            transition: width 0.3s ease;
+        }
+
+        .nav-links a:hover { color: #fff; }
+        .nav-links a:hover::after { width: 100%; }
+
+        /* ===== Hero Section ===== */
+        #hero {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero-content {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            max-width: 1300px;
+            padding: 0 3rem;
+            gap: 4rem;
+            z-index: 1;
+        }
+
+        .hero-text-container {
+            flex: 1;
+            text-align: right;
+        }
+
+        .title {
+            font-family: var(--font-serif);
+            font-size: 3.5rem;
+            font-weight: 300;
+            line-height: 1.2;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, #fff 0%, #c8c8d0 50%, #a0a0b0 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            white-space: nowrap;
+        }
+
+        .subtitle {
+            font-family: var(--font-display);
+            font-size: 0.95rem;
+            letter-spacing: 0.3em;
+            color: var(--secondary-accent);
+            text-transform: uppercase;
+            opacity: 0.85;
+        }
+
+        .hero-image-container {
+            flex: 1;
+            position: relative;
+            max-width: 520px;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow:
+                0 25px 60px rgba(0, 0, 0, 0.6),
+                0 0 80px rgba(138, 43, 226, 0.15),
+                inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+            transform: perspective(1000px) rotateY(-3deg);
+            transition: transform 0.3s ease-out;
+        }
+
+        .hero-image-container::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(180deg, transparent 60%, rgba(5, 5, 8, 0.4) 100%);
+            pointer-events: none;
+        }
+
+        .hero-image {
+            width: 100%;
+            height: 100%;
+            display: block;
+            object-fit: cover;
+            filter: contrast(1.08) brightness(0.92) saturate(1.15);
+        }
+
+        .scroll-indicator {
+            position: absolute;
+            bottom: 3rem;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.8rem;
+            opacity: 0.5;
+            animation: scrollPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes scrollPulse {
+            0%, 100% { opacity: 0.3; transform: translateX(-50%) translateY(0); }
+            50% { opacity: 0.6; transform: translateX(-50%) translateY(5px); }
+        }
+
+        .scroll-indicator span {
+            font-family: var(--font-display);
+            font-size: 0.65rem;
+            letter-spacing: 0.3em;
+        }
+
+        .scroll-indicator .line {
+            width: 1px;
+            height: 50px;
+            background: linear-gradient(to bottom, rgba(255,255,255,0.5), transparent);
+        }
+
+        /* ===== Content Sections ===== */
+        .content-section {
+            padding: 5rem 2rem 3rem;
+            max-width: 1200px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 2;
+        }
+
+        .section-header {
+            margin-bottom: 2.5rem;
+            display: flex;
+            align-items: baseline;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            padding-bottom: 1rem;
+        }
+
+        .section-number {
+            font-family: var(--font-display);
+            font-size: 2.5rem;
+            background: linear-gradient(135deg, var(--secondary-accent), var(--accent-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-right: 1rem;
+            opacity: 0.6;
+        }
+
+        .section-header h2 {
+            font-family: var(--font-display);
+            font-size: 2.2rem;
+            letter-spacing: 0.1em;
+            background: linear-gradient(135deg, #fff, #b0b0b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* ===== Glass Panel ===== */
+        .glass-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            box-shadow: var(--glass-shadow);
+            border-radius: 16px;
+            transition: transform 0.3s, box-shadow 0.3s, border-color 0.4s;
+        }
+
+        .glass-panel:hover {
+            border-color: rgba(255, 255, 255, 0.12);
+            box-shadow: 0 12px 40px rgba(138, 43, 226, 0.12);
+        }
+
+        /* ===== Schedule / Topics Section ===== */
+        .schedule-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: clamp(1rem, 2.5vw, 1.5rem);
+            margin-top: 1.5rem;
+            align-items: stretch;
+        }
+
+        .schedule-shell {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: clamp(1rem, 4vw, 2rem);
+        }
+
+        .schedule-item {
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .schedule-label {
+            color: var(--secondary-accent);
+            font-size: 0.6rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            display: block;
+            margin-bottom: 0.3rem;
+        }
+
+        .schedule-title {
+            color: #fff;
+            font-size: 0.9rem;
+            font-weight: 400;
+            margin: 0 0 1rem 0;
+            line-height: 1.4;
+        }
+
+        .schedule-badge {
+            font-family: var(--font-sans);
+            font-size: 0.7rem;
+            color: rgba(255,255,255,0.85);
+            margin: 0.6rem 0;
+            padding: 0.25rem 0.75rem;
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: 20px;
+            background: rgba(0, 212, 255, 0.08);
+            text-align: center;
+        }
+
+        .schedule-featured {
+            grid-column: 1 / -1;
+            padding: clamp(1rem, 3vw, 2rem);
+            gap: 0.4rem;
+        }
+
+        .schedule-featured .schedule-title {
+            margin-bottom: 1rem;
+            font-family: var(--font-display);
+            font-size: clamp(1.05rem, 2vw, 1.35rem);
+            letter-spacing: 0.06em;
+            text-align: center;
+        }
+
+        .summer-fes-video {
+            width: min(100%, 720px);
+            aspect-ratio: 16 / 9;
+            overflow: hidden;
+            margin: 0 auto;
+            background: #000;
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            border-radius: 12px;
+            box-shadow: 0 14px 36px rgba(0, 0, 0, 0.38);
+        }
+
+        .summer-fes-video iframe {
+            display: block;
+            width: 100%;
+            height: 100%;
+            border: 0;
+        }
+
+        .schedule-secondary {
+            min-height: 100%;
+            justify-content: flex-start;
+        }
+
+        .schedule-secondary-media {
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            overflow: hidden;
+            margin-top: auto;
+            background: #000;
+            border-radius: 10px;
+        }
+
+        a.schedule-item .schedule-secondary-media img {
+            width: auto;
+            max-width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        /* ===== AICDTV Banner ===== */
+        .aicdtv-banner {
+            padding: 2.5rem;
+            text-align: center;
+            max-width: 750px;
+            margin: 0 auto;
+        }
+
+        .aicdtv-banner h3 {
+            color: #fff;
+            font-size: 1.15rem;
+            font-family: var(--font-sans);
+            margin-bottom: 1.5rem;
+            letter-spacing: 0.05em;
+        }
+
+        .aicdtv-banner .highlight-text {
+            color: var(--secondary-accent);
+            font-weight: 500;
+        }
+
+        .aicdtv-crown {
+            display: inline-block;
+            font-size: 1.4rem;
+            margin-right: 0.3rem;
+            animation: crownGlow 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes crownGlow {
+            from { filter: drop-shadow(0 0 4px rgba(255, 215, 0, 0.4)); }
+            to { filter: drop-shadow(0 0 12px rgba(255, 215, 0, 0.8)); }
+        }
+
+        /* ===== Video Container ===== */
+        .video-container {
+            position: relative;
+            padding-bottom: 56.25%;
+            height: 0;
+            overflow: hidden;
+            max-width: 100%;
+            background: #000;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .video-container iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* ===== Story / Case File Section ===== */
+        .story-container {
+            display: grid;
+            grid-template-columns: 1.4fr 1fr;
+            gap: 3rem;
+            align-items: stretch;
+        }
+
+        .story-text {
+            display: flex;
+        }
+
+        .story-content {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            height: 100%;
+            padding: 2.5rem;
+        }
+
+        .story-title {
+            font-family: var(--font-display);
+            font-size: 1.4rem;
+            color: var(--secondary-accent);
+            letter-spacing: 0.2em;
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            padding-bottom: 1rem;
+        }
+
+        .story-body {
+            font-size: 1.05rem;
+            line-height: 2.4;
+            font-family: var(--font-serif);
+            color: rgba(255, 255, 255, 0.85);
+        }
+
+        .highlight {
+            color: var(--secondary-accent);
+            font-weight: 500;
+            text-shadow: 0 0 10px rgba(0, 212, 255, 0.25);
+        }
+
+        .story-image {
+            display: flex;
+            height: 100%;
+            position: relative;
+            overflow: hidden;
+            border-radius: 12px;
+        }
+
+        .story-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 12px;
+            filter: brightness(0.85) contrast(1.1) saturate(1.1);
+            transition: transform 0.6s ease;
+            object-position: 70% 30%;
+        }
+
+        .story-image:hover img {
+            transform: scale(1.05);
+        }
+
+        /* ===== Music / Evidence Section ===== */
+        .music-grid {
+            display: grid;
+            grid-template-columns: 1.1fr 1.6fr;
+            gap: 1.5rem;
+            align-items: stretch; /* Modified to allow stretching to match heights */
+        }
+
+        .music-sub-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+        }
+
+        .music-column {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .music-item {
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .music-item h3 {
+            font-family: var(--font-display);
+            margin-bottom: 0.5rem;
+            color: var(--accent-color);
+            font-size: 1rem;
+            letter-spacing: 0.08em;
+        }
+
+        .music-item p {
+            font-size: 0.85rem;
+            opacity: 0.6;
+            margin-bottom: 0.8rem;
+        }
+
+        .mv-image-container {
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .mv-image-container img {
+            width: 100%;
+            height: auto;
+            display: block;
+            transition: transform 0.4s ease, filter 0.4s ease;
+            filter: brightness(0.9);
+        }
+
+        .mv-image-container:hover img {
+            transform: scale(1.03);
+            filter: brightness(1);
+        }
+
+        .channel-link-container {
+            margin-top: 0.8rem;
+            text-align: right;
+        }
+
+        .text-link {
+            color: rgba(255, 255, 255, 0.5);
+            text-decoration: none;
+            font-size: 0.75rem;
+            font-family: var(--font-display);
+            letter-spacing: 0.05em;
+            transition: color 0.3s, text-shadow 0.3s;
+        }
+
+        .text-link:hover {
+            color: var(--secondary-accent);
+            text-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
+        }
+
+        /* ===== Awards Section ===== */
+        .awards-container {
+            padding: 3rem;
+            text-align: center;
+        }
+
+        .awards-container h3 {
+            font-family: var(--font-display);
+            color: var(--secondary-accent);
+            margin-bottom: 0.8rem;
+            font-size: 1.4rem;
+            letter-spacing: 0.05em;
+        }
+
+        .awards-container .award-subtitle {
+            margin-bottom: 2rem;
+            font-size: 1rem;
+            opacity: 0.75;
+        }
+
+        .award-video-wrapper {
+            max-width: 750px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .award-video-wrapper video {
+            width: 100%;
+            height: auto;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            display: block;
+        }
+
+        /* ===== Social / Contact Section ===== */
+        .social-links {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 2rem;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 1rem 0;
+        }
+
+        .social-card {
+            display: block;
+            text-decoration: none;
+            position: relative;
+            background: rgba(0,0,0,0.7);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 16px;
+            overflow: hidden;
+            transition: all 0.4s ease;
+        }
+
+        .social-card:hover {
+            transform: translateY(-6px);
+            border-color: var(--secondary-accent);
+            box-shadow: 0 15px 40px rgba(0, 212, 255, 0.15);
+        }
+
+        .social-card-image-wrap {
+            width: 100%;
+            padding-bottom: 110%;
+            position: relative;
+        }
+
+        .social-card-image-wrap img {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.6s ease;
+        }
+
+        .social-card:hover .social-card-image-wrap img {
+            transform: scale(1.05);
+        }
+
+        .social-card-gradient {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.3) 40%, transparent 70%);
+        }
+
+        .social-card-info {
+            padding: 1.5rem 2rem;
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            text-align: left;
+            box-sizing: border-box;
+        }
+
+        .social-card-name {
+            font-size: 2.2rem;
+            font-family: var(--font-display);
+            color: #fff;
+            letter-spacing: 0.1em;
+            line-height: 1;
+            margin-bottom: 0.4rem;
+            text-shadow: 0 2px 12px rgba(0,0,0,0.9);
+        }
+
+        .social-card-role {
+            font-size: 0.8rem;
+            letter-spacing: 0.2em;
+            color: var(--secondary-accent);
+            text-transform: uppercase;
+        }
+
+        /* ===== Footer ===== */
+        footer {
+            text-align: center;
+            padding: 2.5rem 2rem;
+            margin-top: 2rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+            position: relative;
+            z-index: 2;
+        }
+
+        footer p {
+            opacity: 0.4;
+            font-size: 0.85rem;
+        }
+
+        .footer-tagline {
+            font-family: var(--font-display);
+            font-size: 0.75rem !important;
+            letter-spacing: 0.4em;
+            color: var(--secondary-accent);
+            margin-top: 0.8rem;
+            opacity: 0.35 !important;
+        }
+
+        /* ===== Reveal Animations ===== */
+        .reveal {
+            opacity: 0;
+            transform: translateY(40px);
+            transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+        }
+
+        .reveal.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Stagger children */
+        .reveal-stagger > * {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.5s ease-out, transform 0.5s ease-out;
+        }
+
+        .reveal-stagger.visible > *:nth-child(1) { transition-delay: 0.1s; }
+        .reveal-stagger.visible > *:nth-child(2) { transition-delay: 0.2s; }
+        .reveal-stagger.visible > *:nth-child(3) { transition-delay: 0.3s; }
+
+        .reveal-stagger.visible > * {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* ===== Responsive ===== */
+        @media (max-width: 968px) {
+            .hero-content {
+                flex-direction: column-reverse;
+                text-align: center;
+                gap: 2rem;
+                padding: 0 1.5rem;
+            }
+
+            .hero-text-container { text-align: center; }
+            .title { font-size: 2.5rem; }
+            .hero-image-container { max-width: 320px; transform: none; }
+
+            .story-container { grid-template-columns: 1fr; }
+            .music-grid { grid-template-columns: 1fr; }
+            .music-sub-grid { grid-template-columns: 1fr; }
+            .schedule-grid { grid-template-columns: 1fr; }
+            .social-links { grid-template-columns: 1fr; max-width: 400px; }
+
+            header {
+                padding: 1.2rem 1.5rem;
+                justify-content: center;
+            }
+
+            .nav-links { display: none; }
+            .content-section { padding: 3rem 1.2rem 2rem; }
+        }
+
+        @media (max-width: 480px) {
+            .title { font-size: 2rem; }
+            .subtitle { font-size: 0.75rem; letter-spacing: 0.15em; }
+        }
+
+        /* ===== Spotify embed fix ===== */
+        .spotify-embed {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 450px;
+        }
+
+        .spotify-embed iframe {
+            border-radius: 12px;
+            height: 100%;
+            width: 100%;
+            flex: 1;
+        }
+
+        /* ===== Schedule Goods link ===== */
+        a.schedule-item {
+            text-decoration: none;
+            transition: transform 0.3s, box-shadow 0.3s, border-color 0.3s;
+        }
+
+        a.schedule-item:hover {
+            transform: translateY(-3px);
+            border-color: var(--secondary-accent);
+            box-shadow: 0 8px 30px rgba(0, 212, 255, 0.15);
+        }
+
+        a.schedule-item img {
+            width: 100%;
+            height: auto;
+            display: block;
+            border-radius: 8px;
+            transition: transform 0.4s ease;
+        }
+
+        a.schedule-item:hover img {
+            transform: scale(1.02);
+        }
+
+        /* ===== Section Divider ===== */
+        .section-divider {
+            width: 60px;
+            height: 2px;
+            background: linear-gradient(90deg, var(--secondary-accent), transparent);
+            margin: 0 auto 3rem;
+            opacity: 0.4;
+        }
+
+        /* ===== Video Thumbnail (YouTube fallback for local) ===== */
+        .video-thumb-link {
+            display: block;
+            position: relative;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: #000;
+        }
+
+        .video-thumb-link img {
+            width: 100%;
+            height: auto;
+            display: block;
+            transition: transform 0.4s ease, filter 0.4s ease;
+            filter: brightness(0.85);
+        }
+
+        .video-thumb-link:hover img {
+            transform: scale(1.03);
+            filter: brightness(1);
+        }
+
+        .video-play-btn {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 64px;
+            height: 64px;
+            background: rgba(255, 0, 0, 0.85);
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.3s, background 0.3s;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
+
+        .video-play-btn::after {
+            content: '';
+            display: block;
+            width: 0;
+            height: 0;
+            border-style: solid;
+            border-width: 10px 0 10px 18px;
+            border-color: transparent transparent transparent #fff;
+            margin-left: 3px;
+        }
+
+        .video-thumb-link:hover .video-play-btn {
+            transform: translate(-50%, -50%) scale(1.1);
+            background: rgba(255, 0, 0, 1);
+        }
+
+        /* ===== Mystery Game Styles ===== */
+        #game-container {
+            position: relative;
+            width: 100%;
+            min-height: 600px;
+            overflow: hidden;
+            border-radius: 12px;
+            background: #000;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            margin: 0 auto;
+        }
+
+        .rain-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .rain-drop {
+            position: absolute;
+            background: linear-gradient(to bottom, rgba(0, 212, 255, 0) 0%, rgba(0, 212, 255, 0.5) 100%);
+            width: 1px;
+            height: 60px;
+            pointer-events: none;
+            animation: rainfall linear infinite;
+        }
+
+        @keyframes rainfall {
+            0% { transform: translateY(-100px); }
+            100% { transform: translateY(700px); }
+        }
+
+        .case-select-screen {
+            position: relative;
+            z-index: 2;
+            padding: 3rem 2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            min-height: 600px;
+        }
+
+        .neon-title {
+            text-align: center;
+            margin-bottom: 3rem;
+            animation: flicker 2s infinite alternate;
+        }
+
+        .neon-cafe {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 3.5rem;
+            font-weight: 700;
+            color: #ff6b9d;
+            text-shadow: 0 0 10px #ff6b9d, 0 0 20px #ff6b9d, 0 0 40px #ff6b9d;
+            letter-spacing: 0.15em;
+            line-height: 1;
+        }
+
+        .neon-memoria {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 2.2rem;
+            color: #00d4ff;
+            text-shadow: 0 0 10px #00d4ff, 0 0 20px #00d4ff, 0 0 40px #00d4ff;
+            letter-spacing: 0.25em;
+            margin-top: 0.5rem;
+        }
+
+        @keyframes flicker {
+            0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% { opacity: 1; filter: drop-shadow(0 0 5px currentColor); }
+            20%, 22%, 24%, 55% { opacity: 0.4; filter: none; }
+        }
+
+        .game-subtitle {
+            margin-bottom: 2rem;
+            font-size: 0.9rem;
+            letter-spacing: 0.2em;
+            color: rgba(255,255,255,0.6);
+            text-transform: uppercase;
+        }
+
+        .case-list {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+            width: 100%;
+            max-width: 900px;
+        }
+
+        .case-card {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: all 0.4s ease;
+            position: relative;
+        }
+
+        .case-card:hover {
+            transform: translateY(-8px);
+            border-color: #00d4ff;
+            box-shadow: 0 15px 35px rgba(0, 212, 255, 0.2);
+            background: rgba(255,255,255,0.06);
+        }
+
+        .case-thumb {
+            width: 100%;
+            height: 160px;
+            background-size: cover;
+            background-position: center;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .case-info {
+            padding: 1.5rem;
+        }
+
+        .case-info h3 {
+            font-size: 1rem;
+            margin-bottom: 0.5rem;
+            color: #fff;
+            letter-spacing: 0.05em;
+        }
+
+        .case-info p {
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.5);
+            line-height: 1.6;
+        }
+
+        @media (max-width: 800px) {
+            .case-list { grid-template-columns: 1fr; }
+            .case-card { max-width: 400px; margin: 0 auto; }
+            .neon-cafe { font-size: 2.5rem; }
+            .neon-memoria { font-size: 1.5rem; }
+        }
+
+        /* Scene Specific Styles */
+        .scene-exterior { background: #050508 !important; }
+        .scene-cafe { background: #0a0a14 !important; }
+        .scene-memory { background: #0a050f !important; }
+        .scene-deduction { background: #0f0a05 !important; }
+
+    </style>
+</head>
+
+<body>
+    <!-- INTRO SCREEN -->
+    <div id="intro-screen">
+        <div class="intro-content">
+            <div class="intro-logo">DETECTIVE</div>
+            <div class="intro-sub">LO-FI MYSTERY ARCHIVE</div>
+            <div class="loading-bar">
+                <div class="loading-progress"></div>
+            </div>
+            <div class="intro-terminal">
+                > SYSTEM_CHECK... OK<br>
+                > ACCESSING_ARCHIVES...<br>
+                > <span class="blink">LOADING_DATA...</span>
+            </div>
+            <div class="skip-hint">CLICK TO ENTER</div>
+        </div>
+    </div>
+
+    <!-- Overlays -->
+    <div class="vhs-overlay"></div>
+    <div class="noise-overlay"></div>
+    <div class="scanline"></div>
+
+    <div class="bg-orbs">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+    </div>
+    <div class="bg-image-overlay"></div>
+
+    <header>
+        <nav style="display:flex;justify-content:space-between;align-items:center;width:100%;">
+            <div class="logo">LO-FI DETECTIVE</div>
+            <ul class="nav-links">
+                <li><a href="#schedule">Schedule</a></li>
+                <li><a href="#story">Story</a></li>
+                <li><a href="#narrative">Narrative</a></li>
+                <li><a href="#music">Music</a></li>
+                <li><a href="#awards">Awards</a></li>
+                <li><a href="#social">Social</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <!-- HERO -->
+        <section id="hero">
+            <div class="hero-content">
+                <div class="hero-text-container">
+                    <h1 class="title">ローファイ探偵</h1>
+                    <p class="subtitle">Melody is the Key to the Truth.</p>
+                </div>
+                <div class="hero-image-container">
+                    <img src="assets/hero_karasui.jpg"
+                         alt="Lo-Fi Detective Karasui" class="hero-image">
+                </div>
+            </div>
+            <div class="scroll-indicator">
+                <span>SCROLL</span>
+                <div class="line"></div>
+            </div>
+        </section>
+
+        <!-- 01 TOPICS / SCHEDULE -->
+        <section id="schedule" class="content-section reveal">
+            <div class="section-header">
+                <span class="section-number">01</span>
+                <h2>TOPICS</h2>
+            </div>
+            <div class="glass-panel schedule-shell">
+                <h3 style="font-family: var(--font-display); color: var(--secondary-accent); margin-bottom: 0.5rem; font-size: 1.1rem; letter-spacing: 0.1em;">SCHEDULE</h3>
+                <div class="schedule-grid reveal-stagger">
+                    <!-- Featured: AI SUPERLIVE SUMMER 2026 -->
+                    <div class="schedule-item glass-panel schedule-featured">
+                        <span class="schedule-label">NEXT MISSION</span>
+                        <h4 class="schedule-title">AI SUPERLIVE SUMMER 2026</h4>
+                        <div class="summer-fes-video">
+                            <iframe width="560" height="315"
+                                    src="https://www.youtube.com/embed/4ZcmQB-O_rA?si=H4esNgoKh6w57Dxw"
+                                    title="AI SUPERLIVE SUMMER 2026 YouTube video player"
+                                    frameborder="0"
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                    referrerpolicy="strict-origin-when-cross-origin"
+                                    loading="lazy"
+                                    allowfullscreen></iframe>
+                        </div>
+                        <div class="schedule-badge">2026.7.18(Sat)・7.19(Sun) 19:00開演</div>
+                    </div>
+
+                    <!-- AI Spring FES YouTube -->
+                    <div class="schedule-item glass-panel schedule-secondary" style="padding: 1rem; display: flex; flex-direction: column;">
+                        <span class="schedule-label">MISSION ENTRY</span>
+                        <h4 class="schedule-title">AI Spring FES 2026</h4>
+                        <a href="https://www.youtube.com/watch?v=4PJJGya37Wo" target="_blank" rel="noopener"
+                           class="video-thumb-link schedule-secondary-media" style="display: flex; align-items: center;">
+                            <img src="https://img.youtube.com/vi/4PJJGya37Wo/maxresdefault.jpg" alt="AI Spring FES 2026" style="width: 100%; height: 100%; object-fit: cover; object-position: center;">
+                            <div class="video-play-btn"></div>
+                        </a>
+                        <div class="schedule-badge">2026.3.29(Sun) 出演</div>
+                    </div>
+
+                    <!-- Official Goods -->
+                    <a href="https://market.up-t.jp/creator/6950983d2fc51" target="_blank"
+                       rel="noopener"
+                       class="schedule-item glass-panel schedule-secondary" style="padding: 1rem; display: flex; flex-direction: column;">
+                        <span class="schedule-label">OFFICIAL GOODS</span>
+                        <h4 class="schedule-title">公式グッズストア</h4>
+                        <div class="schedule-secondary-media" style="display: flex; align-items: center; justify-content: center;">
+                            <img src="assets/spring_fes_goods.png"
+                                 alt="AI Spring FES 2026 Official Goods" style="display: block;">
+                        </div>
+                    </a>
+
+                    <!-- Bottom: Event Site Banner -->
+                    <a href="https://ai-event-collection.jp/summer.html" target="_blank"
+                       class="schedule-item glass-panel event-banner" style="grid-column: 1 / -1; padding: 0; overflow: hidden; position: relative; min-height: 260px;">
+                        <img src="assets/spring_fes_banner.png" 
+                             alt="AI Spring FES 2026 Event Site" style="width: 100%; height: 100%; object-fit: cover; position: absolute; top:0; left:0; filter: brightness(0.6);">
+                        <div style="position: relative; z-index: 2; padding: 2rem; text-align: center; width: 100%;">
+                            <span class="schedule-label" style="color: #fff; text-shadow: 0 0 10px rgba(0,0,0,0.8);">OFFICIAL EVENT SITE</span>
+                            <h4 class="schedule-title" style="margin-bottom: 0.5rem; font-size: 1.6rem; color: #fff; font-family: var(--font-display); text-shadow: 0 2px 10px rgba(0,0,0,0.8);">AI Spring FES 2026 特設サイト</h4>
+                            <div class="text-link" style="color: var(--secondary-accent); font-weight: bold; text-shadow: 0 0 5px rgba(0,0,0,0.5);">ENTER SITE →</div>
+                        </div>
+                    </a>
+
+                    <!-- SunoPa Radio -->
+                    <div class="schedule-item glass-panel" style="grid-column: 1 / -1; padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem;">
+                        <span class="schedule-label">RADIO ARCHIVE</span>
+                        <h4 class="schedule-title" style="color: var(--tertiary-accent);">Sunoパ！ラジオ出演</h4>
+                        <div style="display: flex; gap: 1.5rem; align-items: center; flex-wrap: wrap; justify-content: center;">
+                            <div style="width: 190px; height: 190px; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.3); background: #000; flex-shrink: 0; display: flex; align-items: center; justify-content: center;">
+                                <img src="https://cdncf.stand.fm/coverImages/01KMN681JSKBTAS0VKTPZGFG09.png" alt="SunoPa Radio" style="width: 100%; height: 100%; object-fit: cover; display: block;">
+                            </div>
+                            <div style="flex: 1; min-width: 280px; display: flex; flex-direction: column; justify-content: center;">
+                                <style> .standfm-embed-iframe { height: 190px; } @media only screen and (max-device-width: 480px) { .standfm-embed-iframe { height: 230px; } } </style>
+                                <iframe src="https://stand.fm/embed/episodes/69c53853de20cfbec4d8157f" class="standfm-embed-iframe" width="100%" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- DIVA CD Shop Link -->
+                    <a href="https://aimusic.shopselect.net/items/138097837" target="_blank" class="schedule-item glass-panel" style="grid-column: 1 / -1; padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; text-decoration: none; transition: transform 0.3s, box-shadow 0.3s, border-color 0.3s;">
+                        <span class="schedule-label" style="color: #ff6b9d; font-weight: 600;">OFFICIAL STORE</span>
+                        <h4 class="schedule-title" style="color: #fff; font-size: 1.3rem; margin-bottom: 0.5rem;">「DIVA」AI音楽オムニバスCD</h4>
+                        <div style="display: flex; gap: 1.5rem; align-items: center; flex-wrap: wrap; justify-content: center;">
+                            <div style="width: 190px; height: 190px; border-radius: 12px; overflow: hidden; box-shadow: 0 8px 25px rgba(0,0,0,0.5); background: #000; flex-shrink: 0; display: flex; align-items: center; justify-content: center; position: relative; border: 1px solid rgba(255,255,255,0.1);">
+                                <img src="https://baseec-img-mng.akamaized.net/images/item/origin/f2f7b0238a0eb46fe4acef3494f093a2.png?imformat=generic" alt="DIVA AI Music Compilation CD" style="width: 100%; height: 100%; object-fit: cover; display: block; filter: contrast(1.1) brightness(1.05);">
+                            </div>
+                            <div style="flex: 1; min-width: 280px; display: flex; flex-direction: column; justify-content: center;">
+                                <p style="color: rgba(255,255,255,0.9); font-size: 0.95rem; line-height: 1.7; margin-bottom: 1.5rem; font-family: var(--font-sans);">
+                                    AIアーティストたちによる多彩なジャンルの楽曲を収録。<br>
+                                    フィジカル（現物）で楽しめるAI音楽作品として、<br>ぜひ手に取って体感してください。
+                                </p>
+                                <div style="display: inline-flex; align-items: center; justify-content: center; background: linear-gradient(135deg, var(--tertiary-accent), var(--accent-color)); color: #fff; padding: 0.8rem 2rem; border-radius: 30px; font-weight: bold; font-family: var(--font-display); letter-spacing: 0.1em; box-shadow: 0 4px 15px rgba(255, 107, 157, 0.4); width: fit-content; transition: transform 0.2s;">
+                                    PURCHASE NOW →
+                                </div>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- AICDTV RE:LOOP Banner -->
+        <section class="content-section reveal" style="padding-top: 1rem; padding-bottom: 1rem;">
+            <div class="glass-panel aicdtv-banner">
+                <h3>
+                    <span class="aicdtv-crown">👑</span>
+                    AICDTVで<span class="highlight-text">RE:LOOP</span>が週間1位獲得
+                </h3>
+                <a href="https://www.youtube.com/watch?v=NyNVz2Z_Vg4" target="_blank" class="video-thumb-link" style="box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+                    <img src="https://img.youtube.com/vi/NyNVz2Z_Vg4/maxresdefault.jpg" alt="RE:LOOP AICDTV">
+                    <div class="video-play-btn"></div>
+                </a>
+            </div>
+        </section>
+
+        <!-- 02 CASE FILE / STORY -->
+        <section id="story" class="content-section reveal">
+            <div class="section-header">
+                <span class="section-number">02</span>
+                <h2>CASE FILE</h2>
+            </div>
+            <div class="story-container">
+                <div class="story-text glass-panel">
+                    <div class="story-content">
+                        <h3 class="story-title">THE CONCEPT</h3>
+                        <p class="story-body">
+                            <span class="highlight">街のノイズが...</span>メロディに変わる瞬間がある。<br><br>
+                            ローファイ探偵。それが私のコードネーム。<br>
+                            事件の真相は...いつも音の中に隠されている。<br><br>
+                            歌声が<span class="highlight">真実の輪郭</span>をなぞり、<br>
+                            ビートが心の奥底に響くとき、謎は解ける。
+                        </p>
+                    </div>
+                </div>
+                <div class="story-image">
+                    <img src="assets/case_file.jpg"
+                         alt="Lo-Fi Detective Case File">
+                </div>
+            </div>
+        </section>
+
+        <!-- 03 NARRATIVE ARCHIVE -->
+        <section id="narrative" class="content-section reveal">
+            <div class="section-header">
+                <span class="section-number">03</span>
+                <h2>NARRATIVE</h2>
+            </div>
+            <div id="game-container" class="glass-panel">
+                <!-- Game will be initialized by game.js -->
+            </div>
+        </section>
+
+        <!-- 03 EVIDENCE / MUSIC -->
+        <section id="music" class="content-section reveal">
+            <div class="section-header">
+                <span class="section-number">04</span>
+                <h2>EVIDENCE</h2>
+            </div>
+            <div class="music-grid reveal-stagger">
+                <!-- Column 1: Spotify -->
+                <div class="music-column">
+                    <div class="music-item glass-panel" style="flex: 1;">
+                        <h3>Spotify</h3>
+                        <div class="spotify-embed">
+                            <iframe data-testid="embed-iframe" style="border-radius:12px" src="https://open.spotify.com/embed/album/4FNd6UPhutZdbSlYTYqty5?utm_source=generator" width="100%" height="352" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Column 2: AI Music Dept + Suno & MV -->
+                <div class="music-column">
+                    <!-- Top: AI Music Dept. -->
+                    <div class="music-item glass-panel">
+                        <h3>AI Music Dept.</h3>
+                        <p>AI音楽とMV制作</p>
+                        <a href="https://www.youtube.com/watch?v=7fhhk2Dawoc" target="_blank" class="video-thumb-link">
+                            <img src="https://img.youtube.com/vi/7fhhk2Dawoc/hqdefault.jpg" alt="AI Music Dept." style="aspect-ratio: 16 / 9; object-fit: cover; object-position: center;">
+                            <div class="video-play-btn"></div>
+                        </a>
+                        <div class="channel-link-container" style="text-align: center; margin-top: 1rem;">
+                            <a href="https://youtu.be/7fhhk2Dawoc?si=cDJsFczNOSLuDGc8" target="_blank" class="text-link">Watch directly →</a>
+                        </div>
+                    </div>
+
+                    <!-- Bottom: YouTube MV and Suno nested side-by-side -->
+                    <div class="music-sub-grid">
+                        <!-- Left nested: YouTube MV -->
+                        <div class="music-item glass-panel" style="padding: 1.2rem;">
+                            <h3>YouTube MV</h3>
+                            <p>事件の記録（MV）</p>
+                            <div class="mv-image-container">
+                                <a href="https://youtu.be/ZojKm2mWHRM?si=3AWyd3vbe-0-no8V" target="_blank" style="display: block;">
+                                    <img src="assets/youtube_mv.jpg"
+                                         alt="Raindrops of Deception MV">
+                                </a>
+                            </div>
+                            <div class="channel-link-container">
+                                <a href="https://youtu.be/ZojKm2mWHRM?si=3AWyd3vbe-0-no8V" target="_blank" class="text-link">Watch MV →</a>
+                            </div>
+                        </div>
+
+                        <!-- Right nested: Suno Profile -->
+                        <div class="music-item glass-panel" style="padding: 1.2rem;">
+                            <h3>Suno Profile</h3>
+                            <p>制作楽曲一覧</p>
+                            <div class="mv-image-container">
+                                <a href="https://suno.com/@karasuiai" target="_blank" style="display: block;">
+                                    <img src="assets/suno_profile.jpg"
+                                         alt="Suno Profile">
+                                </a>
+                            </div>
+                            <div class="channel-link-container">
+                                <a href="https://suno.com/@karasuiai" target="_blank" class="text-link">View Profile →</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 04 AWARDS -->
+        <section id="awards" class="content-section reveal">
+            <div class="section-header">
+                <span class="section-number">05</span>
+                <h2>AWARDS</h2>
+            </div>
+            <div class="awards-container glass-panel">
+                <h3>AnimonAi Halloween Contest</h3>
+                <p class="award-subtitle">Excellent Award Winner / 優秀賞受賞作品</p>
+                <div class="award-video-wrapper">
+                    <video controls>
+                        <source src="assets/award_video.mov" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                </div>
+            </div>
+        </section>
+
+        <!-- 05 CONTACT / SOCIAL -->
+        <section id="social" class="content-section reveal">
+            <div class="section-header">
+                <span class="section-number">06</span>
+                <h2>CONTACT</h2>
+            </div>
+            <div class="social-links">
+                <a href="https://x.com/karasuiAi" target="_blank" class="social-card">
+                    <div class="social-card-image-wrap">
+                        <img src="assets/contact_x.png" alt="X (Twitter)">
+                        <div class="social-card-gradient"></div>
+                    </div>
+                    <div class="social-card-info">
+                        <div class="social-card-name">X</div>
+                        <p class="social-card-role">Official Account</p>
+                    </div>
+                </a>
+                <a href="https://www.tiktok.com/@karasui.music?_r=1&_t=ZS-91b7S8z9fYj" target="_blank" class="social-card">
+                    <div class="social-card-image-wrap">
+                        <img src="assets/contact_tiktok.png" alt="TikTok">
+                        <div class="social-card-gradient"></div>
+                    </div>
+                    <div class="social-card-info">
+                        <div class="social-card-name">TikTok</div>
+                        <p class="social-card-role">Music Channel</p>
+                    </div>
+                </a>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="footer-content">
+            <p>© 2026 Lo-Fi Detective Project.</p>
+            <p class="footer-tagline">Truth in the Noise.</p>
+        </div>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // === Intro Screen ===
+            const introScreen = document.getElementById('intro-screen');
+            if (introScreen) {
+                document.body.style.overflow = 'hidden';
+                const hideIntro = () => {
+                    introScreen.classList.add('fade-out');
+                    document.body.style.overflow = '';
+                    setTimeout(() => { introScreen.style.display = 'none'; }, 1000);
+                };
+                setTimeout(hideIntro, 2500);
+                introScreen.addEventListener('click', hideIntro);
+            }
+
+            // === Smooth scrolling ===
+            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+                anchor.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const target = document.querySelector(this.getAttribute('href'));
+                    if (target) {
+                        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                });
+            });
+
+            // === Parallax Hero ===
+            const heroContainer = document.querySelector('#hero');
+            const heroImage = document.querySelector('.hero-image-container');
+            if (heroContainer && heroImage) {
+                heroContainer.addEventListener('mousemove', (e) => {
+                    const xAxis = (window.innerWidth / 2 - e.pageX) / 30;
+                    const yAxis = (window.innerHeight / 2 - e.pageY) / 30;
+                    heroImage.style.transform = `perspective(1000px) rotateY(${xAxis}deg) rotateX(${yAxis}deg)`;
+                });
+                heroContainer.addEventListener('mouseleave', () => {
+                    heroImage.style.transform = `perspective(1000px) rotateY(0deg) rotateX(0deg)`;
+                });
+            }
+
+            // === Intersection Observer for Reveal Animations ===
+            const revealObserver = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('visible');
+                        revealObserver.unobserve(entry.target);
+                    }
+                });
+            }, {
+                threshold: 0.08,
+                rootMargin: '0px 0px -60px 0px'
+            });
+
+            document.querySelectorAll('.reveal, .reveal-stagger').forEach(el => {
+                revealObserver.observe(el);
+            });
+
+            // === Header scroll effect ===
+            let lastScroll = 0;
+            const header = document.querySelector('header');
+            window.addEventListener('scroll', () => {
+                const currentScroll = window.pageYOffset;
+                if (currentScroll > 100) {
+                    header.style.background = 'rgba(5, 5, 8, 0.85)';
+                } else {
+                    header.style.background = 'rgba(5, 5, 8, 0.4)';
+                }
+                lastScroll = currentScroll;
+            });
+        });
+    </script>
+    <script src="script.js" defer></script>
+    <script src="game.js" defer></script>
+</body>
+
+</html>
