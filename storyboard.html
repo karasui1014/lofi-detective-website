@@ -1532,8 +1532,14 @@ class AudioAnalyzer {
     onProgress && onProgress(5, 'オーディオをデコード中...');
     const arrayBuf = await file.arrayBuffer();
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const audioBuffer = await ctx.decodeAudioData(arrayBuf);
-    await ctx.close();
+    // decodeAudioData が失敗しても AudioContext を確実に閉じる
+    // （閉じ漏れるとブラウザの同時コンテキスト上限に達し、以後の解析が全て失敗する）
+    let audioBuffer;
+    try {
+      audioBuffer = await ctx.decodeAudioData(arrayBuf);
+    } finally {
+      await ctx.close().catch(() => {});
+    }
     onProgress && onProgress(35, '周波数帯域を分析中...');
     const bands = this.analyzeFrequencyBands(audioBuffer);
     onProgress && onProgress(65, 'BPMを検出中...');
@@ -1882,8 +1888,15 @@ dropZone.addEventListener('drop', e => {
   if (file && (file.type.startsWith('audio/') || audioExts.test(file.name))) loadAudio(file);
 });
 
+const MAX_AUDIO_BYTES = 150 * 1024 * 1024;
+
 function loadAudio(file) {
   if (!file) return;
+  // 解析はファイル全体をメモリ上に複数の Float32 配列として展開するため、上限を設ける
+  if (file.size > MAX_AUDIO_BYTES) {
+    showError('楽曲ファイルが大きすぎます（150MBまで）。圧縮した音源をご利用ください。');
+    return;
+  }
   audioFileName = file.name;
   audioFeatures = null;
   document.getElementById('filename').textContent = file.name;
@@ -1918,10 +1931,11 @@ function loadAudio(file) {
   });
   // Feature 5: iOS WAV fallback — use AudioContext if loadedmetadata doesn't fire
   audio.addEventListener('error', async () => {
+    URL.revokeObjectURL(url);
     if (audioDuration) return; // already handled
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
     try {
       const ab = await file.arrayBuffer();
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
       const buf = await ctx.decodeAudioData(ab);
       audioDuration = buf.duration;
       document.getElementById('audio-info').classList.add('visible');
@@ -1932,9 +1946,10 @@ function loadAudio(file) {
       startAudioAnalysis(file);
       initStampUI(file);
       updateGenBtn();
-      ctx.close();
     } catch(err) {
       showError('音声ファイルの読み込みに失敗しました: ' + err.message);
+    } finally {
+      await ctx.close().catch(() => {});
     }
   });
   // iOS timeout fallback - if loadedmetadata doesn't fire in 3s
@@ -3755,7 +3770,7 @@ function songPositionHtml(p) {
       <div class="stl-pip" style="left:${pct.toFixed(1)}%;background:${clr}"></div>
     </div>
     <div class="stl-meta">
-      <span class="stl-section" style="color:${clr}">◆ ${sectionJa}</span>
+      <span class="stl-section" style="color:${clr}">◆ ${escapeHtml(sectionJa)}</span>
       <span class="stl-time">${formatTime(t)}${totalStr}</span>
     </div>
     ${lyricsHtml}
@@ -3803,7 +3818,7 @@ function buildPanelEl(p, displayNum) {
 }
 
 function escapeAttr(s) {
-  return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
 // Escape user-derived text (lyrics, descriptions) before innerHTML insertion
@@ -4394,8 +4409,9 @@ function previousScenario() {
 async function loadReferenceVideo(file) {
   const status = document.getElementById('ref-status');
   if (status) status.textContent = '動画を解析中...';
+  let url = null;
   try {
-    const url = URL.createObjectURL(file);
+    url = URL.createObjectURL(file);
     const video = document.createElement('video');
     video.src = url;
     video.muted = true;
@@ -4422,7 +4438,6 @@ async function loadReferenceVideo(file) {
       colors.push(...dominant);
       totalBrightness += brightness;
     }
-    URL.revokeObjectURL(url);
     const finalColors = clusterColors(colors, 5);
     referenceProfile = {
       colors: finalColors,
@@ -4433,16 +4448,43 @@ async function loadReferenceVideo(file) {
     if (status) status.textContent = `✓ ${file.name} を解析（${samples}フレーム）`;
   } catch (e) {
     if (status) status.textContent = `エラー: ${e.message}`;
+  } finally {
+    // 成功・失敗どちらの経路でも Blob URL を必ず解放する
+    if (url) URL.revokeObjectURL(url);
   }
+}
+
+// YouTube URL → 動画ID。ホスト名を厳密に照合し、shorts/live/m./music. などの
+// 派生形式にも対応する（旧実装は正規表現1本で shorts と m. を取りこぼしていた）
+const YT_HOSTS = ['youtube.com','www.youtube.com','m.youtube.com','music.youtube.com','youtube-nocookie.com','www.youtube-nocookie.com'];
+function parseYouTubeId(raw) {
+  const s = String(raw || '').trim();
+  if (!s) return null;
+  let u;
+  try { u = new URL(/^https?:\/\//i.test(s) ? s : 'https://' + s); }
+  catch (e) { return null; }
+  if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
+  const host = u.hostname.toLowerCase();
+  let id = null;
+  if (host === 'youtu.be') {
+    id = u.pathname.split('/').filter(Boolean)[0] || null;
+  } else if (YT_HOSTS.includes(host)) {
+    const seg = u.pathname.split('/').filter(Boolean);
+    if (seg[0] === 'watch') id = u.searchParams.get('v');
+    else if (['embed','v','shorts','live'].includes(seg[0])) id = seg[1] || null;
+    else id = u.searchParams.get('v');
+  } else {
+    return null;
+  }
+  return id && /^[\w-]{11}$/.test(id) ? id : null;
 }
 
 async function loadReferenceYouTube(url) {
   const status = document.getElementById('ref-status');
   if (status) status.textContent = 'YouTubeサムネを解析中...';
   try {
-    const m = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/))([\w-]{11})/);
-    if (!m) throw new Error('URLが無効です');
-    const id = m[1];
+    const id = parseYouTubeId(url);
+    if (!id) throw new Error('URLが無効です');
     const thumbs = [
       `https://img.youtube.com/vi/${id}/maxresdefault.jpg`,
       `https://img.youtube.com/vi/${id}/hqdefault.jpg`,
@@ -4509,7 +4551,7 @@ function renderRefPreview(profile, label) {
   ).join('');
   const moodLabel = profile.brightness > 0.55 ? '明るい' : profile.brightness < 0.32 ? '暗い' : '中間';
   el.innerHTML = `
-    <div class="ref-label">${label}</div>
+    <div class="ref-label">${escapeHtml(label)}</div>
     <div class="ref-swatches">${swatches}</div>
     <div class="ref-mood">トーン: ${moodLabel} (${Math.round(profile.brightness*100)}%)</div>`;
 }
@@ -5025,10 +5067,6 @@ function vpCopyPrompt(btn) {
     btn.textContent = '✓ コピー済み';
     setTimeout(() => { btn.textContent = '⧉ コピー'; }, 2000);
   });
-}
-
-function escapeHtml(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 // ── Core prompt generator for one panel pair ──────────────────────────────
@@ -5965,10 +6003,24 @@ document.head.appendChild(printStyle);
 // ─────────────────────────────────────────
 // Feature 2: Panel image upload / drag-drop
 // ─────────────────────────────────────────
+const MAX_PANEL_IMAGE_BYTES = 12 * 1024 * 1024;
+
 function attachPanelImage(input) {
   const file = input.files[0];
   if (!file) return;
+  // accept="image/*" はピッカーの絞り込みでしかないため、実ファイルを検証する
+  if (!file.type || !file.type.startsWith('image/')) {
+    showError('画像ファイルを選択してください。');
+    input.value = '';
+    return;
+  }
+  if (file.size > MAX_PANEL_IMAGE_BYTES) {
+    showError('画像が大きすぎます（12MBまで）。');
+    input.value = '';
+    return;
+  }
   const artDiv = input.closest('.panel-art');
+  if (!artDiv) return;
   const reader = new FileReader();
   reader.onload = e => {
     const dlBtn = artDiv.querySelector('.panel-dl-btn');
@@ -6025,6 +6077,11 @@ document.addEventListener('drop', e => {
 function loadSrtFile(input) {
   const file = input.files[0];
   if (!file) return;
+  if (file.size > 2 * 1024 * 1024) {
+    showError('字幕ファイルが大きすぎます（2MBまで）。');
+    input.value = '';
+    return;
+  }
   const reader = new FileReader();
   reader.onload = e => {
     const text = e.target.result;
@@ -6059,6 +6116,7 @@ function loadSrtFile(input) {
 // Feature 4: Click Stamping JS
 // ─────────────────────────────────────────
 let stampAudio = null;
+let stampAudioUrl = null;
 let stampMarks = [];
 let stampTickId = null;
 
@@ -6072,7 +6130,10 @@ function initStampUI(file) {
   if (!ui) return;
   if (stampAudio) { stampAudio.pause(); stampAudio = null; }
   if (stampTickId) { cancelAnimationFrame(stampTickId); stampTickId = null; }
-  stampAudio = new Audio(URL.createObjectURL(file));
+  // 前回の Blob URL を解放してから作り直す（楽曲を差し替えるたびに漏れるのを防ぐ）
+  if (stampAudioUrl) { URL.revokeObjectURL(stampAudioUrl); stampAudioUrl = null; }
+  stampAudioUrl = URL.createObjectURL(file);
+  stampAudio = new Audio(stampAudioUrl);
   stampAudio.addEventListener('ended', () => {
     const btn = document.getElementById('stamp-play-btn');
     if (btn) btn.textContent = '▶ 再生';
@@ -6771,21 +6832,27 @@ function sdFillModal(from, to) {
 }
 
 // localStorage can throw in private browsing / blocked-storage environments
+// get は値(または null)、set/remove は成否の boolean を返す。
+// プライベートブラウジング等では書き込みが例外になるため、呼び出し側が失敗を検知できるようにする。
 function safeStore(action, key, val) {
   try {
     if (action === 'get') return localStorage.getItem(key);
-    if (action === 'set') localStorage.setItem(key, val);
-    if (action === 'remove') localStorage.removeItem(key);
-  } catch(e) { return null; }
+    if (action === 'set') { localStorage.setItem(key, val); return true; }
+    if (action === 'remove') { localStorage.removeItem(key); return true; }
+  } catch(e) {
+    return action === 'get' ? null : false;
+  }
   return null;
 }
 
 function domoSaveKey() {
   const key = document.getElementById('domo-api-key').value.trim();
   if (!key) { document.getElementById('domo-progress').textContent = '⚠ APIキーを入力してください'; return; }
-  safeStore('set', 'domo_api_key', key);
-  document.getElementById('domo-progress').textContent = '✓ APIキーを保存しました';
-  setTimeout(() => { document.getElementById('domo-progress').textContent = ''; }, 2500);
+  const ok = safeStore('set', 'domo_api_key', key);
+  document.getElementById('domo-progress').textContent = ok
+    ? '✓ APIキーを保存しました'
+    : '⚠ このブラウザは保存をブロックしています（今回のセッションのみ有効）';
+  setTimeout(() => { document.getElementById('domo-progress').textContent = ''; }, 3000);
 }
 
 function domoClearKey() {
@@ -6821,14 +6888,19 @@ async function domoSubmitTask(prompt, model, seconds, aspect_ratio, apiKey, styl
     throw new Error(err.detail || err.message || `HTTP ${res.status}`);
   }
   const json = await res.json();
-  return json.data.task_id;
+  const taskId = json && json.data ? json.data.task_id : null;
+  // APIレスポンス由来の値をそのままURLパスへ入れないよう形式を検証する
+  if (typeof taskId !== 'string' || !/^[\w-]{1,64}$/.test(taskId)) {
+    throw new Error('APIから不正なタスクIDが返されました');
+  }
+  return taskId;
 }
 
 async function domoPollTask(taskId, apiKey, maxWait = 180000) {
   const start = Date.now();
   while (Date.now() - start < maxWait) {
     await new Promise(r => setTimeout(r, 6000));
-    const res = await fetch(`https://api.domoai.com/v1/tasks/${taskId}`, {
+    const res = await fetch(`https://api.domoai.com/v1/tasks/${encodeURIComponent(taskId)}`, {
       headers: { 'Authorization': `Bearer ${apiKey}` }
     });
     if (!res.ok) continue;
@@ -6866,7 +6938,7 @@ function domoAttachVideo(panelIdx, videoUrl) {
   dl.className = 'domo-dl-badge';
   dl.href = videoUrl;
   dl.target = '_blank';
-  dl.rel = 'noopener';
+  dl.rel = 'noopener noreferrer';
   dl.setAttribute('download', '');
   dl.textContent = '⬇ 動画をダウンロード';
   wrap.append(video, dl);
@@ -6928,7 +7000,8 @@ initStyleSelector();
 // PWA Service Worker
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
+    // GitHub Pages のプロジェクトサイトでは絶対パス /sw.js は 404 になるため相対で登録する
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
   });
 }
 </script>
