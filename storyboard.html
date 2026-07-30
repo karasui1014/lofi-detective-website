@@ -2016,139 +2016,386 @@ function formatTime(s) {
 // ─────────────────────────────────────────
 // Improved character figures
 // ─────────────────────────────────────────
-function figBase(cx, cy, s, expression) {
-  const hy = cy - s*2.8;
-  // Mouth shape varies by expression
+// ── 人体プロポーション（7.5頭身：絵コンテで使う標準的な成人比率）──────────
+// 旧実装は約2.9頭身の頭でっかちなデフォルメで「下手な落書き」に見えていた。
+// 総身長（頭頂〜接地）は従来と同じに保ったまま頭を小さくし、肩・腰・膝の
+// 位置を解剖学的な比率に置き直すことで、描き慣れた絵コンテの体格にする。
+function figRig(cx, cy, s) {
+  const top  = cy - s * 3.72;            // 頭頂（従来と同じ）
+  const foot = cy + s * 1.52;            // 接地（従来と同じ）
+  const HD   = (foot - top) / 7.5;       // 頭一つ分の高さ
+  return {
+    cx, cy, s, top, foot, HD,
+    rx:        HD * 0.36,                // 頭の半幅（頭高:頭幅 ≒ 1.4:1）
+    headCY:    top + HD * 0.50,
+    chin:      top + HD * 1.00,
+    neckY:     top + HD * 1.16,
+    shoulderY: top + HD * 1.35,          // 肩線は顎から頭1/3ほど下（長すぎる首を防ぐ）
+    chestY:    top + HD * 2.10,
+    waistY:    top + HD * 3.05,
+    hipY:      top + HD * 4.00,
+    kneeY:     top + HD * 5.60,
+    footY:     foot,
+    // 幅はすべて「頭の幅（= rx*2 ≒ 0.72HD）」を基準にした人体比率で決める
+    shW:       HD * 0.72,                // 肩の半幅（肩幅 ≒ 頭幅の2倍）
+    waW:       HD * 0.42,                // ウエストの半幅
+    hipW:      HD * 0.55,                // 腰の半幅（腰幅 ≒ 頭幅の1.5倍）
+    armW:      HD * 0.28,                // 上腕の太さ
+    legW:      HD * 0.38,                // 太ももの太さ
+  };
+}
+
+// 輪郭線の太さ — 図形の拡大率に引きずられないよう絶対値でクランプする
+// （実際の絵コンテも被写体の大小に関わらず同じペンで描かれる）
+function inkW(HD, k, lo, hi) {
+  return Math.max(lo, Math.min(hi, HD * k)).toFixed(2);
+}
+
+// 先細りの手足 — 関節側を太く先端を細く、bend で自然な湾曲をつける。
+// 均一幅の棒線をやめることで筆圧のある手描き線に見せる。
+// 塗りは胴と同じ淡さにし輪郭線で形を見せる（濃い塗りだと腕だけ別の黒い棒に見える）
+function limb(x1, y1, x2, y2, w1, w2, bend, op) {
+  const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy) || 1;
+  const nx = -dy / L, ny = dx / L;
+  const b = bend || 0;
+  const mx = (x1 + x2) / 2 + nx * b, my = (y1 + y2) / 2 + ny * b;
+  const h1 = w1 / 2, h2 = w2 / 2, hm = (h1 + h2) / 2;
+  const f = n => n.toFixed(2);
+  const sw = Math.max(.55, Math.min(1.6, w1 * .42)).toFixed(2);
+  return `<path d="M${f(x1 + nx * h1)} ${f(y1 + ny * h1)} Q${f(mx + nx * hm)} ${f(my + ny * hm)} ${f(x2 + nx * h2)} ${f(y2 + ny * h2)} L${f(x2 - nx * h2)} ${f(y2 - ny * h2)} Q${f(mx - nx * hm)} ${f(my - ny * hm)} ${f(x1 - nx * h1)} ${f(y1 - ny * h1)}Z" fill="currentColor" fill-opacity="${op || .22}" stroke="currentColor" stroke-width="${sw}" stroke-linejoin="round"/>`;
+}
+
+// 2関節の手足（肩→肘→手 / 腰→膝→足）— 1本のカーブより格段に自然に見える
+function limb2(a, b, c, w0, w1, w2, bend1, bend2, op) {
+  return limb(a[0], a[1], b[0], b[1], w0, w1, bend1, op)
+       + limb(b[0], b[1], c[0], c[1], w1, w2, bend2, op);
+}
+
+// 卵型の頭部（頭蓋は丸く顎へ細くなる）＋髪・耳
+function headSVG(r, expression) {
+  const { cx, headCY, rx, HD } = r;
+  const hy = headCY;
+  const w = inkW(HD, .13, .55, 1.5);
+  const f = n => n.toFixed(2);
+  // 卵型の頭部 — 頬骨が最も広く、顎はやや丸く収める（portraitSVG と同じ骨格）
+  const CHIN = rx * 1.24, CROWN = rx * 1.28;
+  const skull = `<path d="M${f(cx - rx)} ${f(hy - rx * .12)}
+    C${f(cx - rx)} ${f(hy - rx * .95)} ${f(cx - rx * .54)} ${f(hy - CROWN)} ${f(cx)} ${f(hy - CROWN)}
+    C${f(cx + rx * .54)} ${f(hy - CROWN)} ${f(cx + rx)} ${f(hy - rx * .95)} ${f(cx + rx)} ${f(hy - rx * .12)}
+    C${f(cx + rx * .99)} ${f(hy + rx * .5)} ${f(cx + rx * .72)} ${f(hy + CHIN * .86)} ${f(cx)} ${f(hy + CHIN)}
+    C${f(cx - rx * .72)} ${f(hy + CHIN * .86)} ${f(cx - rx * .99)} ${f(hy + rx * .5)} ${f(cx - rx)} ${f(hy - rx * .12)}Z"
+    fill="currentColor" fill-opacity=".12" stroke="currentColor" stroke-width="${w}"/>`;
+  // 髪 — 前髪の束を輪郭で描く（塗り潰しの塊は影に見えてしまう）
+  const hair = `<path d="M${f(cx - rx * 1.04)} ${f(hy - rx * .18)}
+    C${f(cx - rx * 1.1)} ${f(hy - rx * 1.05)} ${f(cx - rx * .56)} ${f(hy - CROWN * 1.16)} ${f(cx + rx * .06)} ${f(hy - CROWN * 1.14)}
+    C${f(cx + rx * .7)} ${f(hy - CROWN * 1.12)} ${f(cx + rx * 1.12)} ${f(hy - rx * .82)} ${f(cx + rx * 1.04)} ${f(hy - rx * .12)}
+    C${f(cx + rx * .98)} ${f(hy - rx * .62)} ${f(cx + rx * .78)} ${f(hy - rx * .86)} ${f(cx + rx * .52)} ${f(hy - rx * .78)}
+    C${f(cx + rx * .2)} ${f(hy - rx * .68)} ${f(cx - rx * .12)} ${f(hy - rx * .52)} ${f(cx - rx * .34)} ${f(hy - rx * .74)}
+    C${f(cx - rx * .58)} ${f(hy - rx * .96)} ${f(cx - rx * .88)} ${f(hy - rx * .72)} ${f(cx - rx * 1.04)} ${f(hy - rx * .18)}Z"
+    fill="currentColor" fill-opacity=".32" stroke="currentColor" stroke-width="${w}" stroke-linejoin="round"/>`;
+  const ear = `<path d="M${f(cx + rx * .98)} ${f(hy - rx * .02)} C${f(cx + rx * 1.14)} ${f(hy - rx * .08)} ${f(cx + rx * 1.14)} ${f(hy + rx * .36)} ${f(cx + rx * .94)} ${f(hy + rx * .38)}" fill="none" stroke="currentColor" stroke-width="${w}" opacity=".5"/>
+    <path d="M${f(cx - rx * .98)} ${f(hy - rx * .02)} C${f(cx - rx * 1.14)} ${f(hy - rx * .08)} ${f(cx - rx * 1.14)} ${f(hy + rx * .36)} ${f(cx - rx * .94)} ${f(hy + rx * .38)}" fill="none" stroke="currentColor" stroke-width="${w}" opacity=".5"/>`;
+  // 表情 — 目はアーモンド型＋瞳。小さく潰れても輪郭が残るよう線を主役にする
+  const eyeY = hy + rx * .1;
+  const ex = rx * .42, ew = rx * .25, eh = rx * .16;
+  const eyes = expression === 'sad'
+    ? `<path d="M${f(cx - ex - ew)} ${f(eyeY - rx * .02)} Q${f(cx - ex)} ${f(eyeY - rx * .18)} ${f(cx - ex + ew)} ${f(eyeY + rx * .02)}" fill="none" stroke="currentColor" stroke-width="${(w * 1.3).toFixed(2)}" opacity=".85"/>
+       <path d="M${f(cx + ex - ew)} ${f(eyeY + rx * .02)} Q${f(cx + ex)} ${f(eyeY - rx * .18)} ${f(cx + ex + ew)} ${f(eyeY - rx * .02)}" fill="none" stroke="currentColor" stroke-width="${(w * 1.3).toFixed(2)}" opacity=".85"/>`
+    : [cx - ex, cx + ex].map(sx =>
+       `<path d="M${f(sx - ew)} ${f(eyeY)} Q${f(sx)} ${f(eyeY - eh * 1.45)} ${f(sx + ew)} ${f(eyeY)} Q${f(sx)} ${f(eyeY + eh * 1.3)} ${f(sx - ew)} ${f(eyeY)}Z" fill="currentColor" fill-opacity=".12" stroke="currentColor" stroke-width="${w}"/>
+        <circle cx="${f(sx)}" cy="${f(eyeY + eh * .1)}" r="${f(eh * .58)}" fill="currentColor" opacity=".85"/>
+        <path d="M${f(sx - ew)} ${f(eyeY)} Q${f(sx)} ${f(eyeY - eh * 1.55)} ${f(sx + ew)} ${f(eyeY)}" fill="none" stroke="currentColor" stroke-width="${(w * 1.35).toFixed(2)}" opacity=".8"/>`).join('');
+  const brows = `<path d="M${f(cx - ex - rx * .26)} ${f(eyeY - rx * .38)} q${f(rx * .26)} ${f(-rx * .14)} ${f(rx * .52)} ${f(-rx * .02)}" fill="none" stroke="currentColor" stroke-width="${w}" opacity=".6"/>
+    <path d="M${f(cx + ex - rx * .26)} ${f(eyeY - rx * .4)} q${f(rx * .26)} ${f(-rx * .12)} ${f(rx * .52)} ${f(rx * .02)}" fill="none" stroke="currentColor" stroke-width="${w}" opacity=".6"/>`;
+  const nose = `<path d="M${f(cx + rx * .04)} ${f(hy + rx * .3)} l${f(-rx * .1)} ${f(rx * .2)}" fill="none" stroke="currentColor" stroke-width="${w}" opacity=".45"/>`;
+  const mouthY = hy + rx * .86;
   const mouth = expression === 'sad'
-    ? `<path d="M${cx-s*.2} ${hy+s*.62} Q${cx} ${hy+s*.52} ${cx+s*.2} ${hy+s*.62}" fill="none" stroke="currentColor" stroke-width="${s*.07}" opacity=".55"/>`
+    ? `<path d="M${f(cx - rx * .22)} ${f(mouthY + rx * .06)} q${f(rx * .22)} ${f(-rx * .14)} ${f(rx * .44)} ${f(0)}" fill="none" stroke="currentColor" stroke-width="${w}" opacity=".6"/>`
     : expression === 'happy'
-    ? `<path d="M${cx-s*.26} ${hy+s*.48} Q${cx} ${hy+s*.74} ${cx+s*.26} ${hy+s*.48}" fill="none" stroke="currentColor" stroke-width="${s*.08}" opacity=".6"/>
-       <path d="M${cx-s*.14} ${hy+s*.74} Q${cx} ${hy+s*.82} ${cx+s*.14} ${hy+s*.74}" fill="none" stroke="currentColor" stroke-width="${s*.05}" opacity=".3"/>`
+    ? `<path d="M${f(cx - rx * .26)} ${f(mouthY - rx * .06)} q${f(rx * .26)} ${f(rx * .26)} ${f(rx * .52)} ${f(0)}" fill="none" stroke="currentColor" stroke-width="${w}" opacity=".7"/>`
     : expression === 'open'
-    ? `<ellipse cx="${cx}" cy="${hy+s*.58}" rx="${s*.16}" ry="${s*.1}" fill="currentColor" opacity=".45"/>`
-    : `<path d="M${cx-s*.2} ${hy+s*.52} Q${cx} ${hy+s*.66} ${cx+s*.2} ${hy+s*.52}" fill="none" stroke="currentColor" stroke-width="${s*.07}" opacity=".5"/>`;
-  return `
-    <path d="M${cx-s*.755} ${cy-s*2.85} Q${cx} ${cy-s*4.02} ${cx+s*.755} ${cy-s*2.85}" fill="currentColor" fill-opacity=".45" stroke="none"/>
-    <path d="M${cx-s*.66} ${cy-s*3.0} Q${cx-s*.35} ${cy-s*3.55} ${cx-s*.08} ${cy-s*3.15}" fill="none" stroke="currentColor" stroke-width="${s*.07}" opacity=".4"/>
-    <path d="M${cx+s*.66} ${cy-s*3.0} Q${cx+s*.35} ${cy-s*3.55} ${cx+s*.08} ${cy-s*3.15}" fill="none" stroke="currentColor" stroke-width="${s*.07}" opacity=".4"/>
-    <circle cx="${cx}" cy="${hy}" r="${s*.92}" fill="currentColor" fill-opacity=".32" stroke="currentColor" stroke-width="${s*.12}"/>
-    <ellipse cx="${cx+s*.42}" cy="${hy+s*.12}" rx="${s*.3}" ry="${s*.6}" fill="currentColor" fill-opacity=".12" stroke="none"/>
-    <path d="M${cx-s*.44} ${hy-s*.24} Q${cx-s*.28} ${hy-s*.34} ${cx-s*.12} ${hy-s*.24}" fill="none" stroke="currentColor" stroke-width="${s*.07}" opacity=".55"/>
-    <path d="M${cx+s*.12} ${hy-s*.24} Q${cx+s*.28} ${hy-s*.34} ${cx+s*.44} ${hy-s*.24}" fill="none" stroke="currentColor" stroke-width="${s*.07}" opacity=".55"/>
-    <circle cx="${cx-s*.28}" cy="${hy-s*.05}" r="${s*.13}" fill="currentColor" opacity=".82"/>
-    <circle cx="${cx+s*.28}" cy="${hy-s*.05}" r="${s*.13}" fill="currentColor" opacity=".82"/>
-    <path d="M${cx+s*.02} ${hy+s*.08} L${cx-s*.07} ${hy+s*.32}" fill="none" stroke="currentColor" stroke-width="${s*.06}" opacity=".42"/>
-    ${mouth}
-    <rect x="${cx-s*.13}" y="${cy-s*1.97}" width="${s*.26}" height="${s*.18}" fill="currentColor" fill-opacity=".38"/>
-    <path d="M${cx-s*.54} ${cy-s*1.84} L${cx-s*.42} ${cy+.06} L${cx+s*.42} ${cy+.06} L${cx+s*.54} ${cy-s*1.84}Z" fill="currentColor" fill-opacity=".3" stroke="currentColor" stroke-width="${s*.1}" stroke-linejoin="round"/>
-    <path d="M${cx-s*.22} ${cy-s*1.83} L${cx} ${cy-s*1.48} L${cx+s*.22} ${cy-s*1.83}" fill="none" stroke="currentColor" stroke-width="${s*.08}" opacity=".55" stroke-linejoin="round"/>
-    <line x1="${cx}" y1="${cy-s*1.48}" x2="${cx}" y2="${cy-s*.02}" stroke="currentColor" stroke-width="${s*.05}" opacity=".35"/>
-    <path d="M${cx+s*.12} ${cy-s*1.5} L${cx+s*.42} ${cy+.04} L${cx+s*.18} ${cy+.05}Z" fill="currentColor" fill-opacity=".1" stroke="none"/>`;
+    ? `<ellipse cx="${f(cx)}" cy="${f(mouthY)}" rx="${f(rx * .17)}" ry="${f(rx * .13)}" fill="currentColor" opacity=".55"/>`
+    : `<path d="M${f(cx - rx * .2)} ${f(mouthY)} q${f(rx * .2)} ${f(rx * .1)} ${f(rx * .4)} ${f(0)}" fill="none" stroke="currentColor" stroke-width="${w}" opacity=".55"/>`;
+  return skull + hair + ear + brows + eyes + nose + mouth;
+}
+
+// 首・胴（肩からウエストへ絞り、腰へ広がる）
+function torsoSVG(r) {
+  const { cx, chin, neckY, shoulderY, waistY, hipY, shW, waW, hipW, HD } = r;
+  const w = inkW(HD, .13, .55, 1.6);
+  const f = n => n.toFixed(2);
+  // 首は肩の内側まで伸ばし、胴と同じ濃さで胴より先に描く。
+  // （短く濃い台形だと首だけ別パーツのように浮いて見えていた）
+  // 塗りは輪郭線なしで置き、首の左右だけを線で描く。
+  // （閉じたパスにすると下辺の線が半透明の胴を透けて「首の底」に見えてしまう）
+  const neck = `<path d="M${f(cx - HD * .13)} ${f(chin - HD * .1)} C${f(cx - HD * .15)} ${f(shoulderY - HD * .2)} ${f(cx - HD * .2)} ${f(shoulderY - HD * .1)} ${f(cx - HD * .26)} ${f(shoulderY + HD * .06)} L${f(cx + HD * .26)} ${f(shoulderY + HD * .06)} C${f(cx + HD * .2)} ${f(shoulderY - HD * .1)} ${f(cx + HD * .15)} ${f(shoulderY - HD * .2)} ${f(cx + HD * .13)} ${f(chin - HD * .1)}Z" fill="currentColor" fill-opacity=".18" stroke="none"/>
+    <path d="M${f(cx - HD * .13)} ${f(chin - HD * .1)} C${f(cx - HD * .15)} ${f(shoulderY - HD * .2)} ${f(cx - HD * .2)} ${f(shoulderY - HD * .12)} ${f(cx - HD * .25)} ${f(shoulderY - HD * .02)}" fill="none" stroke="currentColor" stroke-width="${w}" opacity=".85"/>
+    <path d="M${f(cx + HD * .13)} ${f(chin - HD * .1)} C${f(cx + HD * .15)} ${f(shoulderY - HD * .2)} ${f(cx + HD * .2)} ${f(shoulderY - HD * .12)} ${f(cx + HD * .25)} ${f(shoulderY - HD * .02)}" fill="none" stroke="currentColor" stroke-width="${w}" opacity=".85"/>`;
+  const body = `<path d="M${f(cx - shW)} ${f(shoulderY)}
+    C${f(cx - shW * 1.02)} ${f(shoulderY + HD * .5)} ${f(cx - waW * 1.06)} ${f(waistY - HD * .5)} ${f(cx - waW)} ${f(waistY)}
+    C${f(cx - hipW * .96)} ${f(waistY + HD * .45)} ${f(cx - hipW)} ${f(hipY - HD * .2)} ${f(cx - hipW * .92)} ${f(hipY)}
+    L${f(cx + hipW * .92)} ${f(hipY)}
+    C${f(cx + hipW)} ${f(hipY - HD * .2)} ${f(cx + hipW * .96)} ${f(waistY + HD * .45)} ${f(cx + waW)} ${f(waistY)}
+    C${f(cx + waW * 1.06)} ${f(waistY - HD * .5)} ${f(cx + shW * 1.02)} ${f(shoulderY + HD * .5)} ${f(cx + shW)} ${f(shoulderY)}
+    C${f(cx + shW * .58)} ${f(shoulderY - HD * .08)} ${f(cx + HD * .22)} ${f(shoulderY - HD * .19)} ${f(cx)} ${f(shoulderY - HD * .2)}
+    C${f(cx - HD * .22)} ${f(shoulderY - HD * .19)} ${f(cx - shW * .58)} ${f(shoulderY - HD * .08)} ${f(cx - shW)} ${f(shoulderY)}Z"
+    fill="currentColor" fill-opacity=".2" stroke="currentColor" stroke-width="${w}" stroke-linejoin="round"/>`;
+  // 衣服のディテール（襟と裾の線）— 情報量を少し足して「描き込まれた」印象にする
+  const collar = `<path d="M${f(cx - HD * .3)} ${f(shoulderY + HD * .04)} Q${f(cx)} ${f(shoulderY + HD * .42)} ${f(cx + HD * .3)} ${f(shoulderY + HD * .04)}" fill="none" stroke="currentColor" stroke-width="${w}" opacity=".6"/>`;
+  const fold = `<path d="M${f(cx - waW * .5)} ${f(waistY + HD * .1)} Q${f(cx)} ${f(waistY + HD * .3)} ${f(cx + waW * .5)} ${f(waistY + HD * .05)}" fill="none" stroke="currentColor" stroke-width="${inkW(HD, .09, .45, 1.0)}" opacity=".35"/>`;
+  return neck + body + collar + fold;
+}
+
+// 立ち姿の基本形（頭・胴）— 手足は各ポーズが足す
+function figBase(cx, cy, s, expression) {
+  const r = figRig(cx, cy, s);
+  return torsoSVG(r) + headSVG(r, expression);
+}
+
+// 腕・脚の便利関数
+function armsL(r, elbow, hand, bend1, bend2) {
+  return limb2([r.cx - r.shW * .92, r.shoulderY + r.HD * .12], elbow, hand,
+    r.armW, r.armW * .78, r.armW * .5, bend1, bend2);
+}
+function armsR(r, elbow, hand, bend1, bend2) {
+  return limb2([r.cx + r.shW * .92, r.shoulderY + r.HD * .12], elbow, hand,
+    r.armW, r.armW * .78, r.armW * .5, bend1, bend2);
+}
+function legL(r, knee, foot, bend1, bend2) {
+  return limb2([r.cx - r.hipW * .55, r.hipY - r.HD * .05], knee, foot,
+    r.legW, r.legW * .68, r.legW * .46, bend1, bend2);
+}
+function legR(r, knee, foot, bend1, bend2) {
+  return limb2([r.cx + r.hipW * .55, r.hipY - r.HD * .05], knee, foot,
+    r.legW, r.legW * .68, r.legW * .46, bend1, bend2);
+}
+// 足先（接地しているシルエットの安定感を出す）
+function shoe(r, x, y, dir) {
+  const L = r.HD * .34, T = r.HD * .13;
+  return `<path d="M${(x - L * .25 * dir).toFixed(2)} ${(y - T).toFixed(2)} L${(x + L * .75 * dir).toFixed(2)} ${(y - T * .2).toFixed(2)} L${(x + L * .72 * dir).toFixed(2)} ${y.toFixed(2)} L${(x - L * .3 * dir).toFixed(2)} ${y.toFixed(2)}Z" fill="currentColor" fill-opacity=".72"/>`;
 }
 
 const POSES = {
-  standing: (cx,cy,s) => figBase(cx,cy,s) + `
-    <path d="M${cx-s*.5} ${cy-s*1.52} Q${cx-s*.88} ${cy-s*1.15} ${cx-s*1.28} ${cy-s*.88}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
-    <path d="M${cx+s*.5} ${cy-s*1.52} Q${cx+s*.88} ${cy-s*1.15} ${cx+s*1.28} ${cy-s*.88}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
-    <path d="M${cx-s*.32} ${cy+.06} Q${cx-s*.55} ${cy+s*.75} ${cx-s*.78} ${cy+s*1.52}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
-    <path d="M${cx+s*.32} ${cy+.06} Q${cx+s*.55} ${cy+s*.75} ${cx+s*.78} ${cy+s*1.52}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>`,
-
-  running: (cx,cy,s) => figBase(cx,cy,s) + `
-    <path d="M${cx-s*1.4} ${cy-s*1.7} Q${cx-s*.6} ${cy-s*1.38} ${cx+s*.2} ${cy-s*1.05}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
-    <path d="M${cx+s*.2} ${cy-s*1.05} Q${cx+s*.85} ${cy-s*1.3} ${cx+s*1.5} ${cy-s*1.55}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
-    <path d="M${cx-s*.3} ${cy+.06} Q${cx-s*.6} ${cy+s*.62} ${cx-s*.9} ${cy+s*1.2}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
-    <path d="M${cx+s*.3} ${cy+.06} Q${cx+s*.7} ${cy+s*.38} ${cx+s*1.1} ${cy+s*.7}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>`,
-
-  dancing: (cx,cy,s) => figBase(cx,cy,s,'happy') + `
-    <path d="M${cx-s*.5} ${cy-s*1.52} Q${cx-s*.95} ${cy-s*2.0} ${cx-s*1.45} ${cy-s*2.35}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
-    <path d="M${cx+s*.5} ${cy-s*1.52} Q${cx+s*.95} ${cy-s*2.0} ${cx+s*1.45} ${cy-s*2.35}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
-    <path d="M${cx-s*.32} ${cy+.06} Q${cx-s*.72} ${cy+s*.62} ${cx-s*1.1} ${cy+s*1.15}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
-    <path d="M${cx+s*.32} ${cy+.06} Q${cx+s*.46} ${cy+s*.82} ${cx+s*.6} ${cy+s*1.55}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
-    <path d="M${cx-s*1.6} ${cy-s*2.6} Q${cx-s*1.3} ${cy-s*3.1} ${cx-s*.8} ${cy-s*2.8}" fill="none" stroke="currentColor" stroke-width="${s*.05}" opacity=".35" stroke-dasharray="2,2"/>
-    <path d="M${cx+s*1.6} ${cy-s*2.6} Q${cx+s*1.3} ${cy-s*3.1} ${cx+s*.8} ${cy-s*2.8}" fill="none" stroke="currentColor" stroke-width="${s*.05}" opacity=".35" stroke-dasharray="2,2"/>
-    <text x="${cx-s*1.65}" y="${cy-s*2.3}" font-size="${s*.55}" fill="currentColor" opacity=".5">✦</text>
-    <text x="${cx+s*1.45}" y="${cy-s*2.0}" font-size="${s*.45}" fill="currentColor" opacity=".4">✦</text>
-    <text x="${cx}" y="${cy-s*3.6}" font-size="${s*.4}" fill="currentColor" opacity=".35">♪</text>`,
-
-  crying: (cx,cy,s) => figBase(cx,cy,s,'sad') + `
-    <path d="M${cx-s*.5} ${cy-s*1.52} Q${cx-s*.62} ${cy-s*1.36} ${cx-s*.75} ${cy-s*1.2}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
-    <path d="M${cx+s*.5} ${cy-s*1.52} Q${cx+s*.62} ${cy-s*1.36} ${cx+s*.75} ${cy-s*1.2}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
-    <path d="M${cx-s*.32} ${cy+.06} Q${cx-s*.63} ${cy+s*.78} ${cx-s*.95} ${cy+s*1.5}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
-    <path d="M${cx+s*.32} ${cy+.06} Q${cx+s*.58} ${cy+s*.76} ${cx+s*.85} ${cy+s*1.45}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
-    <path d="M${cx-s*.28} ${cy-s*2.75} Q${cx-s*.32} ${cy-s*2.4} ${cx-s*.3} ${cy-s*1.95}" fill="none" stroke="currentColor" stroke-width="${s*.06}" opacity=".7"/>
-    <path d="M${cx+s*.28} ${cy-s*2.75} Q${cx+s*.32} ${cy-s*2.4} ${cx+s*.3} ${cy-s*1.95}" fill="none" stroke="currentColor" stroke-width="${s*.06}" opacity=".7"/>
-    <circle cx="${cx-s*.3}" cy="${cy-s*1.9}" r="${s*.05}" fill="currentColor" opacity=".6"/>
-    <circle cx="${cx+s*.3}" cy="${cy-s*1.9}" r="${s*.05}" fill="currentColor" opacity=".6"/>`,
-
-  love: (cx,cy,s) => `
-    <path d="M${cx-s*1.755} ${cy-s*2.85} Q${cx-s} ${cy-s*3.82} ${cx-s*.245} ${cy-s*2.85}" fill="currentColor" fill-opacity=".42" stroke="none"/>
-    <circle cx="${cx-s}" cy="${cy-s*2.8}" r="${s*.88}" fill="currentColor" fill-opacity=".3" stroke="currentColor" stroke-width="${s*.12}"/>
-    <path d="M${cx+s*.245} ${cy-s*2.85} Q${cx+s} ${cy-s*3.82} ${cx+s*1.755} ${cy-s*2.85}" fill="currentColor" fill-opacity=".42" stroke="none"/>
-    <circle cx="${cx+s}" cy="${cy-s*2.8}" r="${s*.88}" fill="currentColor" fill-opacity=".3" stroke="currentColor" stroke-width="${s*.12}"/>
-    <path d="M${cx-s} ${cy-s*1.97} Q${cx-s*.6} ${cy-s*1.0} ${cx-s*.2} ${cy+.05}" stroke="currentColor" stroke-width="${s*.2}" fill="none" stroke-linecap="round"/>
-    <path d="M${cx+s} ${cy-s*1.97} Q${cx+s*.6} ${cy-s*1.0} ${cx+s*.2} ${cy+.05}" stroke="currentColor" stroke-width="${s*.2}" fill="none" stroke-linecap="round"/>
-    <line x1="${cx-s*.2}" y1="${cy-s*1.42}" x2="${cx+s*.2}" y2="${cy-s*1.42}" stroke="currentColor" stroke-width="${s*.2}" stroke-linecap="round"/>
-    <path d="M${cx-s*.2} ${cy+.05} Q${cx-s*.6} ${cy+s*.7} ${cx-s*1.05} ${cy+s*1.35}" stroke="currentColor" stroke-width="${s*.2}" fill="none" stroke-linecap="round"/>
-    <path d="M${cx-s*.2} ${cy+.05} Q${cx+s*.02} ${cy+s*.7} ${cx+s*.25} ${cy+s*1.35}" stroke="currentColor" stroke-width="${s*.2}" fill="none" stroke-linecap="round"/>
-    <path d="M${cx+s*.2} ${cy+.05} Q${cx+s*.6} ${cy+s*.7} ${cx+s*1.05} ${cy+s*1.35}" stroke="currentColor" stroke-width="${s*.2}" fill="none" stroke-linecap="round"/>
-    <path d="M${cx+s*.2} ${cy+.05} Q${cx-s*.02} ${cy+s*.7} ${cx-s*.25} ${cy+s*1.35}" stroke="currentColor" stroke-width="${s*.2}" fill="none" stroke-linecap="round"/>
-    <text x="${cx}" y="${cy-s*3.6}" text-anchor="middle" font-size="${s*1.0}" fill="#ff6b9d" opacity=".9">♥</text>`,
-
-  action: (cx,cy,s) => figBase(cx,cy,s,'open') + `
-    <path d="M${cx-s*1.5} ${cy-s*.85} Q${cx-s*.6} ${cy-s*1.28} ${cx+s*.35} ${cy-s*1.72}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
-    <path d="M${cx+s*.35} ${cy-s*1.72} Q${cx+s*.98} ${cy-s*1.98} ${cx+s*1.6} ${cy-s*2.25}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
-    <path d="M${cx-s*.32} ${cy+.06} Q${cx-s*.66} ${cy+s*.55} ${cx-s*1.0} ${cy+s*1.05}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
-    <path d="M${cx+s*.32} ${cy+.06} Q${cx+s*.78} ${cy+s*.68} ${cx+s*1.25} ${cy+s*1.3}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
-    <line x1="${cx-s*1.9}" y1="${cy-s*.6}" x2="${cx-s*1.4}" y2="${cy-s*.7}" stroke="currentColor" stroke-width="${s*.05}" opacity=".4"/>
-    <line x1="${cx-s*2.0}" y1="${cy-s*.3}" x2="${cx-s*1.5}" y2="${cy-s*.35}" stroke="currentColor" stroke-width="${s*.04}" opacity=".3"/>
-    <line x1="${cx-s*1.85}" y1="${cy}" x2="${cx-s*1.38}" y2="${cy-s*.02}" stroke="currentColor" stroke-width="${s*.04}" opacity=".25"/>`,
-
-  crowd: (cx,cy,s) => {
-    const offsets=[-s*2.6,-s*1.0,s*.4,s*1.9,s*3.3];
-    return offsets.map((ox,i)=>{
-      const sy=i%2===0?s:s*.85;
-      return `
-        <path d="M${cx+ox-sy*.72} ${cy-sy*2.78} Q${cx+ox} ${cy-sy*3.72} ${cx+ox+sy*.72} ${cy-sy*2.78}" fill="currentColor" fill-opacity=".4" stroke="none"/>
-        <circle cx="${cx+ox}" cy="${cy-sy*2.8}" r="${sy*.85}" fill="currentColor" fill-opacity="${.25+i*.04}" stroke="currentColor" stroke-width="${sy*.1}"/>
-        <path d="M${cx+ox-sy*.48} ${cy-sy*1.84} L${cx+ox-sy*.38} ${cy+.06} L${cx+ox+sy*.38} ${cy+.06} L${cx+ox+sy*.48} ${cy-sy*1.84}Z" fill="currentColor" fill-opacity=".22" stroke="currentColor" stroke-width="${sy*.08}" stroke-linejoin="round"/>
-        <path d="M${cx+ox-sy*.48} ${cy-sy*1.52} Q${cx+ox-sy*.84} ${cy-sy*1.2} ${cx+ox-sy*1.2} ${cy-sy*.9}" stroke="currentColor" stroke-width="${sy*.18}" fill="none" stroke-linecap="round"/>
-        <path d="M${cx+ox+sy*.48} ${cy-sy*1.52} Q${cx+ox+sy*.84} ${cy-sy*1.2} ${cx+ox+sy*1.2} ${cy-sy*.9}" stroke="currentColor" stroke-width="${sy*.18}" fill="none" stroke-linecap="round"/>
-        <path d="M${cx+ox-sy*.3} ${cy+.06} Q${cx+ox-sy*.51} ${cy+sy*.55} ${cx+ox-sy*.72} ${cy+sy*1.1}" stroke="currentColor" stroke-width="${sy*.18}" fill="none" stroke-linecap="round"/>
-        <path d="M${cx+ox+sy*.3} ${cy+.06} Q${cx+ox+sy*.51} ${cy+sy*.55} ${cx+ox+sy*.72} ${cy+sy*1.1}" stroke="currentColor" stroke-width="${sy*.18}" fill="none" stroke-linecap="round"/>`;
-    }).join('');
+  standing: (cx,cy,s) => {
+    const r = figRig(cx,cy,s), H = r.HD;
+    return figBase(cx,cy,s)
+      + armsL(r, [cx-r.shW*1.14, r.chestY+H*.55], [cx-r.shW*1.2, r.waistY+H*.62], H*.1, H*.06)
+      + armsR(r, [cx+r.shW*1.14, r.chestY+H*.55], [cx+r.shW*1.2, r.waistY+H*.62], -H*.1, -H*.06)
+      + legL(r, [cx-r.hipW*.62, r.kneeY], [cx-r.hipW*.68, r.footY], -H*.05, 0)
+      + legR(r, [cx+r.hipW*.62, r.kneeY], [cx+r.hipW*.68, r.footY], H*.05, 0)
+      + shoe(r, cx-r.hipW*.68, r.footY, -1) + shoe(r, cx+r.hipW*.68, r.footY, 1);
   },
 
-  reaching: (cx,cy,s) => figBase(cx,cy,s) + `
-    <path d="M${cx+s*.5} ${cy-s*1.52} Q${cx+s*1.22} ${cy-s*2.06} ${cx+s*1.95} ${cy-s*2.6}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
-    <path d="M${cx-s*.5} ${cy-s*1.52} Q${cx-s*.66} ${cy-s*1.25} ${cx-s*.82} ${cy-s*.98}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
-    <path d="M${cx-s*.32} ${cy+.06} Q${cx-s*.55} ${cy+s*.75} ${cx-s*.78} ${cy+s*1.52}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
-    <path d="M${cx+s*.32} ${cy+.06} Q${cx+s*.55} ${cy+s*.75} ${cx+s*.78} ${cy+s*1.52}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
-    <circle cx="${cx+s*2.15}" cy="${cy-s*2.8}" r="${s*.32}" fill="none" stroke="currentColor" stroke-width="${s*.1}" opacity=".5"/>`,
+  walking: (cx,cy,s) => {
+    const r = figRig(cx,cy,s), H = r.HD;
+    return figBase(cx,cy,s)
+      + armsL(r, [cx-r.shW*1.3, r.chestY+H*.4], [cx-r.shW*.9, r.waistY+H*.5], H*.18, -H*.14)
+      + armsR(r, [cx+r.shW*1.0, r.chestY+H*.6], [cx+r.shW*1.5, r.waistY+H*.3], -H*.12, H*.16)
+      + legL(r, [cx-r.hipW*1.05, r.kneeY+H*.1], [cx-r.hipW*1.5, r.footY], -H*.12, H*.08)
+      + legR(r, [cx+r.hipW*.85, r.kneeY], [cx+r.hipW*1.2, r.footY], H*.14, -H*.06)
+      + shoe(r, cx-r.hipW*1.5, r.footY, -1) + shoe(r, cx+r.hipW*1.2, r.footY, 1);
+  },
 
-  sitting: (cx,cy,s) => figBase(cx,cy,s) + `
-    <path d="M${cx-s*.5} ${cy-s*1.52} Q${cx-s*.8} ${cy-s*1.3} ${cx-s*1.1} ${cy-s*1.1}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
-    <path d="M${cx+s*.5} ${cy-s*1.52} Q${cx+s*.8} ${cy-s*1.3} ${cx+s*1.1} ${cy-s*1.1}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
-    <path d="M${cx-s*.32} ${cy+.06} Q${cx+s*.38} ${cy+.06} ${cx+s*1.1} ${cy+.06}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
-    <path d="M${cx+s*1.1} ${cy+.06} Q${cx+s*1.1} ${cy+s*.68} ${cx+s*1.1} ${cy+s*1.35}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
-    <path d="M${cx+s*.32} ${cy+.06} Q${cx+s*.32} ${cy+s*.68} ${cx+s*.32} ${cy+s*1.35}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>`,
+  running: (cx,cy,s) => {
+    const r = figRig(cx,cy,s), H = r.HD;
+    return figBase(cx,cy,s)
+      + armsL(r, [cx-r.shW*1.6, r.chestY-H*.1], [cx-r.shW*1.2, r.chestY-H*.85], H*.2, H*.2)
+      + armsR(r, [cx+r.shW*1.5, r.chestY+H*.5], [cx+r.shW*1.05, r.waistY+H*.55], -H*.2, -H*.18)
+      + legL(r, [cx-r.hipW*1.5, r.kneeY-H*.25], [cx-r.hipW*2.3, r.kneeY+H*.55], -H*.2, H*.15)
+      + legR(r, [cx+r.hipW*1.35, r.kneeY+H*.2], [cx+r.hipW*1.15, r.footY], H*.25, -H*.1)
+      + shoe(r, cx+r.hipW*1.15, r.footY, 1);
+  },
 
-  lookingup: (cx,cy,s) => `
-    <path d="M${cx-s*.755} ${cy-s*3.12} Q${cx} ${cy-s*4.15} ${cx+s*.755} ${cy-s*3.12}" fill="currentColor" fill-opacity=".45" stroke="none"/>
-    <circle cx="${cx}" cy="${cy-s*2.35}" r="${s*.92}" fill="currentColor" fill-opacity=".32" stroke="currentColor" stroke-width="${s*.12}"/>
-    <circle cx="${cx-s*.28}" cy="${cy-s*2.4}" r="${s*.13}" fill="currentColor" opacity=".82"/>
-    <circle cx="${cx+s*.28}" cy="${cy-s*2.4}" r="${s*.13}" fill="currentColor" opacity=".82"/>
-    <rect x="${cx-s*.13}" y="${cy-s*1.47}" width="${s*.26}" height="${s*.18}" fill="currentColor" fill-opacity=".38"/>
-    <path d="M${cx-s*.54} ${cy-s*1.38} L${cx-s*.42} ${cy+.06} L${cx+s*.42} ${cy+.06} L${cx+s*.54} ${cy-s*1.38}Z" fill="currentColor" fill-opacity=".3" stroke="currentColor" stroke-width="${s*.1}" stroke-linejoin="round"/>
-    <path d="M${cx-s*.5} ${cy-s*1.1} Q${cx+s*.36} ${cy-s*1.19} ${cx+s*1.22} ${cy-s*1.28}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
-    <path d="M${cx-s*.32} ${cy+.06} Q${cx-s*.55} ${cy+s*.75} ${cx-s*.78} ${cy+s*1.52}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
-    <path d="M${cx+s*.32} ${cy+.06} Q${cx+s*.55} ${cy+s*.75} ${cx+s*.78} ${cy+s*1.52}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
-    <line x1="${cx}" y1="${cy-s*3.22}" x2="${cx}" y2="${cy-s*4.05}" stroke="currentColor" stroke-width="${s*.08}" stroke-dasharray="3,3" opacity=".4"/>`,
+  dancing: (cx,cy,s) => {
+    const r = figRig(cx,cy,s), H = r.HD;
+    return figBase(cx,cy,s,'happy')
+      + armsL(r, [cx-r.shW*1.5, r.shoulderY-H*.5], [cx-r.shW*1.85, r.top+H*.35], H*.15, H*.12)
+      + armsR(r, [cx+r.shW*1.5, r.shoulderY-H*.55], [cx+r.shW*1.9, r.top+H*.25], -H*.15, -H*.12)
+      + legL(r, [cx-r.hipW*1.35, r.kneeY], [cx-r.hipW*1.85, r.footY], -H*.16, H*.06)
+      + legR(r, [cx+r.hipW*.9, r.kneeY+H*.15], [cx+r.hipW*.75, r.footY], H*.12, 0)
+      + shoe(r, cx-r.hipW*1.85, r.footY, -1) + shoe(r, cx+r.hipW*.75, r.footY, 1)
+      + `<text x="${(cx+r.shW*2.1).toFixed(1)}" y="${(r.top+H*.2).toFixed(1)}" font-size="${(H*.85).toFixed(1)}" fill="currentColor" opacity=".45">♪</text>
+         <text x="${(cx-r.shW*2.6).toFixed(1)}" y="${(r.chestY).toFixed(1)}" font-size="${(H*.65).toFixed(1)}" fill="currentColor" opacity=".35">♪</text>`;
+  },
 
-  walking: (cx,cy,s) => figBase(cx,cy,s) + `
-    <path d="M${cx-s*1.0} ${cy-s*1.48} Q${cx-s*.1} ${cy-s*1.38} ${cx+s*.8} ${cy-s*1.28}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
-    <path d="M${cx-s*.32} ${cy+.06} Q${cx-s*.5} ${cy+s*.77} ${cx-s*.68} ${cy+s*1.48}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>
-    <path d="M${cx+s*.32} ${cy+.06} Q${cx+s*.6} ${cy+s*.64} ${cx+s*.88} ${cy+s*1.22}" stroke="currentColor" stroke-width="${s*.22}" fill="none" stroke-linecap="round"/>`,
+  crying: (cx,cy,s) => {
+    const r = figRig(cx,cy,s), H = r.HD;
+    return figBase(cx,cy,s,'sad')
+      + armsL(r, [cx-r.shW*.95, r.chestY+H*.5], [cx-r.rx*.55, r.chin+H*.5], H*.14, H*.2)
+      + armsR(r, [cx+r.shW*.95, r.chestY+H*.55], [cx+r.rx*.6, r.chin+H*.62], -H*.14, -H*.2)
+      + legL(r, [cx-r.hipW*.6, r.kneeY], [cx-r.hipW*.7, r.footY], -H*.04, 0)
+      + legR(r, [cx+r.hipW*.6, r.kneeY], [cx+r.hipW*.72, r.footY], H*.04, 0)
+      + shoe(r, cx-r.hipW*.7, r.footY, -1) + shoe(r, cx+r.hipW*.72, r.footY, 1)
+      + `<path d="M${(cx-r.rx*.42).toFixed(2)} ${(r.headCY+r.rx*.4).toFixed(2)} q${(-r.rx*.1).toFixed(2)} ${(r.rx*.5).toFixed(2)} ${(r.rx*.04).toFixed(2)} ${(r.rx*.9).toFixed(2)}" fill="none" stroke="currentColor" stroke-width="${inkW(H,.1,.5,1.1)}" opacity=".6"/>
+         <path d="M${(cx+r.rx*.42).toFixed(2)} ${(r.headCY+r.rx*.44).toFixed(2)} q${(r.rx*.1).toFixed(2)} ${(r.rx*.5).toFixed(2)} ${(-r.rx*.02).toFixed(2)} ${(r.rx*.86).toFixed(2)}" fill="none" stroke="currentColor" stroke-width="${inkW(H,.1,.5,1.1)}" opacity=".6"/>`;
+  },
+
+  reaching: (cx,cy,s) => {
+    const r = figRig(cx,cy,s), H = r.HD;
+    return figBase(cx,cy,s)
+      + armsR(r, [cx+r.shW*1.7, r.shoulderY-H*.55], [cx+r.shW*2.5, r.top+H*.5], -H*.1, -H*.1)
+      + armsL(r, [cx-r.shW*1.05, r.chestY+H*.5], [cx-r.shW*1.0, r.waistY+H*.6], H*.1, H*.05)
+      + legL(r, [cx-r.hipW*.65, r.kneeY], [cx-r.hipW*.72, r.footY], -H*.05, 0)
+      + legR(r, [cx+r.hipW*.7, r.kneeY], [cx+r.hipW*.85, r.footY], H*.08, 0)
+      + shoe(r, cx-r.hipW*.72, r.footY, -1) + shoe(r, cx+r.hipW*.85, r.footY, 1)
+      + `<circle cx="${(cx+r.shW*2.95).toFixed(1)}" cy="${(r.top+H*.1).toFixed(1)}" r="${(H*.32).toFixed(1)}" fill="none" stroke="currentColor" stroke-width="${inkW(H,.11,.5,1.2)}" opacity=".45"/>`;
+  },
+
+  lookingup: (cx,cy,s) => {
+    const r = figRig(cx,cy,s), H = r.HD;
+    // 顎を上げた頭部（頭を少し後ろへ倒し、目線を上に向ける）
+    const head = `<g transform="rotate(-16 ${cx.toFixed(1)} ${r.neckY.toFixed(1)})">${headSVG(r,'')}</g>`;
+    return torsoSVG(r) + head
+      + armsL(r, [cx-r.shW*1.16, r.chestY+H*.6], [cx-r.shW*1.1, r.waistY+H*.7], H*.1, H*.05)
+      + armsR(r, [cx+r.shW*1.16, r.chestY+H*.6], [cx+r.shW*1.1, r.waistY+H*.7], -H*.1, -H*.05)
+      + legL(r, [cx-r.hipW*.62, r.kneeY], [cx-r.hipW*.7, r.footY], -H*.05, 0)
+      + legR(r, [cx+r.hipW*.62, r.kneeY], [cx+r.hipW*.7, r.footY], H*.05, 0)
+      + shoe(r, cx-r.hipW*.7, r.footY, -1) + shoe(r, cx+r.hipW*.7, r.footY, 1)
+      + `<line x1="${cx.toFixed(1)}" y1="${(r.top-H*.3).toFixed(1)}" x2="${cx.toFixed(1)}" y2="${(r.top-H*1.5).toFixed(1)}" stroke="currentColor" stroke-width="${inkW(H,.1,.5,1.1)}" stroke-dasharray="3,3" opacity=".38"/>`;
+  },
+
+  sitting: (cx,cy,s) => {
+    const r = figRig(cx,cy,s), H = r.HD;
+    // 腰から前方へ太もも、そこから下へ脛（横向きに座った姿）
+    const kneeX = cx + r.hipW * 2.0, kneeY = r.hipY + H * .18;
+    return figBase(cx,cy,s)
+      + armsL(r, [cx-r.shW*1.1, r.chestY+H*.6], [cx-r.shW*.85, r.hipY-H*.15], H*.1, H*.08)
+      + armsR(r, [cx+r.shW*1.05, r.chestY+H*.65], [cx+r.shW*1.3, r.hipY-H*.1], -H*.1, -H*.08)
+      + limb2([cx+r.hipW*.2, r.hipY-H*.1], [kneeX, kneeY], [kneeX+H*.1, r.footY],
+              r.legW, r.legW*.7, r.legW*.48, -H*.14, H*.06)
+      + limb2([cx-r.hipW*.35, r.hipY-H*.05], [kneeX-H*.5, kneeY+H*.25], [kneeX-H*.45, r.footY],
+              r.legW*.9, r.legW*.62, r.legW*.44, -H*.1, H*.05)
+      + shoe(r, kneeX+H*.1, r.footY, 1)
+      + `<line x1="${(cx-r.hipW*1.6).toFixed(1)}" y1="${(r.hipY+H*.16).toFixed(1)}" x2="${(cx+r.hipW*1.3).toFixed(1)}" y2="${(r.hipY+H*.16).toFixed(1)}" stroke="currentColor" stroke-width="${inkW(H,.14,.7,1.8)}" opacity=".5"/>`;
+  },
+
+  action: (cx,cy,s) => {
+    const r = figRig(cx,cy,s), H = r.HD;
+    return figBase(cx,cy,s,'open')
+      + armsL(r, [cx-r.shW*1.75, r.chestY+H*.15], [cx-r.shW*2.4, r.chestY-H*.5], H*.2, H*.15)
+      + armsR(r, [cx+r.shW*1.5, r.shoulderY-H*.35], [cx+r.shW*2.3, r.top+H*.75], -H*.18, -H*.14)
+      + legL(r, [cx-r.hipW*1.5, r.kneeY+H*.1], [cx-r.hipW*2.05, r.footY], -H*.18, H*.08)
+      + legR(r, [cx+r.hipW*1.4, r.kneeY+H*.15], [cx+r.hipW*1.9, r.footY], H*.18, -H*.08)
+      + shoe(r, cx-r.hipW*2.05, r.footY, -1) + shoe(r, cx+r.hipW*1.9, r.footY, 1)
+      + Array.from({length:3},(_,i)=>`<line x1="${(cx-r.shW*(2.9+i*.35)).toFixed(1)}" y1="${(r.chestY-H*(.7-i*.5)).toFixed(1)}" x2="${(cx-r.shW*(2.2+i*.3)).toFixed(1)}" y2="${(r.chestY-H*(.62-i*.48)).toFixed(1)}" stroke="currentColor" stroke-width="${inkW(H,.09,.45,1.0)}" opacity="${(.36-i*.08).toFixed(2)}"/>`).join('');
+  },
+
+  love: (cx,cy,s) => {
+    // 2人が肩を寄せ合うツーショット。
+    // 相手側へ腕を回す表現は隙間に板状の腕が渡って見えるため、
+    // 内側の腕は互いに向けて軽く下げるだけに留める。
+    const off = s * 0.82;
+    const rl = figRig(cx - off, cy, s * .96), rr = figRig(cx + off, cy, s);
+    const HL = rl.HD, HR = rr.HD;
+    const armsOf = (r, H, innerDir) =>
+      // 外側の腕：自然に下げる
+      limb2([r.cx - innerDir*r.shW*.92, r.shoulderY + H*.12],
+            [r.cx - innerDir*r.shW*1.16, r.chestY + H*.55],
+            [r.cx - innerDir*r.shW*1.2,  r.waistY + H*.62],
+            r.armW, r.armW*.78, r.armW*.5, -innerDir*H*.1, -innerDir*H*.05)
+      // 内側の腕：相手の方へわずかに寄せる（相手には届かせない）
+      + limb2([r.cx + innerDir*r.shW*.9, r.shoulderY + H*.12],
+            [r.cx + innerDir*r.shW*1.0, r.chestY + H*.6],
+            [r.cx + innerDir*r.shW*1.05, r.waistY + H*.55],
+            r.armW, r.armW*.78, r.armW*.5, innerDir*H*.06, innerDir*H*.03);
+    const legsOf = (r, H) =>
+      legL(r, [r.cx-r.hipW*.6, r.kneeY], [r.cx-r.hipW*.66, r.footY], -H*.05, 0)
+      + legR(r, [r.cx+r.hipW*.6, r.kneeY], [r.cx+r.hipW*.66, r.footY], H*.05, 0)
+      + shoe(r, r.cx-r.hipW*.66, r.footY, -1) + shoe(r, r.cx+r.hipW*.66, r.footY, 1);
+    // 奥（左）を先に描き、手前（右）で重ねて奥行きを出す
+    return torsoSVG(rl) + headSVG(rl,'happy') + armsOf(rl, HL, 1) + legsOf(rl, HL)
+         + torsoSVG(rr) + headSVG(rr,'happy') + armsOf(rr, HR, -1) + legsOf(rr, HR);
+  },
+
+  crowd: (cx,cy,s) => {
+    // 手前を大きく奥を小さく重ねて群衆の奥行きを出す
+    const rows = [
+      { ox:-s*3.1, k:.80, op:.34 }, { ox: s*3.2, k:.78, op:.32 },
+      { ox:-s*1.5, k:.92, op:.5  }, { ox: s*1.6, k:.9,  op:.48 },
+      { ox: s*.05, k:1.0, op:.66 },
+    ];
+    return rows.map(({ox,k,op}) => {
+      const r = figRig(cx+ox, cy, s*k), H = r.HD;
+      const body = torsoSVG(r) + headSVG(r,'')
+        + limb2([r.cx-r.shW*.92, r.shoulderY+H*.12], [r.cx-r.shW*1.15, r.chestY+H*.55], [r.cx-r.shW*1.2, r.waistY+H*.6], r.armW, r.armW*.78, r.armW*.5, H*.1, H*.05)
+        + limb2([r.cx+r.shW*.92, r.shoulderY+H*.12], [r.cx+r.shW*1.15, r.chestY+H*.55], [r.cx+r.shW*1.2, r.waistY+H*.6], r.armW, r.armW*.78, r.armW*.5, -H*.1, -H*.05)
+        + legL(r, [r.cx-r.hipW*.6, r.kneeY], [r.cx-r.hipW*.68, r.footY], -H*.05, 0)
+        + legR(r, [r.cx+r.hipW*.6, r.kneeY], [r.cx+r.hipW*.68, r.footY], H*.05, 0);
+      return `<g opacity="${op}">${body}</g>`;
+    }).join('');
+  },
 };
+
+// ── クローズアップ用の顔（CU/ECU）──────────────────────────────────────
+// 全身を拡大すると頭が小さすぎて「寄り」に見えないため、
+// 頭部と肩を正しい大きさで描き直した専用のバストショットを使う。
+function portraitSVG(cx, cy, rx, expression, tight) {
+  const HD = rx / 0.36;                       // 頭一つ分（figRig と同じ関係）
+  const r = { cx, HD, rx, headCY: cy, chin: cy + rx * 1.4, top: cy - rx * 1.42 };
+  const w = inkW(HD, .05, 1.0, 2.4);
+  const f = n => n.toFixed(2);
+  const hy = cy;
+  const CHIN = rx * 1.22;   // 顎までの距離（細長く見えないよう抑える）
+  const CROWN = rx * 1.26;  // 頭頂までの距離
+  // 首と肩（画面下端へ抜ける）
+  const neckW = rx * .36, shY = cy + rx * 1.95;
+  const shoulders = tight ? '' : `
+    <path d="M${f(cx - neckW)} ${f(hy + CHIN * .88)} L${f(cx - neckW * .96)} ${f(shY - rx * .42)}
+      C${f(cx - rx * 1.5)} ${f(shY - rx * .22)} ${f(cx - rx * 2.4)} ${f(shY + rx * .55)} ${f(cx - rx * 2.8)} ${f(shY + rx * 2.4)}
+      L${f(cx + rx * 2.8)} ${f(shY + rx * 2.4)}
+      C${f(cx + rx * 2.4)} ${f(shY + rx * .55)} ${f(cx + rx * 1.5)} ${f(shY - rx * .22)} ${f(cx + neckW * .96)} ${f(shY - rx * .42)}
+      L${f(cx + neckW)} ${f(hy + CHIN * .88)}Z"
+      fill="currentColor" fill-opacity=".2" stroke="currentColor" stroke-width="${w}" stroke-linejoin="round"/>
+    <path d="M${f(cx - rx * .55)} ${f(shY - rx * .06)} Q${f(cx)} ${f(shY + rx * .7)} ${f(cx + rx * .55)} ${f(shY - rx * .06)}" fill="none" stroke="currentColor" stroke-width="${w}" opacity=".6"/>
+    <path d="M${f(cx - neckW * .8)} ${f(hy + CHIN * .95)} Q${f(cx)} ${f(hy + CHIN * 1.2)} ${f(cx + neckW * .8)} ${f(hy + CHIN * .95)}" fill="none" stroke="currentColor" stroke-width="${w}" opacity=".3"/>`;
+  // 頭部 — 頬骨あたりが最も広く、顎はやや丸く short に収める
+  const skull = `<path d="M${f(cx - rx)} ${f(hy - rx * .12)}
+    C${f(cx - rx * 1.0)} ${f(hy - rx * .95)} ${f(cx - rx * .54)} ${f(hy - CROWN)} ${f(cx)} ${f(hy - CROWN)}
+    C${f(cx + rx * .54)} ${f(hy - CROWN)} ${f(cx + rx * 1.0)} ${f(hy - rx * .95)} ${f(cx + rx)} ${f(hy - rx * .12)}
+    C${f(cx + rx * .99)} ${f(hy + rx * .5)} ${f(cx + rx * .72)} ${f(hy + CHIN * .86)} ${f(cx)} ${f(hy + CHIN)}
+    C${f(cx - rx * .72)} ${f(hy + CHIN * .86)} ${f(cx - rx * .99)} ${f(hy + rx * .5)} ${f(cx - rx)} ${f(hy - rx * .12)}Z"
+    fill="currentColor" fill-opacity=".1" stroke="currentColor" stroke-width="${w}"/>`;
+  // 耳
+  const ears = `<path d="M${f(cx - rx * .99)} ${f(hy - rx * .04)} C${f(cx - rx * 1.16)} ${f(hy - rx * .1)} ${f(cx - rx * 1.16)} ${f(hy + rx * .38)} ${f(cx - rx * .95)} ${f(hy + rx * .4)}" fill="currentColor" fill-opacity=".08" stroke="currentColor" stroke-width="${w}" opacity=".6"/>
+    <path d="M${f(cx + rx * .99)} ${f(hy - rx * .04)} C${f(cx + rx * 1.16)} ${f(hy - rx * .1)} ${f(cx + rx * 1.16)} ${f(hy + rx * .38)} ${f(cx + rx * .95)} ${f(hy + rx * .4)}" fill="currentColor" fill-opacity=".08" stroke="currentColor" stroke-width="${w}" opacity=".6"/>`;
+  // 頬から顎のあたりの陰影（立体感）
+  const shade = `<path d="M${f(cx + rx * .74)} ${f(hy - rx * .42)} C${f(cx + rx * .92)} ${f(hy + rx * .18)} ${f(cx + rx * .62)} ${f(hy + rx * .82)} ${f(cx + rx * .22)} ${f(hy + CHIN * .93)}" fill="none" stroke="currentColor" stroke-width="${w}" opacity=".22"/>`;
+  // 髪 — 前髪の束を輪郭で描き、影の塊に見えないよう淡く置く
+  const hair = `<path d="M${f(cx - rx * 1.04)} ${f(hy - rx * .18)}
+    C${f(cx - rx * 1.1)} ${f(hy - rx * 1.05)} ${f(cx - rx * .56)} ${f(hy - CROWN * 1.16)} ${f(cx + rx * .06)} ${f(hy - CROWN * 1.14)}
+    C${f(cx + rx * .7)} ${f(hy - CROWN * 1.12)} ${f(cx + rx * 1.12)} ${f(hy - rx * .82)} ${f(cx + rx * 1.04)} ${f(hy - rx * .12)}
+    C${f(cx + rx * .98)} ${f(hy - rx * .62)} ${f(cx + rx * .78)} ${f(hy - rx * .86)} ${f(cx + rx * .52)} ${f(hy - rx * .78)}
+    C${f(cx + rx * .2)} ${f(hy - rx * .68)} ${f(cx - rx * .12)} ${f(hy - rx * .52)} ${f(cx - rx * .34)} ${f(hy - rx * .74)}
+    C${f(cx - rx * .58)} ${f(hy - rx * .96)} ${f(cx - rx * .88)} ${f(hy - rx * .72)} ${f(cx - rx * 1.04)} ${f(hy - rx * .18)}Z"
+    fill="currentColor" fill-opacity=".3" stroke="currentColor" stroke-width="${w}" stroke-linejoin="round"/>
+    <path d="M${f(cx - rx * .3)} ${f(hy - rx * .82)} C${f(cx - rx * .1)} ${f(hy - CROWN * .95)} ${f(cx + rx * .2)} ${f(hy - CROWN * 1.0)} ${f(cx + rx * .46)} ${f(hy - rx * .86)}" fill="none" stroke="currentColor" stroke-width="${w}" opacity=".4"/>
+    <path d="M${f(cx - rx * .72)} ${f(hy - rx * .5)} C${f(cx - rx * .84)} ${f(hy - rx * .9)} ${f(cx - rx * .7)} ${f(hy - CROWN * .95)} ${f(cx - rx * .42)} ${f(hy - CROWN * 1.02)}" fill="none" stroke="currentColor" stroke-width="${w}" opacity=".35"/>`;
+  // 目（クローズアップでは瞳・まぶた・睫毛まで描き込む）
+  const eyeY = hy + rx * .1, ex = rx * .42, eh = rx * .17, ew = rx * .26;
+  const eye = (sx) => expression === 'sad'
+    ? `<path d="M${f(sx - ew)} ${f(eyeY + rx * .02)} Q${f(sx)} ${f(eyeY - rx * .16)} ${f(sx + ew)} ${f(eyeY + rx * .04)}" fill="none" stroke="currentColor" stroke-width="${w}" opacity=".85"/>
+       <path d="M${f(sx - ew * .8)} ${f(eyeY + rx * .16)} Q${f(sx)} ${f(eyeY + rx * .26)} ${f(sx + ew * .8)} ${f(eyeY + rx * .14)}" fill="none" stroke="currentColor" stroke-width="${w}" opacity=".4"/>`
+    : `<path d="M${f(sx - ew)} ${f(eyeY)} Q${f(sx)} ${f(eyeY - eh * 1.5)} ${f(sx + ew)} ${f(eyeY)} Q${f(sx)} ${f(eyeY + eh * 1.35)} ${f(sx - ew)} ${f(eyeY)}Z" fill="currentColor" fill-opacity=".1" stroke="currentColor" stroke-width="${w}"/>
+       <circle cx="${f(sx)}" cy="${f(eyeY + eh * .12)}" r="${f(eh * .62)}" fill="currentColor" opacity=".85"/>
+       <circle cx="${f(sx + eh * .22)}" cy="${f(eyeY - eh * .16)}" r="${f(eh * .2)}" fill="#fff" opacity=".75"/>
+       <path d="M${f(sx - ew)} ${f(eyeY)} Q${f(sx)} ${f(eyeY - eh * 1.6)} ${f(sx + ew)} ${f(eyeY)}" fill="none" stroke="currentColor" stroke-width="${(w * 1.5).toFixed(2)}" opacity=".8"/>`;
+  const eyes = eye(cx - ex) + eye(cx + ex);
+  const brows = `<path d="M${f(cx - ex - rx * .3)} ${f(eyeY - rx * .42)} Q${f(cx - ex)} ${f(eyeY - rx * .56)} ${f(cx - ex + rx * .28)} ${f(eyeY - rx * .4)}" fill="none" stroke="currentColor" stroke-width="${(w * 1.6).toFixed(2)}" opacity=".65"/>
+    <path d="M${f(cx + ex - rx * .28)} ${f(eyeY - rx * .4)} Q${f(cx + ex)} ${f(eyeY - rx * .56)} ${f(cx + ex + rx * .3)} ${f(eyeY - rx * .42)}" fill="none" stroke="currentColor" stroke-width="${(w * 1.6).toFixed(2)}" opacity=".65"/>`;
+  const nose = `<path d="M${f(cx + rx * .05)} ${f(hy + rx * .28)} Q${f(cx + rx * .1)} ${f(hy + rx * .54)} ${f(cx - rx * .06)} ${f(hy + rx * .6)}" fill="none" stroke="currentColor" stroke-width="${w}" opacity=".5"/>`;
+  const mY = hy + rx * .84;
+  const mouth = expression === 'sad'
+    ? `<path d="M${f(cx - rx * .24)} ${f(mY + rx * .06)} Q${f(cx)} ${f(mY - rx * .1)} ${f(cx + rx * .24)} ${f(mY + rx * .04)}" fill="none" stroke="currentColor" stroke-width="${(w * 1.3).toFixed(2)}" opacity=".65"/>`
+    : expression === 'happy'
+    ? `<path d="M${f(cx - rx * .28)} ${f(mY - rx * .06)} Q${f(cx)} ${f(mY + rx * .24)} ${f(cx + rx * .28)} ${f(mY - rx * .06)}" fill="none" stroke="currentColor" stroke-width="${(w * 1.3).toFixed(2)}" opacity=".72"/>`
+    : expression === 'open'
+    ? `<path d="M${f(cx - rx * .2)} ${f(mY - rx * .04)} Q${f(cx)} ${f(mY + rx * .34)} ${f(cx + rx * .2)} ${f(mY - rx * .04)} Q${f(cx)} ${f(mY + rx * .06)} ${f(cx - rx * .2)} ${f(mY - rx * .04)}Z" fill="currentColor" fill-opacity=".45" stroke="currentColor" stroke-width="${w}"/>`
+    : `<path d="M${f(cx - rx * .22)} ${f(mY)} Q${f(cx)} ${f(mY + rx * .12)} ${f(cx + rx * .22)} ${f(mY)}" fill="none" stroke="currentColor" stroke-width="${(w * 1.2).toFixed(2)}" opacity=".6"/>`;
+  const tears = expression === 'sad'
+    ? `<path d="M${f(cx - ex)} ${f(eyeY + rx * .24)} q${f(-rx * .06)} ${f(rx * .5)} ${f(rx * .02)} ${f(rx * .86)}" fill="none" stroke="currentColor" stroke-width="${w}" opacity=".55"/>
+       <path d="M${f(cx + ex)} ${f(eyeY + rx * .26)} q${f(rx * .06)} ${f(rx * .48)} ${f(-rx * .02)} ${f(rx * .8)}" fill="none" stroke="currentColor" stroke-width="${w}" opacity=".5"/>` : '';
+  return shoulders + skull + ears + shade + hair + brows + eyes + nose + mouth + tears;
+}
 
 // ─────────────────────────────────────────
 // Background scene sketches — improved
@@ -3405,6 +3652,17 @@ function renderPanelSVG(panel) {
   const camFrame = SHOT_CAM[shot] || SHOT_CAM.MS;
   const cx = W/2, cy = H*camFrame.cyf, scale = camFrame.fs;
 
+  // ── 人物図の寄り引き（7.5頭身の figRig 用）──
+  // 旧値は人物が画面の17%程度しかなく「引き」なのか判別できなかった。
+  // ここでは頭頂と接地（またはウエスト）が意図した位置に来るよう s と cy を逆算した値を使う。
+  const POSE_CAM = {
+    EWS:  { s: H*0.082, cy: H*0.804 },   // 全身が小さく風景の中に立つ
+    WS:   { s: H*0.147, cy: H*0.726 },   // 全身が画面の約6割
+    MS:   { s: H*0.422, cy: H*1.671 },   // 頭〜ウエストで画面いっぱい
+    '2S': { s: H*0.289, cy: H*1.194 },   // 2人が入るやや引きのバスト
+  };
+  const poseFrame = POSE_CAM[shot] || POSE_CAM.MS;
+
   const bgRaw = bgSketch(panel.bg, W, H, svgVar);
   // bg zoom around frame center for CU/ECU compression feel
   const z = camFrame.zoom;
@@ -3479,8 +3737,14 @@ function renderPanelSVG(panel) {
     <line x1="${W-M}" y1="${H-M}" x2="${W-M}" y2="${H-M-T}" stroke="rgba(26,14,3,.72)" stroke-width="1.4" stroke-linecap="square"/>`;
 
   // ── Ground shadow + horizon line (dark ink, outside invert) ──
-  const groundShadow = `<ellipse cx="${cx}" cy="${cy+scale*1.62}" rx="${scale*2.0}" ry="${scale*.32}" fill="rgba(20,10,2,.1)"/>`;
-  const groundLine = `${groundShadow}<line x1="${cx-70}" y1="${cy+scale*1.55}" x2="${cx+70}" y2="${cy+scale*1.55}" stroke="rgba(26,14,3,.28)" stroke-width="1.0" stroke-dasharray="3,5"/>`;
+  // 接地線は人物図の実際の足元（poseFrame 基準）に置く。
+  // 寄りのカットでは足元が画面外なので描かない（旧実装は胸を横切っていた）
+  const gy = poseFrame.cy + poseFrame.s * 1.52;
+  const gw = Math.min(90, poseFrame.s * 3.2);
+  const groundLine = gy < H * 0.98
+    ? `<ellipse cx="${cx}" cy="${gy.toFixed(1)}" rx="${(gw*.55).toFixed(1)}" ry="${Math.max(2, poseFrame.s*.3).toFixed(1)}" fill="rgba(20,10,2,.1)"/>`
+      + `<line x1="${(cx-gw).toFixed(1)}" y1="${gy.toFixed(1)}" x2="${(cx+gw).toFixed(1)}" y2="${gy.toFixed(1)}" stroke="rgba(26,14,3,.28)" stroke-width="1.0" stroke-dasharray="3,5"/>`
+    : '';
 
   // ── Atmosphere — light dots inside invert group → dark specks on paper ──
   const atmosphere = (() => {
@@ -3513,9 +3777,24 @@ function renderPanelSVG(panel) {
   if (vt === 'character' || vt === 'crowd') {
     const poseKey = (vt === 'crowd' || panel.pose === 'crowd') ? 'crowd'
                   : (panel.pose in POSES ? panel.pose : 'standing');
-    const figSVG = POSES[poseKey](cx, cy, scale);
-    const motionLines = motionSketch(panel.pose, cx, cy, scale, INK);
-    innerSVG = `${bgGroup}${guideLine}${groundLine}
+    // 寄りのカット（CU/ECU）は全身を拡大するのではなく顔のバストショットを描く。
+    // 全身図の拡大では頭が小さすぎて「寄り」に見えなかった。
+    const isCloseUp = (shot === 'CU' || shot === 'ECU') && poseKey !== 'crowd';
+    let figSVG, motionLines = '';
+    if (isCloseUp) {
+      const EXPR = { crying:'sad', dancing:'happy', love:'happy', action:'open', lookingup:'' };
+      const expr = EXPR[poseKey] !== undefined ? EXPR[poseKey] : '';
+      const tight = shot === 'ECU';
+      const pr = tight ? H * 0.62 : H * 0.30;          // 頭の半幅
+      const pcy = tight ? H * 0.46 : H * 0.40;         // 顔の中心
+      figSVG = portraitSVG(cx, pcy, pr, expr, tight);
+    } else {
+      // 群衆は横に広がるため、寄りのカットでも常に引きの縮尺で描く
+      const pf = poseKey === 'crowd' ? { s: H*0.115, cy: H*0.70 } : poseFrame;
+      figSVG = POSES[poseKey](cx, pf.cy, pf.s);
+      motionLines = motionSketch(panel.pose, cx, pf.cy, Math.min(pf.s, H*0.16), INK);
+    }
+    innerSVG = `${bgGroup}${guideLine}${isCloseUp ? '' : groundLine}
       <g filter="url(#${filterId})" color="${INK}" opacity=".94" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
         ${figSVG}
       </g>${motionLines}`;
@@ -3565,7 +3844,7 @@ function renderPanelSVG(panel) {
       <g filter="url(#${filterId})">${crowdOnlySVG(W, H, INK)}</g>`;
 
   } else {
-    const figSVG = POSES['standing'](cx, cy, scale);
+    const figSVG = POSES['standing'](cx, poseFrame.cy, poseFrame.s);
     innerSVG = `${bgGroup}${guideLine}${groundLine}
       <g filter="url(#${filterId})" color="${INK}" opacity=".94" stroke-width="1.75">${figSVG}</g>`;
   }
