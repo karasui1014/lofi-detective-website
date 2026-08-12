@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="description" content="Seedance 2.5（シーダンス2.5）専用のプロンプト作成ツール。素材ゼロのおまかせ1カットから、参照素材でキャラを固定した連作、30秒フル演出まで。ビート表で時間割を組み、破綻チェッカーが事故を事前に止めます。すべて端末内で処理されます。">
+<meta name="theme-color" content="#14161c">
+<meta property="og:title" content="シーダンス2.5 プロンプト工房">
+<meta property="og:description" content="30秒ワンパス時代のSeedance 2.5を、香盤表として設計する。素材ゼロから始められるプロンプト作成ツール。">
+<meta property="og:type" content="website">
+<title>シーダンス2.5 プロンプト工房 | Seedance 2.5 プロンプト作成ツール</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <p class="header-badge">SEEDANCE 2.5 PROMPT WORKSHOP</p>
+    <h1 class="site-title">シーダンス2.5 プロンプト工房</h1>
+    <p class="site-lead">
+      30秒ワンパス時代のプロンプトは、絵の説明ではなく<strong>香盤表</strong>です。<br>
+      素材ゼロでも始められて、慣れたらフル演出まで同じ画面で作れます。
+    </p>
+  </div>
+</header>
+
+<div class="projectbar">
+  <div class="projectbar-inner">
+    <label for="project-select">保存した作品</label>
+    <select id="project-select"><option value="">（未保存）</option></select>
+    <button type="button" id="btn-load" class="mini">読込</button>
+    <button type="button" id="btn-save" class="mini primary">保存</button>
+    <button type="button" id="btn-delete" class="mini danger">削除</button>
+    <span class="spacer"></span>
+    <button type="button" id="btn-new" class="mini">新規</button>
+    <button type="button" id="btn-export" class="mini">JSON書出</button>
+    <button type="button" id="btn-import" class="mini">JSON読込</button>
+    <input type="file" id="file-import" accept="application/json,.json" hidden>
+  </div>
+</div>
+
+<main class="layout">
+
+  <!-- ══════════════ 左：エディタ ══════════════ -->
+  <div class="editor">
+
+    <!-- ① モード -->
+    <section class="panel" id="step-mode">
+      <h2 class="panel-title"><span class="step-num">1</span>モードを選ぶ</h2>
+      <p class="panel-note">用意できる素材でモードが決まります。何も無くても大丈夫です。</p>
+      <div class="mode-grid" id="mode-grid"></div>
+      <div class="prepare-box" id="prepare-box"></div>
+    </section>
+
+    <!-- ② 目的・尺 -->
+    <section class="panel" id="step-meta">
+      <h2 class="panel-title"><span class="step-num">2</span>目的・尺・画面比</h2>
+      <div class="form-row">
+        <div class="field">
+          <label for="preset-select">用途プリセット</label>
+          <select id="preset-select"><option value="">選ぶと下がまとめて入ります</option></select>
+        </div>
+        <div class="field">
+          <label for="meta-name">作品名<span class="opt">（保存用）</span></label>
+          <input type="text" id="meta-name" maxlength="60" placeholder="例:雨上がりの市場" autocomplete="off">
+        </div>
+      </div>
+      <div class="form-row three-col">
+        <div class="field">
+          <label for="meta-duration">総尺</label>
+          <select id="meta-duration"></select>
+        </div>
+        <div class="field">
+          <label for="meta-aspect">画面比</label>
+          <select id="meta-aspect"></select>
+        </div>
+        <div class="field">
+          <label for="meta-resolution">解像度</label>
+          <select id="meta-resolution"></select>
+        </div>
+      </div>
+      <div class="field">
+        <label for="meta-purpose">用途<span class="opt">（任意）</span></label>
+        <input type="text" id="meta-purpose" maxlength="40" placeholder="例:商品広告 / SNSショート" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="meta-summary">この30秒でやりたいこと<span class="req">必須</span></label>
+        <textarea id="meta-summary" rows="2" placeholder="例:雨上がりの市場で、配達員が真鍮の筒を手渡すまで"></textarea>
+      </div>
+    </section>
+
+    <!-- ③ 登場人物 -->
+    <section class="panel" id="step-characters">
+      <h2 class="panel-title"><span class="step-num">3</span>登場人物（キャラクター定義）</h2>
+      <p class="panel-note">
+        視覚アンカーは<strong>3〜5個</strong>が最適。多すぎても少なすぎても顔が崩れます。<br>
+        ここで作った文は毎回一字一句同じものを使うので、連作で同じ人物が保てます。
+      </p>
+      <div id="character-list"></div>
+      <button type="button" id="btn-add-character" class="add-btn">＋ 人物を追加</button>
+    </section>
+
+    <!-- ④ 参照マニフェスト -->
+    <section class="panel" id="step-refs">
+      <h2 class="panel-title"><span class="step-num">4</span>参照マニフェスト</h2>
+      <p class="panel-note">
+        ファイルはここにはアップロードしません。<strong>「どの素材の何を使い、何を使わないか」だけを管理</strong>します。<br>
+        出来上がったプロンプトの @Image 1 の順番どおりに、生成サイト側で素材をアップしてください。
+      </p>
+      <p class="ref-count" id="ref-count"></p>
+      <div id="ref-list"></div>
+      <div class="btn-row">
+        <button type="button" class="add-btn" data-add-ref="image">＋ 画像</button>
+        <button type="button" class="add-btn" data-add-ref="video">＋ 動画</button>
+        <button type="button" class="add-btn" data-add-ref="audio">＋ 音声</button>
+      </div>
+    </section>
+
+    <!-- ⑤ 編集モード専用 -->
+    <section class="panel" id="step-edit">
+      <h2 class="panel-title"><span class="step-num">5</span>編集の前提</h2>
+      <div class="field">
+        <label for="edit-keep">Keep：変えない要素<span class="req">必須</span></label>
+        <input type="text" id="edit-keep" placeholder="例:人物・カメラワーク・照明" autocomplete="off">
+        <p class="hint">ここを書かないと全体が作り直されます。編集は20秒以下がいちばん安定します。</p>
+      </div>
+    </section>
+
+    <!-- ⑥ 初期状態 -->
+    <section class="panel" id="step-opening">
+      <h2 class="panel-title"><span class="step-num">6</span>初期状態（0秒の画）</h2>
+      <div class="field">
+        <textarea id="opening" rows="3" placeholder="例:配達員はフレーム左外。市場の露店は開いており、路面は濡れて反射している。カメラは地上1.6m、被写体の6m前方。"></textarea>
+        <p class="hint">人物・小道具・カメラが「開始時どこにあるか」を書きます。</p>
+      </div>
+    </section>
+
+    <!-- ⑦ ビート表 -->
+    <section class="panel highlight" id="step-beats">
+      <h2 class="panel-title"><span class="step-num">7</span>ビート表（時間割）<span class="core-badge">心臓部</span></h2>
+      <p class="panel-note">
+        30秒を分割して、各区間で<strong>何が起きるか</strong>を書きます。<br>
+        コツは<strong>静 → 動 → 静</strong>。1ビート＝連続した1つの主要動作、カメラの動きも1つだけ。
+      </p>
+      <div class="beat-bar" id="beat-bar"></div>
+      <p class="beat-total" id="beat-total"></p>
+      <div id="beat-list"></div>
+      <div class="btn-row">
+        <button type="button" id="btn-add-beat" class="add-btn">＋ ビートを追加</button>
+        <button type="button" id="btn-even-beat" class="add-btn">均等割り</button>
+        <button type="button" id="btn-tmpl-beat" class="add-btn">静→動→静で入れ直す</button>
+      </div>
+    </section>
+
+    <!-- ⑧ 終了状態 -->
+    <section class="panel" id="step-closing">
+      <h2 class="panel-title"><span class="step-num">8</span>終了状態（最後の画）</h2>
+      <div class="field">
+        <textarea id="closing" rows="3" placeholder="例:筒はカウンター中央に静止。配達員は正面やや右を向き、肩の力が抜けている。"></textarea>
+        <p class="hint">「見て分かる状態」で書きます。感情ではなく体の位置と向きで。</p>
+      </div>
+    </section>
+
+    <!-- ⑨ 映像 -->
+    <section class="panel" id="step-look">
+      <h2 class="panel-title"><span class="step-num">9</span>映像（ショット・光・質感）</h2>
+      <div class="form-row four-col">
+        <div class="field">
+          <label for="look-start">開始ショット</label>
+          <select id="look-start"></select>
+        </div>
+        <div class="field">
+          <label for="look-end">終了ショット</label>
+          <select id="look-end"></select>
+        </div>
+        <div class="field">
+          <label for="look-height">高さ・角度</label>
+          <select id="look-height"></select>
+        </div>
+        <div class="field">
+          <label for="look-pace">テンポ</label>
+          <select id="look-pace"></select>
+        </div>
+      </div>
+      <div class="field">
+        <span class="label-like">光（いちばん効きます）</span>
+        <div class="tag-group" id="tags-lighting"></div>
+      </div>
+      <div class="field">
+        <span class="label-like">質感・スタイル</span>
+        <div class="tag-group" id="tags-textures"></div>
+      </div>
+      <div class="field">
+        <span class="label-like">色</span>
+        <div class="tag-group" id="tags-colors"></div>
+      </div>
+    </section>
+
+    <!-- ⑩ 音声 -->
+    <section class="panel" id="step-audio">
+      <h2 class="panel-title"><span class="step-num">10</span>音声</h2>
+      <p class="panel-note">記号（ <code>( )</code> <code>&lt; &gt;</code> <code>{ }</code> <code>【 】</code> ）は自動で付きます。中身だけ書いてください。</p>
+      <div class="field">
+        <label for="audio-ambience">環境音<span class="opt">（読点か改行で区切り）</span></label>
+        <input type="text" id="audio-ambience" placeholder="例:ガラス屋根に当たる小雨、遠くの路面電車、濡れた路面の足音" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="audio-music">音楽</label>
+        <input type="text" id="audio-music" placeholder="例:静かなピアノ、控えめなストリングス" autocomplete="off">
+      </div>
+      <div class="field checkline">
+        <label><input type="checkbox" id="audio-silence"> 音楽・ナレーション・勝手な字幕を出さない</label>
+      </div>
+      <div class="field">
+        <span class="label-like">セリフ</span>
+        <div id="dialogue-list"></div>
+        <button type="button" id="btn-add-dialogue" class="add-btn">＋ セリフを追加</button>
+        <p class="hint">1本の中では言語を1つに揃えるのが安全です。短く、話者と秒数を指定してください。</p>
+      </div>
+      <div class="field">
+        <label for="audio-captions">画面に出す字幕<span class="opt">（1行1つ・任意）</span></label>
+        <textarea id="audio-captions" rows="2" placeholder="例:第1章：旅立ち"></textarea>
+      </div>
+    </section>
+
+    <!-- ⑪ 禁止・一貫性 -->
+    <section class="panel" id="step-guards">
+      <h2 class="panel-title"><span class="step-num">11</span>禁止事項・一貫性ロック</h2>
+      <div class="field">
+        <span class="label-like">avoid（出したくないもの）</span>
+        <div class="tag-group" id="tags-avoid"></div>
+      </div>
+      <div class="field">
+        <span class="label-like">一貫性ロック</span>
+        <div class="tag-group vertical" id="tags-locks"></div>
+      </div>
+    </section>
+
+    <p class="disclaimer">
+      ※ このツールは動画を生成しません。プロンプトを組み立てるだけです。生成は Dreamina / CapCut などで行ってください。<br>
+      ※ 入力内容はお使いの端末内（localStorage）にのみ保存され、外部に送信されることはありません。<br>
+      ※ 参照素材の上限（画像30・動画10・音声10）はプラットフォームにより異なります。<code>data.js</code> の <code>LIMITS</code> で変更できます。
+    </p>
+
+  </div>
+
+  <!-- ══════════════ 右：プレビュー ══════════════ -->
+  <aside class="preview">
+    <div class="preview-inner">
+      <div class="preview-head">
+        <h2>生成プロンプト</h2>
+        <div class="lang-toggle" id="lang-toggle">
+          <button type="button" data-lang="mix" class="on">日英ミックス<span>推奨</span></button>
+          <button type="button" data-lang="ja">全部日本語</button>
+        </div>
+      </div>
+      <pre id="output" class="output"></pre>
+      <div class="preview-actions">
+        <button type="button" id="btn-copy" class="primary">プロンプトをコピー</button>
+        <button type="button" id="btn-txt">.txt で保存</button>
+        <span class="charcount" id="charcount"></span>
+      </div>
+      <div class="verify" id="verify"></div>
+    </div>
+  </aside>
+
+</main>
+
+<footer class="site-footer">
+  <p>シーダンス2.5 プロンプト工房 — 端末内で完結する静的ツール</p>
+</footer>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="data.js"></script>
+<script src="builder.js"></script>
+<script src="validator.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+{
+  "name": "シーダンス2.5 プロンプト工房",
+  "short_name": "SD2.5工房",
+  "description": "Seedance 2.5専用のプロンプト作成ツール。ビート表で30秒を設計し、破綻チェッカーが事故を事前に止めます。",
+  "lang": "ja",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#14161c",
+  "theme_color": "#14161c",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
