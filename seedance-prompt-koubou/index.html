@@ -25,6 +25,16 @@
       30秒ワンパス時代のプロンプトは、絵の説明ではなく<strong>香盤表</strong>です。<br>
       素材ゼロでも始められて、慣れたらフル演出まで同じ画面で作れます。
     </p>
+    <div class="uimode" id="uimode">
+      <button type="button" data-ui="simple" class="on">
+        <span class="uimode-name">かんたん</span>
+        <span class="uimode-desc">3つ埋めるだけ</span>
+      </button>
+      <button type="button" data-ui="pro">
+        <span class="uimode-name">こだわり</span>
+        <span class="uimode-desc">1カットずつ作り込む</span>
+      </button>
+    </div>
   </div>
 </header>
 
@@ -47,6 +57,52 @@
 
   <!-- ══════════════ 左：エディタ ══════════════ -->
   <div class="editor">
+
+    <!-- ══════ かんたんモード ══════ -->
+    <section class="panel simple-panel" id="step-simple">
+      <h2 class="panel-title"><span class="step-num">1</span>何を作りますか？</h2>
+      <div class="purpose-grid" id="purpose-grid"></div>
+
+      <h2 class="panel-title mt"><span class="step-num">2</span>使いたい画像<span class="opt-h">（なくてもOK）</span></h2>
+      <p class="panel-note">
+        画像を置いて、それが<strong>何を決める素材なのか</strong>だけ選んでください。<br>
+        同じ人物や同じ商品を出したいときに要ります。<strong>4〜7枚が最適</strong>で、多いほど崩れます。
+      </p>
+      <div class="simple-img-grid" id="simple-images"></div>
+      <label class="file-pick big">＋ 画像を追加（まとめて選べます）
+        <input type="file" accept="image/*" multiple id="simple-file" hidden>
+      </label>
+
+      <h2 class="panel-title mt"><span class="step-num">3</span>どんな映像にしますか？</h2>
+      <p class="panel-note">
+        ざっくりで大丈夫です。<strong>1行ずつ、起きることを順番に</strong>書いてください。
+        書いた行がそのまま時間割になります。<strong>「かぎかっこ」で書いた部分は台詞</strong>として扱います。
+      </p>
+      <div class="field">
+        <textarea id="simple-script" rows="7" placeholder="夕方の商店街。配達員の女性が自転車を押して歩いてくる
+店先で足を止めて、店主に小さな包みを手渡す
+「ありがとうございました」
+女性は自転車にまたがって、来た道を戻っていく"></textarea>
+      </div>
+
+      <div class="form-row">
+        <div class="field">
+          <label for="simple-duration">長さ</label>
+          <select id="simple-duration"></select>
+        </div>
+        <div class="field">
+          <label for="simple-aspect">画面比</label>
+          <select id="simple-aspect"></select>
+        </div>
+      </div>
+
+      <p class="simple-readout" id="simple-readout"></p>
+
+      <div class="simple-foot">
+        もっと細かく決めたくなったら、上の<strong>「こだわり」</strong>に切り替えてください。
+        ここで書いた内容はそのまま引き継がれ、1カットずつ直せます。
+      </div>
+    </section>
 
     <!-- ① モード -->
     <section class="panel" id="step-mode">
@@ -108,8 +164,8 @@
     <section class="panel" id="step-refs">
       <h2 class="panel-title"><span class="step-num">4</span>参照マニフェスト</h2>
       <p class="panel-note">
-        ファイルはここにはアップロードしません。<strong>「どの素材の何を使い、何を使わないか」だけを管理</strong>します。<br>
-        出来上がったプロンプトの @Image 1 の順番どおりに、生成サイト側で素材をアップしてください。
+        ここに置く画像は<strong>あなたが見分けるための確認用サムネイル</strong>です。生成には使われません（AIには送信されません）。<br>
+        出来上がったプロンプトの @Image 1 の順番どおりに、<strong>生成サイト側で改めて素材をアップ</strong>してください。
       </p>
       <p class="ref-count" id="ref-count"></p>
       <div id="ref-list"></div>
@@ -124,10 +180,58 @@
     <section class="panel" id="step-edit">
       <h2 class="panel-title"><span class="step-num">5</span>編集の前提</h2>
       <div class="field">
-        <label for="edit-keep">Keep：変えない要素<span class="req">必須</span></label>
+        <label for="edit-keep">そのまま維持するもの<span class="req">必須</span></label>
         <input type="text" id="edit-keep" placeholder="例:人物・カメラワーク・照明" autocomplete="off">
         <p class="hint">ここを書かないと全体が作り直されます。編集は20秒以下がいちばん安定します。</p>
       </div>
+      <div class="field checkline">
+        <label><input type="checkbox" id="edit-then-extend"> このあと延長もする（2段階）</label>
+        <p class="hint">
+          編集と延長は別のタスクなので、1本のプロンプトには混ぜられません。
+          チェックすると<strong>実行順に2本</strong>出します。
+          先に編集して、<strong>できた動画を元動画として延長</strong>する順序です。
+        </p>
+      </div>
+    </section>
+
+
+    <!-- 延長モード専用 -->
+    <section class="panel" id="step-extend">
+      <h2 class="panel-title"><span class="step-num">5</span>延長の前提</h2>
+      <div class="field">
+        <label for="extend-dir">どちらへ伸ばすか</label>
+        <select id="extend-dir"></select>
+      </div>
+      <div class="field">
+        <label for="extend-boundary">つなぎ目の状態<span class="req">必須</span></label>
+        <textarea id="extend-boundary" rows="2" placeholder="例:配達員はカウンター前に立ち、筒を置き終えた直後。カメラはミディアムクローズで静止している。"></textarea>
+        <p class="hint">元動画の端で人物と物がどうなっているかを書きます。ここが曖昧だと continuity が切れます。</p>
+      </div>
+    </section>
+
+    <!-- 境界フレーム／キーフレーム -->
+    <section class="panel" id="step-frames">
+      <h2 class="panel-title"><span class="step-num">5</span>最初・最後のフレーム</h2>
+      <p class="panel-note">
+        <strong>2つの方式は別物です。</strong>「厳密指定」はAPIに境界フレームとして渡す方法で、
+        <strong>比率が最初の画像にロックされます</strong>（設定は本文と分けて出します）。
+        「意味的参照」は本文でお願いするだけなので、完全一致はしません。
+      </p>
+      <div class="form-row three-col">
+        <div class="field">
+          <label for="frame-mode">方式</label>
+          <select id="frame-mode"></select>
+        </div>
+        <div class="field">
+          <label for="frame-first">最初のフレーム</label>
+          <select id="frame-first"></select>
+        </div>
+        <div class="field">
+          <label for="frame-last">最後のフレーム</label>
+          <select id="frame-last"></select>
+        </div>
+      </div>
+      <p class="hint">中間のキーフレームは、参照マニフェストの各素材にある「キーフレーム秒」に数字を入れてください。ここで指定した素材の「使う属性」には、フレームの<strong>中身</strong>（例:人物が扉の前に立っている構図）を書きます。「最初のフレーム」とは書かないでください（二重指定になります）。</p>
     </section>
 
     <!-- ⑥ 初期状態 -->
@@ -141,7 +245,7 @@
 
     <!-- ⑦ ビート表 -->
     <section class="panel highlight" id="step-beats">
-      <h2 class="panel-title"><span class="step-num">7</span>ビート表（時間割）<span class="core-badge">心臓部</span></h2>
+      <h2 class="panel-title"><span class="step-num">7</span><span id="beats-title">ビート表（時間割）</span><span class="core-badge">心臓部</span></h2>
       <p class="panel-note">
         30秒を分割して、各区間で<strong>何が起きるか</strong>を書きます。<br>
         コツは<strong>静 → 動 → 静</strong>。1ビート＝連続した1つの主要動作、カメラの動きも1つだけ。
@@ -153,6 +257,23 @@
         <button type="button" id="btn-add-beat" class="add-btn">＋ ビートを追加</button>
         <button type="button" id="btn-even-beat" class="add-btn">均等割り</button>
         <button type="button" id="btn-tmpl-beat" class="add-btn">静→動→静で入れ直す</button>
+      </div>
+    </section>
+
+    <!-- 2段階：延長部分のビート表（1本目のビート表の後ろに置く） -->
+    <section class="panel" id="step-stage2">
+      <h2 class="panel-title"><span class="step-num">8</span>2本目：延長部分のビート表</h2>
+      <p class="panel-note">1本目（編集）で作った動画を元にして、その続きを作ります。</p>
+      <div class="field">
+        <label for="stage2-duration">延長する長さ</label>
+        <select id="stage2-duration"></select>
+      </div>
+      <div class="beat-bar" id="stage2-bar"></div>
+      <p class="beat-total" id="stage2-total"></p>
+      <div id="stage2-list"></div>
+      <div class="btn-row">
+        <button type="button" id="btn-add-stage2" class="add-btn">＋ ビートを追加</button>
+        <button type="button" id="btn-even-stage2" class="add-btn">均等割り</button>
       </div>
     </section>
 
@@ -258,11 +379,32 @@
           <button type="button" data-lang="ja">全部日本語</button>
         </div>
       </div>
+      <div class="output-opts">
+        <label><input type="checkbox" id="opt-symbols"> 記号記法（<code>( ) &lt; &gt; { } 【 】</code>）を使う</label>
+        <label><input type="checkbox" id="opt-timestamps"> 時刻指定（<code>0-5s:</code>）を入れる</label>
+      </div>
+      <p class="stage-label" id="stage1-label" hidden>プロンプト1 ／ 編集<span>先にこちらを実行</span></p>
       <pre id="output" class="output"></pre>
       <div class="preview-actions">
         <button type="button" id="btn-copy" class="primary">プロンプトをコピー</button>
         <button type="button" id="btn-txt">.txt で保存</button>
         <span class="charcount" id="charcount"></span>
+      </div>
+      <div class="stage2-block" id="output2-block" hidden>
+        <div class="settings-head">
+          <h3>プロンプト2 ／ 延長<span class="settings-tag stage2-tag">1本目のあとに実行</span></h3>
+          <button type="button" id="btn-copy2" class="mini">2本目をコピー</button>
+        </div>
+        <pre id="output2" class="settings-output"></pre>
+        <p class="settings-note">1本目で生成した動画をダウンロードして、それを元動画としてアップロードしてから2本目を実行してください。</p>
+      </div>
+      <div class="settings-block">
+        <div class="settings-head">
+          <h3>推奨設定<span class="settings-tag">本文には混ぜない</span></h3>
+          <button type="button" id="btn-copy-settings" class="mini">設定をコピー</button>
+        </div>
+        <pre id="settings-output" class="settings-output"></pre>
+        <p class="settings-note">長さ・比率・解像度などの設定値をプロンプト本文に書くと、創作の指示と混ざって精度が落ちます。ここは生成サイト側の設定欄で指定してください。</p>
       </div>
       <div class="verify" id="verify"></div>
     </div>
@@ -272,9 +414,18 @@
 
 <footer class="site-footer">
   <p>シーダンス2.5 プロンプト工房 — 端末内で完結する静的ツール</p>
+  <p class="build-stamp">
+    <span id="app-version"></span> ／
+    画面が古いときは <a href="リセット.html">キャッシュをリセット</a>
+  </p>
 </footer>
 
 <div class="toast" id="toast" hidden></div>
+
+<datalist id="dl-role-image"></datalist>
+<datalist id="dl-role-video"></datalist>
+<datalist id="dl-role-audio"></datalist>
+<datalist id="dl-notuse"></datalist>
 
 <script src="data.js"></script>
 <script src="builder.js"></script>

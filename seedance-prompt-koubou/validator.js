@@ -26,7 +26,9 @@ const Validator = (function () {
     const add = (id, level, msg, hint) => out.push({ id, level, msg, hint: hint || "" });
 
     const isEdit = s.mode === "edit";
-    const withRefs = s.mode === "lv1" || s.mode === "lv2" || isEdit;
+    const isExtend = s.mode === "extend";
+    const withRefs = s.mode !== "lv0";
+    const master = (isEdit || isExtend) ? s.refs.find(r => r.kind === "video") : null;
 
     /* --- V1 ビート合計 ≠ 総尺 --- */
     const total = s.beats.reduce((a, b) => a + (Number(b.sec) || 0), 0);
@@ -54,6 +56,7 @@ const Validator = (function () {
     /* --- V3 参照素材の役割が未記入 --- */
     if (withRefs) {
       s.refs.forEach(r => {
+        if (r.unused) return;
         if (!(r.uses || "").trim()) {
           add("V3", "error",
             Builder.refLabel(s.refs, r) + " の「使う属性」が空です。",
@@ -64,9 +67,9 @@ const Validator = (function () {
 
     /* --- V4 「使わない属性」が未記入 --- */
     if (withRefs) {
-      const master = isEdit ? s.refs.find(r => r.kind === "video") : null;
       s.refs.forEach(r => {
-        if (master && r.id === master.id) return;   /* 編集マスターには不要 */
+        if (r.unused) return;
+        if (master && r.id === master.id) return;   /* 編集元・延長元には不要 */
         if ((r.uses || "").trim() && !(r.notUses || "").trim()) {
           add("V4", "warn",
             Builder.refLabel(s.refs, r) + " の「使わない属性」が空です。",
@@ -180,6 +183,7 @@ const Validator = (function () {
     const range = s.mode === "lv0" ? [60, 600]
       : s.mode === "lv1" ? [200, 1600]
       : s.mode === "edit" ? [80, 1200]
+      : s.mode === "extend" ? [120, 1600]
       : [400, 3500];
     if (len < range[0]) {
       add("V13", "info", "プロンプトが短めです（" + len + "字 / 目安 " + range[0] + "〜" + range[1] + "字）。",
@@ -212,6 +216,103 @@ const Validator = (function () {
         add("V15", "info", "編集は20秒以下がいちばん安定します。");
       }
     }
+
+    /* --- V18 否定を重ねすぎ --- */
+    if ((s.guards.avoid || []).length > 5) {
+      add("V18", "warn",
+        "avoid が " + s.guards.avoid.length + " 個あります。",
+        "否定を重ねるほど効きが薄れます。見せたい状態を肯定形で書き、avoid は本当に困るもの3〜5個に絞ってください。");
+    }
+
+    /* --- V19 台詞の創作 --- */
+    const beatText = s.beats.map(b => b.event).join("\n");
+    const hasDialogue = (s.audio.dialogues || []).some(d => (d.text || "").trim());
+    if (has(beatText, SPEECH_WORDS) && !hasDialogue) {
+      add("V19", "warn", "本文に発話の描写がありますが、台詞が登録されていません。",
+        "文言を決めないとモデルが台詞を創作します。台詞を登録するか、口の動き・間・姿勢・反応で表してください。");
+    }
+
+    /* --- V20 境界フレーム --- */
+    if (s.frames.mode) {
+      if (!s.frames.first && !s.frames.last) {
+        add("V20", "error", "境界フレームの方式を選んでいますが、画像が指定されていません。",
+          "最初か最後、どちらかの画像を選んでください。使わないなら方式を「使わない」に戻してください。");
+      }
+      [["first", "最初"], ["last", "最後"]].forEach(([k, name]) => {
+        const id = s.frames[k];
+        if (!id) return;
+        const r = s.refs.find(x => x.id === id);
+        if (!r) {
+          add("V20", "error", name + "のフレームに指定した素材が見つかりません。",
+            "素材を消した可能性があります。選び直してください。");
+        } else if (r.unused) {
+          add("V20", "error", name + "のフレームに「使わない」素材が指定されています。",
+            "「使わない」のチェックを外すか、別の素材を選んでください。");
+        }
+      });
+      if (s.frames.mode === "strict") {
+        add("V20", "info", "厳密指定では比率が最初のフレーム画像にロックされます。",
+          "最初と最後の画像の比率を揃えてください。ずれていると終点画像が歪みます。設定は本文とは別に「推奨設定」へ出しています。");
+      }
+    }
+
+    /* --- V21 延長の前提（単独の延長モード・2段階の2本目に共通） --- */
+    const twoStage = Builder.twoStage(s);
+    if (isExtend || twoStage) {
+      if (isExtend && !master) {
+        add("V21", "error", "延長モードなのに元動画（@Video）が登録されていません。",
+          "参照マニフェストで種別「動画」を1つ追加してください。");
+      }
+      if (!(s.extend.boundary || "").trim()) {
+        add("V21", "warn", "つなぎ目の状態が未記入です。",
+          "元動画の端で人物と物がどうなっているかを書かないと、continuity が切れます。");
+      }
+    }
+
+    /* --- V23 2段階（編集 → 延長）の2本目 --- */
+    if (twoStage) {
+      const b2 = s.stage2.beats;
+      const total2 = b2.reduce((a, b) => a + (Number(b.sec) || 0), 0);
+      if (!b2.length) {
+        add("V23", "error", "2本目（延長部分）のビートがありません。",
+          "「2本目：延長部分のビート表」で追加してください。");
+      } else if (total2 !== Number(s.stage2.duration)) {
+        add("V23", "error",
+          "2本目のビート合計が " + total2 + "秒。延長する長さ " + s.stage2.duration + "秒 と一致していません。",
+          "秒数を調整するか「均等割り」を押してください。");
+      }
+      b2.forEach((b, i) => {
+        if (!(b.event || "").trim()) {
+          add("V23", "error", "2本目のビート" + (i + 1) + " の本文が空です。",
+            "延長部分で何が起きるかを書いてください。");
+        }
+        const hits = countHits(b.event, CAMERA_KEYWORDS);
+        const selected = b.move && b.move !== "locked-off" ? 1 : 0;
+        if (hits.n + selected >= 2) {
+          add("V23", "error",
+            "2本目のビート" + (i + 1) + "：カメラの動きが2つ以上あります。",
+            "1つのビートに動きは1つだけです。");
+        }
+      });
+    }
+
+    /* --- V22 尺の外を指す秒指定 --- */
+    const dur = Number(s.meta.duration) || 0;
+    (s.audio.dialogues || []).forEach(d => {
+      if (!(d.text || "").trim()) return;
+      const at = Number(d.at);
+      if (d.at !== "" && !isNaN(at) && at > dur) {
+        add("V22", "error", "台詞「" + d.text.trim() + "」の秒数（" + at + "秒）が総尺 " + dur + "秒 を超えています。",
+          "尺の外を指す指定は無視されるか、映像が壊れます。秒数を直してください。");
+      }
+    });
+    s.refs.forEach(r => {
+      const at = String(r.keyAt === undefined ? "" : r.keyAt).trim();
+      if (at === "" || r.unused) return;
+      if (Number(at) > dur) {
+        add("V22", "error", Builder.refLabel(s.refs, r) + " のキーフレーム秒（" + at + "秒）が総尺 " + dur + "秒 を超えています。");
+      }
+    });
 
     /* --- V17 必須項目の未入力 --- */
     if (!isEdit && !(s.meta.summary || "").trim()) {

@@ -1,7 +1,9 @@
 /* Service Worker ── オフライン対応(PWA) */
 "use strict";
 
-const CACHE_NAME = "seedance-koubou-v1";
+/* 中身を変えたらここの数字を必ず上げること。
+   上げないと、古いキャッシュが同じ名前のまま残って更新が反映されない。 */
+const CACHE_NAME = "seedance-koubou-v3";
 const ASSETS = [
   "./",
   "./index.html",

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>キャッシュをリセット | シーダンス2.5 プロンプト工房</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <p class="header-badge">RESET</p>
+    <h1 class="site-title">キャッシュをリセット</h1>
+    <p class="site-lead">
+      画面が古いままのときは、このページを開くだけで直ります。<br>
+      保存した作品は消えません。
+    </p>
+  </div>
+</header>
+
+<main class="layout">
+  <div class="editor">
+    <section class="panel">
+      <h2 class="panel-title"><span class="step-num">!</span>いま起きていること</h2>
+      <pre id="log" class="output"></pre>
+      <div class="btn-row">
+        <button type="button" id="btn-go" class="add-btn">工房を開き直す</button>
+        <button type="button" id="btn-wipe" class="add-btn">保存した作品も全部消す（要注意）</button>
+      </div>
+      <p class="hint">
+        「工房を開き直す」を押すと、いちばん新しい画面が読み込まれます。<br>
+        それでも古いままなら、この画面に出ているログをそのまま伝えてください。
+      </p>
+    </section>
+  </div>
+</main>
+
+<script src="reset.js"></script>
+</body>
+</html>

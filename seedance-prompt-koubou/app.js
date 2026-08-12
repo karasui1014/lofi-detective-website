@@ -45,7 +45,17 @@ const MODES = [
     prepare: [
       "直したい動画（<b>20秒以下がいちばん安定</b>します）",
       "差し替え用の画像（必要なら）",
-      "※ 「何を変えないか（Keep）」を書かないと全体が作り直されます"
+      "※ 「そのまま維持するもの」を書かないと全体が作り直されます"
+    ]
+  },
+  {
+    id: "extend", name: "動画を前後に延長", tag: "延長",
+    sub: "用意するもの：伸ばしたい動画1本",
+    desc: "既存の動画の続き、または前の場面を作ります。人物と場所をそのまま引き継ぎます。",
+    prepare: [
+      "伸ばしたい動画（延長元）",
+      "つなぎ目の状態のメモ（端で人物と物がどうなっているか）",
+      "※ 編集と延長の両方が必要なときは、<b>先に編集して、その結果を延長元にします</b>"
     ]
   }
 ];
@@ -53,9 +63,10 @@ const MODES = [
 /* モードごとに表示するパネル */
 const VISIBLE = {
   lv0:  ["step-mode", "step-meta", "step-beats", "step-look", "step-audio", "step-guards"],
-  lv1:  ["step-mode", "step-meta", "step-characters", "step-refs", "step-beats", "step-look", "step-audio", "step-guards"],
-  lv2:  ["step-mode", "step-meta", "step-characters", "step-refs", "step-opening", "step-beats", "step-closing", "step-look", "step-audio", "step-guards"],
-  edit: ["step-mode", "step-meta", "step-refs", "step-edit", "step-beats", "step-guards"]
+  lv1:  ["step-mode", "step-meta", "step-characters", "step-refs", "step-frames", "step-beats", "step-look", "step-audio", "step-guards"],
+  lv2:  ["step-mode", "step-meta", "step-characters", "step-refs", "step-frames", "step-opening", "step-beats", "step-closing", "step-look", "step-audio", "step-guards"],
+  edit: ["step-mode", "step-meta", "step-refs", "step-edit", "step-beats", "step-guards"],
+  extend: ["step-mode", "step-meta", "step-characters", "step-refs", "step-extend", "step-beats", "step-look", "step-audio", "step-guards"]
 };
 
 const STORE_KEY = "seedance_koubou_v1";
@@ -66,6 +77,8 @@ const nid = () => "i" + (++uid) + "_" + Date.now().toString(36);
 function blankState() {
   return {
     version: 1,
+    ui: "simple",
+    simple: { purpose: "cm", script: "", duration: 15, aspect: "16:9" },
     mode: "lv1",
     meta: { name: "", purpose: "", summary: "", duration: 15, aspect: "16:9", resolution: "1080p" },
     characters: [],
@@ -76,7 +89,11 @@ function blankState() {
     look: { startSize: "", endSize: "", height: "", pace: "", lighting: [], textures: [], colors: [] },
     audio: { ambience: "", music: "", silence: false, dialogues: [], captions: "" },
     guards: { avoid: [], locks: [] },
-    edit: { keep: "" }
+    edit: { keep: "", thenExtend: false },
+    stage2: { duration: 10, beats: [] },
+    extend: { direction: "backward", boundary: "" },
+    frames: { mode: "", first: "", last: "" },
+    output: { symbols: true, timestamps: true }
   };
 }
 
@@ -135,8 +152,28 @@ function templateBeats(duration) {
    描画：構造（追加・削除でだけ呼ぶ）
    ============================================================ */
 function renderStructure() {
+  document.body.classList.toggle("is-simple", state.ui === "simple");
+  document.querySelectorAll("#uimode button").forEach(b =>
+    b.classList.toggle("on", b.dataset.ui === state.ui));
+
+  /* かんたんモードは1枚のパネルだけ見せる */
+  if (state.ui === "simple") {
+    document.querySelectorAll("main .panel").forEach(p => {
+      p.hidden = p.id !== "step-simple";
+    });
+    renderPurposes();
+    renderSimpleImages();
+    renderOutput();
+    return;
+  }
+  $("step-simple").hidden = true;
+
   /* パネルの出し入れ */
-  const show = VISIBLE[state.mode] || VISIBLE.lv1;
+  const show = (VISIBLE[state.mode] || VISIBLE.lv1).slice();
+  /* 編集モードで「このあと延長」を選んだら、延長の前提と2本目のビート表を出す */
+  if (state.mode === "edit" && state.edit.thenExtend) {
+    show.push("step-extend", "step-stage2");
+  }
   document.querySelectorAll("main .panel").forEach(p => {
     p.hidden = show.indexOf(p.id) === -1;
   });
@@ -149,12 +186,187 @@ function renderStructure() {
     if (num) num.textContent = n;
   });
 
+  /* ビート表の見出しはモードで意味が変わる */
+  $("beats-title").textContent =
+    state.mode === "edit" ? (state.edit.thenExtend ? "1本目：変更内容（時間割）" : "変更内容（時間割）")
+    : state.mode === "extend" ? "延長部分のビート表（時間割）"
+    : "ビート表（時間割）";
+
   renderModes();
   renderCharacters();
   renderRefs();
-  renderBeats();
+  renderFrameSelects();
+  renderBeats("main");
+  renderBeats("stage2");
   renderDialogues();
   renderOutput();
+}
+
+/* ============================================================
+   かんたんモード
+   ============================================================ */
+
+function renderPurposes() {
+  $("purpose-grid").innerHTML = SIMPLE_PURPOSES.map(p =>
+    '<button type="button" class="purpose-card' + (state.simple.purpose === p.id ? " on" : "") +
+    '" data-purpose="' + p.id + '">' +
+    '<span class="purpose-name">' + esc(p.name) + "</span>" +
+    '<span class="purpose-desc">' + esc(p.desc) + "</span>" +
+    '<span class="purpose-spec">' + p.duration + "秒・" + p.aspect + "</span>" +
+    "</button>"
+  ).join("");
+}
+
+function renderSimpleImages() {
+  const box = $("simple-images");
+  const imgs = state.refs.filter(r => r.kind === "image");
+  if (!imgs.length) {
+    box.innerHTML = '<p class="empty">画像なしでも作れます。同じ人物や商品を出したいときだけ足してください。</p>';
+    return;
+  }
+  box.innerHTML = imgs.map(r => {
+    const label = Builder.refLabel(state.refs, r);
+    const roleOpts = IMAGE_ROLES.map(o =>
+      '<option value="' + esc(o.v) + '"' + (o.v === r.role ? " selected" : "") + ">" + esc(o.l) + "</option>"
+    ).join("");
+    const pic = r.thumb
+      ? '<img class="thumb-img" src="' + r.thumb + '" alt="' + esc(label) + '">'
+      : '<span class="thumb-empty">画像なし</span>';
+    return '<div class="simple-img' + (r.role ? "" : " no-role") + '" data-id="' + r.id + '">' +
+      '<div class="simple-img-pic">' + pic +
+        '<span class="simple-img-tag">' + esc(label) + "</span>" +
+        '<button type="button" class="simple-img-del" data-del-ref="' + r.id + '" title="削除">×</button>' +
+      "</div>" +
+      '<select class="simple-role" data-role-for="' + r.id + '">' +
+        '<option value="">役割を選ぶ</option>' + roleOpts +
+      "</select>" +
+    "</div>";
+  }).join("");
+}
+
+/* 台本を行ごとに読み、ビートと台詞に振り分ける。
+   1行 = 1つの出来事。「かぎかっこ」は台詞として抜き出す。 */
+function parseScript(text) {
+  const lines = String(text || "").split(/[\n。]+/).map(s => s.trim()).filter(Boolean);
+  const out = [];
+  lines.forEach(line => {
+    const said = [];
+    const rest = line
+      .replace(/[「『]([^」』]{1,80})[」』]/g, (m, p1) => { said.push(p1.trim()); return ""; })
+      .replace(/^[、,\s]+|[、,\s]+$/g, "")
+      .trim();
+    if (rest) {
+      out.push({ text: rest, said: said });
+    } else if (said.length && out.length) {
+      out[out.length - 1].said.push.apply(out[out.length - 1].said, said);
+    } else if (said.length) {
+      out.push({ text: "口を開いて話しはじめる", said: said });
+    }
+  });
+  return out;
+}
+
+/* 文が多すぎると1ビートに動作が詰まって破綻するので、尺に見合う数へまとめる */
+function groupInto(arr, n) {
+  if (arr.length <= n) return arr.map(x => [x]);
+  const out = [];
+  for (let i = 0; i < n; i++) out.push([]);
+  arr.forEach((x, i) => out[Math.floor(i * n / arr.length)].push(x));
+  return out.filter(g => g.length);
+}
+
+/* かんたんモードの入力を、こだわりモードと同じ内部データへ書き出す */
+function applySimple() {
+  const p = SIMPLE_PURPOSES.find(x => x.id === state.simple.purpose) || SIMPLE_PURPOSES[0];
+  const dur = Number(state.simple.duration) || p.duration;
+
+  state.mode = state.refs.some(r => r.kind === "image") ? "lv1" : "lv0";
+  state.meta.purpose = p.name;
+  state.meta.duration = dur;
+  state.meta.aspect = state.simple.aspect || p.aspect;
+
+  state.look.lighting = p.lighting.slice();
+  state.look.textures = p.textures.slice();
+  state.look.colors = p.colors.slice();
+  state.look.startSize = p.startSize;
+  state.look.endSize = p.endSize;
+  state.look.height = p.height;
+  state.look.pace = p.pace;
+  state.guards.avoid = p.avoid.slice();
+  state.guards.locks = p.locks.slice();
+
+  /* 台本 → ビート */
+  const parsed = parseScript(state.simple.script);
+  const maxBeats = Math.max(1, Math.min(6, Math.floor(dur / 3) || 1));
+  const groups = groupInto(parsed, maxBeats);
+  const secs = groups.length ? evenBeats(groups.length, dur) : [];
+
+  state.beats = groups.map((g, i) => {
+    const b = newBeat(secs[i]);
+    b.event = g.map(x => x.text).filter(Boolean).join("、");
+    b.move = p.cameras[i % p.cameras.length] || "";
+    return b;
+  });
+  if (!state.beats.length) state.beats = [newBeat(dur)];
+
+  /* 一文要約は「最初 〜 最後」で全体の流れを1行にする */
+  state.meta.summary = !parsed.length ? ""
+    : parsed.length === 1 ? parsed[0].text
+    : parsed[0].text + " 〜 " + parsed[parsed.length - 1].text;
+
+  /* 台詞 */
+  const dialogues = [];
+  let cursor = 0;
+  groups.forEach((g, i) => {
+    const start = cursor;
+    cursor += secs[i] || 0;
+    g.forEach(x => x.said.forEach(t => {
+      dialogues.push({
+        id: nid(), speaker: "", lang: "Japanese", manner: "",
+        at: Math.min(dur, start + 1), text: t
+      });
+    }));
+  });
+  state.audio.dialogues = dialogues;
+
+  renderSimpleReadout(p, parsed.length, groups.length);
+}
+
+function renderSimpleReadout(p, lineCount, beatCount) {
+  const d = state.audio.dialogues.length;
+  const imgs = state.refs.filter(r => r.kind === "image").length;
+  const noRole = state.refs.filter(r => r.kind === "image" && !r.role).length;
+
+  if (!beatCount) {
+    $("simple-readout").textContent =
+      "台本を書くと、ここに「何カットに分けたか」が出ます。1行＝1カットです。";
+    return;
+  }
+
+  const parts = ["読み取り結果：" + beatCount + "カット"];
+  if (d) parts.push("台詞 " + d + "個");
+  if (imgs) parts.push("画像 " + imgs + "枚");
+  let msg = parts.join(" / ") + "　→　" + p.name + "らしい光・色・カメラの流れを自動で当てています。";
+
+  if (lineCount > beatCount) {
+    msg += "\n台本が長いので " + lineCount + "行を " + beatCount +
+      "カットにまとめました。1カットに動きを詰めすぎると崩れるので、削るか長さを伸ばすのがおすすめです。";
+  }
+  if (noRole) {
+    msg += "\n役割が未選択の画像が " + noRole + "枚あります。何を決める素材なのか選んでください。";
+  }
+  $("simple-readout").textContent = msg;
+}
+
+/* 境界フレームのプルダウンは画像素材から作る（素材が増減するたび作り直す） */
+function renderFrameSelects() {
+  const imgs = state.refs.filter(r => r.kind === "image" && !r.unused);
+  const opts = cur => '<option value="">（指定なし）</option>' + imgs.map(r =>
+    '<option value="' + esc(r.id) + '"' + (r.id === cur ? " selected" : "") + ">" +
+    esc(Builder.refLabel(state.refs, r) + (r.uses ? "：" + r.uses : "")) + "</option>"
+  ).join("");
+  $("frame-first").innerHTML = opts(state.frames.first);
+  $("frame-last").innerHTML = opts(state.frames.last);
 }
 
 function renderModes() {
@@ -229,31 +441,60 @@ function renderRefs() {
     const sel = choices.map(c =>
       '<option value="' + esc(c.v) + '"' + (c.v === r.boundTo ? " selected" : "") + ">" + esc(c.l) + "</option>"
     ).join("");
-    return '<div class="card ref-card" data-id="' + r.id + '">' +
+    const thumb = r.kind === "image"
+      ? (r.thumb
+          ? '<img class="thumb-img" src="' + r.thumb + '" alt="' + esc(label) + 'のプレビュー">'
+          : '<span class="thumb-empty">画像なし</span>')
+      : '<span class="thumb-empty thumb-file">' + (r.fileName ? esc(r.fileName) : "ファイル未選択") + "</span>";
+    const fileAccept = r.kind === "image" ? "image/*" : r.kind === "video" ? "video/*" : "audio/*";
+
+    return '<div class="card ref-card' + (r.unused ? " is-unused" : "") + '" data-id="' + r.id + '">' +
       '<div class="card-head">' +
         '<span class="ref-label ref-' + r.kind + '">' + esc(label) + "</span>" +
+        '<label class="unused-check"><input type="checkbox" data-k="unused"' + (r.unused ? " checked" : "") + "> 今回は使わない</label>" +
         '<button type="button" class="move" data-move-ref="' + r.id + '" data-dir="-1"' + (i === 0 ? " disabled" : "") + ">↑</button>" +
         '<button type="button" class="move" data-move-ref="' + r.id + '" data-dir="1"' + (i === state.refs.length - 1 ? " disabled" : "") + ">↓</button>" +
         '<button type="button" class="del" data-del-ref="' + r.id + '">削除</button>' +
       "</div>" +
+      '<div class="ref-thumb-row">' +
+        '<div class="thumb-box">' + thumb + "</div>" +
+        '<div class="thumb-ctrl">' +
+          '<label class="file-pick">画像・ファイルを置く<input type="file" accept="' + fileAccept + '" data-pick-ref="' + r.id + '" hidden></label>' +
+          (r.thumb || r.fileName ? '<button type="button" class="del" data-clear-thumb="' + r.id + '">クリア</button>' : "") +
+        "</div>" +
+      "</div>" +
       '<div class="grid-4">' +
-        '<label>使う属性<span class="req">必須</span><input type="text" data-k="uses" value="' + esc(r.uses) + '" placeholder="顔立ちと髪型"></label>' +
-        '<label>使わない属性<input type="text" data-k="notUses" value="' + esc(r.notUses) + '" placeholder="背景・構図・衣装"></label>' +
+        '<label>使う属性<span class="req">必須</span><input type="text" data-k="uses" list="dl-role-' + r.kind + '" value="' + esc(r.uses) + '" placeholder="顔立ちと髪型"></label>' +
+        '<label>使わない属性<input type="text" data-k="notUses" list="dl-notuse" value="' + esc(r.notUses) + '" placeholder="背景・構図・衣装"></label>' +
         "<label>紐づけ先<select data-k=\"boundTo\">" + sel + "</select></label>" +
         '<label>同一物グループ<input type="text" data-k="groupTag" value="' + esc(r.groupTag) + '" placeholder="真鍮の筒"></label>' +
       "</div>" +
+      '<label class="keyat">キーフレーム秒<span class="opt">（この素材を◯秒地点の画として参照させたいときだけ）</span>' +
+        '<input type="number" min="0" data-k="keyAt" value="' + esc(r.keyAt) + '"></label>' +
     "</div>";
   }).join("");
 }
 
-function renderBeats() {
-  const box = $("beat-list");
-  if (!state.beats.length) {
-    box.innerHTML = '<p class="empty">ビートがありません。「静→動→静で入れ直す」が手っ取り早いです。</p>';
+/* which: "main" | "stage2" */
+function beatsOf(which) {
+  return which === "stage2" ? state.stage2.beats : state.beats;
+}
+function durationOf(which) {
+  return Number(which === "stage2" ? state.stage2.duration : state.meta.duration);
+}
+
+function renderBeats(which) {
+  which = which || "main";
+  const box = $(which === "stage2" ? "stage2-list" : "beat-list");
+  const beats = beatsOf(which);
+  if (!beats.length) {
+    box.innerHTML = '<p class="empty">ビートがありません。' +
+      (which === "stage2" ? "「＋ ビートを追加」から作ってください。"
+                          : "「静→動→静で入れ直す」が手っ取り早いです。") + "</p>";
     return;
   }
-  const tl = Builder.timeline(state.beats);
-  box.innerHTML = state.beats.map((b, i) => {
+  const tl = Builder.timeline(beats);
+  box.innerHTML = beats.map((b, i) => {
     const t = tl[i];
     return '<div class="card beat-card" data-id="' + b.id + '">' +
       '<div class="card-head">' +
@@ -261,7 +502,7 @@ function renderBeats() {
         '<span class="beat-time">' + t.start + "-" + t.end + "s</span>" +
         '<label class="sec-input">秒数<input type="number" min="1" max="180" data-k="sec" value="' + esc(b.sec) + '"></label>' +
         '<button type="button" class="move" data-move-beat="' + b.id + '" data-dir="-1"' + (i === 0 ? " disabled" : "") + ">↑</button>" +
-        '<button type="button" class="move" data-move-beat="' + b.id + '" data-dir="1"' + (i === state.beats.length - 1 ? " disabled" : "") + ">↓</button>" +
+        '<button type="button" class="move" data-move-beat="' + b.id + '" data-dir="1"' + (i === beats.length - 1 ? " disabled" : "") + ">↓</button>" +
         '<button type="button" class="del" data-del-beat="' + b.id + '">削除</button>' +
       "</div>" +
       '<label class="full">この区間で起きること<span class="req">必須</span>' +
@@ -295,15 +536,14 @@ function renderDialogues() {
   ).join("");
 }
 
-/* ============================================================
-   描画：出力（入力のたびに呼ぶ・軽い処理だけ）
-   ============================================================ */
-function renderOutput() {
-  /* ビートバー */
-  const bar = $("beat-bar");
+function renderBeatBar(which) {
+  const bar = $(which === "stage2" ? "stage2-bar" : "beat-bar");
+  const tot = $(which === "stage2" ? "stage2-total" : "beat-total");
+  const beats = beatsOf(which);
+  const dur = durationOf(which);
+
   bar.innerHTML = "";
-  const tl = Builder.timeline(state.beats);
-  tl.forEach((t, i) => {
+  Builder.timeline(beats).forEach((t, i) => {
     const seg = document.createElement("div");
     seg.className = "seg seg-" + (i % 4);
     seg.style.flexGrow = String(Math.max(1, t.beat.sec));
@@ -311,11 +551,21 @@ function renderOutput() {
     seg.title = "ビート" + (i + 1) + "：" + t.start + "-" + t.end + "s";
     bar.appendChild(seg);
   });
-  const total = state.beats.reduce((a, b) => a + (Number(b.sec) || 0), 0);
-  const ok = total === Number(state.meta.duration);
-  const tot = $("beat-total");
-  tot.textContent = "合計 " + total + "秒 / 総尺 " + state.meta.duration + "秒" + (ok ? "　一致しています" : "　← 一致していません");
+
+  const total = beats.reduce((a, b) => a + (Number(b.sec) || 0), 0);
+  const ok = total === dur;
+  const label = which === "stage2" ? "延長する長さ" : "総尺";
+  tot.textContent = "合計 " + total + "秒 / " + label + " " + dur + "秒" +
+    (ok ? "　一致しています" : "　← 一致していません");
   tot.className = "beat-total" + (ok ? " ok" : " ng");
+}
+
+/* ============================================================
+   描画：出力（入力のたびに呼ぶ・軽い処理だけ）
+   ============================================================ */
+function renderOutput() {
+  renderBeatBar("main");
+  renderBeatBar("stage2");
 
   /* 素材カウント */
   const nI = state.refs.filter(r => r.kind === "image").length;
@@ -329,6 +579,13 @@ function renderOutput() {
   const text = Builder.build(state, lang);
   $("output").textContent = text || "（左のフォームを埋めるとここに出ます）";
   $("charcount").textContent = text.length + "字";
+  $("settings-output").textContent = Builder.settings(state);
+
+  /* 2段階（編集 → 延長） */
+  const two = Builder.twoStage(state);
+  $("stage1-label").hidden = !two;
+  $("output2-block").hidden = !two;
+  if (two) $("output2").textContent = Builder.buildStage2(state, lang);
 
   /* 検証 */
   const issues = Validator.run(state);
@@ -358,6 +615,9 @@ function renderOutput() {
    ============================================================ */
 function initStaticControls() {
   $("meta-duration").innerHTML = optionsFrom(DURATIONS.map(String), String(state.meta.duration));
+  $("stage2-duration").innerHTML = optionsFrom(DURATIONS.map(String), String(state.stage2.duration));
+  $("simple-duration").innerHTML = optionsFrom(DURATIONS.map(String), String(state.simple.duration));
+  $("simple-aspect").innerHTML = optionsFrom(ASPECTS, state.simple.aspect);
   $("meta-aspect").innerHTML = optionsFrom(ASPECTS, state.meta.aspect);
   $("meta-resolution").innerHTML = optionsFrom(RESOLUTIONS, state.meta.resolution);
   $("preset-select").innerHTML = '<option value="">選ぶと下がまとめて入ります</option>' +
@@ -366,12 +626,25 @@ function initStaticControls() {
   $("look-end").innerHTML = optionsFrom(SHOT_SIZES, state.look.endSize, "指定なし");
   $("look-height").innerHTML = optionsFrom(CAMERA_HEIGHTS, state.look.height, "指定なし");
   $("look-pace").innerHTML = optionsFrom(PACES, state.look.pace, "指定なし");
+  $("frame-mode").innerHTML = FRAME_MODES.map(m =>
+    '<option value="' + esc(m.v) + '"' + (m.v === state.frames.mode ? " selected" : "") + ">" + esc(m.l) + "</option>").join("");
+  $("extend-dir").innerHTML = EXTEND_DIRS.map(m =>
+    '<option value="' + esc(m.v) + '"' + (m.v === state.extend.direction ? " selected" : "") + ">" + esc(m.l) + "</option>").join("");
+
+  fillDatalist("dl-role-image", REF_ROLE_PRESETS.image);
+  fillDatalist("dl-role-video", REF_ROLE_PRESETS.video);
+  fillDatalist("dl-role-audio", REF_ROLE_PRESETS.audio);
+  fillDatalist("dl-notuse", REF_NOTUSE_PRESETS);
 
   buildTags("tags-lighting", LIGHTING, "lighting");
   buildTags("tags-textures", TEXTURES, "textures");
   buildTags("tags-colors", COLORS, "colors");
   buildTags("tags-avoid", AVOID_TAGS, "avoid");
   buildTags("tags-locks", LOCKS, "locks");
+}
+
+function fillDatalist(id, list) {
+  $(id).innerHTML = list.map(v => '<option value="' + esc(v) + '"></option>').join("");
 }
 
 function buildTags(boxId, dict, key) {
@@ -390,6 +663,9 @@ function currentTagList(key) {
 }
 
 function syncControls() {
+  $("simple-script").value = state.simple.script;
+  $("simple-duration").value = String(state.simple.duration);
+  $("simple-aspect").value = state.simple.aspect;
   $("meta-name").value = state.meta.name;
   $("meta-purpose").value = state.meta.purpose;
   $("meta-summary").value = state.meta.summary;
@@ -399,6 +675,8 @@ function syncControls() {
   $("opening").value = state.opening;
   $("closing").value = state.closing;
   $("edit-keep").value = state.edit.keep;
+  $("edit-then-extend").checked = !!state.edit.thenExtend;
+  $("stage2-duration").value = String(state.stage2.duration);
   $("look-start").value = state.look.startSize;
   $("look-end").value = state.look.endSize;
   $("look-height").value = state.look.height;
@@ -407,6 +685,11 @@ function syncControls() {
   $("audio-music").value = state.audio.music;
   $("audio-silence").checked = !!state.audio.silence;
   $("audio-captions").value = state.audio.captions;
+  $("extend-dir").value = state.extend.direction;
+  $("extend-boundary").value = state.extend.boundary;
+  $("frame-mode").value = state.frames.mode;
+  $("opt-symbols").checked = !!state.output.symbols;
+  $("opt-timestamps").checked = !!state.output.timestamps;
 
   document.querySelectorAll(".tag").forEach(b => {
     const list = currentTagList(b.dataset.tagkey) || [];
@@ -422,14 +705,119 @@ function syncControls() {
    ============================================================ */
 function bindEvents() {
 
+  /* --- かんたん / こだわり の切替 --- */
+  $("uimode").addEventListener("click", e => {
+    const b = e.target.closest("[data-ui]");
+    if (!b) return;
+    state.ui = b.dataset.ui;
+    initStaticControls();
+    syncControls();
+    renderStructure();
+  });
+
+  /* --- かんたん：用途 --- */
+  $("purpose-grid").addEventListener("click", e => {
+    const b = e.target.closest("[data-purpose]");
+    if (!b) return;
+    const p = SIMPLE_PURPOSES.find(x => x.id === b.dataset.purpose);
+    state.simple.purpose = b.dataset.purpose;
+    state.simple.duration = p.duration;
+    state.simple.aspect = p.aspect;
+    $("simple-duration").value = String(p.duration);
+    $("simple-aspect").value = p.aspect;
+    applySimple();
+    renderStructure();
+  });
+
+  /* --- かんたん：台本・尺・比率 --- */
+  $("simple-script").addEventListener("input", e => {
+    state.simple.script = e.target.value;
+    applySimple();
+    renderOutput();
+  });
+  $("simple-duration").addEventListener("change", e => {
+    state.simple.duration = Number(e.target.value);
+    applySimple();
+    renderOutput();
+  });
+  $("simple-aspect").addEventListener("change", e => {
+    state.simple.aspect = e.target.value;
+    applySimple();
+    renderOutput();
+  });
+
+  /* --- かんたん：画像をまとめて追加 --- */
+  $("simple-file").addEventListener("change", e => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    let left = files.length;
+    files.forEach(f => {
+      const ref = {
+        id: nid(), kind: "image", uses: "", notUses: "", boundTo: "", groupTag: "",
+        unused: false, keyAt: "", thumb: "", fileName: f.name, role: ""
+      };
+      state.refs.push(ref);
+      shrinkImageToDataUrl(f, 480, 0.72)
+        .then(url => { ref.thumb = url; })
+        .catch(() => {})
+        .then(() => {
+          if (--left === 0) { applySimple(); renderStructure(); }
+        });
+    });
+    e.target.value = "";
+  });
+
+  /* --- かんたん：画像の役割・削除 --- */
+  $("simple-images").addEventListener("change", e => {
+    const sel = e.target.closest("[data-role-for]");
+    if (!sel) return;
+    const r = state.refs.find(x => x.id === sel.dataset.roleFor);
+    if (!r) return;
+    r.role = sel.value;
+    const role = IMAGE_ROLES.find(o => o.v === sel.value);
+    r.uses = role ? role.uses : "";
+    r.notUses = role ? role.notUses : "";
+    /* カード全体を作り直すとフォーカスが飛ぶので、印だけ付け替える */
+    const card = sel.closest(".simple-img");
+    if (card) card.classList.toggle("no-role", !r.role);
+    applySimple();
+    renderOutput();
+  });
+  $("simple-images").addEventListener("click", e => {
+    const del = e.target.closest("[data-del-ref]");
+    if (!del) return;
+    state.refs = state.refs.filter(r => r.id !== del.dataset.delRef);
+    applySimple();
+    renderStructure();
+  });
+
   /* --- モード --- */
   $("mode-grid").addEventListener("click", e => {
     const btn = e.target.closest("[data-mode]");
     if (!btn) return;
-    state.mode = btn.dataset.mode;
-    if (state.mode === "edit" && !state.refs.some(r => r.kind === "video")) {
-      state.refs.unshift({ id: nid(), kind: "video", uses: "編集する元の映像そのもの", notUses: "", boundTo: "全体", groupTag: "" });
+    const next = btn.dataset.mode;
+    const wantsMaster = next === "edit" || next === "extend";
+    const AUTO_USES = ["編集する元の映像そのもの", "延長する元の映像そのもの"];
+    const label = next === "edit" ? AUTO_USES[0] : AUTO_USES[1];
+
+    /* 自動で足した元動画は、編集・延長を離れたら片付ける。
+       手で書き換えられていたら残す（ユーザーの入力を消さない）。 */
+    state.refs = state.refs.filter(r =>
+      !(r.auto && !wantsMaster && AUTO_USES.indexOf((r.uses || "").trim()) !== -1));
+
+    if (wantsMaster) {
+      const auto = state.refs.find(r => r.auto);
+      if (auto) {
+        if (AUTO_USES.indexOf((auto.uses || "").trim()) !== -1) auto.uses = label;
+      } else if (!state.refs.some(r => r.kind === "video")) {
+        state.refs.unshift({
+          id: nid(), kind: "video", uses: label,
+          notUses: "", boundTo: "全体", groupTag: "", unused: false, keyAt: "", auto: true, thumb: "", fileName: ""
+        });
+      }
     }
+
+    state.mode = next;
     renderStructure();
   });
 
@@ -458,6 +846,10 @@ function bindEvents() {
     ["opening", v => state.opening = v],
     ["closing", v => state.closing = v],
     ["edit-keep", v => state.edit.keep = v],
+    ["extend-dir", v => state.extend.direction = v],
+    ["extend-boundary", v => state.extend.boundary = v],
+    ["frame-first", v => state.frames.first = v],
+    ["frame-last", v => state.frames.last = v],
     ["look-start", v => state.look.startSize = v],
     ["look-end", v => state.look.endSize = v],
     ["look-height", v => state.look.height = v],
@@ -477,6 +869,18 @@ function bindEvents() {
   });
   $("audio-silence").addEventListener("change", e => {
     state.audio.silence = e.target.checked;
+    renderOutput();
+  });
+  $("frame-mode").addEventListener("change", e => {
+    state.frames.mode = e.target.value;
+    renderOutput();
+  });
+  $("opt-symbols").addEventListener("change", e => {
+    state.output.symbols = e.target.checked;
+    renderOutput();
+  });
+  $("opt-timestamps").addEventListener("change", e => {
+    state.output.timestamps = e.target.checked;
     renderOutput();
   });
 
@@ -534,7 +938,7 @@ function bindEvents() {
   /* --- 参照素材 --- */
   document.querySelectorAll("[data-add-ref]").forEach(b => {
     b.addEventListener("click", () => {
-      state.refs.push({ id: nid(), kind: b.dataset.addRef, uses: "", notUses: "", boundTo: "", groupTag: "" });
+      state.refs.push({ id: nid(), kind: b.dataset.addRef, uses: "", notUses: "", boundTo: "", groupTag: "", unused: false, keyAt: "", thumb: "", fileName: "" });
       renderStructure();
     });
   });
@@ -549,6 +953,30 @@ function bindEvents() {
     if (mv) {
       moveItem(state.refs, mv.dataset.moveRef, Number(mv.dataset.dir));
       renderStructure();
+      return;
+    }
+    const clear = e.target.closest("[data-clear-thumb]");
+    if (clear) {
+      const r = state.refs.find(x => x.id === clear.dataset.clearThumb);
+      if (r) { r.thumb = ""; r.fileName = ""; }
+      renderStructure();
+    }
+  });
+  $("ref-list").addEventListener("change", e => {
+    const input = e.target.closest("[data-pick-ref]");
+    if (!input || !input.files || !input.files[0]) return;
+    const r = state.refs.find(x => x.id === input.dataset.pickRef);
+    if (!r) return;
+    const file = input.files[0];
+    if (r.kind === "image") {
+      shrinkImageToDataUrl(file, 480, 0.72).then(url => {
+        r.thumb = url;
+        r.fileName = file.name;
+        renderStructure();
+      }).catch(() => toast("この画像は読み込めませんでした"));
+    } else {
+      r.fileName = file.name;
+      renderStructure();
     }
   });
   const refInput = e => {
@@ -557,7 +985,13 @@ function bindEvents() {
     if (!card || !k) return;
     const r = state.refs.find(x => x.id === card.dataset.id);
     if (!r) return;
+    if (k === "unused") {
+      r.unused = e.target.checked;
+      renderStructure();          /* 見た目と境界フレームの候補が変わる */
+      return;
+    }
     r[k] = e.target.value;
+    if (k === "uses") renderFrameSelects();   /* 候補の表示名に使っている */
     renderOutput();
   };
   $("ref-list").addEventListener("input", refInput);
@@ -582,37 +1016,32 @@ function bindEvents() {
     renderStructure();
     toast("静→動→静 で入れ直しました");
   });
-  $("beat-list").addEventListener("click", e => {
-    const del = e.target.closest("[data-del-beat]");
-    if (del) {
-      state.beats = state.beats.filter(b => b.id !== del.dataset.delBeat);
-      renderStructure();
-      return;
-    }
-    const mv = e.target.closest("[data-move-beat]");
-    if (mv) {
-      moveItem(state.beats, mv.dataset.moveBeat, Number(mv.dataset.dir));
-      renderStructure();
-    }
+  bindBeatList("main", "beat-list");
+  bindBeatList("stage2", "stage2-list");
+
+  /* --- 2本目（延長）の操作 --- */
+  $("btn-add-stage2").addEventListener("click", () => {
+    state.stage2.beats.push(newBeat(5));
+    renderStructure();
   });
-  const beatInput = e => {
-    const card = e.target.closest("[data-id]");
-    const k = e.target.dataset.k;
-    if (!card || !k) return;
-    const b = state.beats.find(x => x.id === card.dataset.id);
-    if (!b) return;
-    b[k] = k === "sec" ? Math.max(1, Number(e.target.value) || 1) : e.target.value;
-    if (k === "sec") {
-      const tl = Builder.timeline(state.beats);
-      document.querySelectorAll("#beat-list .beat-card").forEach((card2, i) => {
-        const t = card2.querySelector(".beat-time");
-        if (t && tl[i]) t.textContent = tl[i].start + "-" + tl[i].end + "s";
-      });
-    }
+  $("btn-even-stage2").addEventListener("click", () => {
+    if (!state.stage2.beats.length) return;
+    const secs = evenBeats(state.stage2.beats.length, Number(state.stage2.duration));
+    state.stage2.beats.forEach((b, i) => b.sec = secs[i]);
+    renderStructure();
+    toast("均等に割りました");
+  });
+  $("stage2-duration").addEventListener("change", e => {
+    state.stage2.duration = Number(e.target.value);
     renderOutput();
-  };
-  $("beat-list").addEventListener("input", beatInput);
-  $("beat-list").addEventListener("change", beatInput);
+  });
+  $("edit-then-extend").addEventListener("change", e => {
+    state.edit.thenExtend = e.target.checked;
+    if (e.target.checked && !state.stage2.beats.length) {
+      state.stage2.beats = evenBeats(2, Number(state.stage2.duration)).map(sec => newBeat(sec));
+    }
+    renderStructure();
+  });
 
   /* --- セリフ --- */
   $("btn-add-dialogue").addEventListener("click", () => {
@@ -653,20 +1082,18 @@ function bindEvents() {
     const text = Builder.build(state, lang);
     const nErr = Validator.run(state).filter(i => i.level === "error").length;
     if (nErr && !confirm("エラーが " + nErr + " 件あります。このままコピーしますか？")) return;
-    navigator.clipboard.writeText(text)
-      .then(() => toast("コピーしました"))
-      .catch(() => {
-        const ta = document.createElement("textarea");
-        ta.value = text;
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand("copy");
-        ta.remove();
-        toast("コピーしました");
-      });
+    copyText(text);
   });
   $("btn-txt").addEventListener("click", () => {
-    download((state.meta.name || "seedance-prompt") + ".txt", Builder.build(state, lang), "text/plain");
+    const body = Builder.build(state, lang);
+    download((state.meta.name || "seedance-prompt") + ".txt",
+      body + "\n\n----------------\n" + Builder.settings(state), "text/plain");
+  });
+  $("btn-copy-settings").addEventListener("click", () => {
+    copyText(Builder.settings(state));
+  });
+  $("btn-copy2").addEventListener("click", () => {
+    copyText(Builder.buildStage2(state, lang));
   });
 
   /* --- 保存まわり --- */
@@ -705,6 +1132,86 @@ function bindEvents() {
     };
     fr.readAsText(f);
   });
+}
+
+/* ビート表の操作は2本とも同じなので共通化する */
+function bindBeatList(which, boxId) {
+  const box = $(boxId);
+
+  box.addEventListener("click", e => {
+    const del = e.target.closest("[data-del-beat]");
+    if (del) {
+      const list = beatsOf(which).filter(b => b.id !== del.dataset.delBeat);
+      if (which === "stage2") state.stage2.beats = list; else state.beats = list;
+      renderStructure();
+      return;
+    }
+    const mv = e.target.closest("[data-move-beat]");
+    if (mv) {
+      moveItem(beatsOf(which), mv.dataset.moveBeat, Number(mv.dataset.dir));
+      renderStructure();
+    }
+  });
+
+  const onInput = e => {
+    const card = e.target.closest("[data-id]");
+    const k = e.target.dataset.k;
+    if (!card || !k) return;
+    const beats = beatsOf(which);
+    const b = beats.find(x => x.id === card.dataset.id);
+    if (!b) return;
+    b[k] = k === "sec" ? Math.max(1, Number(e.target.value) || 1) : e.target.value;
+    if (k === "sec") {
+      const tl = Builder.timeline(beats);
+      box.querySelectorAll(".beat-card").forEach((card2, i) => {
+        const t = card2.querySelector(".beat-time");
+        if (t && tl[i]) t.textContent = tl[i].start + "-" + tl[i].end + "s";
+      });
+    }
+    renderOutput();
+  };
+  box.addEventListener("input", onInput);
+  box.addEventListener("change", onInput);
+}
+
+/* 選んだ画像を確認用サムネイルに縮小する。AIには送らない・端末内だけで完結させる。
+   localStorageを圧迫しないよう、長辺maxPxに縮めてJPEGで持つ。 */
+function shrinkImageToDataUrl(file, maxPx, quality) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
+      const w = Math.max(1, Math.round(img.width * scale));
+      const h = Math.max(1, Math.round(img.height * scale));
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      try {
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      } catch (err) {
+        reject(err);
+      }
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("load failed")); };
+    img.src = url;
+  });
+}
+
+function copyText(text) {
+  navigator.clipboard.writeText(text)
+    .then(() => toast("コピーしました"))
+    .catch(() => {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      ta.remove();
+      toast("コピーしました");
+    });
 }
 
 function moveItem(arr, id, dir) {
@@ -795,7 +1302,22 @@ function migrate(obj) {
   s.audio = Object.assign(base.audio, obj.audio || {});
   s.guards = Object.assign(base.guards, obj.guards || {});
   s.edit = Object.assign(base.edit, obj.edit || {});
+  s.extend = Object.assign(base.extend, obj.extend || {});
+  s.frames = Object.assign(base.frames, obj.frames || {});
+  s.output = Object.assign(base.output, obj.output || {});
+  s.simple = Object.assign(base.simple, obj.simple || {});
+  if (s.ui !== "simple" && s.ui !== "pro") s.ui = "simple";
+  s.stage2 = Object.assign(base.stage2, obj.stage2 || {});
+  if (!Array.isArray(s.stage2.beats)) s.stage2.beats = [];
+  s.stage2.beats.forEach(b => { if (!b.id) b.id = nid(); });
   ["characters", "refs", "beats"].forEach(k => { if (!Array.isArray(s[k])) s[k] = []; });
+  s.refs.forEach(r => {
+    if (r.unused === undefined) r.unused = false;
+    if (r.keyAt === undefined) r.keyAt = "";
+    if (r.thumb === undefined) r.thumb = "";
+    if (r.fileName === undefined) r.fileName = "";
+    if (r.role === undefined) r.role = "";
+  });
   ["lighting", "textures", "colors"].forEach(k => { if (!Array.isArray(s.look[k])) s.look[k] = []; });
   ["avoid", "locks"].forEach(k => { if (!Array.isArray(s.guards[k])) s.guards[k] = []; });
   if (!Array.isArray(s.audio.dialogues)) s.audio.dialogues = [];
@@ -816,10 +1338,12 @@ function boot() {
     state.guards.avoid = ["jitter", "identity drift", "bent limbs"];
     state.guards.locks = ["顔立ち・髪型は最後まで同一に保つ", "カメラの動きは1ショットにつき1つだけ"];
   }
+  $("app-version").textContent = APP_VERSION;
   initStaticControls();
   bindEvents();
   syncControls();
   refreshProjectList();
+  if (state.ui === "simple") applySimple();
   renderStructure();
 
   if ("serviceWorker" in navigator && location.protocol.indexOf("http") === 0) {

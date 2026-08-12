@@ -80,6 +80,159 @@ body {
 }
 .site-lead strong { color: var(--amber-soft); }
 
+/* ---------- かんたん / こだわり 切替 ---------- */
+.uimode {
+  display: inline-flex;
+  gap: 4px;
+  margin-top: 20px;
+  background: rgba(0, 0, 0, .3);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 4px;
+}
+.uimode button {
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: var(--text-dim);
+  font-family: inherit;
+  padding: 8px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  transition: background .15s, color .15s;
+}
+.uimode button:hover { color: var(--text); }
+.uimode button.on { background: var(--amber); color: #16181e; }
+.uimode-name { font-size: 14px; font-weight: 700; }
+.uimode-desc { font-size: 10.5px; opacity: .8; }
+
+/* ---------- かんたんモード ---------- */
+.simple-panel .panel-title.mt { margin-top: 26px; }
+.opt-h { font-size: 11px; color: var(--text-dim); font-weight: 400; }
+
+.purpose-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(165px, 1fr));
+  gap: 10px;
+}
+.purpose-card {
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px 15px;
+  text-align: left;
+  color: var(--text);
+  font-family: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  transition: border-color .15s, background .15s;
+}
+.purpose-card:hover { border-color: var(--amber-dark); }
+.purpose-card.on {
+  border-color: var(--amber);
+  background: linear-gradient(160deg, #2b2a20, #262a33);
+  box-shadow: inset 0 0 0 1px rgba(226, 161, 60, .25);
+}
+.purpose-name { font-size: 15px; font-weight: 700; }
+.purpose-desc { font-size: 11.5px; color: var(--text-dim); line-height: 1.6; }
+.purpose-spec {
+  font-size: 10.5px;
+  font-family: var(--font-mono);
+  color: var(--amber-soft);
+  margin-top: 2px;
+}
+
+.simple-img-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.simple-img {
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.simple-img-pic {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  border-radius: 5px;
+  overflow: hidden;
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.simple-img-tag {
+  position: absolute;
+  left: 5px;
+  bottom: 5px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--amber);
+  background: rgba(0, 0, 0, .7);
+  border-radius: 3px;
+  padding: 1px 6px;
+}
+.simple-img-del {
+  position: absolute;
+  right: 4px;
+  top: 4px;
+  width: 21px;
+  height: 21px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, .65);
+  color: #fff;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0;
+}
+.simple-img-del:hover { background: var(--red); }
+.simple-role { font-size: 11.5px; padding: 5px 7px; }
+.simple-img.no-role { border-color: var(--yellow); }
+.simple-img.no-role .simple-role { border-color: var(--yellow); color: var(--yellow); }
+
+.simple-readout { white-space: pre-line; }
+
+.file-pick.big {
+  display: block;
+  text-align: center;
+  padding: 12px;
+  font-size: 13px;
+  border-style: dashed;
+}
+
+.simple-readout {
+  margin: 14px 0 0;
+  font-size: 12px;
+  color: var(--amber-soft);
+  background: rgba(226, 161, 60, .07);
+  border: 1px solid rgba(226, 161, 60, .25);
+  border-radius: 5px;
+  padding: 9px 12px;
+  line-height: 1.7;
+}
+.simple-foot {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line-soft);
+  font-size: 12px;
+  color: var(--text-dim);
+  line-height: 1.8;
+}
+.simple-foot strong { color: var(--amber); }
+
+/* かんたんモードでは設定ブロックの注意書きを控えめに */
+body.is-simple .settings-note { display: none; }
+
 /* ---------- 作品バー ---------- */
 .projectbar {
   position: sticky;
@@ -541,6 +694,187 @@ button {
   border-bottom: 1px solid var(--line-soft);
 }
 
+/* ---------- 出力オプション ---------- */
+.output-opts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  padding: 9px 15px;
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--line-soft);
+}
+.output-opts label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 11.5px;
+  font-weight: 400;
+  color: var(--text-soft);
+  cursor: pointer;
+}
+.output-opts input { width: auto; }
+.output-opts code {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--cyan);
+}
+
+/* ---------- 推奨設定 ---------- */
+.settings-block {
+  padding: 12px 15px 14px;
+  border-bottom: 1px solid var(--line-soft);
+  background: var(--bg-2);
+}
+.settings-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.settings-head h3 {
+  margin: 0;
+  font-size: 12.5px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.settings-tag {
+  font-size: 10px;
+  background: var(--cyan);
+  color: #0d1a1d;
+  border-radius: 999px;
+  padding: 1px 8px;
+  font-weight: 700;
+}
+.settings-head button { margin-left: auto; }
+.settings-output {
+  margin: 0;
+  padding: 10px 12px;
+  background: var(--bg);
+  border: 1px solid var(--line-soft);
+  border-radius: 5px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  line-height: 1.8;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: #c9d2dc;
+}
+.settings-note {
+  margin: 7px 0 0;
+  font-size: 11px;
+  color: var(--text-dim);
+  line-height: 1.7;
+}
+
+/* ---------- 2段階出力 ---------- */
+.stage-label {
+  margin: 0;
+  padding: 8px 15px;
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--line-soft);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--amber);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.stage-label span {
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--text-dim);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 1px 8px;
+}
+.stage2-block {
+  padding: 12px 15px 14px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.stage2-tag { background: var(--amber); color: #16181e; }
+
+/* ---------- 未使用素材 ---------- */
+.unused-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 0;
+  font-size: 11.5px;
+  font-weight: 400;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.unused-check input { width: auto; }
+.ref-card.is-unused { opacity: .5; }
+.ref-card.is-unused .ref-label { text-decoration: line-through; }
+
+/* ---------- 参照素材のサムネイル ---------- */
+.ref-thumb-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.thumb-box {
+  width: 72px;
+  height: 72px;
+  flex: none;
+  border-radius: 5px;
+  overflow: hidden;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.thumb-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.thumb-empty {
+  font-size: 10px;
+  color: var(--text-dim);
+  text-align: center;
+  padding: 4px;
+  line-height: 1.5;
+}
+.thumb-file {
+  font-family: var(--font-mono);
+  word-break: break-all;
+}
+.thumb-ctrl {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+.file-pick {
+  display: inline-block;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  color: var(--text-soft);
+  font-size: 11.5px;
+  font-weight: 400;
+  padding: 6px 13px;
+  margin: 0;
+  cursor: pointer;
+  transition: border-color .12s, color .12s;
+}
+.file-pick:hover { border-color: var(--amber); color: var(--text); }
+.thumb-ctrl .del { font-size: 11px; }
+.keyat {
+  display: block;
+  margin-top: 10px;
+  font-size: 11.5px;
+}
+.keyat input { width: 110px; margin-top: 4px; }
+
 .preview-actions {
   display: flex;
   align-items: center;
@@ -641,6 +975,8 @@ button {
   text-align: center;
 }
 .site-footer p { margin: 0; font-size: 11.5px; color: var(--text-dim); }
+.build-stamp { margin-top: 6px !important; font-family: var(--font-mono); font-size: 10.5px !important; }
+.build-stamp a { color: var(--amber); }
 
 .toast {
   position: fixed;

@@ -1,7 +1,12 @@
 /* ============================================================
    プロンプト組み立て
    state → Seedance 2.5 形式のプロンプト文字列
-   lang: "ja"（全部日本語） / "mix"（専門語だけ英語・推奨）
+
+   節の順番は「素材参照 → 一文要約 → ショット/時系列 → 一貫性」。
+   素材の役割を最初に固定してから中身を書くほうが混線しにくい。
+
+   長さ・比率・解像度・APIの境界フレーム指定などの「設定値」は
+   本文に混ぜず、settings() で別に返す。
    ============================================================ */
 "use strict";
 
@@ -33,6 +38,14 @@ const Builder = (function () {
     return map;
   }
 
+  function refById(s, id) {
+    return s.refs.find(r => r.id === id) || null;
+  }
+  function labelById(s, id) {
+    const r = refById(s, id);
+    return r ? refLabel(s.refs, r) : "";
+  }
+
   /* ビートの開始・終了秒を計算 */
   function timeline(beats) {
     let cur = 0;
@@ -44,22 +57,107 @@ const Builder = (function () {
     });
   }
 
-  function line(arr) {
-    return arr.filter(s => s && String(s).trim()).join("");
+  /* 古い形式のプロジェクトを読んでも落ちないように、足りない箱を埋める。
+     通常は app.js の migrate() が先に埋めるが、ここが落ちると画面全体が消えるため二重に守る。 */
+  function normalize(s) {
+    s.meta = s.meta || {};
+    s.look = s.look || {};
+    s.audio = s.audio || {};
+    s.guards = s.guards || {};
+    s.edit = s.edit || {};
+    s.extend = s.extend || { direction: "backward", boundary: "" };
+    s.frames = s.frames || { mode: "", first: "", last: "" };
+    s.output = s.output || { symbols: true, timestamps: true };
+    s.stage2 = s.stage2 || { duration: 10, beats: [] };
+    ["characters", "refs", "beats"].forEach(k => { if (!Array.isArray(s[k])) s[k] = []; });
+    if (!Array.isArray(s.stage2.beats)) s.stage2.beats = [];
+    ["lighting", "textures", "colors"].forEach(k => { if (!Array.isArray(s.look[k])) s.look[k] = []; });
+    ["avoid", "locks"].forEach(k => { if (!Array.isArray(s.guards[k])) s.guards[k] = []; });
+    if (!Array.isArray(s.audio.dialogues)) s.audio.dialogues = [];
+    return s;
   }
 
-  /* ---------- 各セクション ---------- */
+  function sentence(v) {
+    const t = (v || "").trim();
+    if (!t) return "";
+    return /[。.！!？?]$/.test(t) ? t : t + "。";
+  }
 
-  function secGoal(s, lang) {
-    const m = s.meta;
-    const head = [
-      m.duration + "秒",
-      m.aspect,
-      m.resolution,
-      m.purpose
-    ].filter(Boolean).join("・");
-    const body = (m.summary || "").trim();
-    return "[生成目標]\n" + line([head, body ? "。" + body : ""]);
+  /* ---------- 素材参照 ---------- */
+  /* skipId: 編集元・延長元など、別セクションで宣言済みの素材を除く。
+     ラベルの採番は常に全素材から計算する（除外で番号がずれないように）。 */
+  function secRefs(s, skipId) {
+    const map = labelsOf(s.refs);
+    const used = s.refs.filter(r => r.id !== skipId && !r.unused);
+    const unused = s.refs.filter(r => r.id !== skipId && r.unused);
+    const rows = [];
+
+    used.forEach(r => {
+      const label = map.get(r.id);
+      const target = (r.boundTo || "").trim();
+      const uses = (r.uses || "").trim();
+      const not = (r.notUses || "").trim();
+      let t = label + " は";
+      if (target && target !== "全体") t += target + "の";
+      t += (uses || "（役割未記入）") + "のみを定義。";
+      if (not) t += not + "は使わない。";
+      rows.push(t);
+    });
+
+    /* 同一物グループ → 「1個だけ」宣言 */
+    const groups = {};
+    used.forEach(r => {
+      const g = (r.groupTag || "").trim();
+      if (!g) return;
+      (groups[g] = groups[g] || []).push(map.get(r.id));
+    });
+    Object.keys(groups).forEach(g => {
+      if (groups[g].length < 2) return;
+      rows.push(groups[g].join(" と ") + " はどれも同じ「" + g + "」1個を写したもの。映像内に " + g + " は1個だけ。");
+    });
+
+    /* 意味的な境界フレーム・キーフレーム */
+    if (s.frames.mode === "semantic") {
+      const f = labelById(s, s.frames.first);
+      const l = labelById(s, s.frames.last);
+      if (f) rows.push(f + " を最初のフレームとして参照する。完全一致は求めない。");
+      if (l) rows.push(l + " を最後のフレームとして参照する。完全一致は求めない。");
+    }
+    used.forEach(r => {
+      const at = String(r.keyAt === undefined ? "" : r.keyAt).trim();
+      if (at === "") return;
+      rows.push(map.get(r.id) + " を " + at + "秒地点のキーフレームとして参照する。");
+    });
+
+    if (!rows.length && !unused.length) return "";
+
+    let out = rows.length ? "[素材参照]\n" + rows.join("\n") : "";
+    if (unused.length) {
+      const line = "[未使用素材]\n" + unused.map(r => map.get(r.id)).join("、") + " は今回使わない。";
+      out = out ? out + "\n\n" + line : line;
+    }
+    return out;
+  }
+
+  /* ---------- 一文要約 ---------- */
+  function secSummary(s, lang) {
+    const parts = [sentence(s.meta.summary)];
+    const style = [s.meta.purpose, terms(s.look.textures, TEXTURES, lang)]
+      .filter(v => (v || "").trim()).join("、");
+    if (style) parts.push(style + "。");
+
+    const cam = [];
+    if (s.look.startSize && s.look.endSize) {
+      cam.push(term(s.look.startSize, SHOT_SIZES, lang) + "から" + term(s.look.endSize, SHOT_SIZES, lang) + "へ");
+    } else if (s.look.startSize) {
+      cam.push(term(s.look.startSize, SHOT_SIZES, lang));
+    }
+    if (s.look.height) cam.push(term(s.look.height, CAMERA_HEIGHTS, lang));
+    if (s.look.pace) cam.push(term(s.look.pace, PACES, lang));
+    if (cam.length) parts.push(cam.join("、") + "。");
+
+    const body = parts.filter(Boolean).join("");
+    return body ? "[一文要約]\n" + body : "";
   }
 
   function secCharacters(s) {
@@ -75,57 +173,9 @@ const Builder = (function () {
       "\n※この記述は全ショットで一字一句同じものを使うこと。";
   }
 
-  /* skipId: 編集モードの元動画など、別セクションで宣言済みの素材を除く。
-     ラベルの採番は常に全素材から計算する（除外で番号がずれないように）。 */
-  function secRefs(s, skipId) {
-    const list = s.refs.filter(r => r.id !== skipId);
-    if (!list.length) return "";
-    const map = labelsOf(s.refs);
-    const rows = list.map(r => {
-      const label = map.get(r.id);
-      const target = (r.boundTo || "").trim();
-      const uses = (r.uses || "").trim();
-      const not = (r.notUses || "").trim();
-      let t = label + " は";
-      if (target && target !== "全体") t += target + "の";
-      t += (uses || "（役割未記入）") + "のみを定義。";
-      if (not) t += not + "は使わない。";
-      return t;
-    });
-
-    /* 同一物グループ → 「1個だけ」宣言 */
-    const groups = {};
-    list.forEach(r => {
-      const g = (r.groupTag || "").trim();
-      if (!g) return;
-      (groups[g] = groups[g] || []).push(map.get(r.id));
-    });
-    Object.keys(groups).forEach(g => {
-      if (groups[g].length < 2) return;
-      rows.push(groups[g].join(" と ") + " はどれも同じ「" + g + "」1個を写したもの。映像内に " + g + " は1個だけ。");
-    });
-
-    return "[参照素材]\n" + rows.join("\n");
-  }
-
   function secOpening(s) {
     const v = (s.opening || "").trim();
     return v ? "[初期状態]\n" + v : "";
-  }
-
-  function secEvents(s, lang) {
-    const tl = timeline(s.beats);
-    const rows = tl.map(t => {
-      const b = t.beat;
-      const time = t.start + "-" + t.end + "s: ";
-      let body = (b.event || "").trim();
-      if (body && !/[。.！!？?]$/.test(body)) body += "。";
-      if (b.move) {
-        body += "カメラは " + term(b.move, CAMERA_MOVES, lang) + "。";
-      }
-      return time + body;
-    });
-    return "[主要な出来事]\n" + rows.join("\n");
   }
 
   function secClosing(s) {
@@ -133,52 +183,75 @@ const Builder = (function () {
     return v ? "[終了状態]\n" + v : "";
   }
 
+  /* ---------- ショット／時系列 ---------- */
+  function secEvents(s, lang, title, beatsOverride) {
+    const useTime = !!s.output.timestamps;
+    const tl = timeline(beatsOverride || s.beats);
+    const rows = tl.map((t, i) => {
+      const b = t.beat;
+      const head = useTime ? t.start + "-" + t.end + "s: " : (i + 1) + ". ";
+      let body = sentence(b.event);
+      if (b.move) body += "カメラは " + term(b.move, CAMERA_MOVES, lang) + "。";
+      return head + body;
+    });
+    if (!rows.length) return "";
+    return "[" + (title || "ショット／時系列") + "]\n" + rows.join("\n");
+  }
+
+  /* ---------- 映像 ---------- */
   function secLook(s, lang) {
     const L = s.look;
     const rows = [];
-    const shot = [];
-    if (L.startSize) shot.push(term(L.startSize, SHOT_SIZES, lang));
-    if (L.endSize) shot.push(term(L.endSize, SHOT_SIZES, lang));
-    if (shot.length) rows.push("ショット: " + shot.join(" → "));
-    if (L.height) rows.push("カメラ高さ・角度: " + term(L.height, CAMERA_HEIGHTS, lang));
-    if (L.pace) rows.push("テンポ: " + term(L.pace, PACES, lang));
     if (L.lighting.length) rows.push("光: " + terms(L.lighting, LIGHTING, lang));
-    if (L.textures.length) rows.push("質感・スタイル: " + terms(L.textures, TEXTURES, lang));
     if (L.colors.length) rows.push("色: " + terms(L.colors, COLORS, lang));
-    if (!rows.length) return "";
-    return "[映像]\n" + rows.join("。") + "。\nカメラの動きは各ショットにつき1つだけ。";
+    if (!rows.length && !s.beats.some(b => b.move)) return "";
+    rows.push("カメラの動きは各ショットにつき1つだけ");
+    return "[映像]\n" + rows.join("。") + "。";
   }
 
+  /* ---------- 音声 ---------- */
   function secAudio(s, lang) {
     const A = s.audio;
+    const sym = !!s.output.symbols;
     const rows = [];
 
     const amb = (A.ambience || "").split(/[、,\n]/).map(v => v.trim()).filter(Boolean);
-    if (amb.length) rows.push(amb.map(v => "<" + v + ">").join(" "));
+    if (amb.length) {
+      rows.push(sym ? amb.map(v => "<" + v + ">").join(" ") : "環境音: " + amb.join("、"));
+    }
 
     /* ビートに紐づく効果音 */
     const tl = timeline(s.beats);
     tl.forEach(t => {
       const sfx = (t.beat.sfx || "").trim();
       if (!sfx) return;
-      rows.push("<" + sfx + "> at " + t.start + "s");
+      rows.push(sym ? "<" + sfx + "> at " + t.start + "s"
+                    : "効果音: " + sfx + "（" + t.start + "秒）");
     });
 
-    if ((A.music || "").trim()) rows.push("(" + A.music.trim() + ")");
+    if ((A.music || "").trim()) {
+      rows.push(sym ? "(" + A.music.trim() + ")" : "音楽: " + A.music.trim());
+    }
 
     (A.dialogues || []).forEach(d => {
       if (!(d.text || "").trim()) return;
-      const head = ["Spoken language: " + (d.lang || "Japanese")];
-      if (d.manner) head.push(term(d.manner, DIALOG_MANNERS, "mix"));
-      let t = head.join(", ");
-      if (d.speaker) t += ", " + d.speaker;
-      if (d.at !== "" && d.at !== null && d.at !== undefined) t += " at " + d.at + "s";
-      t += " says: {" + d.text.trim() + "}";
-      rows.push(t);
+      const lg = d.lang || "Japanese";
+      const mn = d.manner ? term(d.manner, DIALOG_MANNERS, sym ? "mix" : "ja") : "";
+      const at = (d.at === "" || d.at === null || d.at === undefined) ? "" : d.at;
+      if (sym) {
+        let t = "Spoken language: " + lg;
+        if (mn) t += ", " + mn;
+        if (d.speaker) t += ", " + d.speaker;
+        if (at !== "") t += " at " + at + "s";
+        rows.push(t + " says: {" + d.text.trim() + "}");
+      } else {
+        const head = [lg, mn, d.speaker].filter(Boolean).join("・");
+        rows.push("台詞: " + head + (at !== "" ? "（" + at + "秒）" : "") + "「" + d.text.trim() + "」");
+      }
     });
 
     const caps = (A.captions || "").split(/\n/).map(v => v.trim()).filter(Boolean);
-    caps.forEach(c => rows.push("【" + c + "】"));
+    caps.forEach(c => rows.push(sym ? "【" + c + "】" : "字幕: " + c));
 
     if (A.silence) rows.push("音楽なし。ナレーションなし。指示していない字幕を出さない。");
 
@@ -186,69 +259,170 @@ const Builder = (function () {
     return "[音声]\n" + rows.join("\n");
   }
 
-  function secGuards(s, lang) {
+  function secGuards(s) {
     const rows = [];
     (s.guards.locks || []).forEach(l => rows.push(l + "。"));
     if ((s.guards.avoid || []).length) {
       rows.push("avoid: " + s.guards.avoid.join(", "));
     }
     if (!rows.length) return "";
-    return "[一貫性の維持]\n" + rows.join("\n");
+    return "[一貫性]\n" + rows.join("\n");
   }
 
   /* ---------- 編集モード ---------- */
-  function buildEdit(s, lang) {
-    const map = labelsOf(s.refs);
+  function editHead(s) {
     const src = s.refs.find(r => r.kind === "video");
-    const srcLabel = src ? map.get(src.id) : "@Video 1";
+    const label = src ? refLabel(s.refs, src) : "@Video 1";
+    const out = ["[編集指示]\n" + label + " を編集する。" + label +
+      " を唯一の編集マスターとし、指定していない部分は一切変更しない。元の時系列をそのまま引き継ぐ。"];
+    const keep = (s.edit.keep || "").trim();
+    if (keep) out.push("そのまま維持するもの: " + keep + "。");
+    return { text: out.join("\n"), srcId: src ? src.id : null };
+  }
+
+  /* ---------- 延長モード ---------- */
+  function extendHead(s) {
+    const src = s.refs.find(r => r.kind === "video");
+    const label = src ? refLabel(s.refs, src) : "@Video 1";
+    const dir = s.extend.direction === "forward"
+      ? "前方（この場面より前）"
+      : "後方（この続き）";
+    const out = ["[延長指示]\n" + label + " の" + dir + "を生成する。" + label +
+      " を唯一の延長元とし、同じ人物・同じ場所・同じ画作りを途切れさせずに引き継ぐ。"];
+    const b = (s.extend.boundary || "").trim();
+    if (b) out.push("つなぎ目の状態: " + sentence(b));
+    return { text: out.join("\n"), srcId: src ? src.id : null };
+  }
+
+  /* ---------- 2段階（編集 → 延長）の2本目 ---------- */
+  function twoStage(s) {
+    return s.mode === "edit" && !!s.edit.thenExtend;
+  }
+
+  function buildStage2(s, lang) {
+    normalize(s);
+    const dir = s.extend.direction === "forward"
+      ? "前方（この場面より前）"
+      : "後方（この続き）";
+    const src = s.refs.find(r => r.kind === "video");
     const out = [];
 
-    out.push("[編集指示]\n" + srcLabel + " を編集する。" + srcLabel + " を唯一の編集マスターとし、指定していない部分は一切変更しない。");
+    out.push("[延長指示]\nプロンプト1で編集して出来た動画を元動画として、その" + dir + "を生成する。" +
+      "その動画を唯一の延長元とし、同じ人物・同じ場所・同じ画作りを途切れさせずに引き継ぐ。" +
+      "プロンプト1で差し替えた要素は、延長部分でも差し替え後の状態を保つ。");
 
-    const keep = (s.edit.keep || "").trim();
-    if (keep) out.push("Keep: " + keep + " はそのまま維持する。");
+    const b = (s.extend.boundary || "").trim();
+    if (b) out.push("つなぎ目の状態: " + sentence(b));
 
-    const tl = timeline(s.beats);
-    const rows = tl.map(t => {
-      const b = t.beat;
-      const body = (b.event || "").trim() || "変更なし";
-      return t.start + "-" + t.end + "s: " + body;
-    });
-    out.push("Change:\n" + rows.join("\n"));
-
+    /* 編集元の動画は「もう使わない素材」なので外す */
     const refs = secRefs(s, src ? src.id : null);
     if (refs) out.push(refs);
 
-    out.push("差し替えた要素は元の照明・レンズ・粒状感に合わせる。");
+    const ev = secEvents(s, lang, "延長部分のショット／時系列", s.stage2.beats);
+    if (ev) out.push(ev);
 
-    const g = secGuards(s, lang);
+    /* 効果音は2本目のビートから作り直す */
+    const sym = !!s.output.symbols;
+    const sfxRows = [];
+    timeline(s.stage2.beats).forEach(t => {
+      const sfx = (t.beat.sfx || "").trim();
+      if (!sfx) return;
+      sfxRows.push(sym ? "<" + sfx + "> at " + t.start + "s"
+                       : "効果音: " + sfx + "（" + t.start + "秒）");
+    });
+    sfxRows.push("環境音・音楽・声の質感は元動画に合わせる。");
+    out.push("[音声]\n" + sfxRows.join("\n"));
+
+    out.push("画作り（光・色・粒状感・レンズ）は元動画に合わせる。");
+
+    const g = secGuards(s);
     if (g) out.push(g);
 
-    return out.filter(Boolean).join("\n\n");
+    return out.filter(p => p && p.trim()).join("\n\n");
   }
 
-  /* ---------- 本体 ---------- */
+  /* ============================================================
+     本体
+     ============================================================ */
   function build(s, lang) {
+    normalize(s);
     lang = lang || "mix";
-    if (s.mode === "edit") return buildEdit(s, lang);
-
-    const withRefs = s.mode === "lv1" || s.mode === "lv2";
+    const withRefs = s.mode !== "lv0";
     const full = s.mode === "lv2";
+    let head = null;
+
+    if (s.mode === "edit") head = editHead(s);
+    if (s.mode === "extend") head = extendHead(s);
+
+    const eventsTitle = s.mode === "edit" ? "変更内容"
+      : s.mode === "extend" ? "延長部分のショット／時系列"
+      : "ショット／時系列";
 
     const parts = [
-      secGoal(s, lang),
-      withRefs ? secCharacters(s) : "",
-      withRefs ? secRefs(s) : "",
+      head ? head.text : "",
+      withRefs ? secRefs(s, head ? head.srcId : null) : "",
+      s.mode === "edit" ? "" : secSummary(s, lang),
+      withRefs && s.mode !== "edit" ? secCharacters(s) : "",
       full ? secOpening(s) : "",
-      secEvents(s, lang),
+      secEvents(s, lang, eventsTitle),
       full ? secClosing(s) : "",
-      secLook(s, lang),
-      secAudio(s, lang),
-      secGuards(s, lang)
+      s.mode === "edit" ? "" : secLook(s, lang),
+      s.mode === "edit" ? "" : secAudio(s, lang),
+      s.mode === "edit" ? "差し替えた要素は元の照明・レンズ・粒状感に合わせる。" : "",
+      secGuards(s)
     ];
 
     return parts.filter(p => p && p.trim()).join("\n\n");
   }
 
-  return { build: build, timeline: timeline, labelsOf: labelsOf, refLabel: refLabel };
+  /* ============================================================
+     推奨設定（本文とは分けて出す）
+     ============================================================ */
+  function settings(s) {
+    normalize(s);
+    const rows = [];
+
+    if (s.mode === "edit") {
+      rows.push("比率と長さ: 元動画に合わせる（編集は元動画の設定を引き継ぐ）");
+    } else if (s.mode === "extend") {
+      rows.push("比率: 元動画に合わせる");
+      rows.push("延長する長さ: " + s.meta.duration + "秒");
+    } else if (s.frames.mode === "strict") {
+      rows.push("長さ: " + s.meta.duration + "秒");
+      rows.push("比率: 最初のフレーム画像にロックされる（設定値ではなく画像で決まる）");
+      rows.push("解像度: " + s.meta.resolution);
+    } else {
+      rows.push("長さ: " + s.meta.duration + "秒");
+      rows.push("比率: " + s.meta.aspect);
+      rows.push("解像度: " + s.meta.resolution);
+    }
+
+    if (s.frames.mode === "strict") {
+      const f = labelById(s, s.frames.first);
+      const l = labelById(s, s.frames.last);
+      if (f) rows.push("最初のフレーム: " + f + " を content.role=first_frame で渡す");
+      if (l) rows.push("最後のフレーム: " + l + " を content.role=last_frame で渡す");
+      rows.push("※ 厳密指定では比率が最初のフレーム画像にロックされます。最初と最後の画像の比率を揃えてください。");
+    }
+
+    if (twoStage(s)) {
+      rows.push("");
+      rows.push("プロンプト2（延長）");
+      rows.push("比率: プロンプト1で出来た動画に合わせる");
+      rows.push("延長する長さ: " + s.stage2.duration + "秒");
+    }
+
+    return "推奨設定\n" + rows.join("\n");
+  }
+
+  return {
+    build: build,
+    buildStage2: buildStage2,
+    twoStage: twoStage,
+    settings: settings,
+    timeline: timeline,
+    labelsOf: labelsOf,
+    refLabel: refLabel,
+    labelById: labelById
+  };
 })();

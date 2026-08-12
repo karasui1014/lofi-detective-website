@@ -5,6 +5,10 @@
    ============================================================ */
 "use strict";
 
+/* 画面の右下に出す版数。中身を変えたら上げること。
+   「更新したのに画面が古い」を一目で切り分けるための目印。 */
+const APP_VERSION = "v3 かんたんモード搭載";
+
 /* 仕様上限（プラットフォームで変わるのでここだけ直せば追従できます） */
 const LIMITS = {
   images: 30,
@@ -181,7 +185,120 @@ const DIALOG_MANNERS = [
   { en: "whispering", ja: "ささやくように" }
 ];
 
+/* ============================================================
+   かんたんモード用
+   ============================================================ */
+
+/* 用途を1つ選ぶだけで、尺・画面比・光・質感・色・カメラの流れが決まる */
+const SIMPLE_PURPOSES = [
+  {
+    id: "cm", name: "CM・広告", desc: "商品やサービスをきれいに見せる",
+    duration: 15, aspect: "16:9",
+    lighting: ["soft window light"], textures: ["product studio", "4K high detail"], colors: ["high contrast"],
+    cameras: ["locked-off", "dolly in", "locked-off"],
+    startSize: "medium shot", endSize: "close-up", height: "eye level", pace: "steady",
+    avoid: ["jitter", "warped text", "duplicated objects"],
+    locks: ["小道具の個数を変えない", "画面内に文字を勝手に出さない"]
+  },
+  {
+    id: "mv", name: "MV・音楽映像", desc: "曲に合わせた雰囲気重視の画",
+    duration: 15, aspect: "16:9",
+    lighting: ["neon", "rim light"], textures: ["cinematic", "35mm film"], colors: ["teal and orange", "low key"],
+    cameras: ["arc right", "dolly in", "handheld"],
+    startSize: "wide shot", endSize: "medium close-up", height: "low angle", pace: "slow",
+    avoid: ["jitter", "identity drift", "bent limbs"],
+    locks: ["顔立ち・髪型は最後まで同一に保つ"]
+  },
+  {
+    id: "drama", name: "ショートドラマ", desc: "人物の芝居と物語を見せる",
+    duration: 30, aspect: "2.39:1",
+    lighting: ["overcast diffused light"], textures: ["35mm film"], colors: ["desaturated"],
+    cameras: ["locked-off", "dolly out", "arc right", "locked-off"],
+    startSize: "wide shot", endSize: "medium close-up", height: "eye level", pace: "slow",
+    avoid: ["jitter", "identity drift", "bent limbs"],
+    locks: ["顔立ち・髪型は最後まで同一に保つ", "衣装は途中で変えない"]
+  },
+  {
+    id: "product", name: "商品紹介", desc: "手に取って見せる・使ってみせる",
+    duration: 15, aspect: "1:1",
+    lighting: ["soft window light"], textures: ["product studio"], colors: ["high key"],
+    cameras: ["locked-off", "dolly in", "arc left"],
+    startSize: "medium shot", endSize: "close-up", height: "eye level", pace: "steady",
+    avoid: ["jitter", "warped text", "duplicated objects", "extra fingers"],
+    locks: ["小道具の個数を変えない"]
+  },
+  {
+    id: "sns", name: "SNSショート", desc: "スマホ縦画面・短くテンポよく",
+    duration: 10, aspect: "9:16",
+    lighting: ["natural light"], textures: ["cinematic"], colors: ["warm tone"],
+    cameras: ["handheld", "dolly in"],
+    startSize: "medium shot", endSize: "medium close-up", height: "eye level", pace: "brisk",
+    avoid: ["jitter", "identity drift"],
+    locks: ["顔立ち・髪型は最後まで同一に保つ"]
+  },
+  {
+    id: "image", name: "イメージ映像", desc: "背景・Bロール・雰囲気カット",
+    duration: 5, aspect: "16:9",
+    lighting: ["golden hour"], textures: ["cinematic"], colors: ["warm tone"],
+    cameras: ["dolly in"],
+    startSize: "wide shot", endSize: "medium shot", height: "eye level", pace: "slow",
+    avoid: ["jitter", "temporal flicker"],
+    locks: []
+  }
+];
+
+/* 画像の役割を1つ選ぶと、「使う属性」と「使わない属性」が両方入る */
+const IMAGE_ROLES = [
+  { v: "face",     l: "人物の顔",         uses: "顔立ちと髪型",             notUses: "背景・構図・衣装" },
+  { v: "wardrobe", l: "衣装",             uses: "衣装の色と質感",           notUses: "人物とポーズ・背景" },
+  { v: "product",  l: "商品・小道具",     uses: "商品の形状と質感",         notUses: "背景・持ち手" },
+  { v: "place",    l: "場所・背景",       uses: "ロケーションの空間と光",   notUses: "人物" },
+  { v: "tone",     l: "色のトーン見本",   uses: "色トーンの見本",           notUses: "人物と場所・構図" },
+  { v: "compose",  l: "構図の参考",       uses: "構図とカメラ位置",         notUses: "人物の見た目・色" }
+];
+
+/* ---------- 素材の役割プリセット（入力補助のdatalist用） ---------- */
+const REF_ROLE_PRESETS = {
+  image: [
+    "顔立ちと髪型", "衣装の色と質感", "商品の形状と質感", "ロケーションの空間と光",
+    "小道具の形状", "色トーンの見本",
+    "ストーリーボード（コマ割りと読み順）",
+    "3Dブロックアウト・粗（人物と物の配置・動線）",
+    "3Dブロックアウト・精（構図とカメラ位置）"
+  ],
+  video: [
+    "動作のリズム", "カメラワーク", "テンポと時系列",
+    "編集する元の映像そのもの", "延長する元の映像そのもの"
+  ],
+  audio: ["声質", "台詞", "環境音", "効果音", "音楽"]
+};
+
+const REF_NOTUSE_PRESETS = [
+  "背景・構図", "見た目と場所", "衣装", "人物とポーズ",
+  "色と質感", "照明", "テクスチャと色（形だけ使う）"
+];
+
+/* ---------- 境界フレームの方式 ---------- */
+const FRAME_MODES = [
+  { v: "", l: "使わない" },
+  { v: "strict", l: "厳密指定（APIの first_frame / last_frame）" },
+  { v: "semantic", l: "意味的参照（本文で「最初のフレームとして参照」と書く）" }
+];
+
+/* ---------- 延長の向き ---------- */
+const EXTEND_DIRS = [
+  { v: "backward", l: "後方へ延長（この続きを作る）" },
+  { v: "forward", l: "前方へ延長（この前の場面を作る）" }
+];
+
 /* ---------- 検証用の辞書 ---------- */
+
+/* 発話をほのめかす語（台詞の創作を防ぐ検知用） */
+const SPEECH_WORDS = [
+  "と言う", "と言い", "と話", "と告げ", "と叫", "と呟", "とつぶや", "と答え", "と返事",
+  "話しかけ", "呼びかけ", "セリフ", "台詞",
+  "says", "said", "speaks", "shouts", "whispers", "tells"
+];
 
 /* 曖昧語 → 具体化のヒント */
 const VAGUE_WORDS = [
