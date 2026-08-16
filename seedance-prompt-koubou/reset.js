@@ -44,6 +44,38 @@
       say("キャッシュ削除でエラー: " + e.message);
     }
 
+    /* ここがいちばん大事。
+       Service Worker とキャッシュを消しても、ブラウザ自身がファイルを
+       10分間ため込んでいる（GitHub Pages が Cache-Control: max-age=600 を返す）。
+       そのままでは古い画面が出続けるので、cache:"reload" で取り直して
+       ブラウザの持ち物を新しいものに入れ替える。 */
+    try {
+      say("");
+      say("ブラウザがため込んだファイルを取り直します…");
+      const res = await fetch("./index.html", { cache: "reload" });
+      const html = await res.text();
+      const urls = new Set(["./", "./index.html"]);
+      const re = /(?:src|href)="([^"]+)"/g;
+      let m;
+      while ((m = re.exec(html))) {
+        const u = m[1];
+        if (/^(https?:|data:|#|mailto:)/i.test(u)) continue;   /* 外部と特殊なものは触らない */
+        urls.add(u);
+      }
+      let ok = 0;
+      for (const u of urls) {
+        try {
+          await fetch(u, { cache: "reload" });
+          ok++;
+        } catch (e) {
+          say("  取り直せませんでした: " + u);
+        }
+      }
+      say("  → " + ok + "件を最新に入れ替えました");
+    } catch (e) {
+      say("取り直しでエラー: " + e.message);
+    }
+
     /* 保存した作品を読める形で確認しておく（消さない） */
     try {
       const raw = localStorage.getItem("seedance_koubou_v1");
@@ -58,8 +90,9 @@
   }
 
   document.getElementById("btn-go").addEventListener("click", () => {
-    /* クエリを付けて、古いキャッシュの見出しと一致しないようにする */
-    location.href = "./index.html?fresh=" + Date.now();
+    /* クエリを付けて、古いキャッシュの見出しと一致しないようにする。
+       中のJS/CSSは上で取り直し済みなので、これで最新の画面が出る。 */
+    location.replace("./index.html?fresh=" + Date.now());
   });
 
   document.getElementById("btn-wipe").addEventListener("click", () => {

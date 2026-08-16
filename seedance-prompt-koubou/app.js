@@ -1438,6 +1438,9 @@ function boot() {
     state.guards.locks = ["顔立ち・髪型は最後まで同一に保つ", "カメラの動きは1ショットにつき1つだけ"];
   }
   $("app-version").textContent = APP_VERSION;
+  /* リセットページ自体が古いキャッシュから出てこないよう、毎回別URLとして開く */
+  const rl = $("reset-link");
+  if (rl) rl.href = "リセット.html?t=" + Date.now();
   initStaticControls();
   bindEvents();
   syncControls();
