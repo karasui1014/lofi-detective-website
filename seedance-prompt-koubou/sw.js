@@ -3,7 +3,7 @@
 
 /* 中身を変えたらここの数字を必ず上げること。
    上げないと、古いキャッシュが同じ名前のまま残って更新が反映されない。 */
-const CACHE_NAME = "seedance-koubou-v6";
+const CACHE_NAME = "seedance-koubou-v7";
 const ASSETS = [
   "./",
   "./index.html",

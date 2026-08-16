@@ -454,6 +454,15 @@ function renderCharacters() {
   updateAnchorCounts();
 }
 
+function updateSpecialtyCount(refId) {
+  const r = state.refs.find(x => x.id === refId);
+  const el = document.querySelector('[data-id="' + refId + '"] .specialty-count');
+  if (!r || !el) return;
+  const n = panelCount(r.sbPanels);
+  el.textContent = n + " コマ" + (n > STORYBOARD_MAX_PANELS ? "（多すぎます）" : "");
+  el.className = "specialty-count" + (n > STORYBOARD_MAX_PANELS ? " over" : "");
+}
+
 function updateAnchorCounts() {
   state.characters.forEach(c => {
     const el = document.querySelector('[data-count="' + c.id + '"]');
@@ -491,6 +500,35 @@ function renderRefs() {
       : '<span class="thumb-empty thumb-file">' + (r.fileName ? esc(r.fileName) : "ファイル未選択") + "</span>";
     const fileAccept = r.kind === "image" ? "image/*" : r.kind === "video" ? "video/*" : "audio/*";
 
+    /* 画像だけ、ストーリーボード／3Dブロックアウトを選べる */
+    const specialtyExtra = r.specialty === "storyboard" ?
+        '<label class="full">読み順<span class="req">必須</span><input type="text" data-k="sbOrder" value="' + esc(r.sbOrder) + '" placeholder="左上から右へ、上段→下段"></label>' +
+        '<label class="full">各コマの役割<span class="req">必須</span><span class="opt">（1行＝1コマ。' + STORYBOARD_MAX_PANELS + 'コマ以内推奨）</span>' +
+          '<textarea data-k="sbPanels" rows="3" placeholder="配達員が店に入る\n店主と向き合う\n包みを手渡す">' + esc(r.sbPanels) + "</textarea>" +
+          '<span class="specialty-count' + (panelCount(r.sbPanels) > STORYBOARD_MAX_PANELS ? " over" : "") + '">' +
+            panelCount(r.sbPanels) + " コマ" + (panelCount(r.sbPanels) > STORYBOARD_MAX_PANELS ? "（多すぎます）" : "") + "</span>" +
+        "</label>"
+      : (r.specialty === "blockout-rough" || r.specialty === "blockout-fine") ?
+        '<div class="grid-2">' +
+          '<label>引き継ぐ情報<span class="req">必須</span><input type="text" data-k="boCarry" value="' + esc(r.boCarry) + '" placeholder="' +
+            esc(SPECIALTY_KINDS.find(sp => sp.v === r.specialty).carryHint) + '"></label>' +
+          '<label>捨てる見た目<span class="req">必須</span><input type="text" data-k="boDiscard" value="' + esc(r.boDiscard) + '" placeholder="' +
+            esc(SPECIALTY_KINDS.find(sp => sp.v === r.specialty).discardDefault) + '"></label>' +
+        "</div>"
+      : "";
+
+    const specialtyBlock = r.kind !== "image" ? "" :
+      '<div class="specialty-block' + (r.specialty ? " on" : "") + '">' +
+        '<label class="specialty-pick">特殊な参照<span class="opt">（ストーリーボード・3Dブロックアウトのときだけ）</span>' +
+          '<select data-k="specialty">' +
+            SPECIALTY_KINDS.map(sp =>
+              '<option value="' + esc(sp.v) + '"' + (sp.v === r.specialty ? " selected" : "") + ">" + esc(sp.l) + "</option>"
+            ).join("") +
+          "</select>" +
+        "</label>" +
+        specialtyExtra +
+      "</div>";
+
     return '<div class="card ref-card' + (r.unused ? " is-unused" : "") + '" data-id="' + r.id + '">' +
       '<div class="card-head">' +
         '<span class="ref-label ref-' + r.kind + '">' + esc(label) + "</span>" +
@@ -512,6 +550,7 @@ function renderRefs() {
         "<label>紐づけ先<select data-k=\"boundTo\">" + sel + "</select></label>" +
         '<label>同一物グループ<input type="text" data-k="groupTag" value="' + esc(r.groupTag) + '" placeholder="真鍮の筒"></label>' +
       "</div>" +
+      specialtyBlock +
       '<label class="keyat">キーフレーム秒<span class="opt">（この素材を◯秒地点の画として参照させたいときだけ）</span>' +
         '<input type="number" min="0" data-k="keyAt" value="' + esc(r.keyAt) + '"></label>' +
     "</div>";
@@ -848,7 +887,8 @@ function bindEvents() {
     files.forEach(f => {
       const ref = {
         id: nid(), kind: "image", uses: "", notUses: "", boundTo: "", groupTag: "",
-        unused: false, keyAt: "", thumb: "", fileName: f.name, role: ""
+        unused: false, keyAt: "", thumb: "", fileName: f.name, role: "",
+        specialty: "", sbPanels: "", sbOrder: "", boCarry: "", boDiscard: ""
       };
       state.refs.push(ref);
       shrinkImageToDataUrl(f, 480, 0.72)
@@ -915,7 +955,8 @@ function bindEvents() {
       } else if (!state.refs.some(r => r.kind === "video")) {
         state.refs.unshift({
           id: nid(), kind: "video", uses: label,
-          notUses: "", boundTo: "全体", groupTag: "", unused: false, keyAt: "", auto: true, thumb: "", fileName: ""
+          notUses: "", boundTo: "全体", groupTag: "", unused: false, keyAt: "", auto: true, thumb: "", fileName: "",
+          specialty: "", sbPanels: "", sbOrder: "", boCarry: "", boDiscard: ""
         });
       }
     }
@@ -1041,7 +1082,11 @@ function bindEvents() {
   /* --- 参照素材 --- */
   document.querySelectorAll("[data-add-ref]").forEach(b => {
     b.addEventListener("click", () => {
-      state.refs.push({ id: nid(), kind: b.dataset.addRef, uses: "", notUses: "", boundTo: "", groupTag: "", unused: false, keyAt: "", thumb: "", fileName: "" });
+      state.refs.push({
+        id: nid(), kind: b.dataset.addRef, uses: "", notUses: "", boundTo: "", groupTag: "",
+        unused: false, keyAt: "", thumb: "", fileName: "",
+        specialty: "", sbPanels: "", sbOrder: "", boCarry: "", boDiscard: ""
+      });
       renderStructure();
     });
   });
@@ -1093,8 +1138,18 @@ function bindEvents() {
       renderStructure();          /* 見た目と境界フレームの候補が変わる */
       return;
     }
+    if (k === "specialty") {
+      r.specialty = e.target.value;
+      const sp = SPECIALTY_KINDS.find(x => x.v === r.specialty);
+      /* 選ぶと「使う属性・使わない属性」もそれらしい初期値で埋める。
+         あとで手で書き換えても構わない（上書きするのは選んだ瞬間だけ）。 */
+      if (sp && sp.v) { r.uses = sp.uses; r.notUses = sp.notUses; }
+      renderStructure();          /* storyboard/blockout の追加欄が出し入れされる */
+      return;
+    }
     r[k] = e.target.value;
     if (k === "uses") renderFrameSelects();   /* 候補の表示名に使っている */
+    if (k === "sbPanels") updateSpecialtyCount(r.id);   /* カーソル位置を保ったまま件数だけ更新 */
     renderOutput();
   };
   $("ref-list").addEventListener("input", refInput);
@@ -1428,6 +1483,11 @@ function migrate(obj) {
     if (r.thumb === undefined) r.thumb = "";
     if (r.fileName === undefined) r.fileName = "";
     if (r.role === undefined) r.role = "";
+    if (r.specialty === undefined) r.specialty = "";
+    if (r.sbPanels === undefined) r.sbPanels = "";
+    if (r.sbOrder === undefined) r.sbOrder = "";
+    if (r.boCarry === undefined) r.boCarry = "";
+    if (r.boDiscard === undefined) r.boDiscard = "";
   });
   ["lighting", "textures", "colors"].forEach(k => { if (!Array.isArray(s.look[k])) s.look[k] = []; });
   ["avoid", "locks"].forEach(k => { if (!Array.isArray(s.guards[k])) s.guards[k] = []; });

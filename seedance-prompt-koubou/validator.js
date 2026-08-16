@@ -314,6 +314,36 @@ const Validator = (function () {
       }
     });
 
+    /* --- V24 ストーリーボード（15コマ以内・読み順・各コマの役割） --- */
+    s.refs.filter(r => !r.unused && r.specialty === "storyboard").forEach(r => {
+      const label = Builder.refLabel(s.refs, r);
+      const n = panelCount(r.sbPanels);
+      if (n === 0) {
+        add("V24", "error", label + "（ストーリーボード）に各コマの役割が入っていません。",
+          "1行＝1コマで、そのコマで何が起きるかを書いてください。");
+      } else if (n > STORYBOARD_MAX_PANELS) {
+        add("V24", "warn", label + "（ストーリーボード）が " + n + "コマあります（" + STORYBOARD_MAX_PANELS + "コマ以内を推奨）。",
+          "コマ数が多いほど読み順の伝達精度が落ちます。まとめるか分割してください。");
+      }
+      if (!(r.sbOrder || "").trim()) {
+        add("V24", "error", label + "（ストーリーボード）に読み順が入っていません。",
+          "「左上から右へ、上段→下段」のように、コマをどの順で読むかを書いてください。");
+      }
+    });
+
+    /* --- V25 3Dブロックアウト（引き継ぐ情報と捨てる見た目を分ける） --- */
+    s.refs.filter(r => !r.unused && (r.specialty === "blockout-rough" || r.specialty === "blockout-fine")).forEach(r => {
+      const label = Builder.refLabel(s.refs, r);
+      if (!(r.boCarry || "").trim()) {
+        add("V25", "error", label + "（3Dブロックアウト）に引き継ぐ情報が入っていません。",
+          "配置・動線・カメラ位置など、白模型から実写へ持ち越したい情報を書いてください。");
+      }
+      if (!(r.boDiscard || "").trim()) {
+        add("V25", "warn", label + "（3Dブロックアウト）に捨てる見た目の指定がありません。",
+          "空でも「白模型の質感・色・素材」を既定値として使いますが、明示しておくと誤読されにくくなります。");
+      }
+    });
+
     /* --- V17 必須項目の未入力 --- */
     if (!isEdit && !(s.meta.summary || "").trim()) {
       add("V17", "error", "「この30秒でやりたいこと」が空です。",

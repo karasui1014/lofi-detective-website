@@ -7,7 +7,7 @@
 
 /* 画面の右下に出す版数。中身を変えたら上げること。
    「更新したのに画面が古い」を一目で切り分けるための目印。 */
-const APP_VERSION = "v6 参考・内容・展開・固定";
+const APP_VERSION = "v7 ストーリーボード/ブロックアウト対応";
 
 /* 仕様上限（プラットフォームで変わるのでここだけ直せば追従できます） */
 const LIMITS = {
@@ -306,14 +306,35 @@ const FIX_TARGETS = [
   { v: "count",    l: "人数・個数",     lock: "登場人物の人数と小道具の個数を変えない", avoid: ["duplicated objects"] }
 ];
 
+/* ---------- 特殊素材（ストーリーボード・3Dブロックアウト） ----------
+   SKILL.md の点検項目に対応させるための構造化フィールド。
+   通常の画像と違い、追加の入力欄と専用の検証（validator.js の V24/V25）を持つ。 */
+const SPECIALTY_KINDS = [
+  { v: "",              l: "（通常の素材）" },
+  { v: "storyboard",    l: "ストーリーボード",
+    uses: "コマ割りと読み順", notUses: "背景の質感・色（構図の参考のみ）" },
+  { v: "blockout-rough", l: "3Dブロックアウト・粗",
+    uses: "人物と物の配置・動線", notUses: "白模型の質感・色",
+    carryHint: "人物配置・動線", discardDefault: "白模型の質感・色・素材" },
+  { v: "blockout-fine",  l: "3Dブロックアウト・精",
+    uses: "構図とカメラ位置", notUses: "白模型の質感・色",
+    carryHint: "カメラ位置・画角・構図", discardDefault: "白模型の質感・色・素材" }
+];
+
+const STORYBOARD_MAX_PANELS = 15;   // SKILL.md「15コマ以内を推奨」
+
+/* ストーリーボードのコマ数は「1行＝1コマ」で数える。app.js（画面）・
+   builder.js（出力）・validator.js（検証）の3箇所から呼ぶ共有関数。
+   専用の数値入力を別に持たず、常にここから数え直すことでズレを防ぐ。 */
+function panelCount(sbPanels) {
+  return String(sbPanels || "").split("\n").map(s => s.trim()).filter(Boolean).length;
+}
+
 /* ---------- 素材の役割プリセット（入力補助のdatalist用） ---------- */
 const REF_ROLE_PRESETS = {
   image: [
     "顔立ちと髪型", "衣装の色と質感", "商品の形状と質感", "ロケーションの空間と光",
-    "小道具の形状", "色トーンの見本",
-    "ストーリーボード（コマ割りと読み順）",
-    "3Dブロックアウト・粗（人物と物の配置・動線）",
-    "3Dブロックアウト・精（構図とカメラ位置）"
+    "小道具の形状", "色トーンの見本"
   ],
   video: [
     "動作のリズム", "カメラワーク", "テンポと時系列",

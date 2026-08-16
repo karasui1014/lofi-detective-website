@@ -129,6 +129,31 @@ const Builder = (function () {
       rows.push(map.get(r.id) + " を " + at + "秒地点のキーフレームとして参照する。");
     });
 
+    /* ストーリーボード：読み順＋各コマの役割を列挙する（15コマ以内を推奨） */
+    used.filter(r => r.specialty === "storyboard").forEach(r => {
+      const label = map.get(r.id);
+      const order = (r.sbOrder || "").trim();
+      const panels = String(r.sbPanels || "").split("\n").map(s => s.trim()).filter(Boolean);
+      let t = label + " はストーリーボード。";
+      if (order) t += "読み順: " + order + "。";
+      rows.push(t);
+      if (panels.length) {
+        rows.push("各コマの役割: " + panels.map((p, i) => (i + 1) + ") " + p).join("、"));
+      }
+    });
+
+    /* 3Dブロックアウト：引き継ぐ情報と捨てる見た目を分けて明示する */
+    used.filter(r => r.specialty === "blockout-rough" || r.specialty === "blockout-fine").forEach(r => {
+      const label = map.get(r.id);
+      const kindName = r.specialty === "blockout-rough" ? "粗い3Dブロックアウト" : "精細な3Dブロックアウト";
+      const carry = (r.boCarry || "").trim();
+      const discard = (r.boDiscard || "").trim();
+      let t = label + " は" + kindName + "。";
+      if (carry) t += "引き継ぐ情報: " + carry + "。";
+      t += "見た目（" + (discard || "白模型の質感・色・素材") + "）は捨てて、実写の質感に置き換える。";
+      rows.push(t);
+    });
+
     if (!rows.length && !unused.length) return "";
 
     let out = rows.length ? "[素材参照]\n" + rows.join("\n") : "";
