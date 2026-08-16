@@ -78,7 +78,10 @@ function blankState() {
   return {
     version: 1,
     ui: "simple",
-    simple: { purpose: "cm", script: "", duration: 15, aspect: "16:9" },
+    simple: {
+      purpose: "cm", script: "", duration: 15, aspect: "16:9",
+      subjectKind: "", subjectName: "", place: "", flow: "", fixes: []
+    },
     mode: "lv1",
     meta: { name: "", purpose: "", summary: "", duration: 15, aspect: "16:9", resolution: "1080p" },
     characters: [],
@@ -163,6 +166,7 @@ function renderStructure() {
     });
     renderPurposes();
     renderSimpleImages();
+    renderSimplePicks();
     renderOutput();
     return;
   }
@@ -214,6 +218,34 @@ function renderPurposes() {
     '<span class="purpose-desc">' + esc(p.desc) + "</span>" +
     '<span class="purpose-spec">' + p.duration + "秒・" + p.aspect + "</span>" +
     "</button>"
+  ).join("");
+}
+
+/* 選ぶだけで埋まる質問群（主役・場所・展開・固定） */
+function renderSimplePicks() {
+  const sp = state.simple;
+
+  $("subject-kinds").innerHTML = SUBJECT_KINDS.map(k =>
+    '<button type="button" class="pick' + (sp.subjectKind === k.v ? " on" : "") +
+    '" data-subject="' + esc(k.v) + '" title="' + esc(k.hint) + '">' + esc(k.l) + "</button>"
+  ).join("");
+
+  $("place-chips").innerHTML = PLACE_CHIPS.map(p =>
+    '<button type="button" class="pick' + (sp.place === p ? " on" : "") +
+    '" data-place="' + esc(p) + '">' + esc(p) + "</button>"
+  ).join("");
+
+  $("flow-picks").innerHTML = FLOW_PATTERNS.map(f =>
+    '<button type="button" class="pick pick--wide' + (sp.flow === f.v ? " on" : "") +
+    '" data-flow="' + esc(f.v) + '">' +
+    '<span class="pick__name">' + esc(f.l) + "</span>" +
+    '<span class="pick__desc">' + esc(f.desc) + "</span>" +
+    "</button>"
+  ).join("");
+
+  $("fix-picks").innerHTML = FIX_TARGETS.map(f =>
+    '<button type="button" class="pick' + (sp.fixes.indexOf(f.v) !== -1 ? " on" : "") +
+    '" data-fix="' + esc(f.v) + '">' + esc(f.l) + "</button>"
   ).join("");
 }
 
@@ -292,8 +324,12 @@ function applySimple() {
   state.look.endSize = p.endSize;
   state.look.height = p.height;
   state.look.pace = p.pace;
-  state.guards.avoid = p.avoid.slice();
-  state.guards.locks = p.locks.slice();
+  /* 「固定」で選んだものを、そのまま固定の指示文と avoid にする */
+  const fixes = FIX_TARGETS.filter(f => state.simple.fixes.indexOf(f.v) !== -1);
+  state.guards.locks = fixes.map(f => f.lock);
+  const avoid = p.avoid.slice();
+  fixes.forEach(f => f.avoid.forEach(a => { if (avoid.indexOf(a) === -1) avoid.push(a); }));
+  state.guards.avoid = avoid;
 
   /* 台本 → ビート */
   const parsed = parseScript(state.simple.script);
@@ -301,10 +337,14 @@ function applySimple() {
   const groups = groupInto(parsed, maxBeats);
   const secs = groups.length ? evenBeats(groups.length, dur) : [];
 
+  /* カメラの流れ。「用途におまかせ」なら用途プリセットのものを使う */
+  const flow = FLOW_PATTERNS.find(f => f.v === state.simple.flow);
+  const cams = (flow && flow.cameras.length) ? flow.cameras : p.cameras;
+
   state.beats = groups.map((g, i) => {
     const b = newBeat(secs[i]);
     b.event = g.map(x => x.text).filter(Boolean).join("、");
-    b.move = p.cameras[i % p.cameras.length] || "";
+    b.move = cams[i % cams.length] || "";
     return b;
   });
   if (!state.beats.length) state.beats = [newBeat(dur)];
@@ -576,7 +616,9 @@ function renderOutput() {
     "　音声 " + nA + "/" + LIMITS.audios + "　合計 " + state.refs.length + "/" + LIMITS.total;
 
   /* 本体 */
-  const text = Builder.build(state, lang);
+  const text = state.ui === "simple"
+    ? Builder.buildSimple(state, lang)
+    : Builder.build(state, lang);
   $("output").textContent = text || "（左のフォームを埋めるとここに出ます）";
   $("charcount").textContent = text.length + "字";
   $("settings-output").textContent = Builder.settings(state);
@@ -664,6 +706,8 @@ function currentTagList(key) {
 
 function syncControls() {
   $("simple-script").value = state.simple.script;
+  $("simple-subject-name").value = state.simple.subjectName || "";
+  $("simple-place").value = state.simple.place || "";
   $("simple-duration").value = String(state.simple.duration);
   $("simple-aspect").value = state.simple.aspect;
   $("meta-name").value = state.meta.name;
@@ -723,10 +767,57 @@ function bindEvents() {
     state.simple.purpose = b.dataset.purpose;
     state.simple.duration = p.duration;
     state.simple.aspect = p.aspect;
+    state.simple.fixes = (p.fixes || []).slice();   /* 固定の初期値も用途に合わせる */
     $("simple-duration").value = String(p.duration);
     $("simple-aspect").value = p.aspect;
     applySimple();
     renderStructure();
+  });
+
+  /* --- かんたん：主役・場所・展開・固定の選択 --- */
+  $("subject-kinds").addEventListener("click", e => {
+    const b = e.target.closest("[data-subject]");
+    if (!b) return;
+    state.simple.subjectKind = state.simple.subjectKind === b.dataset.subject ? "" : b.dataset.subject;
+    renderSimplePicks();
+    applySimple();
+    renderOutput();
+  });
+  $("place-chips").addEventListener("click", e => {
+    const b = e.target.closest("[data-place]");
+    if (!b) return;
+    state.simple.place = state.simple.place === b.dataset.place ? "" : b.dataset.place;
+    $("simple-place").value = state.simple.place;
+    renderSimplePicks();
+    applySimple();
+    renderOutput();
+  });
+  $("flow-picks").addEventListener("click", e => {
+    const b = e.target.closest("[data-flow]");
+    if (!b) return;
+    state.simple.flow = b.dataset.flow;
+    renderSimplePicks();
+    applySimple();
+    renderOutput();
+  });
+  $("fix-picks").addEventListener("click", e => {
+    const b = e.target.closest("[data-fix]");
+    if (!b) return;
+    const list = state.simple.fixes;
+    const i = list.indexOf(b.dataset.fix);
+    if (i === -1) list.push(b.dataset.fix); else list.splice(i, 1);
+    renderSimplePicks();
+    applySimple();
+    renderOutput();
+  });
+  $("simple-subject-name").addEventListener("input", e => {
+    state.simple.subjectName = e.target.value;
+    renderOutput();
+  });
+  $("simple-place").addEventListener("input", e => {
+    state.simple.place = e.target.value;
+    renderSimplePicks();
+    renderOutput();
   });
 
   /* --- かんたん：台本・尺・比率 --- */
@@ -1079,13 +1170,13 @@ function bindEvents() {
 
   /* --- 出力 --- */
   $("btn-copy").addEventListener("click", () => {
-    const text = Builder.build(state, lang);
+    const text = currentPromptText();
     const nErr = Validator.run(state).filter(i => i.level === "error").length;
     if (nErr && !confirm("エラーが " + nErr + " 件あります。このままコピーしますか？")) return;
     copyText(text);
   });
   $("btn-txt").addEventListener("click", () => {
-    const body = Builder.build(state, lang);
+    const body = currentPromptText();
     download((state.meta.name || "seedance-prompt") + ".txt",
       body + "\n\n----------------\n" + Builder.settings(state), "text/plain");
   });
@@ -1200,6 +1291,13 @@ function shrinkImageToDataUrl(file, maxPx, quality) {
   });
 }
 
+/* かんたん / こだわり で書式が違うので、書き出しは必ずここを通す */
+function currentPromptText() {
+  return state.ui === "simple"
+    ? Builder.buildSimple(state, lang)
+    : Builder.build(state, lang);
+}
+
 function copyText(text) {
   navigator.clipboard.writeText(text)
     .then(() => toast("コピーしました"))
@@ -1306,6 +1404,7 @@ function migrate(obj) {
   s.frames = Object.assign(base.frames, obj.frames || {});
   s.output = Object.assign(base.output, obj.output || {});
   s.simple = Object.assign(base.simple, obj.simple || {});
+  if (!Array.isArray(s.simple.fixes)) s.simple.fixes = [];
   if (s.ui !== "simple" && s.ui !== "pro") s.ui = "simple";
   s.stage2 = Object.assign(base.stage2, obj.stage2 || {});
   if (!Array.isArray(s.stage2.beats)) s.stage2.beats = [];
@@ -1343,7 +1442,14 @@ function boot() {
   bindEvents();
   syncControls();
   refreshProjectList();
-  if (state.ui === "simple") applySimple();
+  if (state.ui === "simple") {
+    /* 初回は用途プリセットの「固定」を初期値として入れておく */
+    if (!state.simple.fixes.length) {
+      const p0 = SIMPLE_PURPOSES.find(x => x.id === state.simple.purpose);
+      if (p0) state.simple.fixes = (p0.fixes || []).slice();
+    }
+    applySimple();
+  }
   renderStructure();
 
   if ("serviceWorker" in navigator && location.protocol.indexOf("http") === 0) {

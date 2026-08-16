@@ -63,7 +63,7 @@
       <h2 class="panel-title"><span class="step-num">1</span>何を作りますか？</h2>
       <div class="purpose-grid" id="purpose-grid"></div>
 
-      <h2 class="panel-title mt"><span class="step-num">2</span>使いたい画像<span class="opt-h">（なくてもOK）</span></h2>
+      <h2 class="panel-title mt"><span class="step-num">2</span>参考<span class="opt-h">（画像がなくてもOK）</span></h2>
       <p class="panel-note">
         画像を置いて、それが<strong>何を決める素材なのか</strong>だけ選んでください。<br>
         同じ人物や同じ商品を出したいときに要ります。<strong>4〜7枚が最適</strong>で、多いほど崩れます。
@@ -73,18 +73,41 @@
         <input type="file" accept="image/*" multiple id="simple-file" hidden>
       </label>
 
-      <h2 class="panel-title mt"><span class="step-num">3</span>どんな映像にしますか？</h2>
-      <p class="panel-note">
-        ざっくりで大丈夫です。<strong>1行ずつ、起きることを順番に</strong>書いてください。
-        書いた行がそのまま時間割になります。<strong>「かぎかっこ」で書いた部分は台詞</strong>として扱います。
-      </p>
+      <h2 class="panel-title mt"><span class="step-num">3</span>内容</h2>
       <div class="field">
-        <textarea id="simple-script" rows="7" placeholder="夕方の商店街。配達員の女性が自転車を押して歩いてくる
-店先で足を止めて、店主に小さな包みを手渡す
-「ありがとうございました」
-女性は自転車にまたがって、来た道を戻っていく"></textarea>
+        <span class="label-like">主役は何ですか？</span>
+        <div class="pick-row" id="subject-kinds"></div>
+      </div>
+      <div class="form-row">
+        <div class="field">
+          <label for="simple-subject-name">主役の呼び名<span class="opt">（任意）</span></label>
+          <input type="text" id="simple-subject-name" maxlength="30" placeholder="例:配達員の女性" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="simple-place">場所<span class="opt">（自由に書けます）</span></label>
+          <input type="text" id="simple-place" maxlength="40" placeholder="例:夕方の商店街" autocomplete="off">
+        </div>
+      </div>
+      <div class="field">
+        <div class="pick-row small" id="place-chips"></div>
       </div>
 
+      <h2 class="panel-title mt"><span class="step-num">4</span>展開</h2>
+      <div class="field">
+        <span class="label-like">カメラの流れ</span>
+        <div class="pick-row" id="flow-picks"></div>
+      </div>
+      <div class="field">
+        <label for="simple-script">何が起きますか？<span class="req">必須</span></label>
+        <p class="hint mb">
+          ざっくりで大丈夫です。<strong>1行ずつ、起きることを順番に</strong>書いてください。
+          書いた行がそのまま時間割になります。<strong>「かぎかっこ」で書いた部分は台詞</strong>として扱います。
+        </p>
+        <textarea id="simple-script" rows="6" placeholder="配達員の女性が自転車を押して歩いてくる
+店先で足を止めて、店主に小さな包みを手渡す
+「ありがとうございました」
+自転車にまたがって、来た道を戻っていく"></textarea>
+      </div>
       <div class="form-row">
         <div class="field">
           <label for="simple-duration">長さ</label>
@@ -95,6 +118,13 @@
           <select id="simple-aspect"></select>
         </div>
       </div>
+
+      <h2 class="panel-title mt"><span class="step-num">5</span>固定</h2>
+      <p class="panel-note">
+        <strong>途中で変わってほしくないもの</strong>を選んでください。
+        AI動画がいちばん崩れるのは「顔が別人になる」「商品の形が変わる」です。ここで止められます。
+      </p>
+      <div class="pick-row" id="fix-picks"></div>
 
       <p class="simple-readout" id="simple-readout"></p>
 

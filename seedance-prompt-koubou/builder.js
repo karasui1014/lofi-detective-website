@@ -342,6 +342,77 @@ const Builder = (function () {
   }
 
   /* ============================================================
+     かんたんモードの書き出し
+
+     節の名前を「参考・内容・展開・音・固定」という普段の言葉にする。
+     こだわりモードの [素材参照][一文要約]… と中身は同じだが、
+     はじめて触る人が読んで意味の分かる見出しにしてある。
+     ============================================================ */
+  function buildSimple(s, lang) {
+    normalize(s);
+    lang = lang || "mix";
+    const sp = s.simple;
+    const out = [];
+
+    /* --- 参考 --- */
+    const refs = s.refs.filter(r => !r.unused && (r.uses || "").trim());
+    if (refs.length) {
+      const map = labelsOf(s.refs);
+      const rows = refs.map(r => {
+        let t = map.get(r.id) + " は" + r.uses.trim() + "のみを定義。";
+        if ((r.notUses || "").trim()) t += r.notUses.trim() + "は使わない。";
+        return t;
+      });
+      const unused = s.refs.filter(r => r.unused);
+      if (unused.length) {
+        rows.push(unused.map(r => map.get(r.id)).join("、") + " は今回使わない。");
+      }
+      out.push("[参考]\n" + rows.join("\n"));
+    }
+
+    /* --- 内容 --- */
+    const content = [];
+    const place = (sp.place || "").trim();
+    if (place) content.push("場所は" + place + "。");
+    const kind = SUBJECT_KINDS.find(k => k.v === sp.subjectKind);
+    const name = (sp.subjectName || "").trim();
+    if (name || kind) {
+      content.push("主役は" + (name || kind.l) + (name && kind ? "（" + kind.l + "）" : "") + "。");
+    }
+    if ((s.meta.summary || "").trim()) content.push(sentence(s.meta.summary));
+
+    const look = [s.meta.purpose, terms(s.look.textures, TEXTURES, lang), terms(s.look.colors, COLORS, lang)]
+      .filter(v => (v || "").trim()).join("、");
+    if (look) content.push(look + "。");
+
+    const shot = [];
+    if (s.look.startSize && s.look.endSize) {
+      shot.push(term(s.look.startSize, SHOT_SIZES, lang) + " から " + term(s.look.endSize, SHOT_SIZES, lang) + " へ");
+    }
+    if (s.look.height) shot.push(term(s.look.height, CAMERA_HEIGHTS, lang));
+    if (s.look.lighting.length) shot.push("光は " + terms(s.look.lighting, LIGHTING, lang));
+    if (shot.length) content.push(shot.join("、") + "。");
+
+    if (content.length) out.push("[内容]\n" + content.join("\n"));
+
+    /* --- 展開 --- */
+    const ev = secEvents(s, lang, "展開");
+    if (ev) out.push(ev + "\nカメラの動きは各ショットにつき1つだけ。");
+
+    /* --- 音 --- */
+    const audio = secAudio(s, lang);
+    if (audio) out.push(audio.replace("[音声]", "[音]"));
+
+    /* --- 固定 --- */
+    const fixRows = [];
+    (s.guards.locks || []).forEach(l => fixRows.push(l + "。"));
+    if ((s.guards.avoid || []).length) fixRows.push("avoid: " + s.guards.avoid.join(", "));
+    if (fixRows.length) out.push("[固定]\n" + fixRows.join("\n"));
+
+    return out.filter(p => p && p.trim()).join("\n\n");
+  }
+
+  /* ============================================================
      本体
      ============================================================ */
   function build(s, lang) {
@@ -417,6 +488,7 @@ const Builder = (function () {
 
   return {
     build: build,
+    buildSimple: buildSimple,
     buildStage2: buildStage2,
     twoStage: twoStage,
     settings: settings,

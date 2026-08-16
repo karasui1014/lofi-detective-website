@@ -7,7 +7,7 @@
 
 /* 画面の右下に出す版数。中身を変えたら上げること。
    「更新したのに画面が古い」を一目で切り分けるための目印。 */
-const APP_VERSION = "v3 かんたんモード搭載";
+const APP_VERSION = "v4 参考・内容・展開・固定";
 
 /* 仕様上限（プラットフォームで変わるのでここだけ直せば追従できます） */
 const LIMITS = {
@@ -198,7 +198,8 @@ const SIMPLE_PURPOSES = [
     cameras: ["locked-off", "dolly in", "locked-off"],
     startSize: "medium shot", endSize: "close-up", height: "eye level", pace: "steady",
     avoid: ["jitter", "warped text", "duplicated objects"],
-    locks: ["小道具の個数を変えない", "画面内に文字を勝手に出さない"]
+    locks: ["小道具の個数を変えない", "画面内に文字を勝手に出さない"],
+    fixes: ["product", "count"]
   },
   {
     id: "mv", name: "MV・音楽映像", desc: "曲に合わせた雰囲気重視の画",
@@ -207,7 +208,8 @@ const SIMPLE_PURPOSES = [
     cameras: ["arc right", "dolly in", "handheld"],
     startSize: "wide shot", endSize: "medium close-up", height: "low angle", pace: "slow",
     avoid: ["jitter", "identity drift", "bent limbs"],
-    locks: ["顔立ち・髪型は最後まで同一に保つ"]
+    locks: ["顔立ち・髪型は最後まで同一に保つ"],
+    fixes: ["face", "tone"]
   },
   {
     id: "drama", name: "ショートドラマ", desc: "人物の芝居と物語を見せる",
@@ -216,7 +218,8 @@ const SIMPLE_PURPOSES = [
     cameras: ["locked-off", "dolly out", "arc right", "locked-off"],
     startSize: "wide shot", endSize: "medium close-up", height: "eye level", pace: "slow",
     avoid: ["jitter", "identity drift", "bent limbs"],
-    locks: ["顔立ち・髪型は最後まで同一に保つ", "衣装は途中で変えない"]
+    locks: ["顔立ち・髪型は最後まで同一に保つ", "衣装は途中で変えない"],
+    fixes: ["face", "wardrobe", "place"]
   },
   {
     id: "product", name: "商品紹介", desc: "手に取って見せる・使ってみせる",
@@ -225,7 +228,8 @@ const SIMPLE_PURPOSES = [
     cameras: ["locked-off", "dolly in", "arc left"],
     startSize: "medium shot", endSize: "close-up", height: "eye level", pace: "steady",
     avoid: ["jitter", "warped text", "duplicated objects", "extra fingers"],
-    locks: ["小道具の個数を変えない"]
+    locks: ["小道具の個数を変えない"],
+    fixes: ["product", "count"]
   },
   {
     id: "sns", name: "SNSショート", desc: "スマホ縦画面・短くテンポよく",
@@ -234,7 +238,8 @@ const SIMPLE_PURPOSES = [
     cameras: ["handheld", "dolly in"],
     startSize: "medium shot", endSize: "medium close-up", height: "eye level", pace: "brisk",
     avoid: ["jitter", "identity drift"],
-    locks: ["顔立ち・髪型は最後まで同一に保つ"]
+    locks: ["顔立ち・髪型は最後まで同一に保つ"],
+    fixes: ["face"]
   },
   {
     id: "image", name: "イメージ映像", desc: "背景・Bロール・雰囲気カット",
@@ -243,7 +248,8 @@ const SIMPLE_PURPOSES = [
     cameras: ["dolly in"],
     startSize: "wide shot", endSize: "medium shot", height: "eye level", pace: "slow",
     avoid: ["jitter", "temporal flicker"],
-    locks: []
+    locks: [],
+    fixes: ["place", "tone"]
   }
 ];
 
@@ -255,6 +261,49 @@ const IMAGE_ROLES = [
   { v: "place",    l: "場所・背景",       uses: "ロケーションの空間と光",   notUses: "人物" },
   { v: "tone",     l: "色のトーン見本",   uses: "色トーンの見本",           notUses: "人物と場所・構図" },
   { v: "compose",  l: "構図の参考",       uses: "構図とカメラ位置",         notUses: "人物の見た目・色" }
+];
+
+/* ---------- かんたんモードの質問（選ぶだけで埋まるもの） ---------- */
+
+/* 主役の種類。書き出しの「内容」で主語をはっきりさせるために使う */
+const SUBJECT_KINDS = [
+  { v: "person",  l: "人物",             hint: "実写の人。顔を固定したいならここ" },
+  { v: "product", l: "商品・モノ",       hint: "商品PR・物撮り" },
+  { v: "place",   l: "風景・場所",       hint: "人が出ない情景カット" },
+  { v: "chara",   l: "キャラクター",     hint: "アニメ・イラスト調の登場人物" }
+];
+
+/* 場所の候補。チップで選ぶか、自由に書いてもよい */
+const PLACE_CHIPS = [
+  "商店街", "街角", "室内", "カフェ", "自室", "スタジオ（白背景）",
+  "自然・森", "海辺", "夜の街（ネオン）", "電車・駅", "ライブ会場", "屋上"
+];
+
+/* 展開の型。選ぶとビートのカメラの流れが決まる。
+   空の cameras は「用途におまかせ」= 用途プリセットの流れを使う。 */
+const FLOW_PATTERNS = [
+  { v: "",        l: "用途におまかせ",   desc: "選んだ用途に合う流れを自動で当てます", cameras: [] },
+  { v: "quiet",   l: "静か→動く→静か",  desc: "いちばん破綻しにくい基本形",
+    cameras: ["locked-off", "dolly in", "locked-off"] },
+  { v: "closein", l: "だんだん寄る",     desc: "主役に注目を集めたいとき",
+    cameras: ["dolly in"] },
+  { v: "pullout", l: "ゆっくり引く",     desc: "全体像を最後に見せたいとき",
+    cameras: ["dolly out"] },
+  { v: "steady",  l: "ずっと固定",       desc: "被写体の動きだけを見せたいとき",
+    cameras: ["locked-off"] },
+  { v: "follow",  l: "手持ちで追う",     desc: "ドキュメンタリー風・臨場感",
+    cameras: ["handheld", "tracking"] }
+];
+
+/* 「固定」で選べるもの。選んだぶんだけ固定の指示文になる。
+   avoid は、その固定を守らせるために効く技術的な禁止語。 */
+const FIX_TARGETS = [
+  { v: "face",     l: "顔と髪型",       lock: "顔立ち・髪型は最後まで同一に保つ",   avoid: ["identity drift", "morphing faces"] },
+  { v: "wardrobe", l: "衣装",           lock: "衣装は途中で変えない",               avoid: [] },
+  { v: "product",  l: "商品の形と色",   lock: "商品の形・色・ロゴを変えない",       avoid: ["duplicated objects", "warped text"] },
+  { v: "place",    l: "場所",           lock: "背景の世界観・場所を変えない",       avoid: [] },
+  { v: "tone",     l: "全体の色味",     lock: "全体の色味と明るさを変えない",       avoid: [] },
+  { v: "count",    l: "人数・個数",     lock: "登場人物の人数と小道具の個数を変えない", avoid: ["duplicated objects"] }
 ];
 
 /* ---------- 素材の役割プリセット（入力補助のdatalist用） ---------- */

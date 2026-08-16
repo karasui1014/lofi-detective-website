@@ -202,6 +202,44 @@ body {
 
 .simple-readout { white-space: pre-line; }
 
+/* ---------- かんたんモードの「選ぶだけ」ボタン ---------- */
+.pick-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.pick {
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--text-soft);
+  font-family: inherit;
+  font-size: 12.5px;
+  padding: 7px 14px;
+  transition: border-color .12s, background .12s, color .12s;
+}
+.pick:hover { border-color: var(--amber-dark); color: var(--text); }
+.pick.on {
+  background: var(--amber);
+  border-color: var(--amber);
+  color: #16181e;
+  font-weight: 700;
+}
+.pick-row.small .pick { font-size: 11.5px; padding: 5px 11px; }
+
+.pick--wide {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+  min-width: 150px;
+  flex: 1 1 150px;
+}
+.pick__name { font-size: 13px; font-weight: 700; }
+.pick__desc { font-size: 10.5px; opacity: .75; line-height: 1.5; }
+
+.hint.mb { margin-bottom: 7px; }
+
 .file-pick.big {
   display: block;
   text-align: center;
