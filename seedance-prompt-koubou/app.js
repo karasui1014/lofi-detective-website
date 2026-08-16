@@ -264,14 +264,17 @@ function renderSimpleImages() {
     const pic = r.thumb
       ? '<img class="thumb-img" src="' + r.thumb + '" alt="' + esc(label) + '">'
       : '<span class="thumb-empty">画像なし</span>';
-    return '<div class="simple-img' + (r.role ? "" : " no-role") + '" data-id="' + r.id + '">' +
+    return '<div class="simple-img' + (r.role || r.unused ? "" : " no-role") +
+      (r.unused ? " is-unused" : "") + '" data-id="' + r.id + '">' +
       '<div class="simple-img-pic">' + pic +
         '<span class="simple-img-tag">' + esc(label) + "</span>" +
         '<button type="button" class="simple-img-del" data-del-ref="' + r.id + '" title="削除">×</button>' +
       "</div>" +
-      '<select class="simple-role" data-role-for="' + r.id + '">' +
+      '<select class="simple-role" data-role-for="' + r.id + '"' + (r.unused ? " disabled" : "") + ">" +
         '<option value="">役割を選ぶ</option>' + roleOpts +
       "</select>" +
+      '<label class="simple-unused"><input type="checkbox" data-simple-unused="' + r.id + '"' +
+        (r.unused ? " checked" : "") + "> 今回は使わない</label>" +
     "</div>";
   }).join("");
 }
@@ -860,6 +863,15 @@ function bindEvents() {
 
   /* --- かんたん：画像の役割・削除 --- */
   $("simple-images").addEventListener("change", e => {
+    const un = e.target.closest("[data-simple-unused]");
+    if (un) {
+      const r0 = state.refs.find(x => x.id === un.dataset.simpleUnused);
+      if (r0) r0.unused = un.checked;
+      renderSimpleImages();
+      applySimple();
+      renderOutput();
+      return;
+    }
     const sel = e.target.closest("[data-role-for]");
     if (!sel) return;
     const r = state.refs.find(x => x.id === sel.dataset.roleFor);
