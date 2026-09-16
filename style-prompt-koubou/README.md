@@ -27,11 +27,46 @@
 | `index.html` | 画面 |
 | `style.css` | デザイン(ネイビー×ゴールド) |
 | `data.js` | ナレッジベース(ジャンル・楽器・レシピ・ルール) |
+| `instrument-techniques.js` | 楽器・奏法プロンプト研究所のデータ(楽器117種・奏法表現) |
 | `app.js` | プロンプト生成ロジック |
+| `techniques.js` | タブ切り替え + 楽器・奏法プロンプト研究所のロジック |
 | `manifest.webmanifest` / `sw.js` | PWA(ホーム画面追加・オフライン) |
 | `favicon.ico` / `favicon-16/32.png` | ファビコン |
 | `apple-touch-icon.png` / `icon-192/512.png` | スマホアプリアイコン |
 | `make_icons.py` / `アイコン再生成.command` | 別画像からアイコン一式を再生成 |
+
+## 楽器・奏法プロンプト研究所のデータを足す
+
+データは `instrument-techniques.js` の1ファイルに集約しています。画面側のコードは触らなくて構いません。
+
+**大原則: `originalPrompt` は Suno V6 が使った英語表現そのまま。読みやすく言い換えない。**
+ここを直すと「Sunoが実際にどう言語化しているか見る」というこの機能の意味が無くなります。
+
+奏法を1件足すときは、`TECHNIQUE_ENTRIES` に追記します。
+
+```js
+{
+  instrumentId: "trombone",              // TECHNIQUE_INSTRUMENTS の id
+  technique: "Glissando",                // 見出し(表示用・追加してよい)
+  techniqueJa: "グリッサンド",             // 同上
+  originalPrompt: "breath-supported glissando between two neighboring pitches",  // ← 元データ。変更禁止
+  descriptionJa: "…",                    // 説明(表示用・追加してよい)
+  soundDescriptionJa: "…",               // どんな音か(表示用・追加してよい)
+  searchTags: ["うにょ","滑る","glissando","トロンボーン"],  // 擬音検索用(表示用・追加してよい)
+  source: "Suno V6 expression",
+  verificationStatus: "unverified",      // 検証したら "verified"
+  verifiedPrompt: "", verificationNote: "", recommendedModifiers: [],
+  testedModel: "", testedDate: "", rating: null, exampleAudio: "",
+  premium: false
+}
+```
+
+楽器が一覧に無ければ `TECHNIQUE_INSTRUMENTS` に足します(`category` は `TECHNIQUE_CATEGORIES` の id)。
+
+**検証済みにするとき**は `verificationStatus` を `"verified"` にし、`verifiedPrompt` / `verificationNote` / `testedModel` を埋めます。
+`originalPrompt` と `verifiedPrompt` は画面上でも別枠で並べます。**片方をもう片方に寄せて上書きしないでください。**
+
+データを更新したら `sw.js` の `CACHE` の版数を上げてください(上げないと閲覧者に反映されません)。
 
 ## プロンプト設計の根拠(2026年リサーチ)
 

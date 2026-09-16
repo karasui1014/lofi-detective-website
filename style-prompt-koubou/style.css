@@ -517,3 +517,295 @@ label { display: block; margin: 12px 0 6px; font-size: .85rem; color: var(--text
   .btn { width: 100%; }
   .btn-row { flex-direction: column; }
 }
+
+/* ============================================================
+   タブ
+   ============================================================ */
+.tab-bar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  gap: 8px;
+  margin: 0 0 18px;
+  padding: 10px 2px;
+  overflow-x: auto;
+  background: rgba(11,11,15,.92);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line-soft);
+  scrollbar-width: none;
+}
+.tab-bar::-webkit-scrollbar { display: none; }
+.tab-btn {
+  flex: 0 0 auto;
+  padding: 9px 16px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--bg-panel);
+  color: var(--text-dim);
+  font-size: .88rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color .15s, color .15s, background .15s;
+}
+.tab-btn:hover { border-color: var(--pink); color: var(--text); }
+.tab-btn.on {
+  border-color: transparent;
+  background: var(--grad);
+  color: #10100f;
+}
+
+/* ============================================================
+   楽器・奏法プロンプト研究所
+   ============================================================ */
+.tech-disclaimer {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border: 1px solid rgba(237,166,59,.35);
+  border-radius: 12px;
+  background: rgba(237,166,59,.08);
+  color: #f0d7a8;
+  font-size: .8rem;
+  line-height: 1.75;
+}
+
+/* ---------- 逆引き・検索 ---------- */
+.tech-search-wrap { margin-bottom: 14px; }
+.tech-search-label {
+  display: block;
+  margin-bottom: 7px;
+  font-size: .95rem;
+  font-weight: 700;
+}
+.tech-search-row { display: flex; gap: 8px; align-items: stretch; }
+#tech-search {
+  flex: 1;
+  min-width: 0;
+  padding: 11px 13px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #101016;
+  color: var(--text);
+  font-size: .9rem;
+  font-family: inherit;
+}
+#tech-search:focus { outline: none; border-color: var(--pink); }
+.tech-result-label {
+  margin: 4px 0 10px;
+  color: var(--text-dim);
+  font-size: .82rem;
+  font-weight: 700;
+}
+#tech-search-result { margin-bottom: 18px; }
+
+/* ---------- カテゴリー ---------- */
+.tech-cat-chip small {
+  display: inline-block;
+  margin-left: 6px;
+  opacity: .6;
+  font-size: .72rem;
+}
+
+/* ---------- 楽器一覧 ---------- */
+.tech-inst-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 8px;
+  margin: 12px 0 4px;
+}
+.tech-inst-card {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: #101016;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color .15s, transform .1s;
+}
+.tech-inst-card:hover { border-color: var(--pink); }
+.tech-inst-card:active { transform: scale(.98); }
+.tech-inst-card.on { border-color: transparent; background: var(--grad-soft); box-shadow: inset 0 0 0 1px var(--pink); }
+.tech-inst-card.empty { opacity: .5; }
+.tech-inst-card strong { font-size: .87rem; font-weight: 700; line-height: 1.35; }
+.tech-inst-card small { color: var(--text-dim); font-size: .72rem; line-height: 1.35; }
+.tech-inst-count {
+  align-self: flex-start;
+  margin-top: 2px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(63,196,178,.16);
+  color: var(--orange);
+  font-size: .68rem;
+  font-weight: 700;
+}
+.tech-inst-count.none { background: rgba(147,147,159,.14); color: var(--text-dim); }
+
+/* ---------- 奏法カード ---------- */
+.tech-detail-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 22px 0 12px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line-soft);
+}
+.tech-detail-head h3 { margin: 0; font-size: 1.05rem; font-weight: 800; }
+.tech-detail-head h3 small {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-dim);
+  font-size: .75rem;
+  font-weight: 500;
+}
+.tech-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 12px;
+}
+.tech-card {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  padding: 15px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: #101016;
+}
+.tech-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.tech-card-names strong { display: block; font-size: .98rem; font-weight: 800; line-height: 1.4; }
+.tech-card-names span { display: block; color: var(--orange); font-size: .8rem; font-weight: 600; }
+.tech-card-names small { display: block; margin-top: 2px; color: var(--text-dim); font-size: .72rem; }
+.tech-badges { display: flex; flex-wrap: wrap; gap: 5px; }
+.tech-badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: .66rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.tech-badge.suno       { background: rgba(167,139,250,.18); color: var(--purple); }
+.tech-badge.unverified { background: rgba(147,147,159,.16); color: var(--text-dim); }
+.tech-badge.verified   { background: rgba(63,196,178,.18); color: var(--orange); }
+.tech-badge.premium    { margin-left: 7px; background: rgba(237,166,59,.18); color: var(--pink); }
+
+.tech-card-desc p { margin: 0 0 5px; font-size: .82rem; line-height: 1.7; color: #d9d9e2; }
+.tech-card-desc .tech-sound { color: var(--text-dim); }
+
+.tech-orig {
+  padding: 11px 12px;
+  border: 1px solid rgba(167,139,250,.28);
+  border-radius: 11px;
+  background: rgba(167,139,250,.07);
+}
+.tech-orig-label {
+  margin: 0 0 5px;
+  color: var(--purple);
+  font-size: .7rem;
+  font-weight: 800;
+  letter-spacing: .04em;
+}
+.tech-orig-text {
+  margin: 0 0 7px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: .8rem;
+  line-height: 1.65;
+  color: #efeaff;
+  word-break: break-word;
+}
+.tech-orig-note { margin: 0; color: var(--text-dim); font-size: .68rem; line-height: 1.6; }
+
+.tech-verified {
+  padding: 11px 12px;
+  border: 1px dashed var(--line);
+  border-radius: 11px;
+  background: rgba(255,255,255,.015);
+}
+.tech-ver-label { margin: 0 0 5px; font-size: .7rem; font-weight: 800; letter-spacing: .04em; color: var(--text-dim); }
+.tech-ver-text {
+  margin: 0 0 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: .8rem;
+  line-height: 1.65;
+  color: #d8fff7;
+  word-break: break-word;
+}
+.tech-ver-mods, .tech-ver-note, .tech-ver-meta {
+  margin: 0 0 4px;
+  font-size: .74rem;
+  line-height: 1.65;
+  color: var(--text-dim);
+}
+.tech-locked { margin: 0; color: var(--text-dim); font-size: .75rem; line-height: 1.7; }
+
+.tech-card-btns { display: flex; flex-wrap: wrap; gap: 7px; margin-top: auto; }
+.tech-btn { width: auto; padding: 9px 13px; font-size: .78rem; }
+
+.tech-empty {
+  margin: 8px 0;
+  padding: 16px;
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+  color: var(--text-dim);
+  font-size: .82rem;
+  line-height: 1.7;
+  text-align: center;
+}
+
+/* ---------- 追加済み ---------- */
+#tech-added {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line-soft);
+}
+.tech-added-title { margin: 0 0 8px; font-size: .8rem; font-weight: 700; color: var(--orange); }
+.tech-added-row { display: flex; flex-wrap: wrap; gap: 7px; }
+.tech-added-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 100%;
+  padding: 6px 8px 6px 11px;
+  border: 1px solid rgba(63,196,178,.35);
+  border-radius: 999px;
+  background: rgba(63,196,178,.08);
+  font-size: .74rem;
+  line-height: 1.5;
+}
+.tech-added-chip span { overflow-wrap: anywhere; }
+.tech-added-chip button {
+  flex: 0 0 auto;
+  width: 19px;
+  height: 19px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255,255,255,.08);
+  color: var(--text-dim);
+  font-size: .8rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.tech-added-chip button:hover { background: var(--danger); color: #fff; }
+
+/* ---------- スマホ ---------- */
+@media (max-width: 560px) {
+  .tab-btn { padding: 8px 13px; font-size: .82rem; }
+  .tech-inst-grid { grid-template-columns: repeat(auto-fill, minmax(138px, 1fr)); gap: 7px; }
+  .tech-card-grid { grid-template-columns: 1fr; }
+  .tech-search-row { flex-direction: column; }
+  .tech-btn { width: 100%; }
+  .tech-card-btns .tech-btn { width: 100%; }
+  .tech-detail-head { flex-direction: column; align-items: flex-start; }
+}

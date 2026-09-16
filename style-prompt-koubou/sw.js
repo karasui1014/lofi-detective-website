@@ -1,11 +1,14 @@
 /* スタイルプロンプト工房 Service Worker */
-const CACHE = "style-koubou-v2";
+const CACHE = "style-koubou-v3";
 const ASSETS = [
   "./",
   "./index.html",
   "./style.css",
   "./data.js",
+  "./instrument-techniques.js",
   "./app.js",
+  "./techniques.js",
+  "./provenance.js",
   "./manifest.webmanifest",
   "./favicon-32.png",
   "./apple-touch-icon.png",
