@@ -27,15 +27,63 @@
 | `index.html` | 画面 |
 | `style.css` | デザイン(ネイビー×ゴールド) |
 | `data.js` | ナレッジベース(ジャンル・楽器・レシピ・ルール) |
-| `instrument-techniques.js` | 楽器・奏法プロンプト研究所のデータ(楽器117種・奏法表現) |
+| `style-dictionary.js` | スタイルプロンプト辞典のデータ(01〜05) |
+| `instrument-techniques.js` | 楽器・奏法のデータ(楽器117種・Suno V6表現) |
 | `app.js` | プロンプト生成ロジック |
-| `techniques.js` | タブ切り替え + 楽器・奏法プロンプト研究所のロジック |
+| `techniques.js` | タブ切り替え + スタイルプロンプト辞典のロジック |
 | `manifest.webmanifest` / `sw.js` | PWA(ホーム画面追加・オフライン) |
 | `favicon.ico` / `favicon-16/32.png` | ファビコン |
 | `apple-touch-icon.png` / `icon-192/512.png` | スマホアプリアイコン |
 | `make_icons.py` / `アイコン再生成.command` | 別画像からアイコン一式を再生成 |
 
-## 楽器・奏法プロンプト研究所のデータを足す
+## スタイルプロンプト辞典のデータを足す
+
+辞典は2つのファイルに分かれています。**出どころが違うので混ぜません。**
+
+| ファイル | sourceType | 中身 |
+| --- | --- | --- |
+| `style-dictionary.js` | `style-dictionary` | 01〜05のスタイル用語 |
+| `instrument-techniques.js` | `v6-instrument-expression` | Suno V6が出力した楽器・奏法表現 |
+
+**大原則: `englishPrompt` / `originalPrompt` は元データそのまま。言い換えない。**
+改善版を作る場合は元を残したまま `verifiedPrompt` に入れます。
+
+### カテゴリーを足す(06〜09)
+
+`style-dictionary.js` の `STYLE_DICT_CATEGORIES` に1行足すだけです。画面側は触りません。
+
+```js
+{ id: "arrangement", no: "06", ja: "アレンジ", en: "Arrangement", desc: "構成・展開" }
+```
+
+### 用語を足す
+
+`STYLE_DICT_ENTRIES` に追記します。
+
+```js
+{
+  id: "bittersweet-longing",          // ユニークな英小文字ID
+  category: "rhythm-mood",            // STYLE_DICT_CATEGORIES の id
+  englishPrompt: "bittersweet longing",  // ← 元データ。変更しない
+  japaneseName: "ビタースイート・ロンギング",
+  meaning: "明るさの中に残る切ない憧れ・恋しさ。",
+  recommendations: ["bright major key と好相性"],   // 本文中の登録済み用語は自動でリンクになる
+  cautions: ["切なさが強すぎると暗い印象になるので注意"],
+  relatedPrompts: ["bright major key"],             // 本文に出てこない関連はここへ
+  tags: ["切ない","明るい","エモい","j-pop"],        // 擬音・雰囲気・ジャンル・楽器なんでも
+  sourceType: "style-dictionary",
+  verificationStatus: "reference",    // 検証したら "verified"
+  verifiedPrompt: "", verificationNote: "", recommendedModifiers: [], testedModel: "", testedDate: ""
+}
+```
+
+**同じ用語を2カテゴリーに登録しないでください。** 1カテゴリーに置き、関係は `tags` で表します。
+検索はカテゴリーをまたいで当たるので、それで拾えます。
+(例: `brushed snare backbeat` は `rhythm-mood` に置き、tags に `drums` / `snare` / `groove`)
+
+`relatedPrompts` や本文に書いた用語は、**登録済みなら自動でリンク**になり、未登録なら普通の文字のまま残ります。あとからデータを足せば自動でリンクに変わります。
+
+## 楽器・奏法のデータを足す
 
 データは `instrument-techniques.js` の1ファイルに集約しています。画面側のコードは触らなくて構いません。
 

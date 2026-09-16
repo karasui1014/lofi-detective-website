@@ -1,10 +1,11 @@
 /* スタイルプロンプト工房 Service Worker */
-const CACHE = "style-koubou-v3";
+const CACHE = "style-koubou-v4";
 const ASSETS = [
   "./",
   "./index.html",
   "./style.css",
   "./data.js",
+  "./style-dictionary.js",
   "./instrument-techniques.js",
   "./app.js",
   "./techniques.js",

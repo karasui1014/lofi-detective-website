@@ -115,35 +115,30 @@
     <div id="inst-groups"></div>
   </section>
 
-  <!-- ══════════ 楽器・奏法プロンプト研究所 ══════════ -->
-  <section class="panel" id="tech-lab" aria-label="楽器・奏法プロンプト研究所">
-    <h2 class="panel-title"><span class="step-num">🔬</span>楽器・奏法プロンプト研究所<span class="opt">(任意)</span></h2>
+  <!-- ══════════ Suno スタイルプロンプト辞典 ══════════ -->
+  <section class="panel" id="tech-lab" aria-label="Suno スタイルプロンプト辞典">
+    <h2 class="panel-title"><span class="step-num">📖</span>Suno スタイルプロンプト辞典<span class="opt">(任意)</span></h2>
 
     <p class="tech-disclaimer">
-      掲載されているプロンプトは、Sunoが奏法を表現する際に使用した・または理解すると考えられる表現です。入力すれば必ず同じ奏法が再現されることを保証するものではありません。
+      掲載されているプロンプトはSunoでの表現を補助する参考情報です。指定した要素が必ず同じ形で生成されることを保証するものではありません。
     </p>
 
     <!-- 逆引き / 検索 -->
     <div class="tech-search-wrap">
-      <label for="tech-search" class="tech-search-label">どんな音にしたい?</label>
+      <label for="tech-search" class="tech-search-label">どんな曲にしたい?</label>
       <div class="tech-search-row">
         <input type="text" id="tech-search" autocomplete="off"
-               placeholder="例: トロンボーンをうにょ〜っと鳴らしたい / ギターをズンズン刻みたい">
+               placeholder="例: 切ないけど明るいJ-POP / 80年代っぽい迫力のあるドラム / トロンボーンをうにょ〜っと">
         <button type="button" id="tech-search-clear" class="btn sub tech-btn">クリア</button>
       </div>
-      <p class="panel-note">楽器名・日本語の奏法名・英語の奏法名・擬音・説明文のどれでも探せます。</p>
+      <p class="panel-note">雰囲気・ジャンル・楽器・奏法・効果・擬音、どの言い方でも探せます。</p>
     </div>
     <div id="tech-search-result" hidden></div>
 
-    <!-- カテゴリー絞り込み -->
-    <p class="panel-note">カテゴリーで絞り込む:</p>
+    <!-- カテゴリー -->
+    <p class="panel-note" id="tech-category-label">カテゴリー:</p>
     <div class="chip-row" id="tech-category-chips"></div>
-
-    <!-- 楽器一覧 -->
-    <div class="tech-inst-grid" id="tech-instrument-grid"></div>
-
-    <!-- 奏法一覧(楽器を選ぶと出る) -->
-    <div id="tech-detail" hidden></div>
+    <div id="tech-category-body"></div>
 
     <!-- 追加済み -->
     <div id="tech-added" hidden></div>
@@ -252,6 +247,7 @@
 <div id="toast" role="status" aria-live="polite"></div>
 
 <script src="data.js"></script>
+<script src="style-dictionary.js"></script>
 <script src="instrument-techniques.js"></script>
 <script src="app.js"></script>
 <script src="techniques.js"></script>

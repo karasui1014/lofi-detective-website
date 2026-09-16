@@ -610,8 +610,13 @@ function buildStyledLyrics(res) {
 
 function renderOutput(res) {
   const out = $("#style-output");
-  out.innerHTML = `<mark class="core-part">${escapeHtml(res.coreStr)}</mark>` +
-    (res.detailStr ? `<span class="detail-part">, ${escapeHtml(res.detailStr)}</span>` : "");
+  // ジャンル・ムード等が未選択だとコアが空になる。
+  // そのまま繋ぐと先頭に", "が残り、コピーした文字列にも混ざるので区切りを付け替える
+  out.innerHTML =
+    (res.coreStr ? `<mark class="core-part">${escapeHtml(res.coreStr)}</mark>` : "") +
+    (res.detailStr
+      ? `<span class="detail-part">${res.coreStr ? ", " : ""}${escapeHtml(res.detailStr)}</span>`
+      : "");
 
   const len = res.full.length;
   $("#char-count").textContent = `${len} / 1000字`;

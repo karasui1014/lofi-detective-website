@@ -13,9 +13,15 @@
    一方、次のフィールドは UI 表示のために後から足した説明です。
    元データではありません。自由に直して構いません。
      - technique / techniqueJa … 表現に付けた見出し
-     - descriptionJa            … 奏法の説明
-     - soundDescriptionJa       … どんな音になるか
-     - searchTags               … 擬音などの検索用タグ
+     - meaning                  … 奏法の説明
+     - soundDescription         … どんな音になるか
+     - tags                     … 擬音などの検索用タグ
+
+   ■ 情報源を混同しない
+   このファイルは sourceType: "v6-instrument-expression"。
+   Suno V6 が実際に出力した表現です。
+   スタイル辞典（style-dictionary.js / sourceType: "style-dictionary"）とは
+   出どころが違うので、同じ棚に混ぜないでください。
 
    ■ 検証について
    初期状態はすべて verificationStatus: "unverified" です。
@@ -207,14 +213,16 @@ const TECHNIQUE_INSTRUMENTS = [
    元データが届いたら、同じ形式で下に足していってください。 */
 const TECHNIQUE_ENTRIES = [
   {
+    id: "trombone-glissando",
+    category: "instrument-technique",
     instrumentId: "trombone",
     technique: "Glissando",
     techniqueJa: "グリッサンド",
     originalPrompt: "breath-supported glissando between two neighboring pitches",
-    descriptionJa: "息を支えたまま、隣り合う2つの音程をスライドで滑らかにつなぐ奏法。",
-    soundDescriptionJa: "「うにょ〜」と音程が途切れずに移動していく音。",
-    searchTags: ["うにょ","うにょー","うにょ〜","滑る","音程が滑る","スライド","グリッサンド","glissando","slide","トロンボーン","trombone"],
-    source: "Suno V6 expression",
+    meaning:"息を支えたまま、隣り合う2つの音程をスライドで滑らかにつなぐ奏法。",
+    soundDescription:"「うにょ〜」と音程が途切れずに移動していく音。",
+    tags:["うにょ","うにょー","うにょ〜","滑る","音程が滑る","スライド","グリッサンド","glissando","slide","トロンボーン","trombone"],
+    sourceType: "v6-instrument-expression",
     verificationStatus: "unverified",
     verifiedPrompt: "",
     verificationNote: "",
@@ -226,14 +234,16 @@ const TECHNIQUE_ENTRIES = [
     premium: false
   },
   {
+    id: "trombone-legato-slide",
+    category: "instrument-technique",
     instrumentId: "trombone",
     technique: "Legato Slide",
     techniqueJa: "レガートスライド",
     originalPrompt: "slow short-distance legato slide, continuous unbroken tone",
-    descriptionJa: "短い音程差をゆっくりスライドさせ、音を切らずにつなぐ奏法。",
-    soundDescriptionJa: "音が途切れず、ぬるっと隣の音へ移る落ち着いた音。",
-    searchTags: ["ぬるっ","つながる","切れない","ゆっくり滑る","レガート","legato","slide","トロンボーン","trombone"],
-    source: "Suno V6 expression",
+    meaning:"短い音程差をゆっくりスライドさせ、音を切らずにつなぐ奏法。",
+    soundDescription:"音が途切れず、ぬるっと隣の音へ移る落ち着いた音。",
+    tags:["ぬるっ","つながる","切れない","ゆっくり滑る","レガート","legato","slide","トロンボーン","trombone"],
+    sourceType: "v6-instrument-expression",
     verificationStatus: "unverified",
     verifiedPrompt: "",
     verificationNote: "",
@@ -245,14 +255,16 @@ const TECHNIQUE_ENTRIES = [
     premium: false
   },
   {
+    id: "trombone-articulated-repeated-notes",
+    category: "instrument-technique",
     instrumentId: "trombone",
     technique: "Articulated Repeated Notes",
     techniqueJa: "同音反復（粒立ち）",
     originalPrompt: "repeat the same adjacent pitches as distinct separated notes, clearly articulated and settled",
-    descriptionJa: "隣り合う同じ音を、つなげずに1音ずつ区切って鳴らす吹き方。",
-    soundDescriptionJa: "「タン、タン」と粒が分かれて、落ち着いて聴こえる音。",
-    searchTags: ["タンタン","粒","区切る","はっきり","刻む","反復","articulated","separated","トロンボーン","trombone"],
-    source: "Suno V6 expression",
+    meaning:"隣り合う同じ音を、つなげずに1音ずつ区切って鳴らす吹き方。",
+    soundDescription:"「タン、タン」と粒が分かれて、落ち着いて聴こえる音。",
+    tags:["タンタン","粒","区切る","はっきり","刻む","反復","articulated","separated","トロンボーン","trombone"],
+    sourceType: "v6-instrument-expression",
     verificationStatus: "unverified",
     verifiedPrompt: "",
     verificationNote: "",
@@ -264,14 +276,16 @@ const TECHNIQUE_ENTRIES = [
     premium: false
   },
   {
+    id: "trombone-sustained-low-muted",
+    category: "instrument-technique",
     instrumentId: "trombone",
     technique: "Sustained Low Tones / Muted Answers",
     techniqueJa: "低音ロングトーン＋ミュート応答",
     originalPrompt: "sustained low tones, short answering phrases, muted tone",
-    descriptionJa: "低音を長く伸ばしつつ、短い返しのフレーズをミュートした音色で入れる使い方。",
-    soundDescriptionJa: "下で長く鳴りながら、ときどき「ぽっ」と抑えた音で応える音。",
-    searchTags: ["低音","伸ばす","ロングトーン","ミュート","muted","sustained","合いの手","トロンボーン","trombone"],
-    source: "Suno V6 expression",
+    meaning:"低音を長く伸ばしつつ、短い返しのフレーズをミュートした音色で入れる使い方。",
+    soundDescription:"下で長く鳴りながら、ときどき「ぽっ」と抑えた音で応える音。",
+    tags:["低音","伸ばす","ロングトーン","ミュート","muted","sustained","合いの手","トロンボーン","trombone"],
+    sourceType: "v6-instrument-expression",
     verificationStatus: "unverified",
     verifiedPrompt: "",
     verificationNote: "",
@@ -283,14 +297,16 @@ const TECHNIQUE_ENTRIES = [
     premium: false
   },
   {
+    id: "electric-guitar-palm-muted-playing",
+    category: "instrument-technique",
     instrumentId: "eguitar",
     technique: "Palm-muted Playing",
     techniqueJa: "パームミュート",
     originalPrompt: "palm-muted playing, short staccato figures",
-    descriptionJa: "ブリッジ付近に手のひらを軽く乗せて弦を抑え、短く歯切れよく刻む奏法。",
-    soundDescriptionJa: "「ズンズン」と詰まった short な刻みになる音。",
-    searchTags: ["ズンズン","ずんずん","刻む","ミュート","パームミュート","palm mute","palm-muted","staccato","ギター","guitar"],
-    source: "Suno V6 expression",
+    meaning:"ブリッジ付近に手のひらを軽く乗せて弦を抑え、短く歯切れよく刻む奏法。",
+    soundDescription:"「ズンズン」と詰まった short な刻みになる音。",
+    tags:["ズンズン","ずんずん","刻む","ミュート","パームミュート","palm mute","palm-muted","staccato","ギター","guitar"],
+    sourceType: "v6-instrument-expression",
     verificationStatus: "unverified",
     verifiedPrompt: "",
     verificationNote: "",

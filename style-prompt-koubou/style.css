@@ -809,3 +809,87 @@ label { display: block; margin: 12px 0 6px; font-size: .85rem; color: var(--text
   .tech-card-btns .tech-btn { width: 100%; }
   .tech-detail-head { flex-direction: column; align-items: flex-start; }
 }
+
+/* ============================================================
+   スタイルプロンプト辞典（追加分）
+   ============================================================ */
+.tech-cat-chip small {
+  display: block;
+  margin-top: 1px;
+  opacity: .6;
+  font-size: .68rem;
+  font-weight: 500;
+}
+.tech-cat-lead {
+  margin: 14px 0 10px;
+  color: var(--text-dim);
+  font-size: .78rem;
+  font-weight: 700;
+}
+.tech-source-note {
+  margin: 0 0 12px;
+  padding: 9px 11px;
+  border: 1px solid rgba(167,139,250,.28);
+  border-radius: 10px;
+  background: rgba(167,139,250,.07);
+  color: #cfc4f5;
+  font-size: .74rem;
+  line-height: 1.7;
+}
+
+/* 関連プロンプトのリンク */
+.tech-link {
+  padding: 0;
+  border: none;
+  border-bottom: 1px dashed var(--orange);
+  background: none;
+  color: var(--orange);
+  font: inherit;
+  cursor: pointer;
+}
+.tech-link:hover { border-bottom-style: solid; color: #7fe3d3; }
+
+/* 詳しく見る */
+.tech-card-detail {
+  padding: 11px 12px;
+  border: 1px solid var(--line-soft);
+  border-radius: 11px;
+  background: rgba(255,255,255,.02);
+}
+.tech-sub {
+  margin: 0 0 4px;
+  color: var(--text-dim);
+  font-size: .68rem;
+  font-weight: 800;
+  letter-spacing: .04em;
+}
+.tech-sub.warn { color: #e8b27a; }
+.tech-sub:not(:first-child) { margin-top: 10px; }
+.tech-list {
+  margin: 0;
+  padding-left: 1.1em;
+  font-size: .76rem;
+  line-height: 1.75;
+  color: #d9d9e2;
+}
+.tech-list.warn { color: #e2c4a6; }
+.tech-related { margin: 0; font-size: .76rem; line-height: 1.8; }
+.tech-tags { display: flex; flex-wrap: wrap; gap: 4px; margin: 0; }
+.tech-tags span {
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.05);
+  color: var(--text-dim);
+  font-size: .66rem;
+}
+
+.tech-badge.dict { background: rgba(63,196,178,.18); color: var(--orange); }
+
+/* 関連から飛んできたカードを一瞬光らせる */
+.tech-card.flash {
+  animation: techFlash 1.2s ease-out;
+}
+@keyframes techFlash {
+  0%   { box-shadow: 0 0 0 0 rgba(237,166,59,.55); border-color: var(--pink); }
+  100% { box-shadow: 0 0 0 14px rgba(237,166,59,0); border-color: var(--line); }
+}
