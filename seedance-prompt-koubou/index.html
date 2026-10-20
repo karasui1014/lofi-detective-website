@@ -26,6 +26,10 @@
       素材ゼロでも始められて、慣れたらフル演出まで同じ画面で作れます。
     </p>
     <div class="uimode" id="uimode">
+      <button type="button" data-ui="ai">
+        <span class="uimode-name">AIにおまかせ</span>
+        <span class="uimode-desc">ChatGPT・Claudeで</span>
+      </button>
       <button type="button" data-ui="simple" class="on">
         <span class="uimode-name">かんたん</span>
         <span class="uimode-desc">3つ埋めるだけ</span>
@@ -57,6 +61,52 @@
 
   <!-- ══════════════ 左：エディタ ══════════════ -->
   <div class="editor">
+
+    <!-- ══════ AIにおまかせ（ChatGPT・Claude連携） ══════ -->
+    <section class="panel simple-panel ai-panel" id="step-ai" hidden>
+      <h2 class="panel-title"><span class="step-num">1</span>やりたいことを書く</h2>
+      <p class="panel-note">
+        箇条書きでも、ふつうの文章でも大丈夫です。<strong>誰が・どこで・何が起きるか</strong>と、
+        どんな気分の映像にしたいかを書くと、AIがカット割り・カメラ・光・台詞まで組み立てます。
+      </p>
+      <textarea id="ai-idea" rows="6" placeholder="夕方の商店街。配達員の女性が自転車を押して歩いてくる。
+小さな花屋の前で足を止めて、店主のおばあさんに包みを渡す。
+おばあさんが「いつもありがとうね」と笑う。
+最後は夕日の中を自転車で帰っていく。あたたかくて少し切ない雰囲気で。"></textarea>
+      <div class="form-row">
+        <div class="field">
+          <label for="ai-duration">長さ</label>
+          <select id="ai-duration"></select>
+        </div>
+        <div class="field">
+          <label for="ai-aspect">画面比</label>
+          <select id="ai-aspect"></select>
+        </div>
+      </div>
+      <p class="hint">
+        同じ人物や商品を出したいときは、先に「かんたん」か「こだわり」で参考画像を入れておくと、
+        AIへの頼む文に画像の役割も入ります。
+      </p>
+
+      <h2 class="panel-title mt"><span class="step-num">2</span>AIに頼む文をコピーして、AIに貼る</h2>
+      <div class="ai-actions">
+        <button type="button" id="btn-ai-copy" class="primary big">頼む文をコピー</button>
+        <a class="ai-link" href="https://chatgpt.com/" target="_blank" rel="noopener noreferrer">ChatGPTを開く ↗</a>
+        <a class="ai-link" href="https://claude.ai/new" target="_blank" rel="noopener noreferrer">Claudeを開く ↗</a>
+      </div>
+      <p class="hint">新しい会話に貼り付けて送るだけです。工房のルール（カメラは1カット1つ、秒数の合計など）はすべて頼む文に入っています。</p>
+
+      <h2 class="panel-title mt"><span class="step-num">3</span>AIの返事を貼り付ける</h2>
+      <textarea id="ai-reply" rows="6" placeholder="AIの返事を、そのまま全部貼り付けてください（説明文が混ざっていても大丈夫です）"></textarea>
+      <div class="ai-actions">
+        <button type="button" id="btn-ai-import" class="primary big">読み込んでプロンプトを作る</button>
+      </div>
+      <p class="simple-readout" id="ai-readout"></p>
+      <div class="simple-foot">
+        読み込むと<strong>「こだわり」</strong>に切り替わり、全部埋まった状態から1カットずつ直せます。
+        右側に完成したプロンプトと、崩れやすい所のチェック結果が出ます。
+      </div>
+    </section>
 
     <!-- ══════ かんたんモード ══════ -->
     <section class="panel simple-panel" id="step-simple">
@@ -460,6 +510,7 @@
 <script src="data.js"></script>
 <script src="builder.js"></script>
 <script src="validator.js"></script>
+<script src="ai.js"></script>
 <script src="app.js"></script>
 <!-- 制作者証明(タイトルを5回連続クリックで表示。無断転用時の対抗用) -->
 <script src="provenance.js"></script>

@@ -82,6 +82,8 @@ function blankState() {
       purpose: "cm", script: "", duration: 15, aspect: "16:9",
       subjectKind: "", subjectName: "", place: "", flow: "", fixes: []
     },
+    /* AIにおまかせ（ai.js）。返事は読み込むまで残しておく */
+    ai: { idea: "", duration: 15, aspect: "16:9", reply: "" },
     mode: "lv1",
     meta: { name: "", purpose: "", summary: "", duration: 15, aspect: "16:9", resolution: "1080p" },
     characters: [],
@@ -155,9 +157,18 @@ function templateBeats(duration) {
    描画：構造（追加・削除でだけ呼ぶ）
    ============================================================ */
 function renderStructure() {
-  document.body.classList.toggle("is-simple", state.ui === "simple");
+  document.body.classList.toggle("is-simple", state.ui !== "pro");
   document.querySelectorAll("#uimode button").forEach(b =>
     b.classList.toggle("on", b.dataset.ui === state.ui));
+
+  /* AIにおまかせも、1枚のパネルだけ見せる */
+  if (state.ui === "ai") {
+    document.querySelectorAll("main .panel").forEach(p => {
+      p.hidden = p.id !== "step-ai";
+    });
+    renderOutput();
+    return;
+  }
 
   /* かんたんモードは1枚のパネルだけ見せる */
   if (state.ui === "simple") {
@@ -702,6 +713,8 @@ function initStaticControls() {
   $("stage2-duration").innerHTML = optionsFrom(DURATIONS.map(String), String(state.stage2.duration));
   $("simple-duration").innerHTML = optionsFrom(DURATIONS.map(String), String(state.simple.duration));
   $("simple-aspect").innerHTML = optionsFrom(ASPECTS, state.simple.aspect);
+  $("ai-duration").innerHTML = optionsFrom(DURATIONS.map(String), String(state.ai.duration));
+  $("ai-aspect").innerHTML = optionsFrom(ASPECTS, state.ai.aspect);
   $("meta-aspect").innerHTML = optionsFrom(ASPECTS, state.meta.aspect);
   $("meta-resolution").innerHTML = optionsFrom(RESOLUTIONS, state.meta.resolution);
   $("preset-select").innerHTML = '<option value="">選ぶと下がまとめて入ります</option>' +
@@ -747,6 +760,10 @@ function currentTagList(key) {
 }
 
 function syncControls() {
+  $("ai-idea").value = state.ai.idea || "";
+  $("ai-reply").value = state.ai.reply || "";
+  $("ai-duration").value = String(state.ai.duration);
+  $("ai-aspect").value = state.ai.aspect;
   $("simple-script").value = state.simple.script;
   $("simple-subject-name").value = state.simple.subjectName || "";
   $("simple-place").value = state.simple.place || "";
@@ -799,6 +816,42 @@ function bindEvents() {
     initStaticControls();
     syncControls();
     renderStructure();
+  });
+
+  /* --- AIにおまかせ --- */
+  $("ai-idea").addEventListener("input", e => { state.ai.idea = e.target.value; saveCurrent(); });
+  $("ai-reply").addEventListener("input", e => { state.ai.reply = e.target.value; saveCurrent(); });
+  $("ai-duration").addEventListener("change", e => { state.ai.duration = Number(e.target.value); saveCurrent(); });
+  $("ai-aspect").addEventListener("change", e => { state.ai.aspect = e.target.value; saveCurrent(); });
+  $("btn-ai-copy").addEventListener("click", () => {
+    if (!state.ai.idea.trim()) {
+      $("ai-readout").textContent = "まず「やりたいこと」を書いてください。";
+      $("ai-idea").focus();
+      return;
+    }
+    copyText(buildAiRequest());
+    $("ai-readout").textContent =
+      "頼む文をコピーしました。ChatGPT か Claude の新しい会話に貼り付けて送り、返事を下に貼ってください。";
+  });
+  $("btn-ai-import").addEventListener("click", () => {
+    const text = $("ai-reply").value;
+    if (!text.trim()) {
+      $("ai-readout").textContent = "AIの返事を貼り付けてください。";
+      return;
+    }
+    try {
+      const msg = importAiReply(text);
+      state.ai.reply = "";
+      state.ui = "pro";
+      initStaticControls();
+      syncControls();
+      renderStructure();
+      saveCurrent();
+      toast(msg);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (err) {
+      $("ai-readout").textContent = "読み込めませんでした：" + err.message;
+    }
   });
 
   /* --- かんたん：用途 --- */
@@ -1472,7 +1525,8 @@ function migrate(obj) {
   s.output = Object.assign(base.output, obj.output || {});
   s.simple = Object.assign(base.simple, obj.simple || {});
   if (!Array.isArray(s.simple.fixes)) s.simple.fixes = [];
-  if (s.ui !== "simple" && s.ui !== "pro") s.ui = "simple";
+  s.ai = Object.assign(base.ai, obj.ai || {});
+  if (s.ui !== "simple" && s.ui !== "pro" && s.ui !== "ai") s.ui = "simple";
   s.stage2 = Object.assign(base.stage2, obj.stage2 || {});
   if (!Array.isArray(s.stage2.beats)) s.stage2.beats = [];
   s.stage2.beats.forEach(b => { if (!b.id) b.id = nid(); });

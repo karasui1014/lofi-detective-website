@@ -1092,3 +1092,16 @@ button {
   .projectbar-inner { padding: 8px 12px; }
   .projectbar select { min-width: 130px; }
 }
+
+/* ===== AIにおまかせ（ChatGPT・Claude連携） v8 ===== */
+.ai-panel textarea { width: 100%; }
+.ai-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 10px 0 6px; }
+.ai-actions button.big { padding: 12px 22px; font-size: 15px; font-weight: 700; }
+.ai-actions button.primary { background: var(--amber); border-color: var(--amber); color: #16181e; }
+.ai-actions button.primary:hover { background: var(--amber-soft); }
+.ai-link {
+  display: inline-flex; align-items: center; padding: 10px 14px; border-radius: 10px;
+  border: 1px solid var(--line); text-decoration: none;
+  color: inherit; font-size: 13.5px; font-weight: 600;
+}
+.ai-link:hover { border-color: var(--amber); color: var(--amber-soft); }
