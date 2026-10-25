@@ -8,6 +8,7 @@
 <link rel="icon" type="image/svg+xml" href="favicon.svg?v=2">
 <link rel="shortcut icon" href="favicon.ico?v=2">
 <meta name="theme-color" content="#7c3aed">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://api.anthropic.com; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'">
 <style>
 :root {
   --bg: #08080e;
@@ -516,6 +517,9 @@ const S = {
   prefs: { style:[], age:[], scene:[], budget:[] }
 };
 
+/* ── HTML escape (AIの返答を画面に差し込む前に必ず通す) ── */
+function esc(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
 /* ── Init ── */
 (function(){
   const k = localStorage.getItem('fashion_ak');
@@ -582,7 +586,7 @@ async function claude(messages, maxTok=1600){
       'x-api-key': key,
       'anthropic-version': '2023-06-01',
       'content-type': 'application/json',
-      'anthropic-dangerous-direct-browser-calls': 'true'
+      'anthropic-dangerous-direct-browser-access': 'true'
     },
     body: JSON.stringify({ model, max_tokens: maxTok, messages })
   });
@@ -671,7 +675,7 @@ function renderAnalysis(d){
 
   // season color class
   const cls = {Spring:'spring',Summer:'summer',Autumn:'autumn',Winter:'winter'}[pc.season]||'';
-  document.getElementById('pc-season').innerHTML = `<span class="${cls}">${pc.seasonJP}</span>`;
+  document.getElementById('pc-season').innerHTML = `<span class="${cls}">${esc(pc.seasonJP)}</span>`;
   document.getElementById('pc-conf').textContent = `確度 ${pc.confidence}%　|　${pc.skinTone}`;
   document.getElementById('pc-bar').style.width = pc.confidence+'%';
   document.getElementById('pc-desc').textContent = pc.description;
@@ -698,7 +702,7 @@ function renderAnalysis(d){
   document.getElementById('ft-desc').textContent = ft.description;
 
   const stylesEl = document.getElementById('ft-styles');
-  stylesEl.innerHTML = (ft.recommendedStyles||[]).map(s=>`<span class="style-pill">${s}</span>`).join('');
+  stylesEl.innerHTML = (ft.recommendedStyles||[]).map(s=>`<span class="style-pill">${esc(s)}</span>`).join('');
 
   document.getElementById('results-wrap').style.display = 'block';
   document.getElementById('results-wrap').scrollIntoView({behavior:'smooth',block:'nearest'});
@@ -858,12 +862,12 @@ function renderShop(items){
   list.innerHTML = items.map(it=>`
     <div class="item-card">
       <div class="item-header">
-        <span style="font-size:1.2rem;">${it.emoji||'👗'}</span>
-        <span class="item-cat">${it.category}</span>
-        <span class="item-name">${it.name}</span>
-        <span class="item-price">${it.priceRange||''}</span>
+        <span style="font-size:1.2rem;">${esc(it.emoji||'👗')}</span>
+        <span class="item-cat">${esc(it.category)}</span>
+        <span class="item-name">${esc(it.name)}</span>
+        <span class="item-price">${esc(it.priceRange||'')}</span>
       </div>
-      <div class="item-feat">${it.features||''}</div>
+      <div class="item-feat">${esc(it.features||'')}</div>
       <div class="shop-links">
         ${SHOPS.map(sh=>`<a class="shop-btn ${sh.cls}" href="${sh.url(it.searchQueryJP)}" target="_blank" rel="noopener">${sh.name}</a>`).join('')}
       </div>
