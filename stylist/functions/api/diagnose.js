@@ -3,6 +3,7 @@
 // Cloudflare project's encrypted environment variables, never in the browser.
 
 import { runDiagnosis, ALLOWED_MEDIA } from "../../shared/diagnosis.js";
+import { rejectUnlessAllowed } from "../../shared/guard.js";
 
 const MAX_BASE64_LEN = 6_000_000; // ~4.5 MB raw — well within Gemini's 20 MB limit
 const BASE64_RE = /^[A-Za-z0-9+/]+=*$/;
@@ -46,6 +47,10 @@ export async function onRequestPost(context) {
   if (!ALLOWED_MEDIA.has(mediaType)) {
     return json({ error: "対応していない画像形式です。" }, 400);
   }
+
+  // 画面以外からの叩き込みと、大きすぎる画像はここで止める（→ shared/guard.js）
+  const rejected = rejectUnlessAllowed(request, imageBase64);
+  if (rejected) return rejected;
 
   if (!env.GEMINI_API_KEY) {
     return json({ error: "サーバー側でGEMINI_API_KEYが未設定です。" }, 500);
