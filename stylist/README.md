@@ -71,3 +71,12 @@ npm run dev:cf                    # npx wrangler pages dev
 
 ## 注意
 顔タイプ・パーソナルカラーはAIによる推定です。写真の明るさ・角度で結果は変わります。あくまで目安としてお楽しみください。
+
+## 守り（2026-10-26 見直し）
+
+- `/api/diagnose` と `/api/extract-outfit` は、**このサイトの画面から来た要求だけ**通す（`shared/guard.js`）。
+  他サイトやスクリプトからの叩き込み、4MB相当を超える画像は 403 / 413 で止める。
+- ヘッダーを偽装して叩く相手まではコードでは止められない。次の2つで受け止める:
+  - Cloudflare ダッシュボード → Security → WAF → Rate limiting rules で `/api/*` に回数制限をかける（無料プランで1本作れる）
+  - Google AI Studio 側で、このキーの1日あたりの利用上限を小さめに設定する
+- `/api/health` の `hasKey` は `GEMINI_API_KEY` の有無を返す。

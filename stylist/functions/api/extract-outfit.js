@@ -3,6 +3,7 @@
 // outfit items with Japanese search keywords for e-commerce search.
 
 import { runOutfitExtraction, ALLOWED_MEDIA } from "../../shared/diagnosis.js";
+import { rejectUnlessAllowed } from "../../shared/guard.js";
 
 const json = (obj, status = 200) =>
   new Response(JSON.stringify(obj), {
@@ -27,6 +28,10 @@ export async function onRequestPost(context) {
   if (!ALLOWED_MEDIA.has(mediaType)) {
     return json({ error: "対応していない画像形式です。" }, 400);
   }
+
+  // 画面以外からの叩き込みと、大きすぎる画像はここで止める（→ shared/guard.js）
+  const rejected = rejectUnlessAllowed(request, imageBase64);
+  if (rejected) return rejected;
 
   if (!env.GEMINI_API_KEY) {
     return json({ error: "サーバー側でGEMINI_API_KEYが未設定です。" }, 500);
